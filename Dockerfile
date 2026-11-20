@@ -17,10 +17,10 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY public ./public
 
-# The database lives in /data, a volume. The photo of a page is never written anywhere.
+# The database lives in /data. Mount a volume there (compose declares one; Railway rejects VOLUME in a Dockerfile).
+# The photo of a page is never written anywhere.
 RUN mkdir -p /data && chown node:node /data
 USER node
-VOLUME /data
 
 EXPOSE 3000
 
