@@ -1,0 +1,9 @@
+# Runtime. The Dockerfile installs torch from the CPU wheel index first, so that line is already satisfied.
+opencv-python-headless
+numpy
+scikit-image
+pillow
+pytesseract
+torch
+transformers
+sentencepiece
