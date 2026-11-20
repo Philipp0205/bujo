@@ -28,8 +28,8 @@ test("first run: sign up, save the recovery code, sign out, sign in again with i
 
   await page.locator("[data-action=code-saved]").click();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Backlog", level: 1 })).toBeVisible();
-  await expect(page.locator("li.ak-row")).toHaveCount(6);
+  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
 
   // Sign out from settings.
   await page.goto(`${app.baseUrl}/settings`);
@@ -47,7 +47,7 @@ test("first run: sign up, save the recovery code, sign out, sign in again with i
   await page.getByLabel("Recovery code").fill(recoveryCode);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.locator("li.ak-row")).toHaveCount(6);
+  await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
   expect(errors).toEqual([]);
 });
 

@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test("without a session the backlog page sends you to sign in", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await expect(page).toHaveURL(/\/signin$/);
   await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
   await context.close();
@@ -19,7 +19,7 @@ test("without a session the backlog page sends you to sign in", async ({ browser
 test("the backlog renders rows with list, due date, priority and tags at 390x844", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
 
   await expect(page.getByRole("heading", { name: "Backlog", level: 1 })).toBeVisible();
   const rows = page.locator("li.ak-row");
@@ -43,7 +43,7 @@ test("the backlog renders rows with list, due date, priority and tags at 390x844
 });
 
 test("switching filters changes what is listed", async ({ page }) => {
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await expect(page.locator("li.ak-row")).toHaveCount(6);
   const pressed = (id: string) => page.locator(`[data-filter="${id}"]`);
 
@@ -71,7 +71,7 @@ test("an empty filter shows the empty state", async ({ page }) => {
   await page.route("**/api/backlog", (route) =>
     route.fulfill({ json: { source: "caldav", lists: ["Aufgaben", "Arbeit"], tasks: [] } }),
   );
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await expect(page.locator('[data-state="empty"]')).toContainText("Nothing open");
 });
 
@@ -83,14 +83,14 @@ test("a failing task server shows an error state with a retry", async ({ page })
       ? route.fulfill({ status: 502, json: { error: "The task server did not answer. Try again in a moment." } })
       : route.continue();
   });
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await expect(page.locator('[data-state="error"]')).toContainText("did not answer");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.locator("li.ak-row")).toHaveCount(6);
 });
 
 test("light and dark follow the system color scheme through the kit tokens", async ({ page }, testInfo) => {
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await expect(page.locator("li.ak-row")).toHaveCount(6);
   const scheme = testInfo.project.name === "phone-dark" ? "dark" : "light";
   expect(await page.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches)).toBe(scheme === "dark");

@@ -12,6 +12,7 @@ import { loadBacklog, type TaskSource } from "./caldav/source.ts";
 import { countUsers, type Db } from "./db.ts";
 import { handleAuthRoutes } from "./routes/auth.ts";
 import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
+import { handleEntryRoutes } from "./routes/entries.ts";
 import { handleMcp } from "./routes/mcp.ts";
 import { handleScan, type ScanDeps } from "./routes/scan.ts";
 import { handleTokenRoutes } from "./routes/tokens.ts";
@@ -55,6 +56,8 @@ export type AppOptions = {
 const APP_PAGES: Record<string, string> = {
   "/": "/index.html",
   "/index.html": "/index.html",
+  "/backlog": "/backlog.html",
+  "/backlog.html": "/backlog.html",
   "/scan": "/scan.html",
   "/scan.html": "/scan.html",
   "/settings": "/settings.html",
@@ -155,6 +158,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleTokenRoutes(ctx)) return;
       if (await handleApiV1(ctx)) return;
       if (await handleScan(ctx, scan)) return;
+      if (await handleEntryRoutes(ctx)) return;
       if (await handleMcp(ctx)) return;
 
       if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "not found" });

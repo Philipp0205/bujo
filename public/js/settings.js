@@ -163,8 +163,10 @@
   }
 
   function render() {
-    var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'),
-      h('a', { class: 'bj-link', href: '/', 'data-nav': 'backlog' }, 'Backlog'));
+    var links = h('span', { class: 'bj-links' },
+      h('a', { class: 'bj-link', href: '/', 'data-nav': 'log' }, 'Rapid Log'),
+      h('a', { class: 'bj-link', href: '/backlog', 'data-nav': 'backlog' }, 'Backlog'));
+    var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'), links);
     if (state.error && !state.me) {
       app.replaceChildren(title, h('div', { class: 'bj-state', role: 'alert' }, h('div', { class: 'ak-empty' }, state.error)));
       return;

@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
 const puts = () => app.fake.requests.filter((request) => request.method === "PUT");
 
 test("the backlog links to the scan page", async ({ page }) => {
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/backlog`);
   await page.locator('[data-nav="scan"]').click();
   await expect(page).toHaveURL(/\/scan$/);
   await expect(page.getByRole("heading", { name: "Scan", level: 1 })).toBeVisible();
