@@ -5,7 +5,7 @@
   "description": "Hybrid paper + digital bullet journal. Backlog in Nextcloud Tasks (CalDAV VTODO).",
   "type": "module",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "start": "tsx src/server.ts",

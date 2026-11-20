@@ -74,7 +74,7 @@ test("the client sends REPORT calendar-query for VTODO with depth 1, PROPFIND wi
   });
 });
 
-test("the fake server never receives PUT, DELETE or any other write", async () => {
+test("reads never send a write: only PROPFIND and REPORT reach the fake server", async () => {
   await withFake(async (fake, client) => {
     const source = caldavSource(loadCalDavConfig(fakeEnv(fake))!, client);
     await loadBacklog(source, true);
@@ -89,9 +89,9 @@ test("the fake server never receives PUT, DELETE or any other write", async () =
   });
 });
 
-test("the client module has no write methods", () => {
+test("the client module has no delete, move or collection methods", () => {
   const names = Object.getOwnPropertyNames(CalDavClient.prototype);
-  assert.deepEqual(names.filter((name) => /put|delete|create|update|write|save|remove/i.test(name)), []);
+  assert.deepEqual(names.filter((name) => /delete|remove|move|copy|mkcol|mkcalendar|proppatch/i.test(name)), []);
 });
 
 test("wrong credentials give a CalDavError with the status and no secrets in the message", async () => {

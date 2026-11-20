@@ -3,6 +3,19 @@ import { useBujo } from "./harness.ts";
 
 const app = useBujo();
 
+test.beforeEach(async ({ page }) => {
+  await app.signIn(page);
+});
+
+test("without a session the backlog page sends you to sign in", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(app.baseUrl);
+  await expect(page).toHaveURL(/\/signin$/);
+  await expect(page.getByRole("heading", { name: "Sign in", level: 1 })).toBeVisible();
+  await context.close();
+});
+
 test("the backlog renders rows with list, due date, priority and tags at 390x844", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));

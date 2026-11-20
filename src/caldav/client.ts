@@ -1,13 +1,17 @@
-// Read-only CalDAV client for VTODO collections, over fetch.
+// CalDAV client for VTODO collections, over fetch.
 //
-// It can only send PROPFIND and REPORT. There is no PUT, DELETE or PROPPATCH code path in this module,
-// and `request` accepts nothing else, so a bug elsewhere cannot write to a list.
+// It can send PROPFIND and REPORT (read), GET (read one resource) and PUT (create with If-None-Match: *,
+// update with If-Match: <etag>). There is no DELETE, PROPPATCH, MOVE or MKCALENDAR code path in this
+// module, and `send` accepts nothing else, so a bug elsewhere cannot delete or reshape anything.
+// PUT never goes out without one of the two preconditions, so it cannot overwrite blindly.
 //
 // Credentials come from the caller (config.ts reads them from the environment). Nothing is stored here.
 // Redirects are not followed, so the Authorization header never goes to another host.
 
 import { parseVTodos, type Task } from "./ics.ts";
 
+/** Every method this module can send. DELETE is deliberately not in the list. */
+export type CalDavMethod = "PROPFIND" | "REPORT" | "GET" | "PUT";
 export type CalDavReadMethod = "PROPFIND" | "REPORT";
 
 export type CalDavList = {
@@ -39,6 +43,9 @@ export class CalDavError extends Error {
 
 /** One calendar resource from a REPORT answer. */
 export type CalendarObject = { href: string; etag: string | null; data: string };
+
+/** One calendar resource from a GET. */
+export type CalendarResource = { href: string; etag: string | null; text: string };
 
 const NS = '<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">';
 
@@ -128,12 +135,7 @@ export class CalDavClient {
     return url;
   }
 
-  private async request(method: CalDavReadMethod, url: URL, body: string, depth: "0" | "1"): Promise<string> {
-    const headers: Record<string, string> = {
-      "content-type": "application/xml; charset=utf-8",
-      depth,
-      accept: "application/xml, text/xml",
-    };
+  private async send(method: CalDavMethod, url: URL, headers: Record<string, string>, body?: string): Promise<Response> {
     if (this.authorization) headers.authorization = this.authorization;
     let response: Response;
     try {
@@ -151,10 +153,59 @@ export class CalDavClient {
     if (response.status === 401 || response.status === 403) {
       throw new CalDavError(`CalDAV ${method} refused (${response.status}), check user and password`, response.status);
     }
+    return response;
+  }
+
+  private async request(method: CalDavReadMethod, url: URL, body: string, depth: "0" | "1"): Promise<string> {
+    const response = await this.send(
+      method,
+      url,
+      { "content-type": "application/xml; charset=utf-8", depth, accept: "application/xml, text/xml" },
+      body,
+    );
     if (response.status !== 207) {
       throw new CalDavError(`CalDAV ${method} answered ${response.status}`, response.status);
     }
     return await response.text();
+  }
+
+  /** A resource URL from a href. It must stay on the server's origin. */
+  resourceUrl(href: string): URL {
+    const url = new URL(href, this.base);
+    if (url.origin !== this.base.origin) throw new CalDavError("resource path leaves the CalDAV server origin");
+    return url;
+  }
+
+  /** GET one calendar object. */
+  async getResource(href: string): Promise<CalendarResource> {
+    const url = this.resourceUrl(href);
+    const response = await this.send("GET", url, { accept: "text/calendar" });
+    if (response.status !== 200) throw new CalDavError(`CalDAV GET answered ${response.status}`, response.status);
+    return { href: url.href, etag: response.headers.get("etag"), text: await response.text() };
+  }
+
+  /** PUT a new object at <collection>/<uid>.ics. If-None-Match: * makes the server refuse to overwrite anything (412). */
+  async putNew(collectionPath: string, uid: string, ics: string): Promise<{ href: string; etag: string | null }> {
+    const collection = this.collectionUrl(collectionPath);
+    if (!collection.pathname.endsWith("/")) collection.pathname += "/";
+    const url = new URL(`${encodeURIComponent(uid)}.ics`, collection);
+    return await this.put(url, ics, { "if-none-match": "*" });
+  }
+
+  /** PUT a changed object. If-Match: <etag> makes the server refuse when the object changed meanwhile (412). */
+  async putExisting(href: string, ics: string, etag: string): Promise<{ href: string; etag: string | null }> {
+    if (etag.trim() === "") throw new CalDavError("refusing to update without an ETag");
+    return await this.put(this.resourceUrl(href), ics, { "if-match": etag });
+  }
+
+  private async put(url: URL, ics: string, precondition: Record<string, string>): Promise<{ href: string; etag: string | null }> {
+    const response = await this.send("PUT", url, { "content-type": "text/calendar; charset=utf-8", ...precondition }, ics);
+    await response.body?.cancel();
+    if (response.status === 412) throw new CalDavError("CalDAV PUT precondition failed (412)", 412);
+    if (response.status !== 201 && response.status !== 204 && response.status !== 200) {
+      throw new CalDavError(`CalDAV PUT answered ${response.status}`, response.status);
+    }
+    return { href: url.href, etag: response.headers.get("etag") };
   }
 
   /** PROPFIND depth 0: what is this collection, and does it hold VTODOs? */

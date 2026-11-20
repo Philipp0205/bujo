@@ -1,11 +1,20 @@
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAccounts } from "./accounts/accounts.ts";
+import type { AuthLimiter } from "./app-kit/auth.ts";
 import { buildCsp } from "./app-kit/csp.ts";
-import { sendError, sendJson } from "./app-kit/http.ts";
+import { HttpError, SECURITY_HEADERS, sendError, sendJson } from "./app-kit/http.ts";
+import type { Mailer } from "./app-kit/mailer.ts";
 import { serveStatic } from "./app-kit/static.ts";
 import { CalDavError } from "./caldav/client.ts";
 import { loadBacklog, type TaskSource } from "./caldav/source.ts";
+import { countUsers, type Db } from "./db.ts";
+import { handleAuthRoutes } from "./routes/auth.ts";
+import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
+import { handleMcp } from "./routes/mcp.ts";
+import { handleTokenRoutes } from "./routes/tokens.ts";
+import { handleApiV1 } from "./routes/v1.ts";
 
 /** The repo root. src/ and dist/ sit at the same depth, so this holds under tsx and under node on the build. */
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -24,13 +33,70 @@ const CSP = buildCsp({
 
 export type AppOptions = {
   source: TaskSource;
+  db: Db;
+  /** Public origin, for mail links and the Secure cookie flag. Default http://localhost. */
+  origin?: string;
+  mailer?: Mailer | undefined;
+  /** Replaces the default 10 attempts per 10 minutes. Tests pass a looser one. */
+  limiter?: AuthLimiter;
+  now?: () => number;
+  trustProxy?: boolean;
   publicDir?: string;
 };
 
+/** Pages that need a session. The file is what is served once the person is signed in. */
+const APP_PAGES: Record<string, string> = {
+  "/": "/index.html",
+  "/index.html": "/index.html",
+  "/settings": "/settings.html",
+  "/settings.html": "/settings.html",
+};
+
+/** Sign-in pages share one file. A signed-in person is sent to the app instead. */
+const GUEST_PAGES = new Set(["/signin", "/signup", "/lost", "/auth.html"]);
+
+/** Pages reached from a mail link. Open to everyone: the token in the fragment is the credential. */
+const LINK_PAGES = new Set(["/verify", "/recover"]);
+
+function redirect(res: http.ServerResponse, location: string): void {
+  res.writeHead(302, { ...SECURITY_HEADERS, location, "content-length": "0" });
+  res.end();
+}
+
+/** An unsafe request from a page of another site carries a foreign Origin. Refuse it unless it is a bearer call. */
+function foreignOrigin(req: http.IncomingMessage, publicOrigin: string): boolean {
+  const header = req.headers.origin;
+  if (typeof header !== "string") return false;
+  let host: string;
+  try {
+    host = new URL(header).host;
+  } catch {
+    return true;
+  }
+  let own = "";
+  try {
+    own = new URL(publicOrigin).host;
+  } catch {
+    // An unparseable configured origin simply does not match.
+  }
+  return host !== req.headers.host && host !== own;
+}
+
 export function createApp(options: AppOptions): http.RequestListener {
+  const origin = options.origin ?? "http://localhost";
+  const accounts = createAccounts({
+    db: options.db,
+    origin,
+    mailer: options.mailer,
+    limiter: options.limiter,
+    now: options.now,
+    trustProxy: options.trustProxy,
+  });
   const serve = serveStatic(options.publicDir ?? PUBLIC_DIR, {
     // A file under /app-kit changes only with a new kit version. The service worker and the pages stay no-cache.
     cacheFor: (rel) => (rel.startsWith("app-kit/") ? "no-cache" : undefined),
+    // An unknown path is a 404, never the app shell.
+    fallback: false,
   });
 
   return async (req, res) => {
@@ -38,15 +104,24 @@ export function createApp(options: AppOptions): http.RequestListener {
       res.setHeader("content-security-policy", CSP);
       const url = new URL(req.url ?? "/", "http://localhost");
       const { pathname } = url;
-      const read = req.method === "GET" || req.method === "HEAD";
+      const method = req.method ?? "GET";
+      const read = isRead(method);
 
       if (pathname === "/healthz") {
         if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
         return sendJson(res, 200, { ok: true });
       }
 
+      const who = await accounts.authenticate(req);
+
+      // A cross-site form or fetch can carry the cookie but not a matching Origin.
+      if (!read && who.kind !== "agent" && foreignOrigin(req, origin)) throw new HttpError(403, "cross-site request refused");
+
+      const ctx: RouteContext = { req, res, url, pathname, method, accounts, source: options.source, who };
+
       if (pathname === "/api/backlog") {
         if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
+        requireSession(who);
         // Open items by default. ?status=all also returns completed and cancelled ones.
         const includeClosed = url.searchParams.get("status") === "all";
         try {
@@ -62,7 +137,34 @@ export function createApp(options: AppOptions): http.RequestListener {
         }
       }
 
+      if (await handleAuthRoutes(ctx)) return;
+      if (await handleTokenRoutes(ctx)) return;
+      if (await handleApiV1(ctx)) return;
+      if (await handleMcp(ctx)) return;
+
       if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "not found" });
+
+      const appPage = APP_PAGES[pathname];
+      if (appPage) {
+        if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
+        if (who.kind !== "session") {
+          const first = countUsers(accounts.db) === 0;
+          return redirect(res, first ? "/signup" : "/signin");
+        }
+        if (await serve(req, res, appPage)) return;
+      }
+
+      if (GUEST_PAGES.has(pathname) || LINK_PAGES.has(pathname)) {
+        if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
+        if (GUEST_PAGES.has(pathname)) {
+          if (who.kind === "session") return redirect(res, "/");
+          const first = countUsers(accounts.db) === 0;
+          // Sign-up is open once. Before it, /signin has nothing to sign in to. After it, /signup is closed.
+          if (pathname === "/signin" && first) return redirect(res, "/signup");
+          if (pathname === "/signup" && !first) return redirect(res, "/signin");
+        }
+        if (await serve(req, res, "/auth.html")) return;
+      }
 
       if (await serve(req, res, pathname)) return;
       sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
