@@ -41,12 +41,15 @@
       time: 'Time (optional)',
       sync: 'Sync',
       save: 'Save',
-      saving: 'Saving\u2026'
+      saving: 'Saving\u2026',
+      retrySync: 'Retry sync',
+      syncErrorFallback: 'The sync did not finish.'
     },
     errors: {
       titleRequired: 'Give the entry a title.',
       dateRequired: 'Pick a date.',
-      saveFailed: 'Could not save. Try again.'
+      saveFailed: 'Could not save. Try again.',
+      retryFailed: 'Could not retry the sync. Try again.'
     }
   };
 })();

@@ -47,6 +47,14 @@
         h('span', null, L.copy.sync[sync])));
   }
 
+  /** Under the sync line of a failed entry: the short reason and the Retry sync button. Null for any other state. */
+  function syncFailure(entry, onRetry) {
+    if (!entry || entry.sync !== 'error') return null;
+    return h('div', { class: 'ak-field sync-failure' },
+      h('p', { class: 'sync-reason', 'data-testid': 'sync-reason' }, entry.syncError || L.copy.sheet.syncErrorFallback),
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry-sync', onclick: onRetry }, L.copy.sheet.retrySync));
+  }
+
   /** The starting values: the entry to edit, or a new task on the given day. */
   function initialValues(entry, today) {
     if (entry) return entry;
@@ -82,7 +90,7 @@
   }
 
   /** The form: type grid, title, tag, date, time and the sync line. Returns the node and a reader of the values. */
-  function buildForm(values, onSubmit) {
+  function buildForm(values, onSubmit, onRetry) {
     var grid = typeGrid(values.type);
     var controls = inputs(values);
     var node = h('form', { class: 'detail-form', id: FORM_ID, novalidate: true, onsubmit: function (event) {
@@ -94,7 +102,8 @@
       field(L.copy.sheet.tag, controls.tag),
       field(L.copy.sheet.date, controls.date),
       field(L.copy.sheet.time, controls.time),
-      syncLine(values.sync));
+      syncLine(values.sync),
+      syncFailure(values, onRetry));
     return { node: node, controls: controls, read: function () { return readValues(controls, grid); } };
   }
 
@@ -119,7 +128,7 @@
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var save = h('button', { class: 'ak-btn ak-btn-accent', type: 'submit', form: FORM_ID, 'data-action': 'save' }, L.copy.sheet.save);
     var sheet = null;
-    var form = buildForm(values, submit);
+    var form = buildForm(values, submit, retry);
 
     function showError(message) {
       Bujo.say(slot, message);
@@ -128,6 +137,17 @@
     function busy(on) {
       save.disabled = on;
       save.textContent = on ? L.copy.sheet.saving : L.copy.sheet.save;
+    }
+
+    /** Retry sync: the server queues the push again, the sheet closes and the log shows the pending dot. */
+    function retry() {
+      showError('');
+      L.api.retrySync(entry.id).then(function (updated) {
+        sheet.close();
+        options.onSaved(updated);
+      }, function (error) {
+        showError(error && error.message ? error.message : L.copy.errors.retryFailed);
+      });
     }
 
     function submit() {

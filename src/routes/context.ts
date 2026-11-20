@@ -2,6 +2,7 @@ import type http from "node:http";
 import { HttpError } from "../app-kit/http.ts";
 import type { Accounts, Authentication, Principal } from "../accounts/accounts.ts";
 import type { TaskSource } from "../caldav/source.ts";
+import type { SyncService } from "../sync/service.ts";
 
 export type RouteContext = {
   req: http.IncomingMessage;
@@ -11,6 +12,8 @@ export type RouteContext = {
   method: string;
   accounts: Accounts;
   source: TaskSource;
+  /** Pushes entries to Nextcloud. Null when CalDAV is not set up: entries then stay local. */
+  sync: SyncService | null;
   who: Authentication;
 };
 

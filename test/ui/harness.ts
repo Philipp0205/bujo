@@ -2,8 +2,10 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { test } from "@playwright/test";
 import { loadCalDavConfig } from "../../src/caldav/config.ts";
 import { caldavSource } from "../../src/caldav/source.ts";
+import { openDb } from "../../src/db.ts";
 import { createOcrClient } from "../../src/scan/ocr-client.ts";
-import { fakeEnv, startFakeCalDav, type FakeCalDav } from "../fake-caldav.ts";
+import { createSyncService, type SyncService } from "../../src/sync/service.ts";
+import { fakeEnv, startFakeCalDav, syncEnv, type FakeCalDav } from "../fake-caldav.ts";
 import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
@@ -27,19 +29,27 @@ export type Harness = {
  * with no account at all (first-run sign-up). Pass emailOff: true to start the server without a mailer.
  * The browser, viewport and color scheme come from the Playwright project (playwright.config.ts).
  */
-export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emailOff?: boolean } = {}): Harness {
-  const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; cookie?: string; recoveryCode?: string } = {};
+export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emailOff?: boolean; sync?: boolean } = {}): Harness {
+  const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; sync?: SyncService; cookie?: string; recoveryCode?: string } = {};
   const seed = options.seedUser !== false;
   test.beforeAll(async () => {
     const fake = await startFakeCalDav(options.failCalDav ? { failWith: options.failCalDav } : {});
     const ocr = await startFakeOcr();
-    const app = await startApp(caldavSource(loadCalDavConfig(fakeEnv(fake))!), {
+    const env = options.sync ? syncEnv(fake) : fakeEnv(fake);
+    const db = openDb(":memory:");
+    const sync = options.sync
+      ? createSyncService({ db, caldav: loadCalDavConfig(env)!, sync: { listName: "bujo-test", live: false }, log: () => undefined })
+      : undefined;
+    const app = await startApp(caldavSource(loadCalDavConfig(env)!), {
+      db,
+      sync,
       ocr: createOcrClient(ocr.url),
       ...(options.emailOff ? { mailer: undefined } : {}),
     });
     ctx.fake = fake;
     ctx.ocr = ocr;
     ctx.app = app;
+    ctx.sync = sync;
     if (seed) {
       const signed = await signUp(app.base);
       ctx.cookie = signed.cookie;
@@ -47,6 +57,8 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
     }
   });
   test.afterAll(async () => {
+    // A push still in flight must end before the database closes under it.
+    await ctx.sync?.idle();
     await ctx.app?.close();
     await ctx.ocr?.close();
     await ctx.fake?.close();

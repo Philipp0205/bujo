@@ -465,6 +465,17 @@ html.ak-base body {
 
 .detail-form .sync-line { display: flex; align-items: center; gap: 8px; }
 
+/* A failed sync: the short reason in the error colour, then the retry link on the paper lines. */
+.detail-form .sync-failure { margin-top: 0; }
+.sync-reason {
+  margin: 0;
+  color: var(--paper-today);
+  font: italic 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" 400;
+  font-synthesis: none;
+}
+.detail-form .sync-failure .paper-link { margin-left: 0; }
+
 .type-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

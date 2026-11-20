@@ -30,5 +30,12 @@
     });
   }
 
-  L.api = { list: list, create: create, update: update };
+  /** Asks the server to push an entry again after a failed sync. Resolves with the entry as it is now (pending). */
+  function retrySync(id) {
+    return call('POST', '/api/entries/' + encodeURIComponent(id) + '/sync').then(function (body) {
+      return body.entry;
+    });
+  }
+
+  L.api = { list: list, create: create, update: update, retrySync: retrySync };
 })();

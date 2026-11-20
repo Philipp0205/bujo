@@ -90,11 +90,15 @@ Names only; copy `.env.example` and keep real values in your shell or an untrack
 | `BUJO_CALDAV_USER` | Basic auth user. |
 | `BUJO_CALDAV_PASSWORD` | Basic auth password (an app password is best). |
 | `BUJO_CALDAV_LISTS` | `name=path` pairs, comma separated: `Aufgaben=/remote.php/dav/calendars/admin/tasks/,Arbeit=/remote.php/dav/calendars/admin/arbeit/` |
+| `BUJO_SYNC_LIST` | Name (from `BUJO_CALDAV_LISTS`) of the list rapid-log tasks are pushed to. Default `bujo-test`. If that name is not in `BUJO_CALDAV_LISTS`, entries show a sync error and nothing is sent. |
+| `BUJO_LIVE_SYNC` | `1` lets the sync write to the live lists `Aufgaben` and `Arbeit`. Anything else keeps them blocked. |
 | `PORT`, `HOST` | Listen address. Default `3000` and `127.0.0.1`. |
 | `BUJO_TRUST_PROXY` | `1` behind a reverse proxy, so rate limits use `X-Forwarded-For`. Leave unset otherwise. |
 | `OCR_URL` | Address of the OCR service, for example `http://127.0.0.1:8090`. Unset: the scan answers 503. |
 
 Set `BUJO_CALDAV_BASE` and `BUJO_CALDAV_LISTS` together, or neither. Behind HTTPS, set `BUJO_ORIGIN` to the `https://` address so the cookie is marked Secure.
+
+Rapid-log sync is one way, from bujo to Nextcloud, and only when CalDAV is set up. Tasks, done, moved and scheduled entries become VTODOs in the `BUJO_SYNC_LIST` list; notes and events stay local. It never deletes anything in Nextcloud. A push that fails shows a short reason in the entry sheet with a Retry sync button.
 
 Other endpoints: `GET /healthz`, `GET /api/backlog` (browser session only; `?status=all` adds completed and cancelled), `/api/auth/*` and `/api/tokens` for the pages, static files from `public/`.
 
