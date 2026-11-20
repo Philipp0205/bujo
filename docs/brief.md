@@ -100,25 +100,43 @@ The tasks bot also writes the same Nextcloud lists. The bujo API (below) is an a
 ## Evening scan flow
 
 1. Photograph today's day page, or pick a photo already on the phone. Real page photos are never committed.
-2. Run OCR locally or on the self-hosted VPS. Extract each bullet line: symbol, text, and any date or tag hint.
+2. Run OCR on the self-hosted OCR service. Extract each bullet line: symbol and text. The page date is read from the first date line.
 3. Show the **review screen** before any CalDAV write. For every line: accept as proposed, edit (text, list, due date, tag, priority, someday tag, or match to an existing item), or reject (drop, no write).
 4. Only after the review is finished, sync the accepted lines: create or update VTODOs as mapped above, then read back and show the result.
 5. If sync fails mid-way, report what was written and what was not. Do not retry blindly in a way that could duplicate items.
 
-Nothing syncs from a raw OCR result. The review is mandatory. An agent can prepare a review through the API; only Philipp's explicit accept syncs those lines, unless he later changes that.
+Nothing syncs from a raw OCR result. The review is mandatory. An agent can read a draft through the API; only Philipp's explicit accept in the app syncs those lines.
+
+### As built
+
+- `/scan` (signed-in session only): take or pick a photo, upload it, review, accept. Linked from the backlog.
+- `POST /api/scan` takes the raw image (`image/jpeg`, `png`, `webp`, `heic`, at most 15 MB), runs OCR, and answers a draft. The photo is held in memory for that one call. It is never written to disk and never stored.
+- `GET /api/scan/:id` reads a draft. A session or any agent token (read or write) may do this.
+- `POST /api/scan/:id/apply` writes the accepted lines through the same task functions as `/api/v1`. Session only: an agent gets 403. A draft can be applied once (a second apply is 409). A request with one invalid item writes nothing and leaves the draft open. Once writing starts, the first failure stops the run, the rest are reported as not tried, and nothing is retried.
+- Drafts live in memory for 24 hours, at most 5 at a time. A restart drops them.
+- Symbols map to actions: `x` completes the matching open task (included only when one matches), `•` and `>` keep a matching task or create a new one, `<` sets a due date (asked for in the review, written as an all-day `DUE`), `○` and `–` and lines without a symbol are never synced.
+- The page date is read from the first plain line that parses as a date, else it is the scan day (Europe/Berlin). It is shown in the review and not written to any task.
+- Matching is fuzzy on normalized German text (case, punctuation and umlaut spelling ignored), with a small word list for known misreadings (for example `Tush` and `Tash` for `Task`). A weak or ambiguous match is never applied on its own: the review shows the candidates.
+- Nothing is deleted. The new endpoints have no delete.
 
 ## OCR approach
 
-Prefer on-device or self-hosted:
+The OCR service is a separate small Python container (`ocr/`), reached through `OCR_URL`. It is self-hosted and CPU only, so no photo leaves the box.
 
-- Tesseract
+- A symbol detector (OpenCV, no model) finds the lines and classifies the leading symbol (`•`, `x`, `>`, `<`, `○`, `–`). It removes the dot grid before measuring.
+- The text of each line is read by TrOCR small handwritten.
+- Tesseract (English and German, run on stdin and stdout so nothing touches disk) reads a line when TrOCR is not installed, fails, or returns nothing. The engine that read each line is reported per line.
+- The symbol is detected separately from the text, and every line is checked and corrected by hand in the review.
+- Accuracy numbers from real page photos are not in this repo (the photos are private). Measure them with the spike plan below before relying on a recognizer.
+
+Other options that were considered:
+
 - PaddleOCR
-- TrOCR
 - A small local VLM on the VPS
 
-If none of those is good enough after the spike, a third-party service is allowed as a fallback. That decision is made from the spike numbers, not before. If a third-party fallback is used, real page photos leave the box only for that service.
+If a third-party service is ever needed, that is a later decision from numbers, not before. Real page photos stay out of git.
 
-Spike plan: run 3-5 real day-page photos (kept private, not in git) and measure:
+Spike plan used: run 3-5 real day-page photos (kept private, not in git) and measure:
 
 - Symbol accuracy (`•`, `x`, `>`, `<`)
 - Text accuracy (German handwriting or print)
@@ -139,7 +157,7 @@ It covers:
 - Backlog read and filter (list, tag, priority, someday, scheduled/due, open or completed)
 - Create, update, and complete tasks
 - Tags (`CATEGORIES`), created freely, with no preset list
-- Scan upload, reading the parsed result, and accepting or rejecting review lines
+- Scan reading a draft (agents are read only here: upload and accept stay with the signed-in app)
 
 ### Agent auth
 
@@ -159,7 +177,7 @@ A thin CLI is out of v1 unless it is trivial (a small wrapper around the same AP
 
 ### Rules
 
-Agent writes follow the same rules as the app. Scan results still need review: an agent can upload a scan, read the parse, and prepare the review, but only Philipp's explicit accept syncs those lines to Nextcloud, unless he later changes that. No deletes without a yes.
+Agent writes follow the same rules as the app. Scan results still need review: an agent can read a draft (`GET /api/scan/:id`), but upload and apply need Philipp's signed-in session, so only his explicit accept syncs those lines to Nextcloud, unless he later changes that. No deletes without a yes.
 
 The tasks bot also writes the same Nextcloud lists. The bujo API is an additional path into those lists, not a replacement for the tasks bot, and v1 still does not hand off calendar blocks.
 

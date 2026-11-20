@@ -1,0 +1,37 @@
+# bujo and its OCR service. Real values come from your shell or an untracked .env next to this file.
+# Only variable names are listed here, never values.
+#
+#   docker compose up --build
+#
+# The OCR image downloads the handwriting model while it is built (a few hundred MB), and then runs offline.
+# The app talks to it over the compose network. The OCR port is not published to the host.
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      OCR_URL: http://ocr:8090
+      BUJO_ORIGIN: ${BUJO_ORIGIN:-http://localhost:3000}
+      BUJO_TRUST_PROXY: ${BUJO_TRUST_PROXY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      BUJO_CALDAV_BASE: ${BUJO_CALDAV_BASE:-}
+      BUJO_CALDAV_USER: ${BUJO_CALDAV_USER:-}
+      BUJO_CALDAV_PASSWORD: ${BUJO_CALDAV_PASSWORD:-}
+      BUJO_CALDAV_LISTS: ${BUJO_CALDAV_LISTS:-}
+    volumes:
+      - bujo-data:/data
+    depends_on:
+      ocr:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ocr:
+    build: ./ocr
+    expose:
+      - "8090"
+    restart: unless-stopped
+
+volumes:
+  bujo-data:
