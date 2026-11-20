@@ -35,8 +35,8 @@ Based on the current Nextcloud state (Aufgaben and Arbeit).
 
 Only two VTODO lists are in play:
 
-- **Aufgaben** (`/remote.php/dav/calendars/admin/tasks/`) — personal. Default for anything that is not clearly work.
-- **Arbeit** (`/remote.php/dav/calendars/admin/arbeit/`) — work. Use only when the item is clearly work.
+- **Aufgaben** (`/remote.php/dav/calendars/admin/tasks/`) - personal. Default for anything that is not clearly work.
+- **Arbeit** (`/remote.php/dav/calendars/admin/arbeit/`) - work. Use only when the item is clearly work.
 
 All other calendars are VEVENT and off-limits. Never delete collections. Tests use a separate test list, never these two.
 
