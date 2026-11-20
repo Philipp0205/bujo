@@ -1,0 +1,109 @@
+/*
+ * bujo styles. Components come from app-kit (ak-*). This file only sets the accent through the
+ * ak-tokens custom properties, the page layout, and the few things the kit has no class for:
+ * the priority marker, the small tag chip and the due line.
+ *
+ * Light and dark both follow prefers-color-scheme through the kit tokens. Only the accent is ours.
+ */
+
+:root {
+  --ak-accent: #8d99ff;
+  --ak-accent-2: #8d99ff;
+  --ak-accent-strong: #6f7cf0;
+  --ak-accent-ink: #000000;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --ak-accent: #3341b8;
+    --ak-accent-2: #3341b8;
+    --ak-accent-strong: #3341b8;
+    --ak-accent-ink: #ffffff;
+  }
+}
+
+.bj-app {
+  max-width: var(--ak-phone);
+  margin: 0 auto;
+  padding-bottom: calc(var(--ak-s5) + var(--ak-safe-bottom));
+}
+
+/* The title row. Flex children next to .ak-large-title get max-width: none (app-kit gotcha). */
+.bj-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.bj-head > * { max-width: none; }
+
+.bj-sub {
+  margin: 0;
+  padding: 0 20px var(--ak-s2);
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-md);
+}
+
+/* Filter chips scroll sideways on a narrow phone. */
+.bj-filters {
+  display: flex;
+  gap: var(--ak-s2);
+  padding: var(--ak-s2) var(--ak-gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bj-filters::-webkit-scrollbar { display: none; }
+.bj-filters > .ak-chip { flex: none; }
+
+.bj-group-title {
+  margin: var(--ak-s4) 0 0;
+  padding: 0 var(--ak-gutter) var(--ak-s2);
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-sm);
+  font-weight: var(--ak-fw-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bj-list { margin: 0; padding: 0; list-style: none; }
+.bj-list > li.ak-row { align-items: flex-start; }
+
+.bj-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--ak-s2);
+  margin: 2px 0 0;
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-md);
+}
+.bj-overdue { color: var(--ak-danger); }
+
+.bj-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ak-s1);
+  margin: var(--ak-s2) 0 0;
+}
+/* A tag in a row is a small ak-chip: same look, not a tap target. */
+.bj-tags > .ak-chip {
+  min-height: 0;
+  padding: 2px 10px;
+  font-size: var(--ak-fs-sm);
+  cursor: default;
+}
+
+.bj-prio {
+  flex: none;
+  min-width: 2.2em;
+  padding: 2px 8px;
+  border-radius: var(--ak-radius-pill);
+  background: var(--ak-surface-2);
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-xs);
+  font-weight: var(--ak-fw-bold);
+  text-align: center;
+}
+.bj-prio[data-priority="1"] { color: var(--ak-danger); }
+.bj-prio[data-priority="5"] { color: var(--ak-text); }
+
+.bj-state { padding: var(--ak-s4) var(--ak-gutter); }
+.bj-state .ak-btn { margin-top: var(--ak-s3); }
+.bj-loading { padding: var(--ak-s4) var(--ak-gutter); display: grid; gap: var(--ak-s3); }
