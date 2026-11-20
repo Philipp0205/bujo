@@ -12,6 +12,12 @@ test-results/
 playwright-report/
 .oc/
 
+# Python (ocr/)
+ocr/.venv-test
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # Real journal photos must never be committed
 **/fixtures/real/**/*.jpg
 **/fixtures/real/**/*.jpeg

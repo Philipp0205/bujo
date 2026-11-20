@@ -2,12 +2,16 @@ import type { BrowserContext, Page } from "@playwright/test";
 import { test } from "@playwright/test";
 import { loadCalDavConfig } from "../../src/caldav/config.ts";
 import { caldavSource } from "../../src/caldav/source.ts";
+import { createOcrClient } from "../../src/scan/ocr-client.ts";
 import { fakeEnv, startFakeCalDav, type FakeCalDav } from "../fake-caldav.ts";
+import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
 export type Harness = {
   baseUrl: string;
   fake: FakeCalDav;
+  /** The fake OCR service the app talks to. It answers a fixed page. */
+  ocr: FakeOcr;
   /** The recovery code of the seeded account. Empty when seedUser is false. */
   recoveryCode: string;
   /** The mails the app "sent". Nothing real is ever sent. */
@@ -24,12 +28,14 @@ export type Harness = {
  * The browser, viewport and color scheme come from the Playwright project (playwright.config.ts).
  */
 export function useBujo(options: { failCalDav?: number; seedUser?: boolean } = {}): Harness {
-  const ctx: { fake?: FakeCalDav; app?: TestApp; cookie?: string; recoveryCode?: string } = {};
+  const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; cookie?: string; recoveryCode?: string } = {};
   const seed = options.seedUser !== false;
   test.beforeAll(async () => {
     const fake = await startFakeCalDav(options.failCalDav ? { failWith: options.failCalDav } : {});
-    const app = await startApp(caldavSource(loadCalDavConfig(fakeEnv(fake))!));
+    const ocr = await startFakeOcr();
+    const app = await startApp(caldavSource(loadCalDavConfig(fakeEnv(fake))!), { ocr: createOcrClient(ocr.url) });
     ctx.fake = fake;
+    ctx.ocr = ocr;
     ctx.app = app;
     if (seed) {
       const signed = await signUp(app.base);
@@ -39,6 +45,7 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean } = {
   });
   test.afterAll(async () => {
     await ctx.app?.close();
+    await ctx.ocr?.close();
     await ctx.fake?.close();
   });
   return {
@@ -47,6 +54,9 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean } = {
     },
     get fake() {
       return ctx.fake!;
+    },
+    get ocr() {
+      return ctx.ocr!;
     },
     get recoveryCode() {
       return ctx.recoveryCode ?? "";

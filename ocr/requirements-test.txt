@@ -1,0 +1,6 @@
+# Light test deps. No torch and no transformers: the recognizer is stubbed in tests.
+opencv-python-headless
+numpy
+scikit-image
+pillow
+pytest
