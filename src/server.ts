@@ -25,6 +25,8 @@ server.listen(port, host, () => {
   console.log(`  database    ${dbFile}`);
   if (config) console.log(`  tasks       CalDAV, lists: ${source.listNames.join(", ")}`);
   else console.log("  tasks       demo data (set BUJO_CALDAV_BASE and BUJO_CALDAV_LISTS to use CalDAV)");
+  if (process.env.OCR_URL) console.log(`  ocr         ${process.env.OCR_URL}`);
+  else console.log("  ocr         off (set OCR_URL to use the evening scan)");
 });
 
 installGracefulShutdown({ server, onClose: () => db.close() });

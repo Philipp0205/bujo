@@ -13,8 +13,11 @@ import { countUsers, type Db } from "./db.ts";
 import { handleAuthRoutes } from "./routes/auth.ts";
 import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
 import { handleMcp } from "./routes/mcp.ts";
+import { handleScan, type ScanDeps } from "./routes/scan.ts";
 import { handleTokenRoutes } from "./routes/tokens.ts";
 import { handleApiV1 } from "./routes/v1.ts";
+import { createOcrClient, type OcrClient } from "./scan/ocr-client.ts";
+import { createDraftStore, type DraftStore } from "./scan/store.ts";
 
 /** The repo root. src/ and dist/ sit at the same depth, so this holds under tsx and under node on the build. */
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,12 +45,18 @@ export type AppOptions = {
   now?: () => number;
   trustProxy?: boolean;
   publicDir?: string;
+  /** Reads a page photo. Default: the service at OCR_URL (a 503 when it is not set). Tests pass a fake. */
+  ocr?: OcrClient;
+  /** Scan drafts, in memory. Tests may pass their own. */
+  drafts?: DraftStore;
 };
 
 /** Pages that need a session. The file is what is served once the person is signed in. */
 const APP_PAGES: Record<string, string> = {
   "/": "/index.html",
   "/index.html": "/index.html",
+  "/scan": "/scan.html",
+  "/scan.html": "/scan.html",
   "/settings": "/settings.html",
   "/settings.html": "/settings.html",
 };
@@ -84,6 +93,11 @@ function foreignOrigin(req: http.IncomingMessage, publicOrigin: string): boolean
 
 export function createApp(options: AppOptions): http.RequestListener {
   const origin = options.origin ?? "http://localhost";
+  const scan: ScanDeps = {
+    ocr: options.ocr ?? createOcrClient(process.env.OCR_URL),
+    drafts: options.drafts ?? createDraftStore({ now: options.now }),
+    now: options.now ?? Date.now,
+  };
   const accounts = createAccounts({
     db: options.db,
     origin,
@@ -140,6 +154,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleAuthRoutes(ctx)) return;
       if (await handleTokenRoutes(ctx)) return;
       if (await handleApiV1(ctx)) return;
+      if (await handleScan(ctx, scan)) return;
       if (await handleMcp(ctx)) return;
 
       if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "not found" });
