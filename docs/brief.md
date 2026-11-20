@@ -127,7 +127,8 @@ The OCR service is a separate small Python container (`ocr/`), reached through `
 - The text of each line is read by TrOCR small handwritten.
 - Tesseract (English and German, run on stdin and stdout so nothing touches disk) reads a line when TrOCR is not installed, fails, or returns nothing. The engine that read each line is reported per line.
 - The symbol is detected separately from the text, and every line is checked and corrected by hand in the review.
-- Accuracy numbers from real page photos are not in this repo (the photos are private). Measure them with the spike plan below before relying on a recognizer.
+- Spike result (2026-11-20, one real page, photo kept private and not in git; 8 vCPU box, no GPU): the symbol detector got 4/4 bullets (`•`, `x`, `○`, `–`) and 6/6 on drawn test shapes including `>` and `<`. TrOCR small on cleaned line crops read `Event` exactly, the numbers right, and `Task` as `Tush` (the handwriting), mean character error rate 0.35. Tesseract per line was 0.36, PaddleOCR (RapidOCR) about 0.4 but it often lost the bullet, and Qwen2.5-VL-3B was best on text (0.20) but took about a minute per page. One page is a weak test: re-measure with more pages before relying on a recognizer.
+- The built service on that page: 4/4 symbols, date read as `20. 11. 2023`, `Tush 1`, `Tush 2`, `Event`, `No tc`, about 1 to 4 s per page warm (model load about 20 s once).
 
 Other options that were considered:
 

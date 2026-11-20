@@ -10,7 +10,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+# --include=dev: NODE_ENV=production above would otherwise skip tsx, which npm start needs.
+RUN npm ci --ignore-scripts --include=dev
 
 COPY tsconfig.json ./
 COPY src ./src
