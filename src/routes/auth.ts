@@ -1,3 +1,4 @@
+import { normalizeEmail } from "../app-kit/auth-code.ts";
 import { HttpError, readJson, sendJson } from "../app-kit/http.ts";
 import { countUsers } from "../db.ts";
 import { requireSession, textField, type RouteContext } from "./context.ts";
@@ -76,11 +77,13 @@ export async function handleAuthRoutes(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  // Always the same answer, whether or not the address belongs to anyone.
+  // A malformed or missing address is a 400. A valid one always gets the same answer, whether or not it belongs to anyone.
   if (pathname === "/api/auth/lost-code") {
     if (method !== "POST") throw new HttpError(405, "method not allowed");
     const body = await readJson(req);
-    const result = await auth.requestLostCode({ email: typeof body.email === "string" ? body.email : "", ip });
+    const email = typeof body.email === "string" ? normalizeEmail(body.email) : null;
+    if (!email) throw new HttpError(400, "enter a valid email");
+    const result = await auth.requestLostCode({ email, ip });
     if (!result.ok) throw new HttpError(429, "too many attempts, try again later");
     sendJson(res, 200, { ok: true });
     return true;

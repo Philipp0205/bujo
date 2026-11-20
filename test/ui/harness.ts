@@ -24,16 +24,19 @@ export type Harness = {
  * Starts a fake CalDAV server and the app on random 127.0.0.1 ports for one spec file, with an in-memory
  * database and the kit's stub mailer. Never reaches a real Nextcloud or a real mail provider.
  * By default one account exists already: call signIn(page) to be signed in. Pass seedUser: false to start
- * with no account at all (first-run sign-up).
+ * with no account at all (first-run sign-up). Pass emailOff: true to start the server without a mailer.
  * The browser, viewport and color scheme come from the Playwright project (playwright.config.ts).
  */
-export function useBujo(options: { failCalDav?: number; seedUser?: boolean } = {}): Harness {
+export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emailOff?: boolean } = {}): Harness {
   const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; cookie?: string; recoveryCode?: string } = {};
   const seed = options.seedUser !== false;
   test.beforeAll(async () => {
     const fake = await startFakeCalDav(options.failCalDav ? { failWith: options.failCalDav } : {});
     const ocr = await startFakeOcr();
-    const app = await startApp(caldavSource(loadCalDavConfig(fakeEnv(fake))!), { ocr: createOcrClient(ocr.url) });
+    const app = await startApp(caldavSource(loadCalDavConfig(fakeEnv(fake))!), {
+      ocr: createOcrClient(ocr.url),
+      ...(options.emailOff ? { mailer: undefined } : {}),
+    });
     ctx.fake = fake;
     ctx.ocr = ocr;
     ctx.app = app;
