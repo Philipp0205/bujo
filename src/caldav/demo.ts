@@ -10,7 +10,7 @@ function todo(lines: string[]): string {
 const AUFGABEN = [
   todo(["UID:demo-1", "SUMMARY:Steuerunterlagen sortieren", "PRIORITY:1", "DUE;VALUE=DATE:20261130", "CATEGORIES:Haushalt,Papierkram", "STATUS:NEEDS-ACTION"]),
   todo(["UID:demo-2", "SUMMARY:Fahrrad zur Inspektion bringen", "PRIORITY:5", "CATEGORIES:Haushalt", "STATUS:NEEDS-ACTION"]),
-  todo(["UID:demo-3", "SUMMARY:Geschenk f\\, Oma besorgen", "PRIORITY:9", "DUE;TZID=Europe/Berlin:20261215T170000", "STATUS:NEEDS-ACTION"]),
+  todo(["UID:demo-3", "SUMMARY:Geschenke kaufen\\, einpacken", "PRIORITY:9", "DUE;TZID=Europe/Berlin:20261215T170000", "STATUS:NEEDS-ACTION"]),
   todo(["UID:demo-4", "SUMMARY:Balkon neu bepflanzen", "CATEGORIES:someday,Garten", "STATUS:NEEDS-ACTION"]),
   todo(["UID:demo-5", "SUMMARY:Bibliothek Buecher zurueckgeben", "STATUS:COMPLETED", "PERCENT-COMPLETE:100", "COMPLETED:20261101T090000Z"]),
 ];
