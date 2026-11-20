@@ -1,0 +1,163 @@
+/*
+ * bujo settings: account email, agent tokens, sign out. Plain JS, no build step.
+ * A token is shown once, right after it is created. Only its prefix is listed afterwards.
+ */
+(function () {
+  'use strict';
+
+  var h = AppKit.h;
+  var app = document.getElementById('app');
+  var state = { me: null, tokens: [], fresh: null, confirming: null, scope: 'read', error: null, mailNote: null };
+
+  function req(method, path, body) {
+    return Bujo.request(method, path, body, { guarded: true });
+  }
+
+  function load() {
+    return Promise.all([req('GET', '/api/auth/me'), req('GET', '/api/tokens')]).then(function (results) {
+      state.me = results[0];
+      state.tokens = results[1].tokens;
+      state.error = null;
+    }).catch(function (error) {
+      state.error = error.message;
+    }).then(render);
+  }
+
+  function formatTime(ms) {
+    if (!ms) return 'never';
+    return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  /* ---------- email ---------- */
+
+  function emailSection() {
+    var me = state.me;
+    var slot = h('div', { class: 'bj-slot' });
+    var input = h('input', { class: 'ak-input', id: 'email', type: 'email', autocomplete: 'email', inputmode: 'email', value: me.user.email || '' });
+    var status = !me.user.email ? 'No email yet.' : me.user.emailVerifiedAt ? 'Confirmed.' : 'Not confirmed yet.';
+    if (!me.emailEnabled) status += ' Email sending is off on this server, so no link can be sent.';
+    var form = h('form', { class: 'bj-form', novalidate: true, onsubmit: function (event) {
+      event.preventDefault();
+      req('POST', '/api/auth/email', { email: input.value }).then(function (result) {
+        state.me.user = result.user;
+        state.mailNote = 'Saved. Check your inbox for a confirm link.';
+        render();
+      }).catch(function (error) { Bujo.say(slot, error.message); });
+    } },
+      h('div', { class: 'ak-field' }, h('label', { class: 'ak-label', for: 'email' }, 'Email'), input),
+      h('p', { class: 'bj-note', 'data-testid': 'email-status' }, status),
+      slot,
+      h('button', { type: 'submit', class: 'ak-btn ak-btn-secondary' }, 'Save email'));
+    if (state.mailNote) Bujo.say(slot, state.mailNote, 'ok');
+    return h('section', { class: 'bj-section' }, h('h2', { class: 'bj-group-title' }, 'Account'), h('div', { class: 'ak-card' }, form));
+  }
+
+  /* ---------- tokens ---------- */
+
+  function freshPanel() {
+    if (!state.fresh) return null;
+    var copied = h('span', { class: 'bj-copied', role: 'status' });
+    return h('div', { class: 'ak-card bj-code-panel', 'data-panel': 'new-token' },
+      h('p', null, 'Token for ' + state.fresh.name + ' (' + state.fresh.scope + '). Copy it now. It is not shown again.'),
+      h('p', { class: 'bj-code', 'data-testid': 'new-token' }, state.fresh.token),
+      h('div', { class: 'bj-actions' },
+        h('button', { type: 'button', class: 'ak-btn ak-btn-accent', 'data-action': 'copy-token', onclick: function () {
+          AppKit.copyText(state.fresh.token).then(function (ok) {
+            copied.textContent = ok ? 'Copied' : 'Could not copy. Select the token and copy it by hand.';
+          });
+        } }, 'Copy token'),
+        h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'dismiss-token', onclick: function () {
+          state.fresh = null;
+          render();
+        } }, 'Done')),
+      copied);
+  }
+
+  function tokenRow(token) {
+    var sure = state.confirming === token.id;
+    var actions = sure
+      ? [
+        h('button', { type: 'button', class: 'ak-btn ak-btn-danger', 'data-action': 'confirm-revoke', onclick: function () {
+          req('POST', '/api/tokens/' + encodeURIComponent(token.id) + '/revoke').then(function () {
+            state.confirming = null;
+            AppKit.toast('Token revoked');
+            return load();
+          }).catch(function (error) { AppKit.toast(error.message, { kind: 'error' }); });
+        } }, 'Revoke'),
+        h('button', { type: 'button', class: 'ak-btn ak-btn-text', 'data-action': 'cancel-revoke', onclick: function () {
+          state.confirming = null;
+          render();
+        } }, 'Keep')
+      ]
+      : [h('button', { type: 'button', class: 'ak-btn ak-btn-text', 'data-action': 'revoke', 'aria-label': 'Revoke ' + token.name, onclick: function () {
+        state.confirming = token.id;
+        render();
+      } }, 'Revoke')];
+    return h('li', { class: 'ak-row', 'data-token-id': token.id },
+      h('div', { class: 'ak-row-grow' },
+        h('p', { class: 'ak-row-title' }, token.name),
+        h('p', { class: 'ak-row-sub' }, token.tokenPrefix + '... , ' + token.scope + ', last used ' + formatTime(token.lastUsedAt))),
+      h('div', { class: 'bj-actions' }, actions));
+  }
+
+  function tokenSection() {
+    var slot = h('div', { class: 'bj-slot' });
+    var name = h('input', { class: 'ak-input', id: 'token-name', type: 'text', maxlength: '40', placeholder: 'For example: Claude' });
+    var segment = h('div', { class: 'ak-segment', role: 'group', 'aria-label': 'Scope' }, ['read', 'write'].map(function (scope) {
+      var on = state.scope === scope;
+      return h('button', { type: 'button', class: 'ak-segment-btn' + (on ? ' ak-on' : ''), 'aria-pressed': on ? 'true' : 'false', 'data-scope': scope, onclick: function () {
+        state.scope = scope;
+        state.nameDraft = name.value;
+        render();
+      } }, scope === 'read' ? 'Read only' : 'Read and write');
+    }));
+    if (state.nameDraft) name.value = state.nameDraft;
+    var form = h('form', { class: 'bj-form', novalidate: true, onsubmit: function (event) {
+      event.preventDefault();
+      req('POST', '/api/tokens', { name: name.value, scope: state.scope }).then(function (result) {
+        state.fresh = { token: result.token, name: result.info.name, scope: result.info.scope };
+        state.nameDraft = '';
+        return load();
+      }).catch(function (error) { Bujo.say(slot, error.message); });
+    } },
+      h('div', { class: 'ak-field' }, h('label', { class: 'ak-label', for: 'token-name' }, 'Name'), name),
+      h('div', { class: 'ak-field' }, h('span', { class: 'ak-label' }, 'Access'), segment),
+      slot,
+      h('button', { type: 'submit', class: 'ak-btn ak-btn-accent', 'data-action': 'create-token' }, 'Create token'));
+
+    var list = state.tokens.length
+      ? h('ul', { class: 'bj-list ak-list', 'data-list': 'tokens' }, state.tokens.map(tokenRow))
+      : h('div', { class: 'ak-empty', 'data-state': 'no-tokens' }, 'No agent tokens yet.');
+
+    return h('section', { class: 'bj-section' },
+      h('h2', { class: 'bj-group-title' }, 'Agent tokens'),
+      h('p', { class: 'bj-note' }, 'A token lets a script or an AI agent use /api/v1 and /mcp. A read token cannot change anything. A token can never manage tokens.'),
+      freshPanel(),
+      h('div', { class: 'ak-card' }, form),
+      list);
+  }
+
+  function signOut() {
+    return h('section', { class: 'bj-section' },
+      h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'sign-out', onclick: function () {
+        req('POST', '/api/auth/logout').then(function () { window.location.assign('/signin'); })
+          .catch(function (error) { AppKit.toast(error.message, { kind: 'error' }); });
+      } }, 'Sign out'));
+  }
+
+  function render() {
+    var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'),
+      h('a', { class: 'bj-link', href: '/', 'data-nav': 'backlog' }, 'Backlog'));
+    if (state.error && !state.me) {
+      app.replaceChildren(title, h('div', { class: 'bj-state', role: 'alert' }, h('div', { class: 'ak-empty' }, state.error)));
+      return;
+    }
+    var focus = document.activeElement && document.activeElement.id;
+    app.replaceChildren.apply(app, [title, emailSection(), tokenSection(), signOut()].filter(Boolean));
+    if (focus) { var again = document.getElementById(focus); if (again) again.focus(); }
+  }
+
+  AppKit.themeColor.start();
+  AppKit.sw.register({ url: '/sw.js', scope: '/' });
+  load();
+})();

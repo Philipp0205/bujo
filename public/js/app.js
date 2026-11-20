@@ -1,5 +1,5 @@
 /*
- * bujo backlog screen (read-only). Plain JS, no build step.
+ * bujo backlog screen. Plain JS, no build step. Needs core.js (Bujo.request).
  * Components and helpers come from app-kit: AppKit.h (ak-dom.js), AppKit.largeTitle, AppKit.pullToRefresh
  * (ak-native.js), AppKit.themeColor and AppKit.installPrompt, AppKit.sw.
  */
@@ -26,13 +26,8 @@
 
   function load() {
     state.loading = true;
-    return fetch('/api/backlog', { headers: { accept: 'application/json' } })
-      .then(function (response) {
-        return response.json().catch(function () { return {}; }).then(function (body) {
-          if (!response.ok) throw new Error(body.error || 'Could not load the backlog.');
-          return body;
-        });
-      })
+    // A 401 (the session ended) sends the person to the sign-in page.
+    return Bujo.request('GET', '/api/backlog', undefined, { guarded: true })
       .then(function (body) {
         state.data = body;
         state.error = null;
@@ -92,8 +87,8 @@
     var names = [];
     var untagged = [];
     tasks.forEach(function (task) {
-      if (!task.categories.length) untagged.push(task);
-      task.categories.forEach(function (tag) {
+      if (!task.tags.length) untagged.push(task);
+      task.tags.forEach(function (tag) {
         if (!byTag[tag]) { byTag[tag] = []; names.push(tag); }
         byTag[tag].push(task);
       });
@@ -128,8 +123,8 @@
       h('p', { class: 'ak-row-title' }, task.summary || '(no title)'),
       h('p', { class: 'bj-meta' }, meta)
     ];
-    if (task.categories.length) {
-      body.push(h('p', { class: 'bj-tags' }, task.categories.map(function (tag) {
+    if (task.tags.length) {
+      body.push(h('p', { class: 'bj-tags' }, task.tags.map(function (tag) {
         return h('span', { class: 'ak-chip', 'data-tag': tag }, tag);
       })));
     }
@@ -193,12 +188,13 @@
   function render() {
     if (titleHandle) titleHandle.destroy();
     var title = h('h1', { class: 'ak-large-title' }, 'Backlog');
+    var settings = h('a', { class: 'bj-link', href: '/settings', 'data-nav': 'settings' }, 'Settings');
     // A failed refresh keeps the old list on screen and shows the error above it.
     var stale = state.error && state.data
       ? h('div', { class: 'bj-state', role: 'alert', 'data-state': 'error' }, h('div', { class: 'ak-empty' }, state.error))
       : null;
     // replaceChildren turns null into a "null" text node, so drop the empty slots first.
-    app.replaceChildren.apply(app, [h('div', { class: 'bj-head' }, title), subtitle(), filterBar(), stale, content()].filter(Boolean));
+    app.replaceChildren.apply(app, [h('div', { class: 'bj-head' }, title, settings), subtitle(), filterBar(), stale, content()].filter(Boolean));
     titleHandle = AppKit.largeTitle(title);
   }
 

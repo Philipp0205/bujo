@@ -104,6 +104,43 @@
 .bj-prio[data-priority="1"] { color: var(--ak-danger); }
 .bj-prio[data-priority="5"] { color: var(--ak-text); }
 
+/* A plain text link in the title row (Settings, Backlog). */
+.bj-link {
+  flex: none;
+  align-self: center;
+  padding: var(--ak-s2) var(--ak-gutter);
+  color: var(--ak-accent);
+  font-size: var(--ak-fs-lg);
+  text-decoration: none;
+}
+
+/* Forms, sections and the one-time code panel (sign-in pages and settings). */
+.bj-section { padding-bottom: var(--ak-s3); }
+.bj-form { display: grid; gap: var(--ak-s3); padding: var(--ak-s3) var(--ak-gutter); }
+.ak-card > .bj-form { padding: var(--ak-s2) 0; }
+.bj-slot:empty { display: none; }
+.bj-note {
+  margin: 0;
+  padding: var(--ak-s2) var(--ak-gutter);
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-md);
+}
+.bj-form .bj-note { padding: 0; }
+.bj-actions { display: flex; flex-wrap: wrap; gap: var(--ak-s2); align-items: center; }
+.bj-code-panel { display: grid; gap: var(--ak-s3); margin: var(--ak-s3) var(--ak-gutter); }
+.bj-code-panel > p { margin: 0; }
+.bj-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw-bold);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.bj-copied { color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.bj-app .ak-screen-head { padding: var(--ak-s4) var(--ak-gutter) 0; }
+.bj-app > .ak-btn { margin: var(--ak-s3) var(--ak-gutter); }
+.bj-app > .bj-slot { padding: 0 var(--ak-gutter); }
+
 .bj-state { padding: var(--ak-s4) var(--ak-gutter); }
 .bj-state .ak-btn { margin-top: var(--ak-s3); }
 .bj-loading { padding: var(--ak-s4) var(--ak-gutter); display: grid; gap: var(--ak-s3); }
