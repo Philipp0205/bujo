@@ -132,15 +132,19 @@
 .scan-mode[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
 .scan-mode[aria-disabled="true"] { cursor: default; opacity: 0.7; }
 
-/* The actions row under the mode toggle: the gallery button left of the shutter, the pair centred. */
+/* The actions row under the mode toggle: gallery left of the shutter, a matching slot on the right so the shutter stays centred. */
 .scan-actions {
   flex: none;
-  display: flex;
+  display: grid;
+  grid-template-columns: 48px 72px 48px;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  column-gap: 24px;
   margin-top: 24px;
+  width: 100%;
+  max-width: 360px;
 }
+.scan-actions::after { content: ""; width: 48px; height: 48px; }
 
 .scan-gallery {
   appearance: none;
