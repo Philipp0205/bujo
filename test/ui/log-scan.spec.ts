@@ -63,15 +63,29 @@ test("the scan button opens the camera screen: title, frame, toggle, shutter, an
   await expect(screen.locator(".scan-frame")).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-file")).toHaveAttribute("accept", "image/*");
+  await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
+  await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
   await expect(screen.getByRole("button", { name: "Rapid log" })).toHaveAttribute("aria-pressed", "true");
   const note = screen.getByRole("button", { name: "Free note" });
   await expect(note).toHaveAttribute("aria-disabled", "true");
   await note.click({ force: true });
   await expect(note).toHaveAttribute("aria-pressed", "false");
-  await expect(screen.getByRole("button", { name: "Take or choose a photo" })).toBeEnabled();
+  await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
+  await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();
+  const [gallery, shutter] = [await screen.locator(".scan-gallery").boundingBox(), await screen.locator(".scan-shutter").boundingBox()];
+  expect(gallery!.x + gallery!.width).toBeLessThanOrEqual(shutter!.x);
 
   await screen.getByRole("button", { name: "Close" }).click();
   await expect(screen).toHaveCount(0);
+});
+
+test("a photo picked through the gallery input reaches the review sheet", async ({ page }) => {
+  app.ocr.setLines([headerLine(day(0)), line("•", "Aus der Galerie", 0.9)]);
+  await page.goto(app.baseUrl);
+  await page.getByRole("button", { name: "Scan a page" }).click();
+  await page.locator("#scan-gallery").setInputFiles(photo);
+  await expect(page.getByTestId("scan-review")).toBeVisible();
+  await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Aus der Galerie");
 });
 
 test("nothing is written until Apply: a photo, the review, one line dropped, one edited, then the log shows them", async ({ page }) => {
@@ -199,7 +213,8 @@ test("trouble stays on the camera screen: a wrong file, a failing OCR and an emp
   app.ocr.failWith(500);
   await page.locator("#scan-file").setInputFiles(photo);
   await expect(screen.getByRole("alert")).toBeVisible();
-  await expect(screen.getByRole("button", { name: "Take or choose a photo" })).toBeEnabled();
+  await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
+  await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();
 
   app.ocr.failWith(0);
   app.ocr.setLines([]);

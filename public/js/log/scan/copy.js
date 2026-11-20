@@ -15,7 +15,8 @@
       rapid: 'Rapid log',
       note: 'Free note',
       noteLater: 'Free notes come later',
-      shutter: 'Take or choose a photo',
+      shutter: 'Take a photo',
+      gallery: 'Choose from gallery',
       busy: 'Reading the page\u2026'
     },
     errors: {
