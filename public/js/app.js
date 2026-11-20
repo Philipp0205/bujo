@@ -197,7 +197,8 @@
     var stale = state.error && state.data
       ? h('div', { class: 'bj-state', role: 'alert', 'data-state': 'error' }, h('div', { class: 'ak-empty' }, state.error))
       : null;
-    app.replaceChildren(h('div', { class: 'bj-head' }, title), subtitle(), filterBar(), stale, content());
+    // replaceChildren turns null into a "null" text node, so drop the empty slots first.
+    app.replaceChildren.apply(app, [h('div', { class: 'bj-head' }, title), subtitle(), filterBar(), stale, content()].filter(Boolean));
     titleHandle = AppKit.largeTitle(title);
   }
 

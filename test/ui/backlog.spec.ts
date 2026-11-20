@@ -24,6 +24,8 @@ test("the backlog renders rows with list, due date, priority and tags at 390x844
   // Completed and cancelled tasks are not in the default list.
   await expect(page.locator('li[data-uid="fx-done"]')).toHaveCount(0);
   await expect(page.locator('li[data-uid="fx-cancelled"]')).toHaveCount(0);
+  // No stray text nodes (an empty slot once rendered as the word null).
+  expect(await page.locator("#app").evaluate((el) => [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent!.trim()).length)).toBe(0);
   expect(errors).toEqual([]);
 });
 
