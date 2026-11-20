@@ -30,6 +30,16 @@ Use OpenCode with the litellm provider.
 - Never use em dashes in code comments, copy, commits, or PR text.
 - No secrets, tokens, or real page photos in output, screenshots, commits, or PR text.
 
+## Code rules
+
+- Keep functions short. No giant render, boot, or refresh functions; split them.
+- Put a one-line comment on each key function: what it does and why.
+- Group code into domain folders (`log/`, `scan/`, `sync/`, `auth/`), not one flat folder.
+- Keep UI copy and strings out of logic files. Put them in a strings/copy module.
+- Keep application logic separate from UI code.
+- Delete unused folders and files. No dead code.
+- Vendored app-kit dirs (`public/app-kit`, `src/app-kit`) are exempt. Never edit them.
+
 ## Real data
 
 Never point tests or agent runs at the live Aufgaben or Arbeit lists. Never delete CalDAV collections. Never delete items without an explicit yes from Philipp.
