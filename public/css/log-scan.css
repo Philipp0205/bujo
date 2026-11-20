@@ -132,6 +132,31 @@
 .scan-mode[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
 .scan-mode[aria-disabled="true"] { cursor: default; opacity: 0.7; }
 
+/* The actions row under the mode toggle: the gallery button left of the shutter, the pair centred. */
+.scan-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.scan-gallery {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  cursor: pointer;
+}
+.scan-gallery:disabled { opacity: 0.5; cursor: default; }
+
 .scan-shutter {
   appearance: none;
   -webkit-appearance: none;
@@ -139,7 +164,6 @@
   box-sizing: border-box;
   width: 72px;
   height: 72px;
-  margin-top: 24px;
   padding: 0;
   border: 3px solid var(--paper-bg);
   border-radius: 50%;
@@ -149,7 +173,7 @@
 }
 .scan-shutter:disabled { opacity: 0.5; cursor: default; }
 
-/* The file input is opened by the shutter. It stays in the page for tests and the phone camera, out of sight. */
+/* The file inputs are opened by the shutter and the gallery button. They stay in the page for tests and the phone, out of sight. */
 .scan-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 /* ----- The review sheet ----- */
