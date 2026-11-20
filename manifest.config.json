@@ -1,0 +1,10 @@
+{
+  "name": "bujo",
+  "short_name": "bujo",
+  "description": "Hybrid paper and digital bullet journal. Backlog from Nextcloud Tasks.",
+  "lang": "en",
+  "color": "#000000",
+  "start_url": "/",
+  "scope": "/",
+  "publicDir": "public"
+}
