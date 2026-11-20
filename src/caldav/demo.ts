@@ -4,7 +4,7 @@
 import { parseVTodos, type Task } from "./ics.ts";
 
 function todo(lines: string[]): string {
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//bujo//demo//EN", "BEGIN:VTODO", ...lines, "END:VTODO", "END:VCALENDAR"].join("\r\n");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//bujo//demo//EN", "BEGIN:VTODO", ...lines, "END:VTODO", "END:VCALENDAR"].join("\r\n") + "\r\n";
 }
 
 const AUFGABEN = [
@@ -22,14 +22,19 @@ const ARBEIT = [
   todo(["UID:demo-9", "SUMMARY:Altes Ticket schliessen", "STATUS:CANCELLED"]),
 ];
 
+/** The demo calendar objects as ICS text, per list. A new copy each call, so one demo store never shares state with another. */
+export function demoObjects(): Array<{ list: string; ics: string }> {
+  return [
+    ...AUFGABEN.map((ics) => ({ list: "Aufgaben", ics })),
+    ...ARBEIT.map((ics) => ({ list: "Arbeit", ics })),
+  ];
+}
+
 export function demoTasks(): Task[] {
-  const lists: Array<[string, string[]]> = [["Aufgaben", AUFGABEN], ["Arbeit", ARBEIT]];
   const tasks: Task[] = [];
-  for (const [list, items] of lists) {
-    for (const ics of items) {
-      for (const parsed of parseVTodos(ics)) {
-        tasks.push({ ...parsed, list, href: `demo://${list.toLowerCase()}/${parsed.uid}.ics`, etag: null });
-      }
+  for (const { list, ics } of demoObjects()) {
+    for (const parsed of parseVTodos(ics)) {
+      tasks.push({ ...parsed, list, href: `demo://${list.toLowerCase()}/${parsed.uid}.ics`, etag: null });
     }
   }
   return tasks;

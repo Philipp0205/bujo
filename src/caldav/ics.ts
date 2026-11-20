@@ -1,5 +1,8 @@
 // ICS (RFC 5545) VTODO parser and mapper to the Task type used by bujo.
 //
+// Writing (bottom of this file): buildNewTodo makes a fresh VTODO, editTodo changes only the edited
+// properties of an existing one and keeps every other line as it was, folding included.
+//
 // Mapping choices (see docs/brief.md, "CalDAV mapping"):
 //
 //  - STATUS keeps the four VTODO values: NEEDS-ACTION, COMPLETED, IN-PROCESS, CANCELLED.
@@ -206,7 +209,8 @@ export function parseVTodos(ics: string): VTodo[] {
   return todos;
 }
 
-function mapVTodo(lines: string[]): VTodo | null {
+/** Maps the unfolded lines between BEGIN:VTODO and END:VTODO. Null when there is no UID. */
+export function mapVTodo(lines: string[]): VTodo | null {
   let uid = "";
   let summary = "";
   let description: string | null = null;
@@ -307,4 +311,277 @@ function mapVTodo(lines: string[]): VTodo | null {
     completed,
     unknownProps,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Writing
+// ---------------------------------------------------------------------------------------------
+
+/** What an edit may change. A key that is missing stays as it is. Nothing here can write DTSTART. */
+export type TodoPatch = {
+  summary?: string;
+  /** null or "" removes the DESCRIPTION. */
+  description?: string | null;
+  /** YYYY-MM-DD, or null to remove the DUE. The same date as the file already has leaves the line alone. */
+  due?: string | null;
+  /** null removes PRIORITY. The same app priority as the file already has leaves the line alone. */
+  priority?: Priority | null;
+  /** The whole tag list. The same list as the file already has leaves the CATEGORIES lines alone. */
+  categories?: string[];
+  /** Adds (true) or removes (false) the "someday" tag on top of `categories`, or of the tags the file already has. */
+  someday?: boolean;
+  /** STATUS:COMPLETED, COMPLETED:<now>, PERCENT-COMPLETE:100. */
+  complete?: boolean;
+};
+
+export type NewTodo = {
+  uid: string;
+  summary: string;
+  description?: string | null;
+  due?: string | null;
+  priority?: Priority | null;
+  categories?: string[];
+};
+
+/** `YYYYMMDDTHHMMSSZ` for an epoch ms. */
+export function formatUtc(ms: number): string {
+  return new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+/** TEXT escaping: backslash, semicolon, comma, and line breaks as \n. */
+export function escapeText(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
+}
+
+/** Folds one logical line at 75 octets. Never splits a UTF-8 character. Continuation lines start with one space. */
+export function foldLine(line: string): string[] {
+  const out: string[] = [];
+  let current = "";
+  let bytes = 0;
+  for (const char of line) {
+    const size = Buffer.byteLength(char, "utf8");
+    if (bytes + size > 75) {
+      out.push(current);
+      current = " ";
+      bytes = 1;
+    }
+    current += char;
+    bytes += size;
+  }
+  out.push(current);
+  return out;
+}
+
+/** True for a real calendar date written YYYY-MM-DD. */
+export function isIsoDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return date.toISOString().slice(0, 10) === value;
+}
+
+function dateValue(date: string): string {
+  if (!isIsoDate(date)) throw new TypeError("due must be a date as YYYY-MM-DD");
+  return date.replace(/-/g, "");
+}
+
+const summaryLine = (summary: string) => `SUMMARY:${escapeText(summary)}`;
+const descriptionLine = (description: string) => `DESCRIPTION:${escapeText(description)}`;
+const dueLine = (date: string) => `DUE;VALUE=DATE:${dateValue(date)}`;
+const priorityLine = (priority: Priority) => `PRIORITY:${priority}`;
+const categoriesLine = (categories: string[]) => `CATEGORIES:${categories.map(escapeText).join(",")}`;
+
+/** A whole VCALENDAR with one new VTODO: CRLF line ends, lines folded at 75 octets, no DTSTART. */
+export function buildNewTodo(input: NewTodo, nowMs: number): string {
+  const stamp = formatUtc(nowMs);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//bujo//bujo//EN",
+    "BEGIN:VTODO",
+    `UID:${input.uid}`,
+    `DTSTAMP:${stamp}`,
+    `CREATED:${stamp}`,
+    `LAST-MODIFIED:${stamp}`,
+    summaryLine(input.summary),
+  ];
+  if (input.description) lines.push(descriptionLine(input.description));
+  lines.push("STATUS:NEEDS-ACTION");
+  if (input.priority) lines.push(priorityLine(input.priority));
+  if (input.due) lines.push(dueLine(input.due));
+  if (input.categories && input.categories.length > 0) lines.push(categoriesLine(input.categories));
+  lines.push("END:VTODO", "END:VCALENDAR");
+  return lines.flatMap(foldLine).join("\r\n") + "\r\n";
+}
+
+/** One logical line: its unfolded text, and its physical lines exactly as the file had them. */
+type Logical = { text: string; raw: string[] };
+
+function splitLogical(ics: string): Logical[] {
+  const out: Logical[] = [];
+  const physical = ics.split(/\r\n|\n|\r/);
+  if (physical.length > 0 && physical[physical.length - 1] === "") physical.pop();
+  for (const line of physical) {
+    if ((line.startsWith(" ") || line.startsWith("\t")) && out.length > 0) {
+      const last = out[out.length - 1];
+      last.text += line.slice(1);
+      last.raw.push(line);
+    } else {
+      out.push({ text: line, raw: [line] });
+    }
+  }
+  return out;
+}
+
+/** A top-level property, or a whole nested component (VALARM and so on) kept as one block. */
+type Item = { kind: "prop"; name: string; line: Logical } | { kind: "component"; lines: Logical[] };
+
+export class TodoNotFoundError extends Error {
+  constructor() {
+    super("VTODO not found in the calendar object");
+    this.name = "TodoNotFoundError";
+  }
+}
+
+/** Index range of the VTODO with this UID: `begin` is its BEGIN line, `end` its END line. */
+function findTodo(all: Logical[], uid: string): { begin: number; end: number } | null {
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].text.toUpperCase() !== "BEGIN:VTODO") continue;
+    let depth = 0;
+    let blockUid = "";
+    for (let j = i + 1; j < all.length; j++) {
+      const upper = all[j].text.toUpperCase();
+      if (upper.startsWith("BEGIN:")) depth++;
+      else if (upper === "END:VTODO" && depth === 0) {
+        if (blockUid === uid) return { begin: i, end: j };
+        break;
+      } else if (upper.startsWith("END:") && depth > 0) depth--;
+      else if (depth === 0) {
+        const prop = parseContentLine(all[j].text);
+        if (prop?.name === "UID") blockUid = prop.value.trim();
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Edits one VTODO of a calendar object and keeps everything else as it was: untouched lines come back
+ * with their original folding, unknown properties and nested components stay where they are, and a DUE
+ * line (a TZID one too) is only rewritten when the date changes.
+ *
+ * Every real change bumps LAST-MODIFIED, DTSTAMP and SEQUENCE. A patch that changes nothing returns
+ * `changed: false` and the text as it came in, so the caller can skip the write.
+ */
+export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: number): { ics: string; changed: boolean } {
+  const eol = /\r\n|\n|\r/.exec(ics)?.[0] ?? "\r\n";
+  const all = splitLogical(ics);
+  const range = findTodo(all, uid);
+  if (!range) throw new TodoNotFoundError();
+  const { begin, end } = range;
+
+  const inner = all.slice(begin + 1, end);
+  const current = mapVTodo(inner.map((line) => line.text));
+  if (!current) throw new TodoNotFoundError();
+
+  const items: Item[] = [];
+  for (let i = 0; i < inner.length; i++) {
+    if (/^BEGIN:/i.test(inner[i].text)) {
+      const lines = [inner[i]];
+      let depth = 1;
+      while (depth > 0 && ++i < inner.length) {
+        lines.push(inner[i]);
+        if (/^BEGIN:/i.test(inner[i].text)) depth++;
+        else if (/^END:/i.test(inner[i].text)) depth--;
+      }
+      items.push({ kind: "component", lines });
+    } else {
+      items.push({ kind: "prop", name: parseContentLine(inner[i].text)?.name ?? "", line: inner[i] });
+    }
+  }
+
+  let changed = false;
+
+  /** New properties go before the first nested component, as RFC 5545 has it. */
+  function insertIndex(): number {
+    const firstComponent = items.findIndex((item) => item.kind === "component");
+    return firstComponent < 0 ? items.length : firstComponent;
+  }
+
+  /** Replaces the first line of this property and drops its other lines, or adds it. A null text removes it. */
+  function setProp(name: string, text: string | null): void {
+    const indexes = items.flatMap((item, index) => (item.kind === "prop" && item.name === name ? [index] : []));
+    if (text === null) {
+      for (const index of indexes.reverse()) items.splice(index, 1);
+      return;
+    }
+    const fresh: Item = { kind: "prop", name, line: { text, raw: foldLine(text) } };
+    if (indexes.length === 0) {
+      items.splice(insertIndex(), 0, fresh);
+      return;
+    }
+    items[indexes[0]] = fresh;
+    for (const index of indexes.slice(1).reverse()) items.splice(index, 1);
+  }
+
+  if (patch.summary !== undefined && patch.summary !== current.summary) {
+    setProp("SUMMARY", summaryLine(patch.summary));
+    changed = true;
+  }
+  if (patch.description !== undefined) {
+    const next = patch.description === null || patch.description === "" ? null : patch.description;
+    if (next !== current.description) {
+      setProp("DESCRIPTION", next === null ? null : descriptionLine(next));
+      changed = true;
+    }
+  }
+  if (patch.due !== undefined) {
+    if (patch.due === null) {
+      if (current.due !== null) {
+        setProp("DUE", null);
+        changed = true;
+      }
+    } else if (current.due?.date !== patch.due) {
+      setProp("DUE", dueLine(patch.due));
+      changed = true;
+    }
+  }
+  if (patch.priority !== undefined && patch.priority !== current.priority) {
+    setProp("PRIORITY", patch.priority === null ? null : priorityLine(patch.priority));
+    changed = true;
+  }
+  if (patch.categories !== undefined || patch.someday !== undefined) {
+    let next = patch.categories ?? current.categories;
+    const isSomeday = (tag: string) => tag.toLowerCase() === "someday";
+    if (patch.someday === true && !next.some(isSomeday)) next = [...next, "someday"];
+    if (patch.someday === false) next = next.filter((tag) => !isSomeday(tag));
+    const same = next.length === current.categories.length && next.every((tag, i) => tag === current.categories[i]);
+    if (!same) {
+      setProp("CATEGORIES", next.length === 0 ? null : categoriesLine(next));
+      changed = true;
+    }
+  }
+  if (patch.complete === true && current.status !== "COMPLETED") {
+    setProp("STATUS", "STATUS:COMPLETED");
+    setProp("COMPLETED", `COMPLETED:${formatUtc(nowMs)}`);
+    setProp("PERCENT-COMPLETE", "PERCENT-COMPLETE:100");
+    changed = true;
+  }
+
+  if (!changed) return { ics, changed: false };
+
+  const stamp = formatUtc(nowMs);
+  const sequence = items.find((item) => item.kind === "prop" && item.name === "SEQUENCE");
+  const previous = sequence && sequence.kind === "prop" ? Number.parseInt(parseContentLine(sequence.line.text)?.value ?? "", 10) : Number.NaN;
+  setProp("LAST-MODIFIED", `LAST-MODIFIED:${stamp}`);
+  setProp("DTSTAMP", `DTSTAMP:${stamp}`);
+  setProp("SEQUENCE", `SEQUENCE:${Number.isFinite(previous) && previous >= 0 ? previous + 1 : 1}`);
+
+  const body: string[] = [];
+  for (const item of items) {
+    if (item.kind === "prop") body.push(...item.line.raw);
+    else for (const line of item.lines) body.push(...line.raw);
+  }
+  const lines = [...all.slice(0, begin + 1).flatMap((line) => line.raw), ...body, ...all.slice(end).flatMap((line) => line.raw)];
+  return { ics: lines.join(eol) + eol, changed: true };
 }

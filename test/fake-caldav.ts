@@ -2,8 +2,11 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 // A fake CalDAV server for tests. It listens on 127.0.0.1 only and answers PROPFIND and REPORT with
-// multistatus XML built from the fixtures below. It records every request, so a test can check that
-// nothing but PROPFIND and REPORT ever arrives. Not a test file: `npm test` only runs `test/**/*.test.ts`.
+// multistatus XML built from the fixtures below, GET with one object, and PUT with ETag and precondition
+// handling (If-None-Match: * on create, If-Match on update, 412 when it does not hold, 428 with neither).
+// It records every request, so a test can check which methods ever arrive: a DELETE is recorded and
+// answered with 405, and nothing is removed. The store is a copy per server, so one test's writes never
+// reach another. Not a test file: `npm test` only runs `test/**/*.test.ts`.
 
 export const USER = "tester";
 export const PASSWORD = "not-a-real-password";
@@ -46,6 +49,7 @@ export const FIXTURES: Record<string, string> = {
     "PRIORITY:5",
     "STATUS:IN-PROCESS",
     "PERCENT-COMPLETE:40",
+    "DTSTART;TZID=Europe/Berlin:20261120T090000",
     "RELATED-TO:fx-done",
     "X-CUSTOM-FLAG;X-PARAM=1:keep me",
     "BEGIN:VALARM",
@@ -69,13 +73,26 @@ export const COLLECTIONS: Record<string, Record<string, string>> = {
 
 const xmlEscape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function reportBody(collection: string, files: Record<string, string>): string {
-  const responses = Object.entries(files)
+type Stored = { data: string; etag: string };
+type Store = Map<string, Map<string, Stored>>;
+
+function initialStore(): Store {
+  const store: Store = new Map();
+  for (const [collection, files] of Object.entries(COLLECTIONS)) {
+    const map = new Map<string, Stored>();
+    Object.entries(files).forEach(([name, data], index) => map.set(name, { data, etag: `"etag-${index}"` }));
+    store.set(collection, map);
+  }
+  return store;
+}
+
+function reportBody(collection: string, files: Map<string, Stored>): string {
+  const responses = [...files.entries()]
     .map(
-      ([name, data], index) => `  <d:response>
+      ([name, { data, etag }]) => `  <d:response>
     <d:href>${collection}${name}</d:href>
     <d:propstat>
-      <d:prop><d:getetag>"etag-${index}"</d:getetag><cal:calendar-data>${xmlEscape(data)}</cal:calendar-data></d:prop>
+      <d:prop><d:getetag>${etag}</d:getetag><cal:calendar-data>${xmlEscape(data)}</cal:calendar-data></d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>
     </d:propstat>
   </d:response>`,
@@ -101,12 +118,26 @@ function propfindBody(collection: string): string {
 </d:multistatus>`;
 }
 
-export type RecordedRequest = { method: string; url: string; depth: string | undefined; authorization: string | undefined; body: string };
+export type RecordedRequest = {
+  method: string;
+  url: string;
+  depth: string | undefined;
+  authorization: string | undefined;
+  ifMatch: string | undefined;
+  ifNoneMatch: string | undefined;
+  body: string;
+};
 
 export type FakeCalDav = {
   /** http://127.0.0.1:<port> */
   base: string;
   requests: RecordedRequest[];
+  /** The stored calendar object text, or undefined. `collection` is a path from LIST_PATHS. */
+  read(collection: string, name: string): string | undefined;
+  /** Every stored file name of a collection. */
+  names(collection: string): string[];
+  /** Pretends another client changed the object: a new ETag, same content (or `data` when given). */
+  touch(collection: string, name: string, data?: string): void;
   close: () => Promise<void>;
 };
 
@@ -121,18 +152,24 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
   const requests: RecordedRequest[] = [];
   const auth = options.auth ?? { user: USER, password: PASSWORD };
   const expected = `Basic ${Buffer.from(`${auth.user}:${auth.password}`).toString("base64")}`;
+  const store = initialStore();
+  let etagCounter = 0;
+  const nextEtag = () => `"etag-v${++etagCounter}"`;
 
   const server = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
       const method = req.method ?? "";
+      const body = Buffer.concat(chunks).toString("utf8");
       requests.push({
         method,
         url: req.url ?? "",
         depth: req.headers.depth as string | undefined,
         authorization: req.headers.authorization,
-        body: Buffer.concat(chunks).toString("utf8"),
+        ifMatch: req.headers["if-match"] as string | undefined,
+        ifNoneMatch: req.headers["if-none-match"] as string | undefined,
+        body,
       });
       if (options.failWith !== undefined) {
         res.writeHead(options.failWith).end();
@@ -143,19 +180,60 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
         return;
       }
       const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
-      const files = COLLECTIONS[pathname];
-      if (!files) {
+
+      // A collection: PROPFIND and REPORT.
+      const files = store.get(pathname);
+      if (files) {
+        if (method !== "PROPFIND" && method !== "REPORT") {
+          res.writeHead(405, { allow: "PROPFIND, REPORT" }).end();
+          return;
+        }
+        const xml = method === "PROPFIND" ? propfindBody(pathname) : reportBody(pathname, files);
+        res.writeHead(207, { "content-type": "application/xml; charset=utf-8", "content-length": Buffer.byteLength(xml) });
+        res.end(xml);
+        return;
+      }
+
+      // An object: GET and PUT. Anything else (DELETE included) is refused and nothing is removed.
+      const slash = pathname.lastIndexOf("/") + 1;
+      const collection = pathname.slice(0, slash);
+      const name = decodeURIComponent(pathname.slice(slash));
+      const folder = store.get(collection);
+      if (!folder || !name.endsWith(".ics")) {
         res.writeHead(404).end();
         return;
       }
-      if (method !== "PROPFIND" && method !== "REPORT") {
-        // Nothing in this app writes. If a PUT or DELETE ever arrives, it is recorded above and refused here.
-        res.writeHead(405, { allow: "PROPFIND, REPORT" }).end();
+      const existing = folder.get(name);
+      if (method === "GET") {
+        if (!existing) {
+          res.writeHead(404).end();
+          return;
+        }
+        res.writeHead(200, { "content-type": "text/calendar; charset=utf-8", etag: existing.etag, "content-length": Buffer.byteLength(existing.data) });
+        res.end(existing.data);
         return;
       }
-      const body = method === "PROPFIND" ? propfindBody(pathname) : reportBody(pathname, files);
-      res.writeHead(207, { "content-type": "application/xml; charset=utf-8", "content-length": Buffer.byteLength(body) });
-      res.end(body);
+      if (method === "PUT") {
+        const ifMatch = req.headers["if-match"];
+        const ifNoneMatch = req.headers["if-none-match"];
+        if (ifMatch === undefined && ifNoneMatch === undefined) {
+          res.writeHead(428).end();
+          return;
+        }
+        if (ifNoneMatch === "*" && existing) {
+          res.writeHead(412).end();
+          return;
+        }
+        if (ifMatch !== undefined && (!existing || existing.etag !== ifMatch)) {
+          res.writeHead(412).end();
+          return;
+        }
+        const etag = nextEtag();
+        folder.set(name, { data: body, etag });
+        res.writeHead(existing ? 204 : 201, { etag }).end();
+        return;
+      }
+      res.writeHead(405, { allow: "GET, PUT" }).end();
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -163,6 +241,13 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
   return {
     base: `http://127.0.0.1:${port}`,
     requests,
+    read: (collection, name) => store.get(collection)?.get(name)?.data,
+    names: (collection) => [...(store.get(collection)?.keys() ?? [])],
+    touch(collection, name, data) {
+      const entry = store.get(collection)?.get(name);
+      if (!entry) throw new Error(`no such file ${name}`);
+      store.get(collection)!.set(name, { data: data ?? entry.data, etag: nextEtag() });
+    },
     close: async () => {
       server.closeAllConnections?.();
       await new Promise<void>((resolve) => server.close(() => resolve()));
