@@ -332,6 +332,8 @@ export type TodoPatch = {
   someday?: boolean;
   /** STATUS:COMPLETED, COMPLETED:<now>, PERCENT-COMPLETE:100. */
   complete?: boolean;
+  /** Back to STATUS:NEEDS-ACTION when the task is not open: COMPLETED and PERCENT-COMPLETE are removed. */
+  reopen?: boolean;
 };
 
 export type NewTodo = {
@@ -341,6 +343,8 @@ export type NewTodo = {
   due?: string | null;
   priority?: Priority | null;
   categories?: string[];
+  /** Write the task as finished: STATUS:COMPLETED, COMPLETED:<now>, PERCENT-COMPLETE:100. */
+  complete?: boolean;
 };
 
 /** `YYYYMMDDTHHMMSSZ` for an epoch ms. */
@@ -406,7 +410,8 @@ export function buildNewTodo(input: NewTodo, nowMs: number): string {
     summaryLine(input.summary),
   ];
   if (input.description) lines.push(descriptionLine(input.description));
-  lines.push("STATUS:NEEDS-ACTION");
+  if (input.complete) lines.push("STATUS:COMPLETED", `COMPLETED:${stamp}`, "PERCENT-COMPLETE:100");
+  else lines.push("STATUS:NEEDS-ACTION");
   if (input.priority) lines.push(priorityLine(input.priority));
   if (input.due) lines.push(dueLine(input.due));
   if (input.categories && input.categories.length > 0) lines.push(categoriesLine(input.categories));
@@ -565,6 +570,12 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
     setProp("STATUS", "STATUS:COMPLETED");
     setProp("COMPLETED", `COMPLETED:${formatUtc(nowMs)}`);
     setProp("PERCENT-COMPLETE", "PERCENT-COMPLETE:100");
+    changed = true;
+  }
+  if (patch.reopen === true && (current.status !== "NEEDS-ACTION" || current.completed !== null)) {
+    setProp("STATUS", "STATUS:NEEDS-ACTION");
+    setProp("COMPLETED", null);
+    setProp("PERCENT-COMPLETE", null);
     changed = true;
   }
 

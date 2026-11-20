@@ -17,17 +17,18 @@ export const looseLimiter = { hit: () => true };
 
 /**
  * The app on a random 127.0.0.1 port with an in-memory database and the kit's stubMailer.
- * No real mail is sent and no real Nextcloud is reached.
+ * No real mail is sent and no real Nextcloud is reached. Pass `db` when something else (the sync service)
+ * must share the database.
  */
 export async function startApp(
   source: TaskSource,
-  options: Partial<Omit<AppOptions, "source" | "db">> = {},
+  options: Partial<Omit<AppOptions, "source">> = {},
 ): Promise<TestApp> {
-  const db = openDb(":memory:");
+  const db = options.db ?? openDb(":memory:");
   const mailer = stubMailer();
   const origin = options.origin ?? "http://localhost";
   const server = http.createServer(
-    createApp({ source, db, mailer, limiter: looseLimiter, origin, ...options }),
+    createApp({ source, mailer, limiter: looseLimiter, origin, ...options, db }),
   );
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   return {
@@ -45,7 +46,7 @@ export async function startApp(
 export async function withApp(
   source: TaskSource,
   fn: (app: TestApp) => Promise<void>,
-  options: Partial<Omit<AppOptions, "source" | "db">> = {},
+  options: Partial<Omit<AppOptions, "source">> = {},
 ): Promise<void> {
   const app = await startApp(source, options);
   try {

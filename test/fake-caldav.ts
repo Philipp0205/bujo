@@ -69,6 +69,8 @@ export const FIXTURES_ARBEIT: Record<string, string> = {
 export const COLLECTIONS: Record<string, Record<string, string>> = {
   "/dav/calendars/test/aufgaben/": FIXTURES,
   "/dav/calendars/test/arbeit/": FIXTURES_ARBEIT,
+  // The empty list the sync tests write to. Not in fakeEnv, so the other tests never see it.
+  "/dav/calendars/test/bujo-test/": {},
 };
 
 const xmlEscape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -132,6 +134,8 @@ export type FakeCalDav = {
   /** http://127.0.0.1:<port> */
   base: string;
   requests: RecordedRequest[];
+  /** Switches a test can flip while the server runs. */
+  switches: FakeSwitches;
   /** The stored calendar object text, or undefined. `collection` is a path from LIST_PATHS. */
   read(collection: string, name: string): string | undefined;
   /** Every stored file name of a collection. */
@@ -139,6 +143,16 @@ export type FakeCalDav = {
   /** Pretends another client changed the object: a new ETag, same content (or `data` when given). */
   touch(collection: string, name: string, data?: string): void;
   close: () => Promise<void>;
+};
+
+/** Behaviour a test can turn on for the sync: a refused write, a wrong read-back, a slow write. */
+export type FakeSwitches = {
+  /** Answer every PUT with 412 and store nothing. */
+  conflictOnPut: boolean;
+  /** GET of an object answers a different SUMMARY than the one stored. */
+  corruptReadBack: boolean;
+  /** Wait this many ms before answering a PUT. */
+  putDelayMs: number;
 };
 
 export type FakeOptions = {
@@ -153,6 +167,7 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
   const auth = options.auth ?? { user: USER, password: PASSWORD };
   const expected = `Basic ${Buffer.from(`${auth.user}:${auth.password}`).toString("base64")}`;
   const store = initialStore();
+  const switches: FakeSwitches = { conflictOnPut: false, corruptReadBack: false, putDelayMs: 0 };
   let etagCounter = 0;
   const nextEtag = () => `"etag-v${++etagCounter}"`;
 
@@ -209,11 +224,22 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
           res.writeHead(404).end();
           return;
         }
-        res.writeHead(200, { "content-type": "text/calendar; charset=utf-8", etag: existing.etag, "content-length": Buffer.byteLength(existing.data) });
-        res.end(existing.data);
+        const data = switches.corruptReadBack ? existing.data.replace(/^SUMMARY:.*$/m, "SUMMARY:Corrupted") : existing.data;
+        res.writeHead(200, { "content-type": "text/calendar; charset=utf-8", etag: existing.etag, "content-length": Buffer.byteLength(data) });
+        res.end(data);
         return;
       }
       if (method === "PUT") {
+        setTimeout(() => answerPut(), switches.putDelayMs);
+        return;
+      }
+      res.writeHead(405, { allow: "GET, PUT" }).end();
+
+      function answerPut(): void {
+        if (switches.conflictOnPut) {
+          res.writeHead(412).end();
+          return;
+        }
         const ifMatch = req.headers["if-match"];
         const ifNoneMatch = req.headers["if-none-match"];
         if (ifMatch === undefined && ifNoneMatch === undefined) {
@@ -229,11 +255,9 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
           return;
         }
         const etag = nextEtag();
-        folder.set(name, { data: body, etag });
+        folder!.set(name, { data: body, etag });
         res.writeHead(existing ? 204 : 201, { etag }).end();
-        return;
       }
-      res.writeHead(405, { allow: "GET, PUT" }).end();
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -241,6 +265,7 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
   return {
     base: `http://127.0.0.1:${port}`,
     requests,
+    switches,
     read: (collection, name) => store.get(collection)?.get(name)?.data,
     names: (collection) => [...(store.get(collection)?.keys() ?? [])],
     touch(collection, name, data) {
@@ -255,7 +280,11 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
   };
 }
 
-export const LIST_PATHS = { Aufgaben: "/dav/calendars/test/aufgaben/", Arbeit: "/dav/calendars/test/arbeit/" } as const;
+export const LIST_PATHS = {
+  Aufgaben: "/dav/calendars/test/aufgaben/",
+  Arbeit: "/dav/calendars/test/arbeit/",
+  "bujo-test": "/dav/calendars/test/bujo-test/",
+} as const;
 
 /** Env for loadCalDavConfig that points at a fake server. */
 export function fakeEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
@@ -265,4 +294,10 @@ export function fakeEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
     BUJO_CALDAV_PASSWORD: PASSWORD,
     BUJO_CALDAV_LISTS: `Aufgaben=${LIST_PATHS.Aufgaben},Arbeit=${LIST_PATHS.Arbeit}`,
   };
+}
+
+/** Like fakeEnv, plus the empty bujo-test list that the sync writes to. */
+export function syncEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
+  const env = fakeEnv(fake);
+  return { ...env, BUJO_CALDAV_LISTS: `${env.BUJO_CALDAV_LISTS},bujo-test=${LIST_PATHS["bujo-test"]}` };
 }

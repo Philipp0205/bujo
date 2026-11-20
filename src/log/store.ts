@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Db } from "../db.ts";
-import type { DateRange, Entry, EntryPatch, NewEntry } from "./types.ts";
+import type { DateRange, Entry, EntryPatch, NewEntry, RemoteLink, SyncChange } from "./types.ts";
 
 type Row = {
   id: string;
@@ -10,10 +10,13 @@ type Row = {
   title: string;
   tag: string | null;
   sync: Entry["sync"];
+  sync_error: string | null;
   position: number;
   created_at: number;
   updated_at: number;
 };
+
+type LinkRow = { remote_href: string | null; remote_uid: string | null; remote_etag: string | null };
 
 export type EntryStore = {
   /** Entries from one day to another, both included, by date then position. */
@@ -23,9 +26,15 @@ export type EntryStore = {
   create(userId: string, input: NewEntry, now: number): Entry;
   /** Changes the fields given. Moving to another day puts the entry at the end of that day. */
   update(userId: string, id: string, patch: EntryPatch, now: number): Entry | undefined;
+  /** Sets the sync state (and the remote link when given). It is not an edit, so updated_at stays. */
+  setSync(userId: string, id: string, change: SyncChange): Entry | undefined;
+  /** The remote link of an entry, or undefined when it was never pushed. */
+  getRemote(userId: string, id: string): RemoteLink | undefined;
+  /** Turns every pending entry into an error with this message. For a start after a stop in the middle of a push. */
+  failPending(message: string): void;
 };
 
-const COLUMNS = "id, date, time, type, title, tag, sync, position, created_at, updated_at";
+const COLUMNS = "id, date, time, type, title, tag, sync, sync_error, position, created_at, updated_at";
 
 function toEntry(row: Row): Entry {
   return {
@@ -36,6 +45,7 @@ function toEntry(row: Row): Entry {
     title: row.title,
     tag: row.tag,
     sync: row.sync,
+    syncError: row.sync_error,
     position: Number(row.position),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
@@ -91,6 +101,36 @@ export function createEntryStore(db: Db): EntryStore {
         id,
       );
       return get(userId, id);
+    },
+
+    setSync(userId, id, change) {
+      const error = change.sync === "error" ? (change.error ?? null) : null;
+      if (change.link) {
+        db.prepare("UPDATE entries SET sync = ?, sync_error = ?, remote_href = ?, remote_uid = ?, remote_etag = ? WHERE user_id = ? AND id = ?").run(
+          change.sync,
+          error,
+          change.link.href,
+          change.link.uid,
+          change.link.etag,
+          userId,
+          id,
+        );
+      } else {
+        db.prepare("UPDATE entries SET sync = ?, sync_error = ? WHERE user_id = ? AND id = ?").run(change.sync, error, userId, id);
+      }
+      return get(userId, id);
+    },
+
+    getRemote(userId, id) {
+      const row = db.prepare("SELECT remote_href, remote_uid, remote_etag FROM entries WHERE user_id = ? AND id = ?").get(userId, id) as
+        | LinkRow
+        | undefined;
+      if (!row || row.remote_href === null || row.remote_uid === null) return undefined;
+      return { href: row.remote_href, uid: row.remote_uid, etag: row.remote_etag };
+    },
+
+    failPending(message) {
+      db.prepare("UPDATE entries SET sync = 'error', sync_error = ? WHERE sync = 'pending'").run(message);
     },
   };
 }

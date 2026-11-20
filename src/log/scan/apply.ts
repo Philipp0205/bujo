@@ -38,7 +38,7 @@ function writeOne(store: EntryStore, userId: string, now: number, checked: Check
 }
 
 /**
- * Writes the kept lines of a draft into the log, sync state local. The whole request is checked first, the day is
+ * Writes the kept lines of a draft into the log, sync state local (the route then queues the push). The whole request is checked first, the day is
  * read again here (the client's idea of a duplicate is not trusted), and the writes share one transaction: all or
  * nothing. A draft can be applied once. Throws 409 when it was applied, 400 for a bad request.
  */

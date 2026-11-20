@@ -20,6 +20,7 @@ import { handleTokenRoutes } from "./routes/tokens.ts";
 import { handleApiV1 } from "./routes/v1.ts";
 import { createOcrClient, type OcrClient } from "./scan/ocr-client.ts";
 import { createDraftStore, type DraftStore } from "./scan/store.ts";
+import type { SyncService } from "./sync/service.ts";
 
 /** The repo root. src/ and dist/ sit at the same depth, so this holds under tsx and under node on the build. */
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,6 +52,8 @@ export type AppOptions = {
   ocr?: OcrClient;
   /** Scan drafts, in memory. Tests may pass their own. */
   drafts?: DraftStore;
+  /** Pushes task entries to Nextcloud. Leave out to keep every entry local. */
+  sync?: SyncService;
 };
 
 /** Pages that need a session. The file is what is served once the person is signed in. */
@@ -134,7 +137,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       // A cross-site form or fetch can carry the cookie but not a matching Origin.
       if (!read && who.kind !== "agent" && foreignOrigin(req, origin)) throw new HttpError(403, "cross-site request refused");
 
-      const ctx: RouteContext = { req, res, url, pathname, method, accounts, source: options.source, who };
+      const ctx: RouteContext = { req, res, url, pathname, method, accounts, source: options.source, sync: options.sync ?? null, who };
 
       if (pathname === "/api/backlog") {
         if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });

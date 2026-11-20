@@ -70,10 +70,25 @@ CREATE TABLE IF NOT EXISTS entries (
   sync TEXT NOT NULL DEFAULT 'local' CHECK (sync IN ('local', 'pending', 'synced', 'error')),
   position INTEGER NOT NULL,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  remote_href TEXT,
+  remote_uid TEXT,
+  remote_etag TEXT,
+  sync_error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position);
 `;
+
+/** Columns added after the first release of the entries table. Older databases get them on open. */
+const ENTRY_SYNC_COLUMNS = ["remote_href", "remote_uid", "remote_etag", "sync_error"] as const;
+
+/** Adds the remote sync columns to an entries table made before they existed. Safe to run on every open. */
+function migrateEntries(db: Db): void {
+  const have = (db.prepare("PRAGMA table_info(entries)").all() as Array<{ name: string }>).map((column) => column.name);
+  for (const column of ENTRY_SYNC_COLUMNS) {
+    if (!have.includes(column)) db.exec(`ALTER TABLE entries ADD COLUMN ${column} TEXT`);
+  }
+}
 
 /** Opens (and creates) the database. ":memory:" for tests. A file path gets its folder made and WAL on. */
 export function openDb(file: string): Db {
@@ -82,6 +97,7 @@ export function openDb(file: string): Db {
   db.exec("PRAGMA foreign_keys = ON");
   if (file !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
+  migrateEntries(db);
   return db;
 }
 

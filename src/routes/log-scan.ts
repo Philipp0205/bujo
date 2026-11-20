@@ -65,7 +65,8 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
   const review = parseReview(await readJson(ctx.req, { max: REVIEW_BODY_MAX }), draft);
   const store = createEntryStore(ctx.accounts.db);
   const results = applyLogDraft(ctx.accounts.db, store, session.user.id, draft, review, ctx.accounts.now());
-  sendJson(ctx.res, 200, { date: review.date, results });
+  const synced = ctx.sync ? results.map((result) => ({ ...result, entry: ctx.sync!.enqueue(session.user.id, result.entry) })) : results;
+  sendJson(ctx.res, 200, { date: review.date, results: synced });
 }
 
 /**
