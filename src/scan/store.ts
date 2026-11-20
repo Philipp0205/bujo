@@ -4,16 +4,19 @@ import type { Draft } from "./draft.ts";
 export const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
 export const DRAFT_MAX = 5;
 
-export type DraftStore = {
-  add(draft: Draft): void;
-  get(id: string): Draft | undefined;
+/** What the store needs of a draft. The backlog scan and the rapid-log scan each keep their own kind. */
+type Stored = { id: string; expires: number };
+
+export type DraftStore<T extends Stored = Draft> = {
+  add(draft: T): void;
+  get(id: string): T | undefined;
   size(): number;
 };
 
-export function createDraftStore(options: { now?: () => number; max?: number } = {}): DraftStore {
+export function createDraftStore<T extends Stored = Draft>(options: { now?: () => number; max?: number } = {}): DraftStore<T> {
   const now = options.now ?? Date.now;
   const max = options.max ?? DRAFT_MAX;
-  const drafts = new Map<string, Draft>();
+  const drafts = new Map<string, T>();
 
   function prune(): void {
     const t = now();

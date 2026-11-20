@@ -87,7 +87,7 @@ export function actionFor(symbol: OcrSymbol, hasMatch: boolean): Action {
   }
 }
 
-const OCR_DIGITS: Record<string, string> = { O: "0", o: "0", Q: "0", I: "1", l: "1", "|": "1", S: "5", B: "8" };
+export const OCR_DIGITS: Record<string, string> = { O: "0", o: "0", Q: "0", I: "1", l: "1", "|": "1", S: "5", B: "8" };
 
 /**
  * A day from a date line: dd.mm.yyyy or dd.mm.yy, with OCR noise tolerated (O for 0, l for 1, commas,

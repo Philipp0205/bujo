@@ -55,8 +55,7 @@ test("an empty log shows today with its mark and the add row, and no scan or set
   await expect(page.locator("[data-action=add-entry]")).toHaveText("+ Add entry");
 
   const scan = page.getByRole("button", { name: "Scan a page" });
-  await expect(scan).toBeDisabled();
-  await expect(scan).toHaveAttribute("title", "Scan comes later");
+  await expect(scan).toBeEnabled();
   await expect(page.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   expect(errors).toEqual([]);
 });

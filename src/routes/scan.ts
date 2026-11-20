@@ -1,16 +1,14 @@
 import { defaultList, guard } from "../api/tasks.ts";
-import { HttpError, readBody, readJson, sendJson } from "../app-kit/http.ts";
+import { HttpError, readJson, sendJson } from "../app-kit/http.ts";
 import { isoDate } from "../app-kit/time.ts";
 import { loadBacklog } from "../caldav/source.ts";
 import { applyDraft } from "../scan/apply.ts";
 import { buildDraft, TIME_ZONE } from "../scan/draft.ts";
 import type { OcrClient } from "../scan/ocr-client.ts";
+import { readPhoto } from "../scan/photo.ts";
 import { DRAFT_TTL_MS, type DraftStore } from "../scan/store.ts";
 import { isRead, requirePrincipal, requireSession, type RouteContext } from "./context.ts";
 
-/** A page photo from a phone camera. */
-export const SCAN_MAX_BYTES = 15 * 1024 * 1024;
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
 const APPLY_BODY_MAX = 256 * 1024;
 
 export type ScanDeps = { ocr: OcrClient; drafts: DraftStore; now: () => number };
@@ -34,13 +32,7 @@ export async function handleScan(ctx: RouteContext, deps: ScanDeps): Promise<boo
   if (segments.length === 0) {
     if (method !== "POST") methodNotAllowed("POST");
     requireSession(who);
-    const contentType = String(req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
-    if (!IMAGE_TYPES.includes(contentType)) {
-      throw new HttpError(415, "send the photo as image/jpeg, image/png, image/webp or image/heic");
-    }
-    // Held in memory for this call only. 413 over the cap, and the rest of an oversize upload is thrown away.
-    const image = await readBody(req, SCAN_MAX_BYTES, { message: "The photo is too large (at most 15 MB)." });
-    if (image.length === 0) throw new HttpError(400, "The photo is empty.");
+    const { image, contentType } = await readPhoto(req);
     const ocr = await deps.ocr(image, contentType);
     const now = deps.now();
     const open = await guard(() => loadBacklog(source, false));

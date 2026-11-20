@@ -9,6 +9,8 @@
 
   var BACK_DAYS = 6;
   var AHEAD_DAYS = 7;
+  /** The longest range the server lists (RANGE_MAX_DAYS in src/log/validation.ts). */
+  var MAX_DAYS = 92;
 
   function pad(n) {
     return String(n).padStart(2, '0');
@@ -43,5 +45,15 @@
     return { from: addDays(today, -BACK_DAYS), to: addDays(today, AHEAD_DAYS) };
   }
 
-  L.dates = { todayIso: todayIso, addDays: addDays, dayHeading: dayHeading, windowAround: windowAround };
+  /** The usual window, stretched to include one more day (a scan applied to a day outside it), within the server's range cap. */
+  function windowWith(today, extra) {
+    var usual = windowAround(today);
+    if (!extra) return usual;
+    var from = extra < usual.from ? extra : usual.from;
+    var to = extra > usual.to ? extra : usual.to;
+    var first = addDays(to, -(MAX_DAYS - 1));
+    return { from: from < first ? first : from, to: to };
+  }
+
+  L.dates = { todayIso: todayIso, addDays: addDays, dayHeading: dayHeading, windowAround: windowAround, windowWith: windowWith };
 })();

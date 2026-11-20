@@ -8,16 +8,16 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title, a disabled scan button and the settings link. */
-  function header() {
+  /** The page header: the italic title, the scan button and the settings link. */
+  function header(onScan) {
     var copy = L.copy;
     var scan = h('button', {
       class: 'ak-icon-btn',
       type: 'button',
-      disabled: true,
       'aria-label': copy.scanLabel,
-      title: copy.scanHint,
-      'data-action': 'scan'
+      title: copy.scanLabel,
+      'data-action': 'scan',
+      onclick: onScan
     }, L.glyph.use('g-camera', { width: 24, height: 24, viewBox: '0 0 24 24' }));
     var settings = h('a', {
       class: 'ak-icon-btn',
