@@ -41,7 +41,7 @@ An agent uses a token from Settings, not your session. A token is shown once. On
 | --- | --- |
 | `GET /api/v1/lists` | The lists and the default one. |
 | `GET /api/v1/tags` | Tags with counts. |
-| `GET /api/v1/tasks` | Tasks. Query: `list`, `status` (`open` or `all`), `tag`, `someday`. |
+| `GET /api/v1/tasks` | Tasks. Query: `list`, `status` (`open` or `all`), `tag`, `priority` (`1`, `5`, `9` or `none`), `someday`, `scheduled` (`true` or `false`). |
 | `POST /api/v1/tasks` | Create. Body: `summary` (required), `list`, `description`, `due` (`YYYY-MM-DD`), `priority` (1, 5, 9), `tags`, `someday`. |
 | `GET /api/v1/lists/:list/tasks/:uid` | One task. |
 | `PATCH /api/v1/lists/:list/tasks/:uid` | Change fields. Fields you leave out stay as they are. `null` clears `due`, `description`, `priority`. |

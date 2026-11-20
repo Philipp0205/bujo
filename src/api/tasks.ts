@@ -142,7 +142,15 @@ function parseUid(value: unknown): string {
 
 /* ---------- reads ---------- */
 
-const LIST_QUERY = ["list", "status", "tag", "someday"] as const;
+const LIST_QUERY = ["list", "status", "tag", "priority", "someday", "scheduled"] as const;
+
+/** Query priority: 1, 5, 9 or "none" (unset). Numbers may come as strings from a URL. */
+function parsePriorityFilter(value: unknown): Priority | null {
+  if (value === "none" || value === null) return null;
+  const n = typeof value === "string" && /^[159]$/.test(value) ? Number(value) : value;
+  if (n === 1 || n === 5 || n === 9) return n;
+  throw new HttpError(400, "priority must be 1, 5, 9 or none");
+}
 
 /** Open tasks by default, sorted as the backlog is (due date, priority, list, summary). */
 export async function listTasks(source: TaskSource, rawQuery: unknown): Promise<{ tasks: TaskView[] }> {
@@ -152,13 +160,17 @@ export async function listTasks(source: TaskSource, rawQuery: unknown): Promise<
   const list = query.list === undefined ? undefined : resolveList(source, query.list, "input");
   const tag = query.tag === undefined ? undefined : parseTags([query.tag])[0];
   const someday = query.someday === undefined ? undefined : parseBool(query.someday, "someday");
+  const priority = query.priority === undefined ? undefined : parsePriorityFilter(query.priority);
+  const scheduled = query.scheduled === undefined ? undefined : parseBool(query.scheduled, "scheduled");
   const tasks = await guard(() => loadBacklog(source, includeClosed));
   return {
     tasks: tasks.filter(
       (task) =>
         (list === undefined || task.list === list) &&
         (tag === undefined || task.tags.some((item) => item.toLowerCase() === tag.toLowerCase())) &&
-        (someday === undefined || task.someday === someday),
+        (someday === undefined || task.someday === someday) &&
+        (priority === undefined || task.priority === priority) &&
+        (scheduled === undefined || (task.due !== null) === scheduled),
     ),
   };
 }

@@ -136,6 +136,17 @@ test("v1 reads: lists, tags, tasks with filters, and one task", async () => {
     assert.equal((await api(base, "GET", "/api/v1/tasks?list=Arbeit", { headers: read })).json.tasks.length, 1);
     assert.equal((await api(base, "GET", "/api/v1/tasks?someday=true", { headers: read })).json.tasks.length, 1);
     assert.equal((await api(base, "GET", "/api/v1/tasks?tag=haushalt", { headers: read })).json.tasks[0].uid, "fx-someday");
+    // priority and scheduled filters match what the full list says.
+    type T = { uid: string; priority: number | null; due: unknown };
+    const all: T[] = tasks.json.tasks;
+    const uids = async (q: string) => ((await api(base, "GET", `/api/v1/tasks?${q}`, { headers: read })).json.tasks as T[]).map((t) => t.uid);
+    for (const p of [1, 5, 9] as const) assert.deepEqual(await uids(`priority=${p}`), all.filter((t) => t.priority === p).map((t) => t.uid));
+    assert.deepEqual(await uids("priority=none"), all.filter((t) => t.priority === null).map((t) => t.uid));
+    assert.ok((await uids("priority=1")).length > 0);
+    assert.deepEqual(await uids("scheduled=true"), all.filter((t) => t.due !== null).map((t) => t.uid));
+    assert.deepEqual(await uids("scheduled=false"), all.filter((t) => t.due === null).map((t) => t.uid));
+    assert.ok((await uids("scheduled=true")).length > 0);
+    assert.equal((await api(base, "GET", "/api/v1/tasks?priority=3", { headers: read })).status, 400);
     assert.ok((await api(base, "GET", "/api/v1/tasks?status=all", { headers: read })).json.tasks.length > 6);
     assert.equal((await api(base, "GET", "/api/v1/tasks?list=Nope", { headers: read })).status, 400);
     assert.equal((await api(base, "GET", "/api/v1/tasks?status=weird", { headers: read })).status, 400);
