@@ -15,6 +15,12 @@ Before reporting a change done, run `scripts/check.sh` from the repo root. It mu
 
 Until `package.json` exists, those steps are placeholders and the script reports an ok line for each.
 
+## Scope
+
+- Build every item the task lists. If you can't finish one, say so by name in your final message under "Not done", with the reason. Never drop a listed item silently.
+- Don't change contracts the task didn't ask about: route paths, API shapes, `package.json` engines, dependencies, or config. If one has to change for a listed item to work, say what and why in one line.
+- If you spot a useful extra, don't build it. List it under "Not done (ideas)", one line each.
+
 ## OpenCode
 
 Use OpenCode with the litellm provider.
