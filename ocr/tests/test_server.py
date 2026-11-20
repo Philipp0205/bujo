@@ -43,6 +43,25 @@ def test_healthz(service):
     assert call(service, "GET", "/healthz") == (200, {"ok": True})
 
 
+def test_dual_stack_host_answers_on_ipv4_and_ipv6():
+    httpd = server.make_server("::", 0, fake_recognizer)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = httpd.server_address[1]
+        assert call(port, "GET", "/healthz") == (200, {"ok": True})
+        conn = http.client.HTTPConnection("::1", port, timeout=20)
+        try:
+            conn.request("GET", "/healthz")
+            assert conn.getresponse().status == 200
+        finally:
+            conn.close()
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+
 def test_unknown_path_is_404(service):
     assert call(service, "GET", "/nope")[0] == 404
     assert call(service, "POST", "/nope", b"x", "image/png")[0] == 404

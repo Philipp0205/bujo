@@ -5,13 +5,14 @@
                  -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine}], "width", "height", "ms"}
 
 The image is decoded from memory and dropped after the answer. Nothing is written to disk.
-Env: OCR_HOST (default 0.0.0.0), OCR_PORT (default 8090).
+Env: OCR_HOST (default 0.0.0.0; "::" listens on IPv6 and IPv4), OCR_PORT (default 8090).
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -121,8 +122,19 @@ def make_handler(recognize: Recognize = recognize_lines) -> type[BaseHTTPRequest
     return Handler
 
 
+class _DualStackServer(ThreadingHTTPServer):
+    """IPv6 listener that also takes IPv4 (for "::", which Railway private networking needs)."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self) -> None:
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        super().server_bind()
+
+
 def make_server(host: str, port: int, recognize: Recognize = recognize_lines) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), make_handler(recognize))
+    server_class = _DualStackServer if ":" in host else ThreadingHTTPServer
+    server = server_class((host, port), make_handler(recognize))
     server.daemon_threads = True
     return server
 
