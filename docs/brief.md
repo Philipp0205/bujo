@@ -11,8 +11,9 @@ The app is the evening bridge: scan the day's paper page, review every proposed 
 - Replacing the paper journal, or printing back onto paper.
 - A general-purpose task manager with its own task database. Tasks live in Nextcloud via CalDAV. A small local store is only for auth users and sessions.
 - Touching VEVENT calendars, deleting collections, or deleting items without an explicit yes.
-- Sending journal photos or task text to a third-party OCR or API without a yes.
+- Sending journal photos or task text to a third-party OCR or API, except as a fallback after the spike if no on-device or self-hosted option is good enough. In that case, real page photos leave the box only for that service.
 - Multi-user or public access. This is a private, single-user app.
+- Calendar sync or a handoff to the tasks bot in v1. Bujo does not trigger calendar blocks.
 
 ## Hybrid flow
 
@@ -22,9 +23,9 @@ The app is the evening bridge: scan the day's paper page, review every proposed 
 
 ## Backlog views
 
-- By project or category
-- By priority
-- Someday/maybe (no such list exists today; see open questions)
+- By project or category (via `CATEGORIES`; names TBD)
+- By priority (`1` high, `5` medium, `9` low, or unset)
+- Someday/maybe: items tagged `CATEGORIES:someday` (no separate list)
 - Scheduled (`<`): items with a DUE date
 
 ## CalDAV mapping
@@ -42,11 +43,13 @@ All other calendars are VEVENT and off-limits. Never delete collections. Tests u
 
 ### Projects and categories
 
-`CATEGORIES` is unused today, so tagging projects or categories via `CATEGORIES` is a proposal and would not break existing items.
+`CATEGORIES` is unused today, so tagging projects or categories via `CATEGORIES` is safe and is in v1. The names themselves are still TBD (see open questions).
+
+Someday is also a `CATEGORIES` tag, `someday`. It is not a new list.
 
 ### Priority
 
-Values already seen: `1` high, `5` medium (rare), `9` low, `0` or absent unset. There is no agreed convention yet. Mapping paper levels onto 1/5/9 should follow whatever is confirmed (see open questions).
+Stick to the values already used in Nextcloud: `1` high, `5` medium, `9` low, `0` or absent unset. Do not invent other levels.
 
 ### Scheduled (`<`) and dates
 
@@ -75,7 +78,7 @@ Write rules:
 
 ### Someday/maybe
 
-No someday list exists today. Undated open items currently act as someday. Creating a Someday list needs an explicit yes (see open questions).
+No someday list. Tag items with `CATEGORIES:someday`. Today, undated open items act as someday in practice; in the app, someday is this explicit tag, not "undated = someday".
 
 ### Matching scanned lines to VTODOs
 
@@ -88,13 +91,15 @@ Ambiguous or weak matches stay unmatched until the review screen decides: update
 
 ### Integration with the tasks bot
 
-The tasks bot's weekday ~08:00 routine reads both lists for overdue and due-today items, and it books calendar blocks for every `DUE` it writes. If bujo writes `DUE` on the real lists, we must notify the tasks bot, or agree another handoff, so those blocks stay consistent (see open questions).
+The tasks bot's weekday ~08:00 routine reads both lists for overdue and due-today items, and it books calendar blocks for every `DUE` it writes.
+
+v1 does not sync the calendar and does not hand off to the tasks bot. Bujo does not trigger calendar blocks. Writing `DUE` on the real lists may later need a handoff so those blocks stay consistent; that is out of v1.
 
 ## Evening scan flow
 
 1. Photograph today's day page, or pick a photo already on the phone. Real page photos are never committed.
 2. Run OCR locally or on the self-hosted VPS. Extract each bullet line: symbol, text, and any date or project hint.
-3. Show the **review screen** before any CalDAV write. For every line: accept as proposed, edit (text, list, due date, project, priority, or match to an existing item), or reject (drop, no write).
+3. Show the **review screen** before any CalDAV write. For every line: accept as proposed, edit (text, list, due date, project, priority, someday tag, or match to an existing item), or reject (drop, no write).
 4. Only after the review is finished, sync the accepted lines: create or update VTODOs as mapped above, then read back and show the result.
 5. If sync fails mid-way, report what was written and what was not. Do not retry blindly in a way that could duplicate items.
 
@@ -102,14 +107,14 @@ Nothing syncs from a raw OCR result. The review is mandatory.
 
 ## OCR approach
 
-Prefer on-device or self-hosted. No third-party API without a yes.
-
-Options to spike:
+Prefer on-device or self-hosted:
 
 - Tesseract
 - PaddleOCR
 - TrOCR
 - A small local VLM on the VPS
+
+If none of those is good enough after the spike, a third-party service is allowed as a fallback. That decision is made from the spike numbers, not before. If a third-party fallback is used, real page photos leave the box only for that service.
 
 Spike plan: run 3-5 real day-page photos (kept private, not in git) and measure:
 
@@ -123,9 +128,10 @@ Pick a path from those numbers, not from a demo on clean print.
 
 **In**
 
-- Backlog views over the two real lists (project/category, priority, someday/maybe once decided, scheduled/due).
+- Backlog views over the two real lists (project/category via `CATEGORIES`, priority 1/5/9, someday via `CATEGORIES:someday`, scheduled/due).
 - Evening scan with mandatory per-line review, then CalDAV create/update as mapped above.
-- OCR spike and a first working recognizer that is good enough for review (the human still corrects).
+- OCR spike and a first working recognizer that is good enough for review (the human still corrects). Prefer on-device or self-hosted; third-party only as a fallback after the spike.
+- Dark mode: light and dark, following the system `prefers-color-scheme` via app-kit theme tokens.
 - Auth and deploy as below, pending the auth open question.
 - A separate test list and fixtures. Tests never touch Aufgaben or Arbeit.
 
@@ -134,9 +140,10 @@ Pick a path from those numbers, not from a demo on clean print.
 - Replacing or transcribing the whole notebook.
 - Writing `DTSTART`, deleting items or collections, or editing VEVENT calendars.
 - A second task database.
-- Third-party OCR or cloud vision APIs.
-- Multi-user features, public sharing, or a someday list created without a yes.
-- Booking calendar blocks. That stays with the tasks bot; we only need a handoff when we write `DUE`.
+- A new Someday list (someday is a `CATEGORIES` tag).
+- Multi-user features or public sharing.
+- Calendar sync or a handoff to the tasks bot. Bujo does not trigger calendar blocks in v1. A later handoff may be needed when writing `DUE` on the real lists; that is out of v1.
+- Third-party OCR as the first choice. It is only a fallback if the spike shows no on-device or self-hosted option is good enough.
 
 ## Auth, stack, and deploy
 
@@ -148,6 +155,7 @@ Setup:
 
 - `head.html` snippet
 - `ak-tokens` accent
+- Light and dark themes, following the system `prefers-color-scheme` via app-kit theme tokens. This is in v1.
 - `ak-sw.js` service worker and `scripts/manifest.mjs`
 - Skip `ak-view-transitions.css`
 - `server/auth.ts`: the app implements `AuthStore` over its own `users`, `sessions`, and `auth_links` tables, per app-kit `docs/auth.md`
@@ -155,15 +163,11 @@ Setup:
 
 Tension to keep straight: there is still no separate task database. Tasks stay in CalDAV. Auth does need a small local store (for example `node:sqlite`) for users and sessions only.
 
-This is a single-user app. Whether we want full app-kit auth or just to put the app behind Tailscale is an open question.
+This is a single-user app. Whether we want full app-kit auth or just to put the app behind Tailscale is still an open question.
 
 Deploy on Hetzner, via the hetzner ops agent. Reachable over Tailscale.
 
 ## Open questions for Philipp
 
-1. Someday/maybe: there is no such list today; undated open items act as someday. Prefer a new Someday list, a `CATEGORIES:someday` tag, or keep "undated = someday"?
-2. This is a single-user private app. Use full app-kit auth (email via Resend, local users/sessions store) or just put it behind Tailscale?
-3. Priority: Nextcloud already has `1` high, `5` medium, `9` low, and unset. What levels do you actually use on paper, and should we stick to 1/5/9?
-4. Projects or categories via `CATEGORIES` would be new and would not break existing items. Do you want that in v1, and if so what are the names?
-5. If bujo writes a `DUE` on Aufgaben or Arbeit, the tasks bot books calendar blocks for dues it writes. How should we hand off: notify the tasks bot on each write, let its weekday 08:00 routine pick the new dues up, or something else?
-6. For the OCR spike, is on-device / self-hosted only a hard rule (Tesseract, PaddleOCR, TrOCR, or a small VLM on the VPS), or may we try a third-party API later if the local options miss too many symbols?
+1. This is a single-user private app. Use full app-kit auth (email via Resend, local users/sessions store) or just put it behind Tailscale?
+2. What are the project or category names to use in `CATEGORIES` for v1?
