@@ -27,9 +27,14 @@ NONE = "none"
 MAX_SIDE = 1800
 # A pixel of the illumination-normalised page darker than this is ink.
 INK_LEVEL = 150
-# The gap between a symbol and the text, as a share of the line height, below which the first glyph is
-# treated as the first character of the text and not as a bullet.
-SYMBOL_GAP = 0.35
+# A bullet stands apart from its text: the blank after the first glyph must be clearly wider than the usual
+# gap between the glyphs that follow (SYMBOL_GAP_RATIO times their median) and not tiny (SYMBOL_GAP_MIN of
+# the line height). Handwriting sits close: on a real page an x was 15 px from its text, with 9 px between
+# letters, while the digits of a date are about as far apart as the rest of the date.
+SYMBOL_GAP_RATIO = 1.4
+SYMBOL_GAP_MIN = 0.1
+# A blank wider than this many line heights ends the line (what follows is a speck, not writing).
+FAR_GAP = 4.0
 
 
 class ImageError(ValueError):
@@ -275,12 +280,21 @@ def analyse_lines(ink: np.ndarray) -> list[Line]:
     for y0, y1, x0, x1 in segments:
         height = y1 - y0
         fine = glyph_groups(ink, y0, y1, x0, x1, gap_ratio=0.0)  # any blank column splits
+        # A speck far to the right (page edge, a smudge) is not part of the line: cut the line at the first
+        # blank wider than FAR_GAP line heights, so the text crop holds only the writing.
+        for i in range(len(fine) - 1):
+            if fine[i + 1][0] - fine[i][1] > FAR_GAP * height:
+                fine = fine[: i + 1]
+                x1 = fine[-1][1] - 1
+                break
         symbol, features = (NONE, {})
         if fine:
             symbol, features = classify_symbol(ink, y0, y1, fine[0][0], fine[0][1], median_h)
             # A bullet stands apart from the text. A first glyph that sits close to the next one is the first
             # letter or digit of the text (the date line "20.11.2025" starts with a "2" that looks like a chevron).
-            if symbol != NONE and len(fine) > 1 and fine[1][0] - fine[0][1] < SYMBOL_GAP * height:
+            gaps = [fine[i + 1][0] - fine[i][1] for i in range(len(fine) - 1)]
+            rest = float(np.median(gaps[1:])) if len(gaps) > 1 else 0.0
+            if symbol != NONE and gaps and (gaps[0] < SYMBOL_GAP_MIN * height or gaps[0] < SYMBOL_GAP_RATIO * rest):
                 features = {**features, "rejected": symbol}
                 symbol = NONE
         line = Line(y0=y0, y1=y1, x0=x0, x1=x1, symbol=symbol, features=features)

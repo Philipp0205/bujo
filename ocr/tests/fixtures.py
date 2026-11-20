@@ -91,8 +91,10 @@ def make_page(
     top: int = 80,
     pitch: int = 90,
     font_size: int = 34,
+    text_gap: int = 26,
 ) -> Fixture:
-    """`rotate` is the largest tilt (degrees) given to a line. `noise` is the gaussian sigma of the page noise."""
+    """`rotate` is the largest tilt (degrees) given to a line. `noise` is the gaussian sigma of the page noise.
+    `text_gap` is the blank space in px between the right edge of a symbol and its text."""
     entries = lines if lines is not None else DEFAULT_LINES
     rng = random.Random(seed)
     height = top + pitch * len(entries) + 40
@@ -112,7 +114,7 @@ def make_page(
         layer = Image.new("RGBA", (width, 120), (0, 0, 0, 0))
         ld = ImageDraw.Draw(layer)
         ink = (20, 20, 30, 255)
-        text_x = 130
+        text_x = 90 + 14 + text_gap
         if symbol != "none":
             _draw_symbol(ld, symbol, 90, 60, ink)
         else:

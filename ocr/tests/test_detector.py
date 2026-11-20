@@ -141,3 +141,24 @@ def test_spike_drawn_shapes_are_classified(want):
         cv2.line(c, (18, 40), (42, 40), 255, 4)
     got, _ = detector.classify_symbol(c, 0, 60, 0, 60, 45.0)
     assert got == want
+
+
+@pytest.mark.parametrize("symbol", ["x", "•", "○", "–", ">", "<"])
+def test_a_symbol_written_close_to_its_text_is_still_a_symbol(symbol):
+    # Handwriting puts the bullet close to the text: on a real page an x sat a third of a line height away.
+    fx = make_page([("none", "20.11.2025"), (symbol, "Task zwei")], text_gap=12, grid=True)
+    page = detector.analyse(detector.decode_image(fx.png))
+    assert [line.symbol for line in page.lines] == ["none", symbol]
+
+
+def test_a_speck_far_right_of_a_line_is_not_part_of_it():
+    from PIL import Image, ImageDraw
+    import io
+    fx = make_page([("•", "Task eins")], width=1400)
+    img = Image.open(io.BytesIO(fx.png)).convert("RGB")
+    ImageDraw.Draw(img).ellipse([1300, fx.expected[0].y_center - 6, 1312, fx.expected[0].y_center + 6], fill=(20, 20, 30))
+    buf = io.BytesIO(); img.save(buf, format="PNG")
+    page = detector.analyse(detector.decode_image(buf.getvalue()))
+    assert len(page.lines) == 1
+    x, y, w, h = detector.line_bbox(page, page.lines[0])
+    assert x + w < 1000
