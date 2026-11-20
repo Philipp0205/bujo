@@ -144,3 +144,9 @@
 .bj-state { padding: var(--ak-s4) var(--ak-gutter); }
 .bj-state .ak-btn { margin-top: var(--ak-s3); }
 .bj-loading { padding: var(--ak-s4) var(--ak-gutter); display: grid; gap: var(--ak-s3); }
+
+/* Links in notes use the accent, not the browser default blue. */
+.bj-note a { color: var(--ak-accent); }
+
+/* Sign-in pages: room under the status bar above the title. */
+.bj-auth-head { padding-top: calc(var(--ak-safe-top) + var(--ak-s4)); }

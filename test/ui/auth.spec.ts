@@ -12,6 +12,10 @@ test("first run: sign up, save the recovery code, sign out, sign in again with i
   await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByRole("heading", { name: "Welcome to bujo", level: 1 })).toBeVisible();
   await expect(page.locator("#app")).toContainText("The first visitor claims the account");
+  // The subtitle sits under the title, not squeezed beside it.
+  const titleBox = (await page.locator(".ak-screen-title").boundingBox())!;
+  const subBox = (await page.locator(".bj-auth-head .bj-sub").boundingBox())!;
+  expect(subBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
 
   await page.getByLabel("Your name").fill("Philipp");
   await page.getByLabel("Email").fill("philipp@example.com");

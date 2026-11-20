@@ -15,7 +15,8 @@
   }
 
   function head(title, sub) {
-    return h('div', { class: 'ak-screen-head' }, h('h1', { class: 'ak-screen-title' }, title), sub ? h('p', { class: 'bj-sub' }, sub) : null);
+    // .ak-screen-head is a row (title and an action), so the subtitle sits below it, not beside the title.
+    return h('div', { class: 'bj-auth-head' }, h('div', { class: 'ak-screen-head' }, h('h1', { class: 'ak-screen-title' }, title)), sub ? h('p', { class: 'bj-sub' }, sub) : null);
   }
 
   function link(href, text) {
