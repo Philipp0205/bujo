@@ -5,5 +5,8 @@ scikit-image
 pillow
 pytesseract
 torch
-transformers
+# Pinned to the version the spike ran. Without protobuf, the TrOCR-small tokenizer load falls through to a
+# tiktoken path and fails (seen on the Railway build).
+transformers==5.23.0
 sentencepiece
+protobuf
