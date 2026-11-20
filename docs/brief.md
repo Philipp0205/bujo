@@ -132,7 +132,7 @@ Pick a path from those numbers, not from a demo on clean print.
 - Evening scan with mandatory per-line review, then CalDAV create/update as mapped above.
 - OCR spike and a first working recognizer that is good enough for review (the human still corrects). Prefer on-device or self-hosted; third-party only as a fallback after the spike.
 - Dark mode: light and dark, following the system `prefers-color-scheme` via app-kit theme tokens.
-- Auth and deploy as below, pending the auth open question.
+- Full app-kit auth (email via Resend) and deploy as below.
 - A separate test list and fixtures. Tests never touch Aufgaben or Arbeit.
 
 **Out**
@@ -158,16 +158,15 @@ Setup:
 - Light and dark themes, following the system `prefers-color-scheme` via app-kit theme tokens. This is in v1.
 - `ak-sw.js` service worker and `scripts/manifest.mjs`
 - Skip `ak-view-transitions.css`
-- `server/auth.ts`: the app implements `AuthStore` over its own `users`, `sessions`, and `auth_links` tables, per app-kit `docs/auth.md`
+- `server/auth.ts`: full app-kit auth. The app implements `AuthStore` over a local `node:sqlite` store with `users`, `sessions`, and `auth_links` tables, per app-kit `docs/auth.md`.
 - Email is mandatory, sent with Resend (`RESEND_API_KEY`, `MAIL_FROM`)
 
-Tension to keep straight: there is still no separate task database. Tasks stay in CalDAV. Auth does need a small local store (for example `node:sqlite`) for users and sessions only.
+Tension to keep straight: there is still no separate task database. Tasks stay in CalDAV. Auth uses a small local `node:sqlite` store for users, sessions, and auth links only.
 
-This is a single-user app. Whether we want full app-kit auth or just to put the app behind Tailscale is still an open question.
+This is a single-user app, but it uses full app-kit auth, not Tailscale-only access.
 
-Deploy on Hetzner, via the hetzner ops agent. Reachable over Tailscale.
+Deploy on Hetzner, via the hetzner ops agent. Tailscale is the network layer for deploy (how the app is reached), not a substitute for app-kit login.
 
 ## Open questions for Philipp
 
-1. This is a single-user private app. Use full app-kit auth (email via Resend, local users/sessions store) or just put it behind Tailscale?
-2. What are the project or category names to use in `CATEGORIES` for v1?
+1. What are the project or category names to use in `CATEGORIES` for v1?
