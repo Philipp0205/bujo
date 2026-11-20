@@ -208,6 +208,41 @@ test("lost code: the answer is the same for any address, only a verified one get
   });
 });
 
+test("lost code: a missing or malformed address is 400 and sends no mail", async () => {
+  await withApp(demoSource(), async ({ base, mailer }) => {
+    const { headers } = await signUp(base);
+    const verifyToken = /#t=([A-Za-z0-9_-]+)/.exec(mailer.sent[0].text)![1];
+    await api(base, "POST", "/api/auth/verify", { body: { token: verifyToken } });
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+    const before = mailer.sent.length;
+
+    for (const email of ["", "   ", "philipp@example", "philipp@example.com."]) {
+      const bad = await api(base, "POST", "/api/auth/lost-code", { body: { email } });
+      assert.equal(bad.status, 400, JSON.stringify(email));
+      assert.deepEqual(bad.json, { error: "enter a valid email" });
+    }
+    assert.equal((await api(base, "POST", "/api/auth/lost-code", { body: {} })).status, 400);
+    assert.equal((await api(base, "POST", "/api/auth/lost-code", { body: { email: 5 } })).status, 400);
+    await settle();
+    assert.equal(mailer.sent.length, before);
+
+    // A valid address that belongs to nobody still answers 200 and sends nothing.
+    const stranger = await api(base, "POST", "/api/auth/lost-code", { body: { email: "nobody@example.com" } });
+    await settle();
+    assert.equal(stranger.status, 200);
+    assert.deepEqual(stranger.json, { ok: true });
+    assert.equal(mailer.sent.length, before);
+
+    // The confirmed address, loosely typed, still mails.
+    const real = await api(base, "POST", "/api/auth/lost-code", { body: { email: " Philipp@Example.com " } });
+    await settle();
+    assert.equal(real.status, 200);
+    assert.equal(mailer.sent.length, before + 1);
+    assert.equal(mailer.sent.at(-1)!.to, "philipp@example.com");
+    assert.ok(headers.cookie);
+  });
+});
+
 test("with no mailer, signup still works and email is reported as off", async () => {
   await withApp(demoSource(), async ({ base, mailer }) => {
     // startApp always passes the stub; this checks the reported flag by spelling the option out.

@@ -53,7 +53,7 @@
 
   function signup() {
     var name = field('name', 'Your name', { type: 'text', autocomplete: 'name', maxlength: '40', required: true });
-    var email = field('email', 'Email', { type: 'email', autocomplete: 'email', inputmode: 'email', required: true });
+    var email = field('email', 'Email', { type: 'email', autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
     var f = form([name, email], 'Create journal', function () {
       return Bujo.request('POST', '/api/auth/signup', { name: name.input.value, email: email.input.value }).then(function (result) {
         show(head('Save your recovery code'), Bujo.codePanel({
@@ -80,10 +80,12 @@
   }
 
   function lost() {
-    var email = field('email', 'Email', { type: 'email', autocomplete: 'email', inputmode: 'email', required: true });
+    var email = field('email', 'Email', { type: 'email', autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', required: true });
     var f = form([email], 'Send sign-in link', function () {
+      var sent = email.input.value.trim().toLowerCase();
       return Bujo.request('POST', '/api/auth/lost-code', { email: email.input.value }).then(function () {
-        Bujo.say(f.slot, 'If that address is confirmed on this journal, a sign-in link is on its way. It works once and expires in 20 minutes.', 'ok');
+        // Text only: the address is user input and must never be parsed as HTML.
+        Bujo.say(f.slot, 'If ' + sent + ' is the confirmed address on this journal, a sign-in link is on its way. It works once and expires in 20 minutes.', 'ok');
       });
     });
     show(head('Lost your code?', 'We can email a one-time sign-in link to the confirmed address.'), f.node, link('/signin', 'Back to sign in'));

@@ -23,6 +23,7 @@ bujo has exactly one account. There is no password: you get a recovery code once
 - Open `/signup`, enter a name and an email, save the recovery code, and you are in. A second sign-up is refused (a database trigger enforces it).
 - The session cookie is `bujo_session` (HttpOnly, SameSite=Lax, 180 days). Sign out from Settings.
 - If you lose the code, `/lost` emails a one-time link (20 minutes) to the confirmed address. Using it signs out other devices and issues a new code.
+- If the confirm mail did not arrive, Settings shows "Send confirmation link again" while the email is unconfirmed and email is on.
 - Risk: the first visitor claims the account. Sign up right after you deploy, before you share the address.
 - Email is off unless `RESEND_API_KEY` and `MAIL_FROM` are both set. While it is off, the confirm and lost-code links cannot be sent, so the recovery code is the only way in. Keep it safe.
 

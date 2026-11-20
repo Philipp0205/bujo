@@ -55,3 +55,21 @@ test("with an account, /signup goes to sign in and a signed-in visitor skips the
   await page.goto(`${app.baseUrl}/signup`);
   await expect(page).toHaveURL(/\/signin$/);
 });
+
+test("/lost names the normalized address and refuses an invalid one", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/lost`);
+  const email = page.getByLabel("Email");
+  await expect(email).toHaveAttribute("autocapitalize", "none");
+  await expect(email).toHaveAttribute("autocorrect", "off");
+  await expect(email).toHaveAttribute("spellcheck", "false");
+
+  await email.fill("philipp@example");
+  await page.getByRole("button", { name: "Send sign-in link" }).click();
+  await expect(page.locator(".bj-slot")).toContainText("enter a valid email");
+
+  await email.fill("  Philipp@Example.com ");
+  await page.getByRole("button", { name: "Send sign-in link" }).click();
+  await expect(page.locator(".bj-slot")).toContainText(
+    "If philipp@example.com is the confirmed address on this journal, a sign-in link is on its way. It works once and expires in 20 minutes.",
+  );
+});

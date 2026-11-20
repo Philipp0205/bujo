@@ -33,9 +33,25 @@
   function emailSection() {
     var me = state.me;
     var slot = h('div', { class: 'bj-slot' });
-    var input = h('input', { class: 'ak-input', id: 'email', type: 'email', autocomplete: 'email', inputmode: 'email', value: me.user.email || '' });
+    var input = h('input', { class: 'ak-input', id: 'email', type: 'email', autocomplete: 'email', inputmode: 'email', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', value: me.user.email || '' });
     var status = !me.user.email ? 'No email yet.' : me.user.emailVerifiedAt ? 'Confirmed.' : 'Not confirmed yet.';
     if (!me.emailEnabled) status += ' Email sending is off on this server, so no link can be sent.';
+    var resend = null;
+    if (me.user.email && !me.user.emailVerifiedAt && me.emailEnabled) {
+      resend = h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'resend-confirmation', onclick: function () {
+        // The saved address, not whatever is typed in the field right now.
+        var saved = me.user.email;
+        resend.disabled = true;
+        req('POST', '/api/auth/email', { email: saved }).then(function (result) {
+          state.me.user = result.user;
+          state.mailNote = 'Confirmation link sent to ' + saved + '.';
+          render();
+        }).catch(function (error) {
+          resend.disabled = false;
+          Bujo.say(slot, error.message);
+        });
+      } }, 'Send confirmation link again');
+    }
     var form = h('form', { class: 'bj-form', novalidate: true, onsubmit: function (event) {
       event.preventDefault();
       req('POST', '/api/auth/email', { email: input.value }).then(function (result) {
@@ -47,7 +63,8 @@
       h('div', { class: 'ak-field' }, h('label', { class: 'ak-label', for: 'email' }, 'Email'), input),
       h('p', { class: 'bj-note', 'data-testid': 'email-status' }, status),
       slot,
-      h('button', { type: 'submit', class: 'ak-btn ak-btn-secondary' }, 'Save email'));
+      h('button', { type: 'submit', class: 'ak-btn ak-btn-secondary' }, 'Save email'),
+      resend);
     if (state.mailNote) Bujo.say(slot, state.mailNote, 'ok');
     return h('section', { class: 'bj-section' }, h('h2', { class: 'bj-group-title' }, 'Account'), h('div', { class: 'ak-card' }, form));
   }

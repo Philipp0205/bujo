@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { useBujo } from "./harness.ts";
 
 const app = useBujo();
+const confirmed = useBujo();
+const emailOff = useBujo({ emailOff: true });
 
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
@@ -71,6 +73,43 @@ test("the account section shows the email state", async ({ page }) => {
   // The harness uses the kit's stub mailer, so sending counts as on.
   await expect(page.locator("[data-testid=email-status]")).toHaveText("Not confirmed yet.");
   await expect(page.getByLabel("Email")).toHaveValue("philipp@example.com");
+});
+
+test("an unconfirmed account with email on can send the confirmation link again", async ({ page }) => {
+  const confirmMails = () => app.mailer.sent.filter((m) => m.subject.startsWith("Confirm your email"));
+  const before = confirmMails().length;
+  await page.goto(`${app.baseUrl}/settings`);
+  const button = page.getByRole("button", { name: "Send confirmation link again" });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveClass(/ak-btn-secondary/);
+  await expect(page.locator("#email")).toHaveAttribute("autocapitalize", "none");
+  await expect(page.locator("#email")).toHaveAttribute("autocorrect", "off");
+  await expect(page.locator("#email")).toHaveAttribute("spellcheck", "false");
+
+  // The saved address is used, not what is typed in the field.
+  await page.locator("#email").fill("typed-but-not-saved@example.com");
+  await button.click();
+  await expect(page.locator(".bj-slot").first()).toContainText("Confirmation link sent to philipp@example.com.");
+  expect(confirmMails().length).toBe(before + 1);
+  expect(confirmMails().at(-1)!.to).toBe("philipp@example.com");
+});
+
+test("no resend button when the email is confirmed", async ({ page }) => {
+  await confirmed.signIn(page);
+  const mail = confirmed.mailer.sent.find((m) => m.subject.startsWith("Confirm your email"))!;
+  const token = /#t=([A-Za-z0-9_-]+)/.exec(mail.text)![1];
+  const verified = await page.request.post(`${confirmed.baseUrl}/api/auth/verify`, { data: { token } });
+  expect(verified.status()).toBe(200);
+  await page.goto(`${confirmed.baseUrl}/settings`);
+  await expect(page.locator("[data-testid=email-status]")).toHaveText("Confirmed.");
+  await expect(page.getByRole("button", { name: "Send confirmation link again" })).toHaveCount(0);
+});
+
+test("no resend button when email sending is off", async ({ page }) => {
+  await emailOff.signIn(page);
+  await page.goto(`${emailOff.baseUrl}/settings`);
+  await expect(page.locator("[data-testid=email-status]")).toContainText("Email sending is off on this server");
+  await expect(page.getByRole("button", { name: "Send confirmation link again" })).toHaveCount(0);
 });
 
 test("a signed-out visitor is sent to sign in", async ({ browser }) => {
