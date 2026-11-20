@@ -58,6 +58,21 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
   revoked_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_agent_tokens_user ON agent_tokens(user_id);
+
+CREATE TABLE IF NOT EXISTS entries (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  time TEXT,
+  type TEXT NOT NULL CHECK (type IN ('task', 'note', 'event', 'done', 'migrated', 'scheduled')),
+  title TEXT NOT NULL,
+  tag TEXT,
+  sync TEXT NOT NULL DEFAULT 'local' CHECK (sync IN ('local', 'pending', 'synced', 'error')),
+  position INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position);
 `;
 
 /** Opens (and creates) the database. ":memory:" for tests. A file path gets its folder made and WAL on. */

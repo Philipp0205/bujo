@@ -196,7 +196,7 @@
   function header(title) {
     return h('div', { class: 'bj-head' },
       h('h1', { class: 'ak-large-title' }, title),
-      h('a', { class: 'bj-link', href: '/', 'data-nav': 'backlog' }, 'Backlog'));
+      h('a', { class: 'bj-link', href: '/backlog', 'data-nav': 'backlog' }, 'Backlog'));
   }
 
   function errorBanner() {
@@ -395,7 +395,7 @@
       failed ? h('p', { class: 'bj-note' }, 'Nothing is retried. Scan the page again for the lines that did not go through.') : null,
       h('ul', { class: 'bj-list ak-list' }, rows),
       h('div', { class: 'bj-actions bj-pad' },
-        h('a', { class: 'ak-btn ak-btn-accent', href: '/', 'data-action': 'to-backlog' }, 'Back to the backlog'),
+        h('a', { class: 'ak-btn ak-btn-accent', href: '/backlog', 'data-action': 'to-backlog' }, 'Back to the backlog'),
         h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'again', onclick: reset }, 'Scan another page')));
   }
 
