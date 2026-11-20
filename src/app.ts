@@ -13,6 +13,7 @@ import { countUsers, type Db } from "./db.ts";
 import { handleAuthRoutes } from "./routes/auth.ts";
 import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
 import { handleEntryRoutes } from "./routes/entries.ts";
+import { handleLogScan, type LogScanDeps } from "./routes/log-scan.ts";
 import { handleMcp } from "./routes/mcp.ts";
 import { handleScan, type ScanDeps } from "./routes/scan.ts";
 import { handleTokenRoutes } from "./routes/tokens.ts";
@@ -96,11 +97,10 @@ function foreignOrigin(req: http.IncomingMessage, publicOrigin: string): boolean
 
 export function createApp(options: AppOptions): http.RequestListener {
   const origin = options.origin ?? "http://localhost";
-  const scan: ScanDeps = {
-    ocr: options.ocr ?? createOcrClient(process.env.OCR_URL),
-    drafts: options.drafts ?? createDraftStore({ now: options.now }),
-    now: options.now ?? Date.now,
-  };
+  const ocr = options.ocr ?? createOcrClient(process.env.OCR_URL);
+  const now = options.now ?? Date.now;
+  const scan: ScanDeps = { ocr, drafts: options.drafts ?? createDraftStore({ now: options.now }), now };
+  const logScan: LogScanDeps = { ocr, drafts: createDraftStore({ now: options.now }), now };
   const accounts = createAccounts({
     db: options.db,
     origin,
@@ -158,6 +158,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleTokenRoutes(ctx)) return;
       if (await handleApiV1(ctx)) return;
       if (await handleScan(ctx, scan)) return;
+      if (await handleLogScan(ctx, logScan)) return;
       if (await handleEntryRoutes(ctx)) return;
       if (await handleMcp(ctx)) return;
 

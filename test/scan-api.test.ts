@@ -7,7 +7,7 @@ import { CalDavClient } from "../src/caldav/client.ts";
 import { loadCalDavConfig } from "../src/caldav/config.ts";
 import { caldavSource, demoSource } from "../src/caldav/source.ts";
 import { createOcrClient } from "../src/scan/ocr-client.ts";
-import { SCAN_MAX_BYTES } from "../src/routes/scan.ts";
+import { SCAN_MAX_BYTES } from "../src/scan/photo.ts";
 import { DEFAULT_PAGE, line, startFakeOcr, type FakeOcr } from "./fake-ocr.ts";
 import { fakeEnv, LIST_PATHS, PASSWORD, startFakeCalDav, USER, type FakeCalDav } from "./fake-caldav.ts";
 import { api, makeToken, signUp, withApp, type Signed } from "./helpers.ts";

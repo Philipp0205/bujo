@@ -109,6 +109,15 @@ Open `/scan` (the Scan link on the backlog). Take a photo of the day page or pic
 - Agents: `GET /api/scan/:id` works with any token. Upload (`POST /api/scan`) and apply (`POST /api/scan/:id/apply`) need your session.
 - HEIC photos are passed on as they are. The OCR service cannot read HEIC yet and answers an error, so use JPEG or PNG for now (iPhone: Settings, Camera, Formats, Most Compatible).
 
+### Scanning a rapid-log page
+
+The camera button in the log header opens the scan screen. Take a photo of the page (or pick one), then review one row per line: type, title, tag, and a keep check. Nothing is written until you press Apply, and only kept rows are written.
+
+- A header date line sets the day (`20.11.2026`, `20.11.`, `Friday 20.11`). With none, the day open in the log is used. You can pick another day in the review.
+- Lines already in the log for that day are skipped by default. An `x` line that names an open task of that day marks that task done instead of adding an entry. Matching is on the normalised title (case, spacing, punctuation, umlaut spelling), not fuzzy for duplicates.
+- Lines with no bullet are read as notes and start off. Rows under 80% confidence say "check spelling".
+- Endpoints, browser session only (no tokens): `POST /api/log/scan?date=YYYY-MM-DD` (raw image, answers the review, writes nothing), `POST /api/log/scan/:id/check` (rechecks lines against a day, writes nothing), `POST /api/log/scan/:id/apply` (writes the kept lines in one transaction, once per draft). The photo handling, the OCR service and the 24 hour in-memory drafts are the same as the evening scan.
+
 ### The OCR service
 
 The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.

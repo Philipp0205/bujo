@@ -85,6 +85,19 @@ export function openDb(file: string): Db {
   return db;
 }
 
+/** Runs fn inside one transaction: everything it writes is kept, or nothing is. */
+export function inTransaction<T>(db: Db, fn: () => T): T {
+  db.exec("BEGIN");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function countUsers(db: Db): number {
   const row = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };
   return Number(row.n);
