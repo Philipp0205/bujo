@@ -1,0 +1,22 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.playwright-mcp/
+test/ui/screenshots/
+test-results/
+.oc/
+
+# Real journal photos must never be committed
+**/fixtures/real/**/*.jpg
+**/fixtures/real/**/*.jpeg
+**/fixtures/real/**/*.png
+**/fixtures/real/**/*.heic
+**/private/**/*.jpg
+**/private/**/*.jpeg
+**/private/**/*.png
+**/private/**/*.heic
