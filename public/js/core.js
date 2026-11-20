@@ -3,6 +3,7 @@
  *
  *   Bujo.request(method, path, body, { guarded })  JSON call. Resolves with the parsed body, rejects with an Error whose
  *                                                  message is safe to show. With guarded: true a 401 sends the person to /signin.
+ *   Bujo.upload(path, file, { guarded })           POST a File as the raw body. Same results as request.
  *   Bujo.codePanel({ code, intro, buttonLabel, onDone })  The recovery code, shown once, with a copy button.
  */
 (function () {
@@ -17,6 +18,31 @@
       init.headers['content-type'] = 'application/json';
       init.body = JSON.stringify(body);
     }
+    return fetch(path, init).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (json) {
+        if (response.status === 401 && guarded) {
+          window.location.replace('/signin');
+          throw new Error('Signed out.');
+        }
+        if (!response.ok) {
+          var error = new Error(json && json.error ? json.error : 'Something went wrong. Try again.');
+          error.status = response.status;
+          throw error;
+        }
+        return json;
+      });
+    });
+  }
+
+  /** POSTs a File or Blob as the raw request body (not JSON). Same resolve and reject rules as request. */
+  function upload(path, file, options) {
+    var guarded = !!(options && options.guarded);
+    var init = {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': file.type || 'application/octet-stream' },
+      credentials: 'same-origin',
+      body: file
+    };
     return fetch(path, init).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (json) {
         if (response.status === 401 && guarded) {
@@ -67,5 +93,5 @@
     );
   }
 
-  window.Bujo = { request: request, say: say, codePanel: codePanel };
+  window.Bujo = { request: request, upload: upload, say: say, codePanel: codePanel };
 })();

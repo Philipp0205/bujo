@@ -188,7 +188,9 @@
   function render() {
     if (titleHandle) titleHandle.destroy();
     var title = h('h1', { class: 'ak-large-title' }, 'Backlog');
-    var settings = h('a', { class: 'bj-link', href: '/settings', 'data-nav': 'settings' }, 'Settings');
+    var settings = h('span', { class: 'bj-links' },
+      h('a', { class: 'bj-link', href: '/scan', 'data-nav': 'scan' }, 'Scan'),
+      h('a', { class: 'bj-link', href: '/settings', 'data-nav': 'settings' }, 'Settings'));
     // A failed refresh keeps the old list on screen and shows the error above it.
     var stale = state.error && state.data
       ? h('div', { class: 'bj-state', role: 'alert', 'data-state': 'error' }, h('div', { class: 'ak-empty' }, state.error))
