@@ -172,7 +172,7 @@
       return;
     }
     var focus = document.activeElement && document.activeElement.id;
-    app.replaceChildren.apply(app, [title, emailSection(), tokenSection(), signOut()].filter(Boolean));
+    app.replaceChildren.apply(app, [title, emailSection(), tokenSection(), BujoWhatsNew.settingsRow.section(), signOut()].filter(Boolean));
     if (focus) { var again = document.getElementById(focus); if (again) again.focus(); }
   }
 
