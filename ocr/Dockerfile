@@ -1,6 +1,7 @@
 # bujo OCR service. CPU only. Build from the repo root or from ocr/:
 #   docker build -t bujo-ocr ocr
-# The TrOCR model is downloaded while the image is built, so the running container needs no network.
+# The TrOCR model is downloaded while the image is built, so the running container needs no network
+# (except for the optional LLM reader, which calls the OCR_LLM_BASE gateway when OCR_LLM_BASE and OCR_LLM_KEY are set).
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \

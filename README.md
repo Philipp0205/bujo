@@ -95,6 +95,8 @@ Names only; copy `.env.example` and keep real values in your shell or an untrack
 | `PORT`, `HOST` | Listen address. Default `3000` and `127.0.0.1`. |
 | `BUJO_TRUST_PROXY` | `1` behind a reverse proxy, so rate limits use `X-Forwarded-For`. Leave unset otherwise. |
 | `OCR_URL` | Address of the OCR service, for example `http://127.0.0.1:8090`. Unset: the scan answers 503. |
+| `OCR_LLM_BASE`, `OCR_LLM_KEY` | Set on the OCR service, not the app. Gateway root (OpenAI-compatible, for example `https://gateway.example/v1`) and its key. Both set turns the LLM page reader on. |
+| `OCR_LLM_MODEL`, `OCR_LLM_TIMEOUT` | Set on the OCR service. Model name (default `claude-haiku-5-5`) and seconds to wait per request (default `25`, so a retry plus the local fallback still fit the app's 60 s scan timeout). |
 
 Set `BUJO_CALDAV_BASE` and `BUJO_CALDAV_LISTS` together, or neither. Behind HTTPS, set `BUJO_ORIGIN` to the `https://` address so the cookie is marked Secure.
 
@@ -124,7 +126,7 @@ The camera button in the log header opens the scan screen. Take a photo of the p
 
 ### The OCR service
 
-The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
+The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu, or an optional vision LLM). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
 
 With Docker, one command starts both (the OCR image downloads its model while it is built):
 
@@ -140,6 +142,8 @@ Without Docker:
     OCR_URL=http://127.0.0.1:8090 npm start
 
 The OCR service has no auth, so keep it on a private network and never publish its port. Tests use a fake OCR server and a fake CalDAV server, never real photos or a real Nextcloud.
+
+Optional LLM reading: set `OCR_LLM_BASE`, `OCR_LLM_KEY` and, if you like, `OCR_LLM_MODEL` and `OCR_LLM_TIMEOUT` on the OCR service (compose passes them through). The service then sends the whole page photo to a vision model behind that OpenAI-compatible gateway (for example a LiteLLM proxy) instead of the detector and TrOCR. Any problem (a missing setting, an HTTP error, a timeout, an unusable answer) falls back to the local path, unchanged. Page photos leave the OCR service for that gateway only when `OCR_LLM_KEY` is set. The answer carries `engine` `llm:<model>`, plus `tags` and `time` per line and a page `date`.
 
 ## Layout
 
