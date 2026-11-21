@@ -1,5 +1,31 @@
 [
   {
+    "id": "2026-11-21-llm-scans",
+    "date": "2026-11-21",
+    "title": "Sharper handwriting scans",
+    "bullets": [
+      "Pages are now read by an AI model.",
+      "The old reader is still there as a fallback."
+    ]
+  },
+  {
+    "id": "2026-11-21-event-sync",
+    "date": "2026-11-21",
+    "title": "Events sync to a test calendar",
+    "bullets": [
+      "Rapid-log events are pushed to a Nextcloud test calendar (bujo-test-cal)."
+    ]
+  },
+  {
+    "id": "2026-11-21-keyboard-bar",
+    "date": "2026-11-21",
+    "title": "Tags, times and a slimmer bar",
+    "bullets": [
+      "The bar above the keyboard is icons only: type, tag, date, time, delete, move and indent.",
+      "A written #tag or a time like 14:30 becomes a pill and is taken out of the title."
+    ]
+  },
+  {
     "id": "2026-11-21-note-photos",
     "date": "2026-11-21",
     "title": "Scanned pages stay with your notes",
