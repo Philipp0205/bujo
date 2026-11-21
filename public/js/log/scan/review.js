@@ -12,15 +12,25 @@
 
   var ICON = { viewBox: '0 0 16 16', width: 16, height: 16 };
 
-  /** The words under a row title: confidence, a spelling hint when it is low, and what the day already holds. */
+  /** The words under a row title: confidence, a spelling hint when it is low, and what the apply does to the day. */
   function metaText(item) {
     var copy = L.copy.scan.review;
     var parts = [L.scan.model.percent(item) + '%'];
     if (item.time) parts.push(item.time);
     if (L.scan.model.isLowConfidence(item)) parts.push(copy.checkSpelling);
-    if (item.status === 'duplicate') parts.push(copy.duplicate);
-    if (item.status === 'completes') parts.push(copy.marksDone);
+    if (item.status === 'edited') parts.push(item.contested ? copy.changedInApp : copy.updatesEntry);
     return parts.join(' \u00b7 ');
+  }
+
+  /** The "was" line of an edited row: the old glyph and title, then the old tag or time when those changed. */
+  function wasLine(item) {
+    var copy = L.copy.scan.review;
+    var was = L.scan.model.changedFields(item);
+    if (!was) return null;
+    var parts = [h('span', { class: 'scan-was-label' }, copy.was), h('span', { class: 'scan-was-glyph' }, L.glyph.typeGlyph(was.type)), h('span', { class: 'scan-was-title' }, was.title)];
+    if (was.tag) parts.push(h('span', { class: 'scan-was-extra' }, was.tag.value ? '#' + was.tag.value : copy.noTag));
+    if (was.time) parts.push(h('span', { class: 'scan-was-extra' }, was.time.value || copy.noTime));
+    return parts;
   }
 
   /** The type picker: a native select laid transparently over the glyph, so the phone's own picker opens. */
@@ -66,22 +76,27 @@
     };
   }
 
-  /** One line of the page as an editable row. Returns its node and a refresh that redraws the changing parts. */
+  /** One line of the page as an editable row. Returns its node and a refresh that redraws the changing parts. hooks.showUnchanged() says whether unchanged rows are open. */
   function row(item, hooks) {
     var meta = h('span', { class: 'scan-meta' });
+    var was = h('div', { class: 'scan-was', 'data-role': 'was' });
     var picker = typePicker(item, function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
     var tag = textInput(item, 'tag', { maxlength: 40, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, h('div', { class: 'scan-under' }, meta, tag)),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag)),
       keep.node);
 
     function refresh() {
+      var parts = wasLine(item);
       node.setAttribute('data-include', item.include ? 'true' : 'false');
       node.setAttribute('data-status', item.status);
       node.setAttribute('data-low', L.scan.model.isLowConfidence(item) ? 'true' : 'false');
+      node.hidden = item.status === 'unchanged' && !hooks.showUnchanged() && !node.contains(document.activeElement);
+      was.hidden = !parts;
+      was.replaceChildren.apply(was, parts || []);
       meta.textContent = metaText(item);
       picker.show();
       keep.show();
@@ -113,6 +128,19 @@
     };
   }
 
+  /** The collapsed note for lines the day already holds: a count that opens the lines to look at. Opening never ticks them. */
+  function unchangedNote(onToggle) {
+    var button = h('button', { class: 'scan-unchanged', type: 'button', 'data-testid': 'scan-unchanged', 'aria-expanded': 'false', onclick: onToggle });
+    return {
+      node: button,
+      show: function (count, open) {
+        button.hidden = count === 0;
+        button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        button.textContent = L.copy.scan.review.unchanged(count, open);
+      }
+    };
+  }
+
   /** Opens the sheet. handlers.check(state) and handlers.apply(state) return promises, handlers.done(result) runs after a save. */
   function open(state, handlers) {
     var copy = L.copy.scan.review;
@@ -120,8 +148,13 @@
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var apply = h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-action': 'apply' });
     var date = dateRow(state, function () { recheck(); });
+    var unchangedOpen = false;
+    var note = unchangedNote(function () { unchangedOpen = !unchangedOpen; refreshAll(); });
     var rows = state.items.map(function (item) {
-      return row(item, { changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); } });
+      return row(item, {
+        changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
+        showUnchanged: function () { return unchangedOpen; }
+      });
     });
     var busy = false;
     var sheet = null;
@@ -130,13 +163,14 @@
 
     /** Redraws the counts, the rows, the day and the apply button from the state. */
     function refreshAll() {
-      var kept = L.scan.model.keptItems(state).length;
+      var counts = L.scan.model.counts(state);
       var problem = L.scan.model.problem(state);
-      subtitle.textContent = L.dates.dayHeading(state.date) + ' \u00b7 ' + copy.entries(kept);
-      apply.textContent = busy ? copy.applying : copy.apply(kept);
+      subtitle.textContent = L.dates.dayHeading(state.date) + ' \u00b7 ' + copy.writes(counts);
+      apply.textContent = busy ? copy.applying : copy.apply(counts);
       apply.disabled = busy || problem !== '';
       say(problem === 'title' ? L.copy.scan.errors.titleRequired : '');
       date.refresh();
+      note.show(L.scan.model.unchangedItems(state).length, unchangedOpen);
       rows.forEach(function (entry) { entry.refresh(); });
     }
 
@@ -166,7 +200,7 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
-      h('div', { class: 'ak-sheet-scroll' }, slot, date.node, h('div', { class: 'scan-rows' }, rows.map(function (entry) { return entry.node; }))),
+      h('div', { class: 'ak-sheet-scroll' }, slot, date.node, note.node, h('div', { class: 'scan-rows' }, rows.map(function (entry) { return entry.node; }))),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});

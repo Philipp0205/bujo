@@ -30,12 +30,12 @@
     });
   }
 
-  /** Asks which lines are duplicates or finish a task on a day. Writes nothing. */
+  /** Asks which lines are new, edited (with before and after) or unchanged on a day. Writes nothing. */
   function check(id, body) {
     return post(draftPath(id, 'check'), body);
   }
 
-  /** Writes the kept lines. Resolves with { date, results }. */
+  /** Writes the kept lines and records the unchanged ones. Resolves with { date, results }. */
   function apply(id, body) {
     return post(draftPath(id, 'apply'), body);
   }

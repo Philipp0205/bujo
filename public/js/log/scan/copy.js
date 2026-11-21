@@ -44,17 +44,31 @@
       tagLabel: 'Tag',
       tag: 'tag',
       checkSpelling: 'check spelling',
-      duplicate: 'already in log',
-      marksDone: 'marks done',
+      updatesEntry: 'updates entry',
+      changedInApp: 'also changed in the app',
+      was: 'was',
+      noTag: 'no tag',
+      noTime: 'no time',
       keep: 'Keep this line',
       drop: 'Skip this line',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
-      entries: function (count) {
-        return count + (count === 1 ? ' entry' : ' entries');
+      unchanged: function (count, open) {
+        return count + ' unchanged' + (open ? ', hide' : '');
       },
-      apply: function (count) {
-        return 'Apply ' + count + (count === 1 ? ' entry' : ' entries');
+      /** The subtitle and the button say what will be written: new entries and updates, never the unchanged lines. */
+      writes: function (counts) {
+        var parts = [];
+        if (counts.created) parts.push(counts.created + (counts.created === 1 ? ' new entry' : ' new entries'));
+        if (counts.updated) parts.push(counts.updated + (counts.updated === 1 ? ' update' : ' updates'));
+        return parts.length ? parts.join(', ') : 'nothing to write';
+      },
+      apply: function (counts) {
+        var total = counts.created + counts.updated;
+        if (total === 0) return 'Nothing to apply';
+        if (!counts.updated) return 'Apply ' + counts.created + (counts.created === 1 ? ' entry' : ' entries');
+        if (!counts.created) return 'Apply ' + counts.updated + (counts.updated === 1 ? ' update' : ' updates');
+        return 'Apply ' + counts.created + ' new, ' + counts.updated + (counts.updated === 1 ? ' update' : ' updates');
       }
     }
   };

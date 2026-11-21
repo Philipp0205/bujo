@@ -149,6 +149,35 @@ test("an old database without the indent column is migrated on open and keeps it
   }
 });
 
+test("an old database without the scan columns gets them on open, safe twice, and provenance is not an edit", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bujo-scan-cols-"));
+  const path = join(dir, "old.db");
+  const columns = (db: Db) => (db.prepare("PRAGMA table_info(entries)").all() as Array<{ name: string }>).map((c) => c.name);
+  const SCAN = ["scan_key", "scan_type", "scan_title", "scan_tag", "scan_time", "scan_at"];
+  try {
+    const first = openDb(path);
+    first.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run(USER, "Philipp", "hash", 1);
+    const made = createEntryStore(first).create(USER, entry({ title: "old" }), 1);
+    for (const name of SCAN) first.exec(`ALTER TABLE entries DROP COLUMN ${name}`);
+    assert.equal(SCAN.some((name) => columns(first).includes(name)), false);
+    first.close();
+    for (let round = 0; round < 2; round++) {
+      const reopened = openDb(path);
+      assert.deepEqual(SCAN.filter((name) => columns(reopened).includes(name)), SCAN);
+      const store = createEntryStore(reopened);
+      assert.equal(store.listScan(USER, { from: "2026-11-20", to: "2026-11-20" })[0].scan === null, round === 0, "reopening keeps what was stamped");
+      store.setScanProvenance(USER, made.id, { key: "old", type: "task", title: "old", tag: null, time: null, at: 50 });
+      const [stamped] = store.listScan(USER, { from: "2026-11-20", to: "2026-11-20" });
+      assert.deepEqual(stamped.scan, { key: "old", type: "task", title: "old", tag: null, time: null, at: 50 });
+      assert.equal(stamped.updatedAt, 1, "stamping leaves updated_at alone");
+      assert.equal("scan" in store.list(USER, { from: "2026-11-20", to: "2026-11-20" })[0], false, "list never carries provenance");
+      reopened.close();
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("the table refuses a type or sync state it does not know", () => {
   const { db } = setup();
   const insert = (type: string, sync: string) =>

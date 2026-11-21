@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-rescan",
+    "date": "2026-11-21",
+    "title": "Scan the same page again",
+    "bullets": [
+      "Scan a page more than once in a day: lines already in your log are matched, not added twice.",
+      "The review shows only new lines and edits, with before and after. Nothing is ever deleted."
+    ]
+  },
+  {
     "id": "2026-11-21-ink-cards",
     "date": "2026-11-21",
     "title": "Cards drawn with a pen",

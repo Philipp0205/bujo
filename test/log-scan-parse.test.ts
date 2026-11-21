@@ -62,42 +62,41 @@ test("parsePage: no header line means no page date", () => {
   assert.equal(page.lines.length, 1);
 });
 
-test("resolveLines: an x line completes one matching open task, a repeat is a duplicate, the rest is new", () => {
+test("resolveLines: an x line over an open task is an edit, a repeat is unchanged, the rest is new", () => {
   const existing = [entry("e1", "task", "Water the office plants"), entry("e2", "note", "Idee Wochenende"), entry("e3", "done", "Schon erledigt")];
   const lines = [
     { id: "a", type: "done" as const, title: "water the office plants" },
-    { id: "b", type: "done" as const, title: "Water the office plants" },
     { id: "c", type: "note" as const, title: "idee wochenende" },
     { id: "d", type: "task" as const, title: "Brot kaufen" },
     { id: "e", type: "done" as const, title: "Schon erledigt" },
   ];
   const out = resolveLines(lines, existing);
-  assert.equal(out.get("a")?.status, "completes");
+  assert.equal(out.get("a")?.status, "edited");
   assert.equal(out.get("a")?.target?.id, "e1");
-  // The task is claimed by "a". "b" has no open task left, but the title exists, so it is a duplicate.
-  assert.equal(out.get("b")?.status, "duplicate");
-  assert.equal(out.get("c")?.status, "duplicate");
+  assert.deepEqual([out.get("a")?.before?.type, out.get("a")?.after?.type], ["task", "done"]);
+  assert.equal(out.get("c")?.status, "unchanged");
   assert.equal(out.get("d")?.status, "new");
-  // An x line for a title that only exists as done is a duplicate, not a second completion.
-  assert.equal(out.get("e")?.status, "duplicate");
+  assert.equal(out.get("e")?.status, "unchanged");
 });
 
-test("resolveLines: only an x line completes a task, and an empty title matches nothing", () => {
+test("resolveLines: the same title twice binds one entry once, and an empty title matches nothing", () => {
   const existing = [entry("e1", "task", "Brot kaufen")];
   const out = resolveLines(
-    [{ id: "a", type: "task", title: "Brot kaufen" }, { id: "b", type: "task", title: "" }],
+    [{ id: "a", type: "task", title: "Brot kaufen" }, { id: "b", type: "task", title: "Brot kaufen" }, { id: "c", type: "task", title: "" }],
     existing,
   );
-  assert.equal(out.get("a")?.status, "duplicate");
+  assert.equal(out.get("a")?.status, "unchanged");
   assert.equal(out.get("b")?.status, "new");
+  assert.equal(out.get("c")?.status, "new");
 });
 
-test("startReview: a new draft starts on the page date, bulletless and empty lines start off, duplicates start off", () => {
+test("startReview: a new draft starts on the page date, bulletless and empty lines start off, unchanged lines start off", () => {
   const ocr = {
     lines: [
       line("none", "20.11.2026"),
       line("•", "Brot kaufen"),
       line("•", "Milch kaufen"),
+      line("x", "Eier holen"),
       line("none", "stray"),
       line("•", ""),
     ] as OcrLine[],
@@ -108,19 +107,33 @@ test("startReview: a new draft starts on the page date, bulletless and empty lin
   const draft = buildLogDraft({ ocr, fallbackDate: "2026-11-19", now: 1000, ttlMs: 500 });
   assert.equal(draft.expires, 1500);
   assert.equal(draft.applied, false);
-  const review = startReview(draft, [entry("e1", "task", "Milch kaufen")]);
+  const review = startReview(draft, [entry("e1", "task", "Milch kaufen"), entry("e2", "task", "Eier holen")]);
   assert.equal(review.date, "2026-11-20");
   assert.equal(review.pageDate, "2026-11-20");
   assert.equal(review.fallbackDate, "2026-11-19");
   assert.deepEqual(review.items.map((i) => [i.title, i.status, i.include]), [
     ["Brot kaufen", "new", true],
-    ["Milch kaufen", "duplicate", false],
+    ["Milch kaufen", "unchanged", false],
+    ["Eier holen", "edited", true],
     ["stray", "new", false],
     ["", "new", false],
   ]);
 });
 
-test("checkLines: answers the id, status and target of each line", () => {
-  const checks = checkLines([{ id: "a", type: "done", title: "Brot kaufen" }], [entry("e1", "task", "Brot kaufen")]);
-  assert.deepEqual(checks, [{ id: "a", status: "completes", target: { id: "e1", title: "Brot kaufen" } }]);
+test("checkLines: answers the id, status, target and before and after of each line", () => {
+  const checks = checkLines(
+    [{ id: "a", type: "done", title: "Brot kaufen" }, { id: "b", type: "task", title: "Neu" }],
+    [entry("e1", "task", "Brot kaufen")],
+  );
+  assert.deepEqual(checks, [
+    {
+      id: "a",
+      status: "edited",
+      target: { id: "e1", title: "Brot kaufen" },
+      before: { type: "task", title: "Brot kaufen", tag: null, time: null },
+      after: { type: "done", title: "Brot kaufen", tag: null, time: null },
+      contested: false,
+    },
+    { id: "b", status: "new", target: null, before: null, after: null, contested: false },
+  ]);
 });

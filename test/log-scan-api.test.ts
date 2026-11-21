@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { demoSource } from "../src/caldav/source.ts";
+import { loadCalDavConfig } from "../src/caldav/config.ts";
+import { openDb, type Db } from "../src/db.ts";
 import { createOcrClient } from "../src/scan/ocr-client.ts";
+import { createSyncService } from "../src/sync/service.ts";
+import { SYNC_SETTINGS, startFakeCalDav, syncEnv } from "./fake-caldav.ts";
 import { line, startFakeOcr, type FakeOcr } from "./fake-ocr.ts";
 import { api, makeToken, signUp, withApp, type Signed } from "./helpers.ts";
 
@@ -11,14 +15,14 @@ const PNG = Buffer.from(
 );
 const DAY = "2026-11-20";
 
-type Ctx = { base: string; ocr: FakeOcr; signed: Signed };
+type Ctx = { base: string; ocr: FakeOcr; signed: Signed; db: Db };
 
 /** The app with the demo source (no CalDAV) and the fake OCR. Nothing here reaches a real list. */
 async function withLogScan(fn: (ctx: Ctx) => Promise<void>): Promise<void> {
   const ocr = await startFakeOcr([]);
   try {
-    await withApp(demoSource(), async ({ base }) => {
-      await fn({ base, ocr, signed: await signUp(base) });
+    await withApp(demoSource(), async ({ base, db }) => {
+      await fn({ base, ocr, signed: await signUp(base), db });
     }, { ocr: createOcrClient(ocr.url, { timeoutMs: 1500 }) });
   } finally {
     await ocr.close();
@@ -32,7 +36,7 @@ async function scan(base: string, headers: Record<string, string>, query = "", b
 }
 
 const entriesOf = async (base: string, signed: Signed, date = DAY) =>
-  (await api(base, "GET", `/api/entries?from=${date}&to=${date}`, { headers: signed.headers })).json.entries as Array<{ id: string; type: string; title: string; tag: string | null }>;
+  (await api(base, "GET", `/api/entries?from=${date}&to=${date}`, { headers: signed.headers })).json.entries as Array<{ id: string; type: string; title: string; tag: string | null; sync: string }>;
 
 const PAGE = [line("none", "20.11.2026"), line("•", "Brot kaufen", 0.94), line("○", "Lunch with Mira", 0.71), line("x", "Water the plants", 0.91)];
 
@@ -83,13 +87,17 @@ test("POST /api/log/scan: needs a browser session, a photo type, and a working O
   });
 });
 
-test("apply: writes only the kept lines with their edits, marks an x line's task done, and runs once", async () => {
+test("apply: writes only the kept lines with their edits, updates the task an x line names, and runs once", async () => {
   await withLogScan(async ({ base, ocr, signed }) => {
     const task = await api(base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Water the plants" }, headers: signed.headers });
     ocr.setLines(PAGE);
     const draft = (await scan(base, signed.headers)).json.draft;
-    assert.equal(draft.items[2].status, "completes");
+    assert.equal(draft.items[2].status, "edited");
+    assert.equal(draft.items[2].include, true);
     assert.equal(draft.items[2].target.id, task.json.entry.id);
+    assert.deepEqual(draft.items[2].before, { type: "task", title: "Water the plants", tag: null, time: null });
+    assert.deepEqual(draft.items[2].after, { type: "done", title: "Water the plants", tag: null, time: null });
+    assert.equal(draft.items[0].before, null);
 
     const sent = {
       date: DAY,
@@ -100,10 +108,10 @@ test("apply: writes only the kept lines with their edits, marks an x line's task
     };
     const applied = await api(base, "POST", `/api/log/scan/${draft.id}/apply`, { body: sent, headers: signed.headers });
     assert.equal(applied.status, 200);
-    assert.deepEqual(applied.json.results.map((r: any) => [r.id, r.outcome]), [["l2", "created"], ["l4", "completed"]]);
+    assert.deepEqual(applied.json.results.map((r: any) => [r.id, r.outcome]), [["l2", "created"], ["l4", "updated"]]);
 
     const entries = await entriesOf(base, signed);
-    assert.equal(entries.length, 2, "the line that completes a task adds no entry");
+    assert.equal(entries.length, 2, "the line that updates a task adds no entry");
     assert.deepEqual(entries.map((e) => [e.type, e.title, e.tag]), [["done", "Water the plants", null], ["note", "Brot kaufen, Vollkorn", "Haushalt"]]);
     assert.equal(entries.some((e) => e.title === "Lunch with Mira"), false, "a line that was not sent is not written");
 
@@ -118,13 +126,168 @@ test("check: tells the review about another day without writing, and a bad reque
     await api(base, "POST", "/api/entries", { body: { date: "2026-11-21", type: "note", title: "Brot kaufen" }, headers: signed.headers });
     ocr.setLines(PAGE);
     const draft = (await scan(base, signed.headers)).json.draft;
-    const body = { date: "2026-11-21", items: [{ id: "l2", type: "task", title: "Brot kaufen" }] };
+    const body = { date: "2026-11-21", items: [{ id: "l2", type: "task", title: "Brot kaufen" }, { id: "l3", type: "note", title: "Brot kaufen", tag: "x" }] };
     const checked = await api(base, "POST", `/api/log/scan/${draft.id}/check`, { body, headers: signed.headers });
     assert.equal(checked.status, 200);
-    assert.deepEqual(checked.json, { date: "2026-11-21", items: [{ id: "l2", status: "duplicate", target: null }] });
+    const note = { type: "note", title: "Brot kaufen", tag: null, time: null };
+    assert.deepEqual(checked.json, {
+      date: "2026-11-21",
+      items: [
+        { id: "l2", status: "edited", target: { id: checked.json.items[0].target.id, title: "Brot kaufen" }, before: note, after: { ...note, type: "task" }, contested: false },
+        { id: "l3", status: "new", target: null, before: null, after: null, contested: false },
+      ],
+    });
     assert.equal((await entriesOf(base, signed, "2026-11-21")).length, 1);
     assert.equal((await api(base, "POST", `/api/log/scan/${draft.id}/check`, { body: { ...body, date: "nope" }, headers: signed.headers })).status, 400);
   });
+});
+
+/** Scans a page and answers the draft. */
+async function scanLines(ctx: Ctx, lines: ReturnType<typeof line>[]) {
+  ctx.ocr.setLines(lines);
+  return (await scan(ctx.base, ctx.signed.headers)).json.draft;
+}
+
+const applyTo = (ctx: Ctx, draft: { id: string }, items: object[]) =>
+  api(ctx.base, "POST", `/api/log/scan/${draft.id}/apply`, { body: { date: DAY, items }, headers: ctx.signed.headers });
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const PAGE_ONE = [line("none", "20.11.2026"), line("•", "Brot kaufen"), line("•", "Zahnarzt anrufen"), line("○", "Lunch mit Mira")];
+
+test("rescan: updates the matched entries, adds only new lines and leaves entries missing from the page alone", async () => {
+  await withLogScan(async (ctx) => {
+    const first = await scanLines(ctx, PAGE_ONE);
+    const sent = first.items.map((i: any) => ({ id: i.id, type: i.type, title: i.title, tag: i.tag, time: i.time }));
+    assert.equal((await applyTo(ctx, first, sent)).status, 200);
+    const created = await entriesOf(ctx.base, ctx.signed);
+    assert.equal(created.length, 3);
+
+    // Later the same page: Brot is ticked off, Zahnarzt got a tag and a time, Lunch is not on the page, Post is new.
+    const second = await scanLines(ctx, [
+      line("none", "20.11.2026"),
+      line("x", "brot kaufen"),
+      line("•", "Zahnarzt anrufen #health 14h30"),
+      line("•", "Post abholen"),
+    ]);
+    assert.deepEqual(second.items.map((i: any) => [i.title, i.status, i.include]), [
+      ["brot kaufen", "edited", true],
+      ["Zahnarzt anrufen", "edited", true],
+      ["Post abholen", "new", true],
+    ]);
+    const items = second.items.map((i: any) => ({ id: i.id, type: i.type, title: i.title, tag: i.tag, time: i.time }));
+    const applied = await applyTo(ctx, second, items);
+    assert.equal(applied.status, 200);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["updated", "updated", "created"]);
+
+    const now = (await api(ctx.base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers: ctx.signed.headers })).json.entries;
+    assert.deepEqual(now.map((e: any) => [e.type, e.title, e.tag, e.time]), [
+      ["done", "Brot kaufen", null, null],
+      ["task", "Zahnarzt anrufen", "health", "14:30"],
+      ["event", "Lunch mit Mira", null, null],
+      ["task", "Post abholen", null, null],
+    ]);
+    assert.equal(now[0].id, created[0].id, "the entry was updated in place, not replaced");
+    assert.equal(JSON.stringify(now).includes("scan_"), false, "no provenance on the public API");
+    assert.equal(JSON.stringify(now).includes("scan"), false);
+  });
+});
+
+test("rescan: a page with only unchanged lines has nothing to apply, and skipped unchanged lines are recorded without an edit", async () => {
+  await withLogScan(async (ctx) => {
+    const seeded = await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Brot kaufen" }, headers: ctx.signed.headers });
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen"), line("•", "Milch")]);
+    assert.deepEqual(draft.items.map((i: any) => [i.status, i.include]), [["unchanged", false], ["new", true]]);
+    const brot = { id: "l2", type: "task", title: "Brot kaufen", tag: null, time: null };
+
+    const row = () => ctx.db.prepare("SELECT scan_key, scan_title, scan_at, updated_at, sync FROM entries WHERE id = ?").get(seeded.json.entry.id) as any;
+    assert.equal(row().scan_key, null, "scanning and checking write nothing");
+    await api(ctx.base, "POST", `/api/log/scan/${draft.id}/check`, { body: { date: DAY, items: [brot] }, headers: ctx.signed.headers });
+    assert.equal(row().scan_key, null);
+
+    const none = await applyTo(ctx, draft, [{ ...brot, include: true }]);
+    assert.equal(none.status, 400, "an unchanged line is not a write, even when ticked");
+    assert.equal(row().scan_key, null, "a refused apply writes nothing");
+
+    const before = row();
+    const ok = await applyTo(ctx, draft, [{ ...brot, include: false }, { id: "l3", type: "task", title: "Milch" }]);
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json.results.map((r: any) => r.outcome), ["created"]);
+    const after = row();
+    assert.equal(after.scan_key, "brot kaufen");
+    assert.ok(after.scan_at > 0);
+    assert.equal(after.updated_at, before.updated_at, "stamping is not an edit");
+    assert.equal(after.sync, before.sync);
+    assert.equal((await entriesOf(ctx.base, ctx.signed)).length, 2);
+  });
+});
+
+test("rescan: an entry the person changed in the app is not overwritten by an unchanged paper line", async () => {
+  await withLogScan(async (ctx) => {
+    const first = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+    await applyTo(ctx, first, [{ id: "l2", type: "task", title: "Brot kaufen" }]);
+    const [entry] = await entriesOf(ctx.base, ctx.signed);
+    await sleep(5);
+    const edited = await api(ctx.base, "PATCH", `/api/entries/${entry.id}`, { body: { type: "migrated", tag: "Haushalt" }, headers: ctx.signed.headers });
+    assert.equal(edited.status, 200);
+
+    // The same paper line again: the entry differs from it only because of the app edit.
+    const second = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen"), line("•", "Eier")]);
+    assert.deepEqual(second.items.map((i: any) => [i.status, i.include]), [["unchanged", false], ["new", true]]);
+    const paper = { id: "l2", type: "task", title: "Brot kaufen", tag: null, time: null };
+    const applied = await applyTo(ctx, second, [{ ...paper, include: true }, { id: "l3", type: "task", title: "Eier" }]);
+    assert.equal(applied.status, 200);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["created"]);
+    const [kept] = await entriesOf(ctx.base, ctx.signed);
+    assert.deepEqual([kept.type, kept.tag], ["migrated", "Haushalt"]);
+  });
+});
+
+test("rescan: when the paper and the app both changed the line, it is edited but starts unticked, and a tick applies the paper", async () => {
+  await withLogScan(async (ctx) => {
+    const first = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+    await applyTo(ctx, first, [{ id: "l2", type: "task", title: "Brot kaufen" }]);
+    const [entry] = await entriesOf(ctx.base, ctx.signed);
+    await sleep(5);
+    await api(ctx.base, "PATCH", `/api/entries/${entry.id}`, { body: { tag: "Haushalt" }, headers: ctx.signed.headers });
+
+    const second = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
+    const [item] = second.items;
+    assert.deepEqual([item.status, item.include, item.contested], ["edited", false, true]);
+    assert.deepEqual(item.before, { type: "task", title: "Brot kaufen", tag: "Haushalt", time: null });
+    assert.deepEqual(item.after, { type: "done", title: "Brot kaufen", tag: "Haushalt", time: null });
+    const applied = await applyTo(ctx, second, [{ id: "l2", type: "done", title: "Brot kaufen", tag: null, include: true }]);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["updated"]);
+    assert.equal((await entriesOf(ctx.base, ctx.signed))[0].type, "done");
+  });
+});
+
+test("rescan: an update queues a sync push like a create does", async () => {
+  const ocr = await startFakeOcr([]);
+  const fake = await startFakeCalDav();
+  const db = openDb(":memory:");
+  const service = createSyncService({ db, caldav: loadCalDavConfig(syncEnv(fake))!, sync: { ...SYNC_SETTINGS }, log: () => undefined });
+  try {
+    await withApp(demoSource(), async ({ base }) => {
+      const signed = await signUp(base);
+      const ctx: Ctx = { base, ocr, signed, db };
+      const first = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+      const created = await applyTo(ctx, first, [{ id: "l2", type: "task", title: "Brot kaufen" }]);
+      assert.equal(created.json.results[0].entry.sync, "pending");
+      await service.idle();
+      assert.equal((await entriesOf(base, signed))[0].sync, "synced");
+
+      const second = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
+      const updated = await applyTo(ctx, second, [{ id: "l2", type: "done", title: "Brot kaufen" }]);
+      assert.deepEqual([updated.json.results[0].outcome, updated.json.results[0].entry.sync], ["updated", "pending"]);
+      await service.idle();
+      assert.equal((await entriesOf(base, signed))[0].sync, "synced");
+    }, { db, sync: service, ocr: createOcrClient(ocr.url, { timeoutMs: 1500 }) });
+  } finally {
+    await service.idle();
+    await fake.close();
+    await ocr.close();
+  }
 });
 
 test("apply: a bad request writes nothing at all", async () => {

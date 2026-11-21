@@ -98,6 +98,13 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["sync_error", "TEXT"],
   ["body", "TEXT"],
   ["indent", "INTEGER NOT NULL DEFAULT 0"],
+  // Scan provenance: the paper line last applied to the entry (see src/log/scan/). Database only, never in the Entry API.
+  ["scan_key", "TEXT"],
+  ["scan_type", "TEXT"],
+  ["scan_title", "TEXT"],
+  ["scan_tag", "TEXT"],
+  ["scan_time", "TEXT"],
+  ["scan_at", "INTEGER"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
@@ -117,7 +124,7 @@ function addMissingColumns(
   }
 }
 
-/** Brings tables of older databases up to date: the sync columns, body and indent of entries, the seen id of users. */
+/** Brings tables of older databases up to date: the sync columns, body, indent and scan provenance of entries, the seen id of users. */
 function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);

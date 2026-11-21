@@ -33,9 +33,14 @@
     return file.type === type ? file : new Blob([file], { type: type });
   }
 
-  /** A line starts ticked when it has a bullet and text and the day has no entry with that title. */
+  /**
+   * A line starts ticked when it would write something and can be trusted: a new line with a bullet and text, or an edit
+   * with a bullet that the app did not also change. An unchanged line never writes, so it is never ticked.
+   */
   function defaultInclude(item) {
-    return !item.noBullet && item.title !== '' && item.status !== 'duplicate';
+    if (item.noBullet) return false;
+    if (item.status === 'new') return item.title !== '';
+    return item.status === 'edited' && !item.contested;
   }
 
   function fromLine(line) {
@@ -49,6 +54,9 @@
       noBullet: line.noBullet,
       status: line.status,
       target: line.target,
+      before: line.before,
+      after: line.after,
+      contested: line.contested,
       include: line.include,
       touched: false
     };
@@ -74,19 +82,40 @@
     else state.dateSource = 'picked';
   }
 
-  /** Takes the server's answer for a day. A line the person ticked or unticked by hand keeps their choice. */
+  /** Takes the server's answer for a day. A line the person ticked or unticked by hand keeps their choice, except an unchanged one. */
   function mergeChecks(state, answer) {
     answer.items.forEach(function (check) {
       var item = state.items.filter(function (candidate) { return candidate.id === check.id; })[0];
       if (!item) return;
       item.status = check.status;
       item.target = check.target;
-      if (!item.touched) item.include = defaultInclude(item);
+      item.before = check.before;
+      item.after = check.after;
+      item.contested = check.contested;
+      if (item.status === 'unchanged') {
+        item.include = false;
+        item.touched = false;
+      } else if (!item.touched) {
+        item.include = defaultInclude(item);
+      }
     });
   }
 
+  /** The lines that will be written: kept, and new or edited. An unchanged line writes nothing. */
   function keptItems(state) {
-    return state.items.filter(function (item) { return item.include; });
+    return state.items.filter(function (item) { return item.include && item.status !== 'unchanged'; });
+  }
+
+  /** How many kept lines add an entry and how many change one. */
+  function counts(state) {
+    var kept = keptItems(state);
+    var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
+    return { created: kept.length - updated, updated: updated };
+  }
+
+  /** The lines the server found unchanged. The review folds them into one count. */
+  function unchangedItems(state) {
+    return state.items.filter(function (item) { return item.status === 'unchanged'; });
   }
 
   /** 'title' when a kept line has no title, 'none' when nothing is kept, else ''. */
@@ -113,9 +142,30 @@
     return { date: state.date, items: state.items.map(lineBody) };
   }
 
-  /** The body of an apply: the day and the kept lines only. */
+  /**
+   * The body of an apply: the day and every line. Unchanged lines go as skipped (include false), so the server can record
+   * their keys without changing them. Skipped lines go too, so the server matches the day exactly as the check did.
+   */
   function applyBody(state) {
-    return { date: state.date, items: keptItems(state).map(lineBody) };
+    var items = state.items.map(function (item) {
+      var body = lineBody(item);
+      body.include = item.include && item.status !== 'unchanged';
+      return body;
+    });
+    return { date: state.date, items: items };
+  }
+
+  /** What the "was" row shows of an edited line: the old type and title, plus the old tag or time when the paper writes a different one. */
+  function changedFields(item) {
+    var before = item.before;
+    if (item.status !== 'edited' || !before) return null;
+    var tag = item.tag.trim();
+    return {
+      type: before.type,
+      title: before.title,
+      tag: tag && before.tag !== tag ? { value: before.tag } : null,
+      time: item.time && before.time !== item.time ? { value: before.time } : null
+    };
   }
 
   L.scan.model = {
@@ -126,10 +176,13 @@
     setDate: setDate,
     mergeChecks: mergeChecks,
     keptItems: keptItems,
+    counts: counts,
+    unchangedItems: unchangedItems,
     problem: problem,
     isLowConfidence: isLowConfidence,
     percent: percent,
     checkBody: checkBody,
-    applyBody: applyBody
+    applyBody: applyBody,
+    changedFields: changedFields
   };
 })();

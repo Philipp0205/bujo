@@ -42,6 +42,22 @@ export type NewEntry = {
   body?: string | null;
 };
 
+/**
+ * The paper line last applied to an entry by a scan: what the next scan compares against.
+ * `key` is the matchKey of the title. `at` is when it was written. Database only, never in the Entry API.
+ */
+export type ScanSnapshot = {
+  key: string;
+  type: EntryType;
+  title: string;
+  tag: string | null;
+  time: string | null;
+  at: number;
+};
+
+/** An entry with its scan provenance, for the scan routes only. `scan` is null for an entry no scan has touched. */
+export type ScanEntry = Entry & { scan?: ScanSnapshot | null };
+
 export type MoveDirection = "up" | "down";
 
 /** A checked edit. Only the keys present are changed. A null tag, time or body clears it. */

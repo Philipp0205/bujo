@@ -291,6 +291,45 @@
   cursor: pointer;
 }
 .scan-keep[aria-checked="false"] svg { visibility: hidden; }
+.scan-row[data-status="unchanged"] .scan-keep { visibility: hidden; }
+
+/* An edited row: the proposal is the editable row, and the entry as it is now sits under it as a struck-through "was" line. */
+.scan-row[hidden] { display: none; }
+.scan-was {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-top: 4px;
+  color: var(--paper-muted);
+  font: 13px/24px var(--font-ui);
+}
+.scan-was[hidden] { display: none; }
+.scan-was-label { flex: none; font-style: italic; font-family: var(--font-text); }
+.scan-was-glyph { flex: none; width: 16px; height: 16px; }
+.scan-was-glyph svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.scan-was-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--paper-muted) 70%, transparent); }
+.scan-was-extra { flex: none; text-decoration: line-through; }
+.scan-row[data-status="edited"] { min-height: 120px; }
+
+/* The folded count of lines the day already holds. It opens them for a look and never ticks them. */
+.scan-unchanged {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  min-height: 48px;
+  margin: 0 0 24px var(--text-col);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  font: italic 16px/24px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+}
+.scan-unchanged[hidden] { display: none; }
+.scan-unchanged::after { content: "\00a0\203a"; }
+.scan-unchanged[aria-expanded="true"]::after { content: "\00a0\2039"; }
 
 /* ----- The free-note sheet ----- */
 
