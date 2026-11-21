@@ -1,0 +1,113 @@
+/*
+ * bujo paper look: the entry sheet shell. Ruled paper with a margin line, a title, a dock button.
+ * Used by the log (details, edit, scan review) and by Settings (what's new). Loaded after paper.css.
+ * The kit sets its pink accents again in its light scheme, so the scan sheet pins them to paper colours.
+ */
+
+.sheet-scan {
+  --ak-accent: var(--paper-ink);
+  --ak-accent-2: var(--paper-muted);
+  --ak-accent-strong: var(--paper-ink);
+  --ak-accent-ink: var(--paper-bg);
+  --ak-danger: var(--paper-today);
+  accent-color: var(--paper-ink);
+}
+.sheet-scan :focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+
+.ak-sheet-layer .ak-scrim { background: var(--paper-scrim); }
+
+.sheet-entry {
+  padding: 0;
+  max-height: 94vh;
+  max-height: 94dvh;
+  background-color: var(--paper-bg);
+  background-image: var(--paper-margin-image);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  color: var(--paper-ink);
+  font-family: var(--font-text);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(20, 14, 10, 0.28);
+}
+
+.sheet-entry .ak-sheet-head,
+.sheet-entry .ak-sheet-scroll,
+.sheet-entry .ak-sheet-dock {
+  background-color: transparent;
+  background-image: var(--paper-dot-image);
+  background-size: var(--grid) var(--grid);
+  background-position: 0 var(--grid-shift);
+  background-repeat: repeat;
+}
+.sheet-entry .ak-sheet-scroll { background-attachment: local; padding: 24px 16px 8px 0; }
+
+.sheet-entry .ak-sheet-head {
+  box-sizing: border-box;
+  height: 120px;
+  padding: 0 16px 0 0;
+}
+
+.sheet-entry .ak-grabber {
+  width: 32px;
+  height: 3px;
+  margin: 10px auto 0;
+  background: var(--paper-muted);
+  opacity: 0.45;
+  border-radius: 2px;
+}
+
+.sheet-title {
+  margin: 0;
+  padding: 8px 16px 0 var(--text-col);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 48px;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 32, "wght" 400;
+  font-synthesis: none;
+  color: var(--paper-ink);
+}
+
+.sheet-sub {
+  height: 24px;
+  margin: 16px 0 0;
+  padding: 0 16px 0 var(--text-col);
+  color: var(--paper-muted);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 24px;
+  font-variation-settings: "opsz" 16, "wght" 400;
+  font-synthesis: none;
+}
+
+.sheet-entry .ak-sheet-dock { padding: 12px 16px 24px; }
+
+.sheet-entry .ak-sheet-dock .ak-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--paper-btn-bg);
+  color: var(--paper-btn-ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+  cursor: pointer;
+}
+.sheet-entry .ak-sheet-dock .ak-btn:disabled { opacity: 0.6; cursor: default; }
+
+.sheet-slot:empty { display: none; }
+.sheet-slot .ak-banner {
+  margin: 0 0 0 var(--text-col);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-today);
+  font: italic 16px/24px var(--font-text);
+}

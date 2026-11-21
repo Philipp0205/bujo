@@ -137,5 +137,5 @@
   root.addEventListener('click', onPaperTap);
   render();
   load();
-  BujoWhatsNew.boot.showUnseen({ paper: true });
+  BujoWhatsNew.boot.showUnseen();
 })();

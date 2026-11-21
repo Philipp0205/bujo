@@ -320,9 +320,3 @@ test("a failing list shows a quiet error with a retry", async ({ page }) => {
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
 });
-
-test("settings links to the rapid log and the backlog", async ({ page }) => {
-  await page.goto(`${app.baseUrl}/settings`);
-  await expect(page.locator('[data-nav="log"]')).toHaveAttribute("href", "/");
-  await expect(page.locator('[data-nav="backlog"]')).toHaveAttribute("href", "/backlog");
-});

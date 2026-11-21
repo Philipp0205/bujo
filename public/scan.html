@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>bujo scan</title>
 
-  <!-- From app-kit head.html (v0.7.0). The theme-color colours are bujo's page colours: dark #000000, light #ffffff. -->
+  <!-- Sets the saved theme before the first paint (an external file: the CSP blocks inline scripts). -->
+  <script src="/js/theme/boot.js"></script>
+
+  <!-- From app-kit head.html (v0.7.0). The theme-color colours are the paper colours: dark #16130f, light #f4efe4. -->
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark) and (max-width: 719px)">
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light) and (max-width: 719px)">
-  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark) and (max-width: 719px)">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light) and (max-width: 719px)">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,14 +25,19 @@
   <link rel="stylesheet" href="/app-kit/ak-base.css">
   <link rel="stylesheet" href="/app-kit/ak-components.css">
   <link rel="stylesheet" href="/app-kit/ak-native.css">
+  <link rel="stylesheet" href="/css/paper.css">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-  <main id="app" class="bj-app" aria-live="polite"></main>
+  <div class="paper">
+    <main id="app" class="bj-app" aria-live="polite"></main>
+  </div>
 
   <script src="/app-kit/theme-color.js"></script>
   <script src="/app-kit/ak-dom.js"></script>
   <script src="/app-kit/ak-sw-register.js"></script>
+  <script src="/js/log/ink/path.js"></script>
+  <script src="/js/log/ink/decorate.js"></script>
   <script src="/js/core.js"></script>
   <script src="/js/nav/page-back.js"></script>
   <script src="/js/scan.js"></script>

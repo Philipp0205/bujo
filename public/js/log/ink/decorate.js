@@ -169,5 +169,19 @@
     drawAll(els);
   }
 
-  L.ink.decorate = { list: list, notes: notes, chips: chips, sheet: sheet };
+  /** A seed for a card on a plain page: its own name (data-card, data-panel, data-item), else its place on the page. */
+  function screenSeed(el, at) {
+    var name = el.getAttribute('data-card') || el.getAttribute('data-panel') || el.getAttribute('data-item');
+    return 'screen|' + (name || at);
+  }
+
+  /** Inks the cards of a plain page (Settings, sign-in, Backlog, Scan): every .bj-card under root. Call after each re-render. */
+  function screen(root) {
+    var cards = Array.prototype.slice.call(root.querySelectorAll('.bj-card'));
+    cards.forEach(function (el, at) { wear(el, 'card', screenSeed(el, at)); });
+    watch('screen', cards);
+    drawAll(cards);
+  }
+
+  L.ink.decorate = { list: list, notes: notes, chips: chips, sheet: sheet, screen: screen };
 })();

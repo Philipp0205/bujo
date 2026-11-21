@@ -25,6 +25,7 @@
 
   function show() {
     app.replaceChildren.apply(app, Array.prototype.slice.call(arguments).filter(Boolean));
+    BujoLog.ink.decorate.screen(app);
   }
 
   /** A form with a banner slot. submit(setBusy) returns a Promise; its rejection shows in the banner. */

@@ -124,7 +124,7 @@ test("Back closes a bar popover first and leaves the sheet open", async ({ page 
 test("closing the sheet inside the app leaves no extra history entry", async ({ page }) => {
   await seed(page, 5, "Fuenf");
   await page.goto(`${app.baseUrl}/settings`);
-  await page.getByRole("link", { name: "Rapid Log" }).click();
+  await page.goto(app.baseUrl);
   await expect(log(page)).toBeVisible();
   await row(page, "Fuenf").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
@@ -180,10 +180,10 @@ async function storedTitles(page: Page, offset: number): Promise<string[]> {
   return ((await stored.json()).entries as Array<{ title: string }>).map((entry) => entry.title);
 }
 
-/** Settings first, then the log through its link, so there is a real page before the log to go back to. */
+/** Settings first, then the log, so there is a real page before the log to go back to. */
 async function openLogFromSettings(page: Page, title: string): Promise<void> {
   await page.goto(`${app.baseUrl}/settings`);
-  await page.getByRole("link", { name: "Rapid Log" }).click();
+  await page.goto(app.baseUrl);
   await expect(log(page)).toBeVisible();
   await row(page, title).click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();

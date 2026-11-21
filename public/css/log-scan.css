@@ -4,8 +4,7 @@
  * The kit sets its pink accents again in its light scheme, so the screen and the sheet pin them to paper colours.
  */
 
-.scan-screen,
-.sheet-scan {
+.scan-screen {
   --ak-accent: var(--paper-ink);
   --ak-accent-2: var(--paper-muted);
   --ak-accent-strong: var(--paper-ink);
@@ -13,8 +12,7 @@
   --ak-danger: var(--paper-today);
   accent-color: var(--paper-ink);
 }
-.scan-screen :focus-visible,
-.sheet-scan :focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+.scan-screen :focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
 /* ----- The camera screen ----- */
 

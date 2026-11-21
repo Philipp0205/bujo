@@ -1,6 +1,6 @@
 /*
  * The what's-new entry on the settings page: a short section with a button that reopens the full list.
- * Needs ak-dom.js, boot.js and copy.js. The list opens in the plain settings look, not the paper look.
+ * Needs ak-dom.js, boot.js and copy.js. The list opens as a paper sheet.
  */
 (function () {
   'use strict';
@@ -12,12 +12,12 @@
   function section() {
     var copy = W.copy.settings;
     var button = h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'open-whats-new', onclick: function () {
-      W.boot.showAll({ paper: false });
+      W.boot.showAll();
     } }, copy.button);
     return h('section', { class: 'bj-section', 'data-section': 'whats-new' },
       h('h2', { class: 'bj-group-title' }, copy.title),
-      h('p', { class: 'bj-note' }, copy.hint),
-      h('div', { class: 'bj-form' }, button));
+      h('div', { class: 'bj-card', 'data-card': 'whats-new' },
+        h('div', { class: 'bj-form' }, h('p', { class: 'bj-note' }, copy.hint), button)));
   }
 
   W.settingsRow = { section: section };

@@ -1,148 +1,15 @@
 /*
- * bujo paper look: the rapid log (/), its ink cards, the edit sheet and the details sheet.
- * A solid 24px dot grid sits behind the page. Each top-level entry is a card drawn with a fine pen: no fill, no CSS border,
- * the outline is an <svg class="ink-stroke"> made by js/log/ink, so the dots show through. The details sheets keep the
- * ruled paper with its margin line.
- * Dark paper is the default. The light paper is the prefers-color-scheme override at the end of the tokens.
+ * bujo paper look: the rapid log (/), its ink cards and the details sheet.
+ * Colours, fonts, the dot grid and the pen stroke base are in paper.css; the sheet shell is in sheet.css.
+ * Each top-level entry is a card drawn with a fine pen: no fill, no CSS border, the outline is an
+ * <svg class="ink-stroke"> made by js/log/ink, so the dots show through. The details sheets keep the ruled paper with its margin line.
  */
-
-@font-face { font-family: Newsreader; src: url("/fonts/newsreader.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
-@font-face { font-family: Newsreader; src: url("/fonts/newsreader-italic.woff2") format("woff2"); font-weight: 200 800; font-style: italic; font-display: swap; }
-@font-face { font-family: "IBM Plex Sans"; src: url("/fonts/ibm-plex-sans.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
-
-:root {
-  --paper-bg: #16130f;
-  --paper-ink: #f0eadc;
-  --paper-muted: #9a9184;
-  --paper-dot: #3a342c;
-  --paper-margin: rgba(176, 122, 112, 0.28);
-  --paper-today: #c48478;
-  --paper-done: #9a9184;
-  --paper-scrim: rgba(10, 8, 6, 0.55);
-  --edit-dim: rgba(10, 8, 6, 0.55);
-  --ink-sage: #8a9a7c;
-  --ink-ochre: #c4a05a;
-  --ink-brick: #c48478;
-  --ink-gray: #8a8378;
-  --paper-btn-bg: #f0eadc;
-  --paper-btn-ink: #16130f;
-  --pen: #efe8d6;
-  --sheet-bg: #241f1a;
-  --sheet-shadow: 0 -8px 36px rgba(0, 0, 0, 0.4);
-  --grid: 24px;
-  --grid-shift: 4px;
-  --gutter: 48px;
-  --text-col: 60px;
-  --font-text: Newsreader, Georgia, "Times New Roman", serif;
-  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
-  /* The kit's accent becomes ink, so kit focus rings and banners stay in the paper palette. */
-  --ak-accent: var(--paper-ink);
-  --ak-accent-2: var(--paper-muted);
-  --ak-accent-strong: var(--paper-ink);
-  --ak-accent-ink: var(--paper-bg);
-  --paper-dot-image: radial-gradient(circle at center, var(--paper-dot) 1.25px, transparent 1.4px);
-  --paper-margin-image: linear-gradient(
-    to right,
-    transparent calc(var(--gutter) - 0.5px),
-    var(--paper-margin) calc(var(--gutter) - 0.5px),
-    var(--paper-margin) calc(var(--gutter) + 0.5px),
-    transparent calc(var(--gutter) + 0.5px)
-  );
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --paper-bg: #f4efe4;
-    --paper-ink: #1a1612;
-    --paper-muted: #6f675c;
-    --paper-dot: #c4b6a2;
-    --paper-margin: rgba(140, 90, 82, 0.28);
-    --paper-today: #8f4e45;
-    --paper-done: #7a7368;
-    --paper-scrim: rgba(26, 22, 18, 0.28);
-    --edit-dim: rgba(26, 22, 18, 0.14);
-    --ink-sage: #6f7d62;
-    --ink-ochre: #a07c3d;
-    --ink-brick: #8f4e45;
-    --ink-gray: #8a8176;
-    --paper-btn-bg: #1a1612;
-    --paper-btn-ink: #f4efe4;
-    --pen: #2a2118;
-    --sheet-bg: #fbf7f0;
-    --sheet-shadow: 0 -8px 36px rgba(26, 22, 18, 0.12);
-  }
-}
-
-/* The page colour is what theme-color.js copies into the browser bar. */
-html.ak-base,
-html.ak-base body {
-  background: var(--paper-bg);
-  color: var(--paper-ink);
-}
 
 /* The sprite is only a warehouse for <use>. */
 .paper-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-/* ----- The page ----- */
-
-.paper {
-  position: relative;
-  box-sizing: border-box;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding-top: var(--ak-safe-top);
-  background-color: var(--paper-bg);
-  background-image: var(--paper-dot-image);
-  background-size: var(--grid) var(--grid);
-  background-position: 0 calc(var(--grid-shift) + var(--ak-safe-top));
-  background-repeat: repeat;
-  color: var(--paper-ink);
-  font-family: var(--font-text);
-}
-
-.paper :focus-visible,
-.sheet-entry :focus-visible { outline-color: var(--paper-muted); }
 /* A focused field already shows its ink underline. */
 .detail-form .ak-input:focus-visible { outline: none; }
-
-.paper-head {
-  box-sizing: border-box;
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  height: 96px;
-  padding: 0 8px 0 0;
-}
-
-.paper-head h1 {
-  margin: 0;
-  padding: 32px 12px 16px 20px;
-  font-family: var(--font-text);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 32px;
-  line-height: 48px;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 32, "wght" 400;
-  font-synthesis: none;
-  color: var(--paper-ink);
-}
-
-.paper-actions {
-  display: flex;
-  align-items: center;
-  flex: none;
-  padding: 36px 4px 16px 0;
-}
-
-.paper-actions .ak-icon-btn {
-  width: 44px;
-  height: 44px;
-  color: var(--paper-ink);
-  text-decoration: none;
-}
-.paper-actions .ak-icon-btn svg { display: block; }
-.paper-actions .ak-icon-btn:disabled { cursor: default; }
 
 .paper-page { padding: 0 16px 48px; }
 
@@ -203,25 +70,6 @@ html.ak-base body {
   line-height: 22px;
   font-variation-settings: "opsz" 14, "wght" 500;
 }
-
-/* ----- Ink strokes: the pen outline of a node, drawn by js/log/ink. It sits under the content and never takes a tap. ----- */
-
-.ink-stroke {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-  z-index: 0;
-  color: var(--pen);
-}
-.pill .ink-stroke,
-.today .ink-stroke { color: inherit; }
-.today .ink-stroke { top: auto; bottom: 1px; left: -1px; width: calc(100% + 3px); height: 7px; }
-.ink-handle,
-.ink-rule { top: 0; bottom: auto; height: 8px; }
-.ink-handle { color: var(--paper-muted); }
 
 /* ----- Rows ----- */
 
@@ -603,106 +451,6 @@ html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted);
 .sync-mark[data-sync="pending"] { color: var(--ink-ochre); }
 .sync-mark[data-sync="error"] { color: var(--ink-brick); }
 .sync-mark[data-sync="local"] { color: var(--ink-gray); }
-
-/* ----- The entry sheet ----- */
-
-.ak-sheet-layer .ak-scrim { background: var(--paper-scrim); }
-
-.sheet-entry {
-  padding: 0;
-  max-height: 94vh;
-  max-height: 94dvh;
-  background-color: var(--paper-bg);
-  background-image: var(--paper-margin-image);
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  color: var(--paper-ink);
-  font-family: var(--font-text);
-  border-radius: 18px 18px 0 0;
-  box-shadow: 0 -12px 40px rgba(20, 14, 10, 0.28);
-}
-
-.sheet-entry .ak-sheet-head,
-.sheet-entry .ak-sheet-scroll,
-.sheet-entry .ak-sheet-dock {
-  background-color: transparent;
-  background-image: var(--paper-dot-image);
-  background-size: var(--grid) var(--grid);
-  background-position: 0 var(--grid-shift);
-  background-repeat: repeat;
-}
-.sheet-entry .ak-sheet-scroll { background-attachment: local; padding: 24px 16px 8px 0; }
-
-.sheet-entry .ak-sheet-head {
-  box-sizing: border-box;
-  height: 120px;
-  padding: 0 16px 0 0;
-}
-
-.sheet-entry .ak-grabber {
-  width: 32px;
-  height: 3px;
-  margin: 10px auto 0;
-  background: var(--paper-muted);
-  opacity: 0.45;
-  border-radius: 2px;
-}
-
-.sheet-title {
-  margin: 0;
-  padding: 8px 16px 0 var(--text-col);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 32px;
-  line-height: 48px;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 32, "wght" 400;
-  font-synthesis: none;
-  color: var(--paper-ink);
-}
-
-.sheet-sub {
-  height: 24px;
-  margin: 16px 0 0;
-  padding: 0 16px 0 var(--text-col);
-  color: var(--paper-muted);
-  font-style: italic;
-  font-size: 16px;
-  line-height: 24px;
-  font-variation-settings: "opsz" 16, "wght" 400;
-  font-synthesis: none;
-}
-
-.sheet-entry .ak-sheet-dock { padding: 12px 16px 24px; }
-
-.sheet-entry .ak-sheet-dock .ak-btn {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  min-height: 48px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--paper-btn-bg);
-  color: var(--paper-btn-ink);
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  box-shadow: none;
-  cursor: pointer;
-}
-.sheet-entry .ak-sheet-dock .ak-btn:disabled { opacity: 0.6; cursor: default; }
-
-.sheet-slot:empty { display: none; }
-.sheet-slot .ak-banner {
-  margin: 0 0 0 var(--text-col);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--paper-today);
-  font: italic 16px/24px var(--font-text);
-}
 
 .detail-form { display: grid; padding: 0 16px 8px 0; }
 

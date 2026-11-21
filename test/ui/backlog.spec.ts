@@ -89,7 +89,7 @@ test("a failing task server shows an error state with a retry", async ({ page })
   await expect(page.locator("li.ak-row")).toHaveCount(6);
 });
 
-test("light and dark follow the system color scheme through the kit tokens", async ({ page }, testInfo) => {
+test("light and dark follow the system color scheme through the paper tokens", async ({ page }, testInfo) => {
   await page.goto(`${app.baseUrl}/backlog`);
   await expect(page.locator("li.ak-row")).toHaveCount(6);
   const scheme = testInfo.project.name === "phone-dark" ? "dark" : "light";
@@ -100,8 +100,8 @@ test("light and dark follow the system color scheme through the kit tokens", asy
     accent: getComputedStyle(document.documentElement).getPropertyValue("--ak-accent").trim(),
   }));
   if (scheme === "dark") {
-    expect(colors).toEqual({ bg: "rgb(0, 0, 0)", text: "rgb(255, 255, 255)", accent: "#8d99ff" });
+    expect(colors).toEqual({ bg: "rgb(22, 19, 15)", text: "rgb(240, 234, 220)", accent: "#f0eadc" });
   } else {
-    expect(colors).toEqual({ bg: "rgb(255, 255, 255)", text: "rgb(0, 0, 0)", accent: "#3341b8" });
+    expect(colors).toEqual({ bg: "rgb(244, 239, 228)", text: "rgb(26, 22, 18)", accent: "#1a1612" });
   }
 });

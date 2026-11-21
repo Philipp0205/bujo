@@ -84,7 +84,7 @@
       'data-action': 'code-saved',
       onclick: function () { options.onDone(); }
     }, options.buttonLabel || 'I saved it, continue');
-    return h('section', { class: 'ak-card bj-code-panel', 'data-panel': 'recovery-code' },
+    return h('section', { class: 'bj-card bj-code-panel', 'data-panel': 'recovery-code' },
       h('p', null, options.intro),
       h('p', { class: 'bj-code', id: 'bj-recovery-code', 'data-testid': 'recovery-code' }, options.code),
       h('p', { class: 'bj-note' }, 'This code is shown once. It is the only way back into your journal if you are signed out. Write it on paper or keep it in a password manager.'),
