@@ -3,6 +3,7 @@ import { isoDate } from "../app-kit/time.ts";
 import { createEntryStore } from "../log/store.ts";
 import { applyLogDraft } from "../log/scan/apply.ts";
 import { buildLogDraft, checkLines, startReview, type LogDraft } from "../log/scan/draft.ts";
+import { suggestNote } from "../log/scan/note.ts";
 import { parseReview } from "../log/scan/request.ts";
 import { isValidDate } from "../log/validation.ts";
 import type { OcrClient } from "../scan/ocr-client.ts";
@@ -49,6 +50,15 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   sendJson(ctx.res, 201, { draft: startReview(draft, existing) });
 }
 
+/** POST /api/log/scan/note: reads the photo, runs OCR and answers a suggested title, day and markdown. Keeps nothing, writes nothing. */
+async function scanNote(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
+  requireSession(ctx.who);
+  const { image, contentType } = await readPhoto(ctx.req);
+  const fallbackDate = fallbackDay(ctx, deps.now());
+  const ocr = await deps.ocr(image, contentType);
+  sendJson(ctx.res, 200, { note: suggestNote(ocr.lines, fallbackDate) });
+}
+
 /** POST /api/log/scan/:id/check: tells the review which lines are duplicates or finish a task, for one day. */
 async function checkDay(ctx: RouteContext, deps: LogScanDeps, id: string): Promise<void> {
   const session = requireSession(ctx.who);
@@ -72,6 +82,8 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
 /**
  * /api/log/scan, the rapid-log scan. Browser sessions only: a scan reads the photo and writes entries.
  *   POST /api/log/scan?date=       raw image body. OCR, then a draft kept in memory (never the photo). Writes nothing.
+ *   POST /api/log/scan/note?date=  raw image body. OCR, then a suggested title, day and markdown for a free note. Keeps and writes
+ *                                  nothing: the note is saved by the review through POST /api/entries.
  *   POST /api/log/scan/:id/check   the review's lines and day. Answers duplicates and tasks to mark done. Writes nothing.
  *   POST /api/log/scan/:id/apply   the review's lines and day. Writes the kept lines. Once per draft.
  */
@@ -81,6 +93,10 @@ export async function handleLogScan(ctx: RouteContext, deps: LogScanDeps): Promi
   if (method !== "POST") methodNotAllowed("POST");
   if (pathname === "/api/log/scan") {
     await scanPhoto(ctx, deps);
+    return true;
+  }
+  if (pathname === "/api/log/scan/note") {
+    await scanNote(ctx, deps);
     return true;
   }
   const match = /^\/api\/log\/scan\/([^/]+)\/(check|apply)$/.exec(pathname);

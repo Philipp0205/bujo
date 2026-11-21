@@ -11,13 +11,20 @@
     camera: {
       close: 'Close',
       title: 'Align the rapid log page',
+      titleNote: 'Align the note page',
       modes: 'What to scan',
       rapid: 'Rapid log',
       note: 'Free note',
-      noteLater: 'Free notes come later',
       shutter: 'Take a photo',
       gallery: 'Choose from gallery',
       busy: 'Reading the page\u2026'
+    },
+    note: {
+      reviewHeading: 'Free note',
+      reviewSub: 'Scanned just now',
+      save: 'Save note',
+      cancel: 'Cancel',
+      noText: 'No text was read from this page.'
     },
     errors: {
       type: 'This file is not a JPEG, PNG, WebP or HEIC photo.',

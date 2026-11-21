@@ -39,15 +39,15 @@ test("checkRange: a good range, a reversed one, a bad date and the span cap", ()
 
 test("checkNewEntry trims, defaults tag and time to null and keeps the rest", () => {
   const checked = checkNewEntry({ date: "2026-11-20", type: "event", title: "  Lunch mit Mira  ", tag: " Freizeit ", time: "13:00" });
-  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", type: "event", title: "Lunch mit Mira", tag: "Freizeit", time: "13:00" } });
+  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", type: "event", title: "Lunch mit Mira", tag: "Freizeit", time: "13:00", body: null } });
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß", tag: null, time: null },
+    value: { date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß", tag: null, time: null, body: null },
   });
   // A blank tag or time means none.
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "note", title: "x", tag: "   ", time: "" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "note", title: "x", tag: null, time: null },
+    value: { date: "2026-11-20", type: "note", title: "x", tag: null, time: null, body: null },
   });
 });
 

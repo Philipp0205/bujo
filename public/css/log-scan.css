@@ -130,7 +130,6 @@
   cursor: pointer;
 }
 .scan-mode[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
-.scan-mode[aria-disabled="true"] { cursor: default; opacity: 0.7; }
 
 /* The actions row under the mode toggle: gallery left of the shutter, a matching slot on the right so the shutter stays centred. */
 .scan-actions {
@@ -292,3 +291,34 @@
   cursor: pointer;
 }
 .scan-keep[aria-checked="false"] svg { visibility: hidden; }
+
+/* ----- The free-note sheet ----- */
+
+.sheet-note .ak-sheet-head { position: relative; }
+.note-cancel {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  top: 24px;
+  right: 8px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 500 16px/24px var(--font-ui);
+  cursor: pointer;
+}
+
+/* The markdown field is a textarea on the 24px lines: whole-line height, no handle, ink underline on focus. */
+.detail-form .ak-input.note-body {
+  display: block;
+  min-height: 240px;
+  padding: 0;
+  resize: none;
+  line-height: 24px;
+}
+.detail-form .ak-input[data-field="title"] { min-height: 48px; }
+
+.detail-form .note-copy { justify-self: start; margin: 24px 0 0 var(--text-col); }

@@ -12,14 +12,17 @@
   var POLL_MS = 800;
   var pollTimer = null;
 
-  /** The things a row or the add row can do. */
+  /** The things a row or the add row can do. A note with a body opens the note sheet, any other entry the entry sheet. */
   var actions = {
-    open: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); },
+    open: function (entry) {
+      if (L.note.model.isNote(entry)) L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload });
+      else L.sheet.open({ entry: entry, today: state.today, onSaved: reload });
+    },
     add: function () { L.sheet.open({ entry: null, today: state.today, onSaved: reload }); },
     scan: function () { L.scan.flow.start({ day: state.today, onApplied: applied }); }
   };
 
-  /** After a scan is applied: show the day it landed on, even when it is outside the usual window. */
+  /** After a scan is applied or a note saved: show the day it landed on, even when it is outside the usual window. */
   function applied(result) {
     state.focus = result.date;
     reload();

@@ -67,8 +67,7 @@ test("the scan button opens the camera screen: title, frame, toggle, shutter, an
   await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
   await expect(screen.getByRole("button", { name: "Rapid log" })).toHaveAttribute("aria-pressed", "true");
   const note = screen.getByRole("button", { name: "Free note" });
-  await expect(note).toHaveAttribute("aria-disabled", "true");
-  await note.click({ force: true });
+  await expect(note).not.toHaveAttribute("aria-disabled");
   await expect(note).toHaveAttribute("aria-pressed", "false");
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
   await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();

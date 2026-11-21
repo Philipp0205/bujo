@@ -1,0 +1,168 @@
+import { expect, test, type Page } from "@playwright/test";
+import { line } from "../fake-ocr.ts";
+import { useBujo } from "./harness.ts";
+
+const app = useBujo();
+
+// A 1x1 PNG. The fake OCR service ignores the pixels and answers the lines the test sets.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const photo = { name: "note.png", mimeType: "image/png", buffer: PNG };
+const PAGE = [line("none", "# Küchengarten, Frühjahr"), line("•", "Beet 2: Rucola und Radieschen"), line("none", "Next: sketch a watering plan.")];
+const MARKDOWN = "# Küchengarten, Frühjahr\n- Beet 2: Rucola und Radieschen\nNext: sketch a watering plan.";
+
+test.beforeEach(async ({ page }) => {
+  await app.signIn(page);
+  app.ocr.failWith(0);
+  app.ocr.setLines(PAGE);
+});
+
+/** Today as YYYY-MM-DD in the local time zone: the log page uses the local day too. */
+function localDay(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+const sheet = (page: Page) => page.getByTestId("note-sheet");
+const screen = (page: Page) => page.getByTestId("scan-screen");
+
+/** Opens the camera screen in free-note mode. */
+async function openNoteCamera(page: Page): Promise<void> {
+  await page.goto(app.baseUrl);
+  await page.getByRole("button", { name: "Scan a page" }).click();
+  await screen(page).getByRole("button", { name: "Free note" }).click();
+}
+
+/** Scans a photo in free-note mode, through the given input. The review sheet is up after this. */
+async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
+  await openNoteCamera(page);
+  await page.locator(input).setInputFiles(photo);
+  await expect(sheet(page)).toBeVisible();
+}
+
+test("the Free note toggle works: pressed state and title follow it, and back again", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.getByRole("button", { name: "Scan a page" }).click();
+  const rapid = screen(page).getByRole("button", { name: "Rapid log" });
+  const note = screen(page).getByRole("button", { name: "Free note" });
+  await expect(screen(page).getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
+
+  await note.click();
+  await expect(note).toHaveAttribute("aria-pressed", "true");
+  await expect(rapid).toHaveAttribute("aria-pressed", "false");
+  await expect(screen(page).getByRole("heading", { name: "Align the note page" })).toBeVisible();
+  await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-prose");
+
+  await rapid.click();
+  await expect(rapid).toHaveAttribute("aria-pressed", "true");
+  await expect(screen(page).getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
+  await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-guide");
+});
+
+test("a free-note photo reaches the review with the transcribed markdown, and nothing is written yet", async ({ page }) => {
+  await scanNote(page);
+  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  await expect(sheet(page).getByRole("heading", { name: "Free note" })).toBeVisible();
+  await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Küchengarten, Frühjahr");
+  await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(MARKDOWN);
+  await expect(sheet(page).locator('[data-field="date"]')).not.toHaveValue("");
+  await expect(sheet(page).getByText(/obsidian|vault|inbox/i)).toHaveCount(0);
+
+  const date = await sheet(page).locator('[data-field="date"]').inputValue();
+  const stored = await page.request.get(`${app.baseUrl}/api/entries?from=${date}&to=${date}`);
+  expect(JSON.stringify(await stored.json())).not.toContain("Küchengarten");
+});
+
+test("the gallery input works in free-note mode too", async ({ page }) => {
+  await scanNote(page, "#scan-gallery");
+  await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(MARKDOWN);
+});
+
+test("cancel and Escape drop the draft and write nothing", async ({ page }) => {
+  await scanNote(page);
+  await sheet(page).locator('[data-field="title"]').fill("Nur im Review");
+  await sheet(page).locator('[data-action="note-cancel"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(page.locator(".paper-row", { hasText: "Nur im Review" })).toHaveCount(0);
+
+  await scanNote(page);
+  await sheet(page).locator('[data-field="title"]').fill("Auch nur im Review");
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  const today = localDay();
+  const list = await page.request.get(`${app.baseUrl}/api/entries?from=${today}&to=${today}`);
+  expect(JSON.stringify(await list.json())).not.toContain("im Review");
+});
+
+test("a page with no readable text stays on the camera screen with a message", async ({ page }) => {
+  app.ocr.setLines([line("none", "   ")]);
+  await openNoteCamera(page);
+  await page.locator("#scan-file").setInputFiles(photo);
+  await expect(screen(page).getByRole("alert")).toContainText("No text was read from this page.");
+  await expect(screen(page)).toBeVisible();
+});
+
+test("edit title and markdown, save, see the note in the log, open it, copy it, edit it again", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await scanNote(page);
+
+  await sheet(page).locator('[data-field="title"]').fill("Garten im Frühjahr");
+  await sheet(page).locator('[data-field="body"]').fill(`${MARKDOWN}\n- Kompost umschichten`);
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+
+  const row = page.locator(".paper-row", { hasText: "Garten im Frühjahr" });
+  await expect(row).toHaveCount(1);
+  await expect(row).toHaveAttribute("data-type", "note");
+  await expect(row).toHaveAttribute("data-sync", "local");
+
+  await row.click();
+  await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
+  await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Garten im Frühjahr");
+  await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(`${MARKDOWN}\n- Kompost umschichten`);
+
+  const copy = sheet(page).locator('[data-action="copy-note"]');
+  await expect(copy).toHaveText("Copy markdown");
+  await copy.click();
+  await expect(copy).toHaveText("Copied");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${MARKDOWN}\n- Kompost umschichten`);
+
+  await sheet(page).locator('[data-field="body"]').fill("# Neu\n- nur das");
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+  await page.locator(".paper-row", { hasText: "Garten im Frühjahr" }).click();
+  await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# Neu\n- nur das");
+  expect(errors).toEqual([]);
+});
+
+test("a note needs a title and some text", async ({ page }) => {
+  await scanNote(page);
+  await sheet(page).locator('[data-field="title"]').fill("");
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page).getByRole("alert")).toContainText("Give the note a title.");
+  await sheet(page).locator('[data-field="title"]').fill("Titel");
+  await sheet(page).locator('[data-field="body"]').fill("  ");
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page).getByRole("alert")).toContainText("Write something in the note.");
+  await expect(sheet(page)).toBeVisible();
+});
+
+test("a page with no usable first line gets the Untitled note title", async ({ page }) => {
+  app.ocr.setLines([line("none", "#"), line("none", "zweite Zeile")]);
+  await scanNote(page);
+  await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Untitled note");
+});
+
+test("a short note with no body still opens the entry sheet", async ({ page }) => {
+  const day = localDay();
+  expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day, type: "note", title: "Kurze Notiz" } })).status()).toBe(201);
+  await page.goto(app.baseUrl);
+  await page.locator(".paper-row", { hasText: "Kurze Notiz" }).click();
+  await expect(page.getByRole("heading", { name: "Edit entry" })).toBeVisible();
+  await expect(sheet(page)).toHaveCount(0);
+});

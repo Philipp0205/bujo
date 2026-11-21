@@ -9,6 +9,7 @@ type Row = {
   type: Entry["type"];
   title: string;
   tag: string | null;
+  body: string | null;
   sync: Entry["sync"];
   sync_error: string | null;
   position: number;
@@ -34,7 +35,7 @@ export type EntryStore = {
   failPending(message: string): void;
 };
 
-const COLUMNS = "id, date, time, type, title, tag, sync, sync_error, position, created_at, updated_at";
+const COLUMNS = "id, date, time, type, title, tag, body, sync, sync_error, position, created_at, updated_at";
 
 function toEntry(row: Row): Entry {
   return {
@@ -44,6 +45,7 @@ function toEntry(row: Row): Entry {
     type: row.type,
     title: row.title,
     tag: row.tag,
+    body: row.body ?? null,
     sync: row.sync,
     syncError: row.sync_error,
     position: Number(row.position),
@@ -79,8 +81,8 @@ export function createEntryStore(db: Db): EntryStore {
     create(userId, input, now) {
       const id = crypto.randomUUID();
       db.prepare(
-        "INSERT INTO entries (id, user_id, date, time, type, title, tag, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      ).run(id, userId, input.date, input.time, input.type, input.title, input.tag, nextPosition(userId, input.date), now, now);
+        "INSERT INTO entries (id, user_id, date, time, type, title, tag, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      ).run(id, userId, input.date, input.time, input.type, input.title, input.tag, input.body ?? null, nextPosition(userId, input.date), now, now);
       return get(userId, id)!;
     },
 
@@ -89,12 +91,13 @@ export function createEntryStore(db: Db): EntryStore {
       if (!current) return undefined;
       const next = { ...current, ...patch };
       const position = next.date === current.date ? current.position : nextPosition(userId, next.date);
-      db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, tag = ?, position = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+      db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, tag = ?, body = ?, position = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
         next.date,
         next.time,
         next.type,
         next.title,
         next.tag,
+        next.body,
         position,
         now,
         userId,

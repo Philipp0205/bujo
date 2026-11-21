@@ -1,5 +1,5 @@
 /*
- * Calls of the scan flow: read a photo, check the lines against a day, apply the kept lines. Needs core.js.
+ * Calls of the scan flow: read a photo, read a note page, check the lines against a day, apply the kept lines. Needs core.js.
  * Every function resolves with the parsed body and rejects with an Error that is safe to show.
  */
 (function () {
@@ -23,6 +23,13 @@
     });
   }
 
+  /** Sends the photo of a free-note page. Resolves with the suggestion { title, date, dateFromPage, body }. Writes nothing. */
+  function note(file, day) {
+    return Bujo.upload('/api/log/scan/note?date=' + encodeURIComponent(day), file, { guarded: true }).then(function (body) {
+      return body.note;
+    });
+  }
+
   /** Asks which lines are duplicates or finish a task on a day. Writes nothing. */
   function check(id, body) {
     return post(draftPath(id, 'check'), body);
@@ -33,5 +40,5 @@
     return post(draftPath(id, 'apply'), body);
   }
 
-  L.scan.api = { scan: scan, check: check, apply: apply };
+  L.scan.api = { scan: scan, note: note, check: check, apply: apply };
 })();

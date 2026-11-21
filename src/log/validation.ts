@@ -9,12 +9,15 @@ import {
 
 export const TITLE_MAX = 200;
 export const TAG_MAX = 40;
+/** The longest free-note markdown, in characters. */
+export const BODY_MAX = 50_000;
 /** The widest list request, in days from the first to the last day, inclusive. */
 export const RANGE_MAX_DAYS = 92;
 
 const DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_SHAPE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+const BODY_CONTROL_CHARS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 const DAY_MS = 86_400_000;
 
 const fail = (error: string): { ok: false; error: string } => ({ ok: false, error });
@@ -71,7 +74,17 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(body).find((key) => !allowed.includes(key));
 }
 
-const FIELDS = ["date", "type", "title", "tag", "time"] as const;
+const FIELDS = ["date", "type", "title", "tag", "time", "body"] as const;
+
+/** The markdown body of a free note: any text up to BODY_MAX, line breaks and tabs allowed. Blank means none. */
+function checkBody(value: unknown): Checked<string | null> {
+  if (value === null) return { ok: true, value: null };
+  if (typeof value !== "string") return fail("body must be text");
+  if (value.trim() === "") return { ok: true, value: null };
+  if (value.length > BODY_MAX) return fail(`body is too long (at most ${BODY_MAX} characters)`);
+  if (BODY_CONTROL_CHARS.test(value)) return fail("body must be plain text");
+  return { ok: true, value: value.replace(/\r\n?/g, "\n") };
+}
 
 /** Checks the fields present in a body. Missing keys stay missing. Shared by create and edit. */
 function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
@@ -99,6 +112,11 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
     if (!time.ok) return time;
     out.time = time.value;
   }
+  if ("body" in body) {
+    const text = checkBody(body.body);
+    if (!text.ok) return text;
+    out.body = text.value;
+  }
   return { ok: true, value: out };
 }
 
@@ -111,8 +129,8 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   }
   const fields = checkFields(body);
   if (!fields.ok) return fields;
-  const { date, type, title, tag = null, time = null } = fields.value;
-  return { ok: true, value: { date: date!, type: type!, title: title!, tag, time } };
+  const { date, type, title, tag = null, time = null, body: text = null } = fields.value;
+  return { ok: true, value: { date: date!, type: type!, title: title!, tag, time, body: text } };
 }
 
 /** Checks an edit body: any of the fields, at least one. Clients cannot set sync. */
