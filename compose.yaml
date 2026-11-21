@@ -30,6 +30,11 @@ services:
 
   ocr:
     build: ./ocr
+    environment:
+      OCR_LLM_BASE: ${OCR_LLM_BASE:-}
+      OCR_LLM_KEY: ${OCR_LLM_KEY:-}
+      OCR_LLM_MODEL: ${OCR_LLM_MODEL:-}
+      OCR_LLM_TIMEOUT: ${OCR_LLM_TIMEOUT:-}
     expose:
       - "8090"
     restart: unless-stopped
