@@ -1,7 +1,7 @@
 /*
  * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
  * actions: open(entry), add(), and select { on(), ticked(entry), toggle(entry) } for select mode.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js and days.js.
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js and paper/view.js (the row mark and the header button).
  */
 (function () {
   'use strict';
@@ -9,9 +9,9 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: just the italic title. Scan and Settings live in the tab bar. */
-  function header() {
-    return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title));
+  /** The page header: the italic title, and the "Not on paper" button when entries wait to be written down. Scan and Settings live in the tab bar. */
+  function header(count, onOpenPaper) {
+    return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title), L.paper.view.control(count, onOpenPaper));
   }
 
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */
@@ -59,6 +59,7 @@
       'data-id': entry.id,
       'data-type': entry.type,
       'data-sync': entry.sync,
+      'data-on-paper': entry.onPaper ? 'true' : 'false',
       'data-indent': String(indent),
       'aria-selected': picking ? String(ticked) : null,
       onclick: tapOf(entry, actions)
@@ -67,7 +68,8 @@
       h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
-        pills(entry)));
+        pills(entry)),
+      entry.onPaper ? null : L.paper.view.rowMark());
   }
 
   /** The quiet "+ Add entry" row under today's entries. Its empty space starts a line too. */

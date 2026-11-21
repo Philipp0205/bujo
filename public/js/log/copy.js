@@ -71,6 +71,19 @@
       copied: function (count) { return 'Copied ' + count; },
       failed: 'Could not copy. Try again.'
     },
+    paper: {
+      open: 'Not on paper',
+      openLabel: function (count) { return count + ' not on paper yet. Open the list.'; },
+      mark: 'Not on paper yet',
+      heading: 'Not on paper',
+      sub: function (count) { return count === 1 ? '1 entry to write down' : count + ' entries to write down'; },
+      subEmpty: 'Nothing left to write down',
+      empty: 'Everything is on paper.',
+      failed: 'Could not load the list. Try again.',
+      copyAll: 'Copy all',
+      written: 'Mark as written',
+      writtenFailed: 'Could not mark it. Try again.'
+    },
     select: {
       barLabel: 'Selection',
       count: function (count) { return count + ' selected'; },

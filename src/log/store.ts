@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
+import { onPaper } from "./paper.ts";
 import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
 
+/** A row with the scan provenance columns: the store reads them to derive onPaper, and listScan to hand out the snapshot. */
 type Row = {
   id: string;
   date: string;
@@ -17,9 +19,6 @@ type Row = {
   indent: number;
   created_at: number;
   updated_at: number;
-};
-
-type ScanRow = Row & {
   scan_key: string | null;
   scan_type: Entry["type"] | null;
   scan_title: string | null;
@@ -35,7 +34,7 @@ export type EntryStore = {
   list(userId: string, range: DateRange): Entry[];
   /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. */
   listNotes(userId: string): Entry[];
-  /** Like list, with the scan provenance of each entry. For the scan routes only: it never reaches the public API. */
+  /** Like list, with the scan provenance of each entry (plus onPaper, like every entry). For the scan routes only: the snapshot never reaches the public API. */
   listScan(userId: string, range: DateRange): ScanEntry[];
   /**
    * Records the paper line a scan last applied to an entry. Not an edit: updated_at and sync stay as they are.
@@ -70,17 +69,15 @@ export type EntryStore = {
   failPending(message: string): void;
 };
 
-/** The entry columns, plus the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
+/** The entry columns, the scan provenance (read to derive onPaper, never sent), the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
   "id, date, time, type, title, body, sync, sync_error, position, indent, created_at, updated_at, " +
+  "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, " +
   "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
 
 /** The order of a day: by position, and by creation time for entries that share a position. */
 const DAY_ORDER = "ORDER BY position, created_at, id";
-
-/** The scan provenance columns, selected next to COLUMNS by listScan. */
-const SCAN_COLUMNS = "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at";
 
 /** A JSON list of text from the database, or an empty list when it is missing or not one. */
 function parseTags(json: string | null): string[] {
@@ -94,13 +91,14 @@ function parseTags(json: string | null): string[] {
 }
 
 /** The snapshot of a row, or null when no scan has been applied to it. */
-function toSnapshot(row: ScanRow): ScanSnapshot | null {
+function toSnapshot(row: Row): ScanSnapshot | null {
   if (row.scan_key === null || row.scan_type === null || row.scan_title === null || row.scan_at === null) return null;
   return { key: row.scan_key, type: row.scan_type, title: row.scan_title, tags: parseTags(row.scan_tags), time: row.scan_time, at: Number(row.scan_at) };
 }
 
+/** The public entry of a row: no provenance, only the derived onPaper flag. */
 function toEntry(row: Row): Entry {
-  return {
+  const entry = {
     id: row.id,
     date: row.date,
     time: row.time,
@@ -116,6 +114,7 @@ function toEntry(row: Row): Entry {
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };
+  return { ...entry, onPaper: onPaper(entry, toSnapshot(row)) };
 }
 
 /**
@@ -198,8 +197,8 @@ export function createEntryStore(db: Db): EntryStore {
 
     listScan(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS}, ${SCAN_COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
-        .all(userId, range.from, range.to) as ScanRow[];
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .all(userId, range.from, range.to) as Row[];
       return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
     },
 

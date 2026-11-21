@@ -1,10 +1,10 @@
 import { HttpError } from "../../app-kit/http.ts";
 import { inTransaction, type Db } from "../../db.ts";
-import { matchKey } from "../../scan/match.ts";
 import type { EntryStore } from "../store.ts";
-import type { Entry, NewEntry, ScanSnapshot } from "../types.ts";
+import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
 import type { LogDraft } from "./draft.ts";
+import { snapshotOf } from "./fields.ts";
 import { toLine, type SentItem, type SentReview } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
 import type { Resolution } from "./types.ts";
@@ -39,11 +39,6 @@ function checkKept(plan: readonly Planned[], date: string): void {
     const result = item.include ? validFields(item, date) : null;
     if (result && !result.ok) throw new HttpError(400, `items[${index}]: ${result.error}`);
   }
-}
-
-/** The paper line as the snapshot a scan leaves on an entry. */
-function snapshotOf(entry: NewEntry, now: number): ScanSnapshot {
-  return { key: matchKey(entry.title), type: entry.type, title: entry.title, tags: entry.tags, time: entry.time, at: now };
 }
 
 /** Adds a new entry at the end of the day, or changes the four scanned fields of the matched one. Never touches date, indent, position or body. */

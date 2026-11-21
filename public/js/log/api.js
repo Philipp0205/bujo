@@ -18,6 +18,20 @@
     });
   }
 
+  /** The entries from one day to another that are not on paper yet (the server filters), both days included. */
+  function listNotOnPaper(from, to) {
+    return call('GET', '/api/entries?from=' + from + '&to=' + to + '&onPaper=0').then(function (body) {
+      return body.entries;
+    });
+  }
+
+  /** Says the person wrote an entry on the paper page. Resolves with the entry, which is then on paper. */
+  function markWritten(id) {
+    return call('POST', '/api/entries/' + encodeURIComponent(id) + '/written').then(function (body) {
+      return body.entry;
+    });
+  }
+
   /** Every free note of any day, newest day first (the Notes screen). */
   function listNotes() {
     return call('GET', '/api/entries?kind=notes').then(function (body) {
@@ -77,5 +91,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();
