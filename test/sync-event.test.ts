@@ -46,7 +46,7 @@ async function withSync(
   }
 }
 
-const NEW: NewEntry = { date: "2026-11-24", type: "event", title: TITLE, tag: null, time: null };
+const NEW: NewEntry = { date: "2026-11-24", type: "event", title: TITLE, tags: [], time: null };
 const make = (ctx: Ctx, patch: Partial<NewEntry> = {}): Entry => ctx.entries.create(USER_ID, { ...NEW, ...patch }, NOW);
 const puts = (fake: FakeCalDav) => fake.requests.filter((request) => request.method === "PUT");
 const reread = (ctx: Ctx, id: string) => ctx.entries.get(USER_ID, id)!;
@@ -96,7 +96,7 @@ test("create: an all-day event is a PUT with If-None-Match: * into the event cal
 
 test("create: a timed event with a tag is written in Europe/Berlin with an explicit end and both categories", async () => {
   await withSync(async (ctx) => {
-    const synced = await pushAndWait(ctx, make(ctx, { time: "13:00", tag: "Arzt" }));
+    const synced = await pushAndWait(ctx, make(ctx, { time: "13:00", tags: ["Arzt"] }));
     assert.equal(synced.sync, "synced");
     const ics = eventText(ctx.fake);
     assert.ok(ics.includes("DTSTART;TZID=Europe/Berlin:20261124T130000"));
@@ -115,7 +115,7 @@ test("update: a time, tag and title change is a GET, a PUT with If-Match, a read
     ctx.fake.touch(CAL, "uid-1.ics", ctx.fake.read(CAL, "uid-1.ics")!.replace("END:VEVENT", "LOCATION:Praxis\r\nX-OTHER:keep me\r\nEND:VEVENT"));
     const before = ctx.fake.requests.length;
 
-    const edited = ctx.entries.update(USER_ID, created.id, { title: "Zahnarzt Kontrolle", time: "09:30", tag: "Arzt" }, NOW)!;
+    const edited = ctx.entries.update(USER_ID, created.id, { title: "Zahnarzt Kontrolle", time: "09:30", tags: ["Arzt"] }, NOW)!;
     assert.equal(ctx.service.enqueue(USER_ID, edited).sync, "pending");
     await ctx.service.idle();
 
@@ -135,10 +135,25 @@ test("update: a time, tag and title change is a GET, a PUT with If-Match, a read
 
 test("German umlauts in the title and the tag arrive intact", async () => {
   await withSync(async (ctx) => {
-    await pushAndWait(ctx, make(ctx, { title: "Übergabe für Schlüssel, Größe; Ärger", tag: "Größe" }));
+    await pushAndWait(ctx, make(ctx, { title: "Übergabe für Schlüssel, Größe; Ärger", tags: ["Größe"] }));
     const ics = eventText(ctx.fake);
     assert.ok(ics.includes("SUMMARY:Übergabe für Schlüssel\\, Größe\\; Ärger"));
     assert.ok(ics.includes("CATEGORIES:bujo,Größe"));
+  });
+});
+
+test("several tags are several categories in the order kept, and removing them all leaves bujo", async () => {
+  await withSync(async (ctx) => {
+    const created = await pushAndWait(ctx, make(ctx, { tags: ["Arzt", "Größe", "a,b;c"] }));
+    assert.ok(eventText(ctx.fake).includes("CATEGORIES:bujo,Arzt,Größe,a\\,b\\;c"));
+
+    const reordered = ctx.entries.update(USER_ID, created.id, { tags: ["Größe", "Arzt"] }, NOW)!;
+    await pushAndWait(ctx, reordered);
+    assert.ok(eventText(ctx.fake).includes("CATEGORIES:bujo,Größe,Arzt"));
+
+    const cleared = ctx.entries.update(USER_ID, created.id, { tags: [] }, NOW)!;
+    await pushAndWait(ctx, cleared);
+    assert.ok(eventText(ctx.fake).includes("CATEGORIES:bujo\r\n"));
   });
 });
 
@@ -403,9 +418,10 @@ test("the startup line names the calendar and never a path, URL or credential", 
 
 test("an edit is pushed for an event on time or tag, and for a task only on title, type or date", () => {
   assert.equal(touchesMapping({ time: "10:00" }, { type: "event" }), true);
-  assert.equal(touchesMapping({ tag: "x" }, { type: "event" }), true);
+  assert.equal(touchesMapping({ tags: ["x"] }, { type: "event" }), true);
+  assert.equal(touchesMapping({ tags: [] }, { type: "event" }), true);
   assert.equal(touchesMapping({ time: "10:00" }, { type: "task" }), false);
-  assert.equal(touchesMapping({ tag: "x" }, { type: "task" }), false);
+  assert.equal(touchesMapping({ tags: ["x"] }, { type: "task" }), false);
   for (const type of ["task", "event"] as const) {
     for (const patch of [{ title: "t" }, { type: "note" as const }, { date: "2026-12-01" }]) assert.equal(touchesMapping(patch, { type }), true);
   }

@@ -18,7 +18,7 @@ export type MessageKind = "todo" | "event";
 
 const EVENT_MESSAGES = {
   conflict: "Nextcloud changed this event at the same moment. Nothing was overwritten. Retry sync to try again.",
-  readBackMismatch: "Nextcloud did not keep what was sent (title, time, tag or id differ).",
+  readBackMismatch: "Nextcloud did not keep what was sent (title, time, tags or id differ).",
   gone: "This event is no longer in Nextcloud. It was not created again.",
 } as const;
 

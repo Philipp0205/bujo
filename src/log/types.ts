@@ -11,7 +11,8 @@ export type Entry = {
   time: string | null;
   type: EntryType;
   title: string;
-  tag: string | null;
+  /** The tags in the order they were written, without repeats (compared ignoring case). Empty when there are none. */
+  tags: string[];
   /** The markdown of a free note. Null for a short rapid-log line. */
   body: string | null;
   /** True when a scan photo is stored with the note. The bytes are at GET /api/entries/:id/photo, never in the list. */
@@ -37,7 +38,7 @@ export type NewEntry = {
   date: string;
   type: EntryType;
   title: string;
-  tag: string | null;
+  tags: string[];
   time: string | null;
   body?: string | null;
 };
@@ -50,17 +51,20 @@ export type ScanSnapshot = {
   key: string;
   type: EntryType;
   title: string;
-  tag: string | null;
+  tags: string[];
   time: string | null;
   at: number;
 };
+
+/** One tag in use, for the autocomplete: how many entries carry it and when one of them last changed. */
+export type TagUse = { tag: string; count: number; lastUsed: number };
 
 /** An entry with its scan provenance, for the scan routes only. `scan` is null for an entry no scan has touched. */
 export type ScanEntry = Entry & { scan?: ScanSnapshot | null };
 
 export type MoveDirection = "up" | "down";
 
-/** A checked edit. Only the keys present are changed. A null tag, time or body clears it. */
+/** A checked edit. Only the keys present are changed. An empty tags list, a null time or a null body clears it. */
 export type EntryPatch = Partial<NewEntry> & {
   /** 0 or 1. A 1 on the first entry of a day stays 0, there is nothing above to nest under. */
   indent?: number;

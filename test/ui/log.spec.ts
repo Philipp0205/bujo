@@ -22,7 +22,7 @@ function heading(iso: string): string {
   return `${weekday} ${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 }
 
-type Seed = { date: string; type: string; title: string; tag?: string; time?: string };
+type Seed = { date: string; type: string; title: string; tags?: string[]; time?: string };
 
 /** Creates fake entries through the API with the page's session. Never touches a real list. */
 async function seed(page: Page, entries: Seed[]): Promise<void> {
@@ -66,10 +66,10 @@ test("an empty log shows today with its mark and the add row, the tab bar and no
 
 test("entries are grouped under day headers with glyph, tag, time and sync dot", async ({ page }) => {
   await seed(page, [
-    { date: day(-1), type: "done", title: "Gestern erledigt", tag: "Arbeit" },
+    { date: day(-1), type: "done", title: "Gestern erledigt", tags: ["Arbeit"] },
     { date: day(-1), type: "migrated", title: "Gestern verschoben" },
-    { date: day(0), type: "task", title: "Heute Aufgabe", tag: "Haushalt" },
-    { date: day(0), type: "event", title: "Mittagessen im Café Linde", tag: "Freizeit", time: "13:00" },
+    { date: day(0), type: "task", title: "Heute Aufgabe", tags: ["Haushalt"] },
+    { date: day(0), type: "event", title: "Mittagessen im Café Linde", tags: ["Freizeit"], time: "13:00" },
     { date: day(0), type: "note", title: "Küchengarten, Frühjahr" },
     { date: day(1), type: "scheduled", title: "Vermieter anrufen" },
     { date: day(-30), type: "task", title: "Viel zu alt" },
@@ -115,7 +115,7 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
 test("a note shows no sync label and no dot, a task and an event next to it still do", async ({ page }) => {
   await seed(page, [
     { date: day(0), type: "note", title: "Notiz ohne Tag" },
-    { date: day(0), type: "note", title: "Notiz mit Tag", tag: "Garten", time: "08:15" },
+    { date: day(0), type: "note", title: "Notiz mit Tag", tags: ["Garten"], time: "08:15" },
     { date: day(0), type: "task", title: "Aufgabe ohne Tag" },
     { date: day(0), type: "event", title: "Termin ohne Tag" },
   ]);
@@ -195,8 +195,8 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
 test("each entry is an ink card: the symbol shares the title's row, the pills sit under the title start, a long title wraps", async ({ page }) => {
   const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb umbrechen muss ".repeat(2);
   await seed(page, [
-    { date: day(0), type: "task", title: "Winzig", tag: "Haushalt" },
-    { date: day(0), type: "event", title: long, tag: "Arbeit", time: "13:00" },
+    { date: day(0), type: "task", title: "Winzig", tags: ["Haushalt"] },
+    { date: day(0), type: "event", title: long, tags: ["Arbeit"], time: "13:00" },
   ]);
   await page.goto(app.baseUrl);
   await expect(row(page, "Winzig")).toBeVisible();
@@ -256,7 +256,7 @@ test("a failing request with no server message shows the safe copy line", async 
 });
 
 test("tap a row to type in its title; type, tag and day change through the bar and save", async ({ page }) => {
-  await seed(page, [{ date: day(0), type: "task", title: "Kaffeebohnen bestellen", tag: "Haushalt" }]);
+  await seed(page, [{ date: day(0), type: "task", title: "Kaffeebohnen bestellen", tags: ["Haushalt"] }]);
   await page.goto(app.baseUrl);
   await row(page, "Kaffeebohnen").click();
 
@@ -269,8 +269,8 @@ test("tap a row to type in its title; type, tag and day change through the bar a
   await page.locator(".bar-key[data-key=type]").click();
   await page.locator('.inline-pop .pop-type[data-type="done"]').click();
   await page.locator(".bar-key[data-key=tag]").click();
-  await page.locator('.inline-pop input[name="tag"]').fill("");
-  await page.keyboard.press("Enter");
+  await page.locator(".inline-pop .pop-clear").click();
+  await page.keyboard.press("Escape");
   await page.locator(".bar-key[data-key=date]").click();
   await page.locator('.inline-pop input[name="date"]').fill(day(1));
   await expect(page.locator(".inline-pop")).toHaveCount(0);

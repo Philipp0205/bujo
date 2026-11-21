@@ -74,23 +74,23 @@
     return { node: node, show: show };
   }
 
-  /** The inputs of the form. Title is one line, capped like the server caps it. */
+  /** The inputs of the form. Title is one line, capped like the server caps it. Tags are one field, words separated by spaces. */
   function inputs(values) {
     return {
       title: h('input', { class: 'ak-input', type: 'text', name: 'title', maxlength: 200, autocomplete: 'off', value: values.title }),
-      tag: h('input', { class: 'ak-input', type: 'text', name: 'tag', maxlength: 40, autocomplete: 'off', value: values.tag || '' }),
+      tag: h('input', { class: 'ak-input', type: 'text', name: 'tag', maxlength: 500, autocomplete: 'off', value: L.tags.join(values.tags || []) }),
       date: h('input', { class: 'ak-input', type: 'date', name: 'date', required: true, value: values.date }),
       time: h('input', { class: 'ak-input', type: 'time', name: 'time', value: values.time || '' })
     };
   }
 
-  /** The values to send, from the controls. A blank tag or time is sent as null so an edit can clear it. */
-  function readValues(controls, grid) {
+  /** The values to send, from the controls. An empty tag list or a blank time clears it on an edit. A field left as shown keeps its tags. */
+  function readValues(controls, grid, values) {
     return {
       date: controls.date.value,
       type: grid.value(),
       title: controls.title.value.trim(),
-      tag: controls.tag.value.trim() || null,
+      tags: L.tags.fromField(controls.tag.value, values.tags || []),
       time: controls.time.value || null
     };
   }
@@ -117,7 +117,7 @@
       field(L.copy.sheet.date, controls.date),
       field(L.copy.sheet.time, controls.time),
       sync.node);
-    return { node: node, controls: controls, read: function () { return readValues(controls, grid); } };
+    return { node: node, controls: controls, read: function () { return readValues(controls, grid, values); } };
   }
 
   /** The head of the sheet: grabber, title and the date under it. */

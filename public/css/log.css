@@ -301,7 +301,7 @@ html.is-editing .paper-page { padding-bottom: 320px; }
 .paper-edit-input:read-only { opacity: 0.7; }
 /* The caret is the focus mark of a line being typed, so the kit's focus ring is switched off here and in the popovers. */
 html.ak-base .paper-edit-input:focus-visible,
-html.ak-base .pop-input:focus-visible { outline: none; }
+html.ak-base .inline-bar .pop-input:focus-visible { outline: none; }
 /* The kit sets every input to 16px. The typed line is 22px, the popover field 17px. */
 html.ak-base .paper-edit-input { font-size: 22px; }
 html.ak-base .pop-input { font-size: 17px; }
@@ -438,6 +438,87 @@ html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted);
   text-underline-offset: 3px;
   cursor: pointer;
 }
+
+/* The tag popover: a search field over a short list that scrolls after about six rows. */
+.pop-tagpop { display: flex; flex-direction: column; width: min(300px, calc(100vw - 40px)); }
+.pop-tagpop .pop-input { flex: 1 1 auto; width: 0; min-width: 0; }
+.pop-tags {
+  max-height: 264px;
+  margin-top: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.pop-tag {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--paper-ink) 10%, transparent);
+  background: transparent;
+  color: var(--paper-ink);
+  font: 17px/24px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+}
+.pop-tag:last-child { border-bottom: 0; }
+.pop-tag-mark { flex: none; width: 18px; color: var(--ink-sage); font-size: 16px; text-align: center; }
+.pop-tag-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pop-tag[aria-selected="true"] .pop-tag-name { color: var(--ink-sage); }
+.pop-tag-new { color: var(--paper-muted); font-style: italic; }
+.pop-tag-new .pop-tag-name { padding-left: 28px; }
+.pop-tag-empty { margin: 0; padding: 10px 4px; color: var(--paper-muted); font: italic 15px/22px var(--font-text); }
+
+/* ----- The suggestion strip (between the typed line and the bar) ----- */
+
+.suggest-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  margin: 6px 0 0;
+  padding: 0 18px;
+  border-top: 1px solid color-mix(in srgb, var(--paper-ink) 12%, transparent);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.suggest-strip::-webkit-scrollbar { display: none; }
+.suggest-strip[hidden] { display: none; }
+
+.suggest-opt {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 38px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-sage);
+  font: 16px/36px var(--font-text);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.suggest-opt[data-kind="date"] { color: var(--ink-ochre); }
+.suggest-opt[data-kind="new"] { color: var(--paper-muted); font-style: italic; }
+.suggest-opt[aria-selected="true"] { border-bottom-color: currentColor; }
+.suggest-hint { color: var(--paper-muted); font: italic 13px/36px var(--font-text); }
+html.ak-base .suggest-opt:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
 
 /* The ink dot: sage is synced, ochre pending, brick failed, gray not synced. */
 .sync-mark {

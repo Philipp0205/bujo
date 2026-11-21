@@ -19,7 +19,7 @@ function day(offset: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-type Entry = { id: string; date: string; type: string; title: string; tag: string | null; time: string | null };
+type Entry = { id: string; date: string; type: string; title: string; tags: string[]; time: string | null };
 
 /** Every entry the API holds for the days around today, read with the page's session. */
 async function everything(page: Page): Promise<Entry[]> {
@@ -174,6 +174,8 @@ test("type, tag, day and time set through the bar are saved with the line", asyn
   await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("Gesundheit");
   await page.keyboard.press("Enter");
+  await expect(page.locator(".inline-pop .pop-tag[aria-selected=true]")).toHaveText(["\u2713#Gesundheit"]);
+  await page.keyboard.press("Escape");
   await expect(page.locator(".inline-pop")).toHaveCount(0);
 
   await page.locator(".bar-key[data-key=time]").click();
@@ -186,7 +188,7 @@ test("type, tag, day and time set through the bar are saved with the line", asyn
   const created = today(page).locator('.paper-row[data-type="event"]', { hasText: "Zahnarzt" });
   await expect(created).toHaveCount(1);
   await expect(created.locator(".pill")).toHaveText(["Gesundheit", "09:30"]);
-  expect((await stored(page))[0]).toMatchObject({ type: "event", tag: "Gesundheit", time: "09:30", date: day(0) });
+  expect((await stored(page))[0]).toMatchObject({ type: "event", tags: ["Gesundheit"], time: "09:30", date: day(0) });
 });
 
 test("a new line given another day lands in that day's group after saving", async ({ page }) => {
@@ -225,7 +227,7 @@ test("a popover closes on Escape first, then a tap outside closes it and saves t
 });
 
 test("tapping an existing row lets you change the title inline and save it", async ({ page }) => {
-  await seedEntry(page, { date: day(0), type: "task", title: "Alter Titel", tag: "Haushalt" });
+  await seedEntry(page, { date: day(0), type: "task", title: "Alter Titel", tags: ["Haushalt"] });
   await page.goto(app.baseUrl);
   await saved(page, "Alter Titel").click();
 
@@ -243,7 +245,7 @@ test("tapping an existing row lets you change the title inline and save it", asy
   const all = await everything(page);
   expect(all.filter((entry) => entry.title === "Alter Titel")).toHaveLength(0);
   expect(all.filter((entry) => entry.title === "Neuer Titel")).toHaveLength(1);
-  expect(all.find((entry) => entry.title === "Neuer Titel")).toMatchObject({ tag: "Haushalt" });
+  expect(all.find((entry) => entry.title === "Neuer Titel")).toMatchObject({ tags: ["Haushalt"] });
 });
 
 test("an existing entry with its title cleared goes back to the old title and is not deleted", async ({ page }) => {

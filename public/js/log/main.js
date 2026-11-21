@@ -33,6 +33,7 @@
     draw: draw,
     upsert: upsert,
     replaceDay: replaceDay,
+    entries: function () { return state.entries; },
     dayEntries: function (date) { return L.days.dayEntries(state.entries, date); },
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };

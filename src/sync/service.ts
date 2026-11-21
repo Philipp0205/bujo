@@ -35,11 +35,11 @@ export type SyncService = {
 
 /**
  * True when an edit changes something the calendar object shows. A task shows title, type and day. An event
- * also shows its time and tag. `entry` is the entry after the edit, so it says which of the two rules applies.
+ * also shows its time and tags. `entry` is the entry after the edit, so it says which of the two rules applies.
  */
 export function touchesMapping(patch: EntryPatch, entry: Pick<Entry, "type">): boolean {
   if ("title" in patch || "type" in patch || "date" in patch) return true;
-  return entry.type === "event" && ("time" in patch || "tag" in patch);
+  return entry.type === "event" && ("time" in patch || "tags" in patch);
 }
 
 type Queue = { tail: Promise<void>; waiting: number };

@@ -66,7 +66,7 @@ function todoPlan(entry: Entry): Plan {
   };
 }
 
-/** The plan for a VEVENT: id, title, day, time and tag. */
+/** The plan for a VEVENT: id, title, day, time and tags. */
 function eventPlan(entry: Entry): Plan {
   const fields = eventFieldsFor(entry);
   return {

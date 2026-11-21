@@ -28,7 +28,7 @@
     var was = L.scan.model.changedFields(item);
     if (!was) return null;
     var parts = [h('span', { class: 'scan-was-label' }, copy.was), h('span', { class: 'scan-was-glyph' }, L.glyph.typeGlyph(was.type)), h('span', { class: 'scan-was-title' }, was.title)];
-    if (was.tag) parts.push(h('span', { class: 'scan-was-extra' }, was.tag.value ? '#' + was.tag.value : copy.noTag));
+    if (was.tags) parts.push(h('span', { class: 'scan-was-extra' }, was.tags.value.length ? was.tags.value.map(function (tag) { return '#' + tag; }).join(' ') : copy.noTag));
     if (was.time) parts.push(h('span', { class: 'scan-was-extra' }, was.time.value || copy.noTime));
     return parts;
   }
@@ -53,7 +53,8 @@
 
   /** A text input that writes into the item as the person types and asks for a check when they leave it. */
   function textInput(item, field, attrs, onChange) {
-    var input = h('input', Object.assign({ class: 'scan-input-' + field, type: 'text', autocomplete: 'off', 'data-field': field, value: item[field] }, attrs));
+    var input = h('input', Object.assign({ type: 'text', autocomplete: 'off', value: item[field] }, attrs, { class: 'scan-input-' + (attrs['data-field'] || field) }));
+    if (!attrs['data-field']) input.setAttribute('data-field', field);
     input.addEventListener('input', function () { item[field] = input.value; onChange(false); });
     input.addEventListener('change', function () { onChange(true); });
     return input;
@@ -83,7 +84,7 @@
     var picker = typePicker(item, function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
-    var tag = textInput(item, 'tag', { maxlength: 40, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel }, function (leave) { hooks.changed(false, leave); });
+    var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
       h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag)),

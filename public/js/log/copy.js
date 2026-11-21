@@ -46,14 +46,30 @@
         outdent: 'Indent back',
         details: 'Details'
       },
-      popLabels: { type: 'Choose a type', tag: 'Tag', date: 'Day', time: 'Time (optional)' },
-      clear: 'Clear'
+      popLabels: { type: 'Choose a type', tag: 'Tags', date: 'Day', time: 'Time (optional)' },
+      clear: 'Clear',
+      tagSearch: 'Find or add a tag',
+      tagSearchLabel: 'Search tags',
+      tagList: 'Your tags',
+      tagNone: 'No tags yet. Type one to add it.',
+      tagAdd: function (text) { return '+ #' + text; },
+      tagsFull: 'An entry holds at most 10 tags.'
+    },
+    suggest: {
+      label: 'Suggestions',
+      useTag: function (text) { return 'use ' + text; },
+      weekdays: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+      relative: { heute: 'heute', morgen: 'morgen', '\u00fcbermorgen': '\u00fcbermorgen' },
+      weekdayNames: {
+        montag: 'Montag', dienstag: 'Dienstag', mittwoch: 'Mittwoch', donnerstag: 'Donnerstag',
+        freitag: 'Freitag', samstag: 'Samstag', sonntag: 'Sonntag'
+      }
     },
     sheet: {
       editTitle: 'Edit entry',
       type: 'Type',
       title: 'Title',
-      tag: 'Tag',
+      tag: 'Tags (separated by spaces)',
       date: 'Date',
       time: 'Time (optional)',
       sync: 'Sync',

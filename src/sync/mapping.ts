@@ -39,7 +39,7 @@ export function todoShape(entry: Pick<Entry, "type" | "title" | "date">): TodoSh
   };
 }
 
-/** A whole new VCALENDAR for an entry. No DTSTART, PRIORITY or CATEGORIES: the tag is not mapped. */
+/** A whole new VCALENDAR for an entry. No DTSTART, PRIORITY or CATEGORIES: the tags are not mapped. */
 export function newTodoFor(shape: TodoShape, uid: string, nowMs: number): string {
   return buildNewTodo({ uid, summary: shape.summary, due: shape.due, complete: shape.status === "COMPLETED" }, nowMs);
 }
@@ -63,10 +63,10 @@ export function readBackMismatch(text: string, uid: string, shape: TodoShape): s
   return null;
 }
 
-/** The VEVENT an entry stands for: its id, title, day, optional time, and the categories bujo plus the tag. */
-export function eventFieldsFor(entry: Pick<Entry, "id" | "title" | "date" | "time" | "tag">): EventFields {
-  const tag = entry.tag?.trim();
-  const categories = tag && tag !== EVENT_CATEGORY ? [EVENT_CATEGORY, tag] : [EVENT_CATEGORY];
+/** The VEVENT an entry stands for: its id, title, day, optional time, and the categories bujo plus every tag, in order. */
+export function eventFieldsFor(entry: Pick<Entry, "id" | "title" | "date" | "time" | "tags">): EventFields {
+  const tags = entry.tags.map((tag) => tag.trim()).filter((tag) => tag !== "" && tag !== EVENT_CATEGORY);
+  const categories = [EVENT_CATEGORY, ...tags];
   return { entryId: entry.id, summary: entry.title, date: entry.date, time: entry.time, categories };
 }
 
