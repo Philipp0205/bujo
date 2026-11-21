@@ -20,6 +20,8 @@ export type Entry = {
   /** A short reason for the error state, safe to show. Null in every other state. */
   syncError: string | null;
   position: number;
+  /** 0, or 1 when the line is nested under the entry above it in the same day. */
+  indent: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -40,8 +42,13 @@ export type NewEntry = {
   body?: string | null;
 };
 
+export type MoveDirection = "up" | "down";
+
 /** A checked edit. Only the keys present are changed. A null tag, time or body clears it. */
-export type EntryPatch = Partial<NewEntry>;
+export type EntryPatch = Partial<NewEntry> & {
+  /** 0 or 1. A 1 on the first entry of a day stays 0, there is nothing above to nest under. */
+  indent?: number;
+};
 
 export type DateRange = { from: string; to: string };
 

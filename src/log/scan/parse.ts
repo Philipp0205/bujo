@@ -1,6 +1,7 @@
 import { correctWords } from "../../scan/match.ts";
 import type { OcrLine, OcrSymbol } from "../../scan/ocr-client.ts";
 import type { EntryType } from "../types.ts";
+import { parseMarkup } from "../markup.ts";
 import { parseHeaderDate } from "./header.ts";
 
 /** The bullet of each OCR symbol as a log entry type. A line with no bullet is read as a note. */
@@ -19,6 +20,10 @@ export type ParsedLine = {
   id: string;
   type: EntryType;
   title: string;
+  /** A #tag written in the line, or null. It is cut out of the title. */
+  tag: string | null;
+  /** A time written in the line (HH:MM), or null. It is cut out of the title. */
+  time: string | null;
   /** What the OCR read, 0..1. */
   confidence: number;
   /** True for a line with no bullet: it may be a stray mark, so the review leaves it off by default. */
@@ -41,12 +46,15 @@ function findHeader(lines: readonly OcrLine[], fallbackDate: string): { date: st
   return null;
 }
 
-/** One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected in the title. */
+/** One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected, then a written #tag and time are cut out of the title. */
 function toParsedLine(line: OcrLine, index: number): ParsedLine {
+  const markup = parseMarkup(correctWords(line.text.trim()), { final: true });
   return {
     id: `l${index + 1}`,
     type: SYMBOL_TYPES[line.symbol],
-    title: correctWords(line.text.trim()),
+    title: markup.title,
+    tag: markup.tag,
+    time: markup.time,
     confidence: line.confidence,
     noBullet: line.symbol === "none",
   };

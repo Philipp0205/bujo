@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import type { Db } from "../db.ts";
-import type { DateRange, Entry, EntryPatch, NewEntry, RemoteLink, SyncChange } from "./types.ts";
+import { inTransaction, type Db } from "../db.ts";
+import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, SyncChange } from "./types.ts";
 
 type Row = {
   id: string;
@@ -14,6 +14,7 @@ type Row = {
   sync: Entry["sync"];
   sync_error: string | null;
   position: number;
+  indent: number;
   created_at: number;
   updated_at: number;
 };
@@ -26,8 +27,21 @@ export type EntryStore = {
   get(userId: string, id: string): Entry | undefined;
   /** A new entry goes to the end of its day, with sync "local". */
   create(userId: string, input: NewEntry, now: number): Entry;
-  /** Changes the fields given. Moving to another day puts the entry at the end of that day. */
+  /**
+   * Changes the fields given. Moving to another day puts the entry at the end of that day, not nested.
+   * An indent of 1 is kept only when an entry sits above in the day, otherwise it stays 0.
+   */
   update(userId: string, id: string, patch: EntryPatch, now: number): Entry | undefined;
+  /**
+   * Swaps an entry with its neighbour in the day. At the first or last place it stays where it is.
+   * Returns the entries of that day in their new order, or undefined for an unknown entry. Not an edit: no timestamps, no sync.
+   */
+  move(userId: string, id: string, direction: MoveDirection): Entry[] | undefined;
+  /**
+   * Removes the entry from the log (its photo goes with it). Local only: nothing on a sync target is touched.
+   * Returns the entries left in its day, or undefined for an unknown entry.
+   */
+  remove(userId: string, id: string): Entry[] | undefined;
   /** Sets the sync state (and the remote link when given). It is not an edit, so updated_at stays. */
   setSync(userId: string, id: string, change: SyncChange): Entry | undefined;
   /** The remote link of an entry, or undefined when it was never pushed. */
@@ -38,8 +52,11 @@ export type EntryStore = {
 
 /** The entry columns, plus a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
-  "id, date, time, type, title, tag, body, sync, sync_error, position, created_at, updated_at, " +
+  "id, date, time, type, title, tag, body, sync, sync_error, position, indent, created_at, updated_at, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
+
+/** The order of a day: by position, and by creation time for entries that share a position. */
+const DAY_ORDER = "ORDER BY position, created_at, id";
 
 function toEntry(row: Row): Entry {
   return {
@@ -54,6 +71,7 @@ function toEntry(row: Row): Entry {
     sync: row.sync,
     syncError: row.sync_error,
     position: Number(row.position),
+    indent: Number(row.indent),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };
@@ -73,10 +91,33 @@ export function createEntryStore(db: Db): EntryStore {
     return row ? toEntry(row) : undefined;
   }
 
+  /** The ids of one day, in order. */
+  function dayIds(userId: string, date: string): string[] {
+    const rows = db.prepare(`SELECT id FROM entries WHERE user_id = ? AND date = ? ${DAY_ORDER}`).all(userId, date) as Array<{ id: string }>;
+    return rows.map((row) => row.id);
+  }
+
+  function dayEntries(userId: string, date: string): Entry[] {
+    return (db.prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date = ? ${DAY_ORDER}`).all(userId, date) as Row[]).map(toEntry);
+  }
+
+  /** Writes the order of a day as 0..n-1, and clears the indent of the first entry (nothing above it to nest under). */
+  function renumber(userId: string, ids: string[]): void {
+    const write = db.prepare("UPDATE entries SET position = ?, indent = CASE WHEN ? = 0 THEN 0 ELSE indent END WHERE user_id = ? AND id = ?");
+    ids.forEach((id, index) => write.run(index, index, userId, id));
+  }
+
+  /** An indent of 1 only stands when an entry sits above in the day. */
+  function settleIndent(userId: string, entry: Entry): void {
+    if (entry.indent === 1 && dayIds(userId, entry.date).indexOf(entry.id) <= 0) {
+      db.prepare("UPDATE entries SET indent = 0 WHERE user_id = ? AND id = ?").run(userId, entry.id);
+    }
+  }
+
   return {
     list(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
         .all(userId, range.from, range.to) as Row[];
       return rows.map(toEntry);
     },
@@ -95,8 +136,10 @@ export function createEntryStore(db: Db): EntryStore {
       const current = get(userId, id);
       if (!current) return undefined;
       const next = { ...current, ...patch };
-      const position = next.date === current.date ? current.position : nextPosition(userId, next.date);
-      db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, tag = ?, body = ?, position = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+      const sameDay = next.date === current.date;
+      const position = sameDay ? current.position : nextPosition(userId, next.date);
+      const indent = sameDay ? next.indent : (patch.indent ?? 0);
+      db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, tag = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
         next.date,
         next.time,
         next.type,
@@ -104,11 +147,37 @@ export function createEntryStore(db: Db): EntryStore {
         next.tag,
         next.body,
         position,
+        indent,
         now,
         userId,
         id,
       );
+      settleIndent(userId, get(userId, id)!);
+      if (!sameDay) renumber(userId, dayIds(userId, current.date));
       return get(userId, id);
+    },
+
+    move(userId, id, direction) {
+      const current = get(userId, id);
+      if (!current) return undefined;
+      const ids = dayIds(userId, current.date);
+      const from = ids.indexOf(id);
+      const to = direction === "up" ? from - 1 : from + 1;
+      if (to >= 0 && to < ids.length) {
+        [ids[from], ids[to]] = [ids[to], ids[from]];
+        inTransaction(db, () => renumber(userId, ids));
+      }
+      return dayEntries(userId, current.date);
+    },
+
+    remove(userId, id) {
+      const current = get(userId, id);
+      if (!current) return undefined;
+      inTransaction(db, () => {
+        db.prepare("DELETE FROM entries WHERE user_id = ? AND id = ?").run(userId, id);
+        renumber(userId, dayIds(userId, current.date));
+      });
+      return dayEntries(userId, current.date);
     },
 
     setSync(userId, id, change) {

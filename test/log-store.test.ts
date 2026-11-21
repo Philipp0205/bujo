@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { openDb, type Db } from "../src/db.ts";
 import { createEntryStore } from "../src/log/store.ts";
@@ -72,6 +75,78 @@ test("update to another day moves the entry to the end of that day", () => {
   // Staying on the same day keeps the place.
   const same = store.update(USER, moved.id, { title: "a2", date: "2026-11-22" }, 5)!;
   assert.equal(same.position, 1);
+});
+
+test("move swaps with the neighbour, does nothing at the ends, and the order is kept", () => {
+  const { store } = setup();
+  const [a, b, c] = ["a", "b", "c"].map((title, i) => store.create(USER, entry({ title }), i + 1));
+  const titles = (list: Array<{ title: string }>) => list.map((e) => e.title);
+  assert.deepEqual(titles(store.move(USER, b.id, "up")!), ["b", "a", "c"]);
+  assert.deepEqual(titles(store.move(USER, b.id, "up")!), ["b", "a", "c"]);
+  assert.deepEqual(titles(store.move(USER, a.id, "down")!), ["b", "c", "a"]);
+  assert.deepEqual(titles(store.move(USER, a.id, "down")!), ["b", "c", "a"]);
+  assert.deepEqual(titles(store.list(USER, { from: "2026-11-20", to: "2026-11-20" })), ["b", "c", "a"]);
+  assert.deepEqual(store.list(USER, { from: "2026-11-20", to: "2026-11-20" }).map((e) => e.position), [0, 1, 2]);
+  assert.equal(store.get(USER, c.id)?.updatedAt, 3);
+  assert.equal(store.move(USER, "nope", "up"), undefined);
+  assert.equal(store.move("someone-else", a.id, "up"), undefined);
+});
+
+test("indent nests under the entry above, never the first entry, and a move out of first place clears it", () => {
+  const { store } = setup();
+  const a = store.create(USER, entry({ title: "a" }), 1);
+  const b = store.create(USER, entry({ title: "b" }), 2);
+  assert.equal(store.update(USER, a.id, { indent: 1 }, 3)!.indent, 0);
+  assert.equal(store.update(USER, b.id, { indent: 1 }, 4)!.indent, 1);
+  assert.equal(store.update(USER, b.id, { indent: 0 }, 5)!.indent, 0);
+  store.update(USER, b.id, { indent: 1 }, 6);
+  const day = store.move(USER, b.id, "up")!;
+  assert.deepEqual(day.map((e) => [e.title, e.indent]), [["b", 0], ["a", 0]]);
+});
+
+test("an entry that changes day leaves its indent behind and the old day is renumbered", () => {
+  const { store } = setup();
+  store.create(USER, entry({ title: "a" }), 1);
+  const b = store.create(USER, entry({ title: "b" }), 2);
+  const c = store.create(USER, entry({ title: "c" }), 3);
+  store.update(USER, b.id, { indent: 1 }, 4);
+  const moved = store.update(USER, b.id, { date: "2026-11-22" }, 5)!;
+  assert.equal(moved.indent, 0);
+  assert.deepEqual(store.list(USER, { from: "2026-11-20", to: "2026-11-20" }).map((e) => [e.title, e.position]), [["a", 0], ["c", 1]]);
+  assert.equal(store.get(USER, c.id)?.position, 1);
+});
+
+test("remove deletes the row and photo, renumbers the day and answers what is left", () => {
+  const { db, store } = setup();
+  const a = store.create(USER, entry({ title: "a" }), 1);
+  const b = store.create(USER, entry({ title: "b" }), 2);
+  const c = store.create(USER, entry({ title: "c" }), 3);
+  store.update(USER, c.id, { indent: 1 }, 4);
+  const left = store.remove(USER, a.id)!;
+  assert.deepEqual(left.map((e) => [e.title, e.position, e.indent]), [["b", 0, 0], ["c", 1, 1]]);
+  assert.equal(store.get(USER, a.id), undefined);
+  assert.equal(store.get(USER, b.id)?.position, 0);
+  assert.equal(store.remove(USER, a.id), undefined);
+  assert.equal(store.remove("someone-else", b.id), undefined);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM entries").get() as { n: number }).n, 2);
+});
+
+test("an old database without the indent column is migrated on open and keeps its entries", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bujo-indent-"));
+  const path = join(dir, "old.db");
+  try {
+    const first = openDb(path);
+    first.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run(USER, "Philipp", "hash", 1);
+    createEntryStore(first).create(USER, entry({ title: "old" }), 1);
+    first.exec("ALTER TABLE entries DROP COLUMN indent");
+    first.close();
+    const reopened = openDb(path);
+    const [old] = createEntryStore(reopened).list(USER, { from: "2026-11-20", to: "2026-11-20" });
+    assert.deepEqual({ title: old.title, indent: old.indent }, { title: "old", indent: 0 });
+    reopened.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("the table refuses a type or sync state it does not know", () => {

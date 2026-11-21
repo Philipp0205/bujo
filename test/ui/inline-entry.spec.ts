@@ -162,19 +162,19 @@ test("type, tag, day and time set through the bar are saved with the line", asyn
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Zahnarzt");
 
-  await page.locator(".bar-key", { hasText: "Type" }).click();
+  await page.locator(".bar-key[data-key=type]").click();
   await expect(page.locator(".inline-pop .pop-type")).toHaveCount(6);
   await expect(line(page)).toHaveValue("Zahnarzt");
   await page.locator('.inline-pop .pop-type[data-type="event"]').click();
   await expect(page.locator(".inline-pop")).toHaveCount(0);
   await expect(page.locator(".paper-line .paper-sym use")).toHaveAttribute("href", "#g-event");
 
-  await page.locator(".bar-key", { hasText: "Tag" }).click();
+  await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("Gesundheit");
   await page.keyboard.press("Enter");
   await expect(page.locator(".inline-pop")).toHaveCount(0);
 
-  await page.locator(".bar-key", { hasText: "Time" }).click();
+  await page.locator(".bar-key[data-key=time]").click();
   await page.locator('.inline-pop input[name="time"]').fill("09:30");
   await expect(page.locator(".inline-pop")).toHaveCount(0);
   await expect(page.locator(".paper-line .meta-text")).toHaveText("Gesundheit \u00b7 09:30");
@@ -191,7 +191,7 @@ test("a new line given another day lands in that day's group after saving", asyn
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Morgen erledigen");
-  await page.locator(".bar-key", { hasText: "Date" }).click();
+  await page.locator(".bar-key[data-key=date]").click();
   await page.locator('.inline-pop input[name="date"]').fill(day(1));
   await page.keyboard.press("Enter");
 
@@ -200,24 +200,26 @@ test("a new line given another day lands in that day's group after saving", asyn
   await expect(line(page)).toBeFocused();
 });
 
-test("a popover closes on Escape first, then on a tap outside, and keeps the draft", async ({ page }) => {
+test("a popover closes on Escape first, then a tap outside closes it and saves the draft", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Entwurf");
 
-  await page.locator(".bar-key", { hasText: "Type" }).click();
+  await page.locator(".bar-key[data-key=type]").click();
   await expect(page.locator(".inline-pop")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator(".inline-pop")).toHaveCount(0);
   await expect(line(page)).toHaveValue("Entwurf");
   expect(await stored(page)).toHaveLength(0);
 
-  await page.locator(".bar-key", { hasText: "Type" }).click();
+  await page.locator(".bar-key[data-key=type]").click();
   await expect(page.locator(".inline-pop")).toBeVisible();
   await page.locator(".paper-head h1").click();
+  // The tap closes the popover, and its blur saves the line like any other blur: the draft is not lost.
   await expect(page.locator(".inline-pop")).toHaveCount(0);
-  await expect(line(page)).toHaveValue("Entwurf");
-  await expect(page.locator(".paper-line")).toHaveCount(1);
+  await expect(saved(page, "Entwurf")).toBeVisible();
+  await expect(page.locator(".paper-line")).toHaveCount(0);
+  expect(await stored(page)).toHaveLength(1);
 });
 
 test("tapping an existing row lets you change the title inline and save it", async ({ page }) => {

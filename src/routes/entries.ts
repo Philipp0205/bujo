@@ -25,7 +25,9 @@ function methodNotAllowed(allow: string): never {
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
  *   POST  /api/entries             a new entry, at the end of its day
- *   PATCH /api/entries/:id         change date, type, title, tag, time or body (the markdown of a free note, null when none)
+ *   PATCH /api/entries/:id         change date, type, title, tag, time, indent (0 or 1) or body (the markdown of a free note, null when none)
+ *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
+ *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  *   GET   /api/entries/:id/photo   the scan photo of a free note (JPEG), 404 when it has none
  *   POST  /api/entries/:id/photo   store the scan photo of a note (a JPEG as the raw body), replacing an earlier one
@@ -51,22 +53,41 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo)?$/.exec(pathname);
+  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
   const id = decodeId(match[1]);
   if (match[2] === "/photo") return handlePhoto(ctx, userId, id);
+  if (match[2] === "/move") return handleMove(ctx, store, userId, id);
   if (match[2]) {
     if (method !== "POST") methodNotAllowed("POST");
     sendJson(res, 200, { entry: retrySync(ctx, store, userId, id) });
     return true;
   }
-  if (method !== "PATCH") methodNotAllowed("PATCH");
+  if (method === "DELETE") {
+    const day = store.remove(userId, id);
+    if (!day) throw new HttpError(404, "unknown entry");
+    sendJson(res, 200, { entries: day });
+    return true;
+  }
+  if (method !== "PATCH") methodNotAllowed("PATCH or DELETE");
   const patch = valid(checkEntryPatch(await readJson(req, { max: ENTRY_BODY_MAX })));
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch) ? ctx.sync.enqueue(userId, entry) : entry });
   return true;
 }
+
+/** POST { direction } swaps the entry with its neighbour in the day and answers the day in its new order. Never starts a push. */
+async function handleMove(ctx: RouteContext, store: EntryStore, userId: string, id: string): Promise<boolean> {
+  if (ctx.method !== "POST") methodNotAllowed("POST");
+  const body = await readJson(ctx.req);
+  if (body.direction !== "up" && body.direction !== "down") throw new HttpError(400, "direction must be up or down");
+  const day = store.move(userId, id, body.direction);
+  if (!day) throw new HttpError(404, "unknown entry");
+  sendJson(ctx.res, 200, { entries: day });
+  return true;
+}
+
 
 /** Pushes an entry again. Only an entry in the error state can be retried. */
 function retrySync(ctx: RouteContext, store: EntryStore, userId: string, id: string): Entry {

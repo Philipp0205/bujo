@@ -11,7 +11,7 @@ import { line } from "./fake-ocr.ts";
 const TODAY = "2026-11-20";
 
 function entry(id: string, type: Entry["type"], title: string): Entry {
-  return { id, date: TODAY, type, title, tag: null, body: null, hasPhoto: false, time: null, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
+  return { id, date: TODAY, type, title, tag: null, body: null, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
 }
 
 test("header dates: full, year-less with a weekday, OCR noise, and what is no date", () => {
@@ -45,6 +45,15 @@ test("parsePage: bullets give types, the header is not an entry, ids follow the 
   ]);
   assert.equal(page.lines.at(-1)?.noBullet, true);
   assert.equal(page.lines[0].noBullet, false);
+});
+
+test("parsePage: a written #tag and time leave the title and ride along with the line", () => {
+  const page = parsePage([line("•", "Zahnarzt #health 14h30", 0.9), line("•", "#home", 0.9)], TODAY);
+  assert.equal(page.lines[0].title, "Zahnarzt");
+  assert.equal(page.lines[0].tag, "health");
+  assert.equal(page.lines[0].time, "14:30");
+  assert.equal(page.lines[1].title, "#home");
+  assert.equal(page.lines[1].tag, null);
 });
 
 test("parsePage: no header line means no page date", () => {

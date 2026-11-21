@@ -75,6 +75,7 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
 }
 
 const FIELDS = ["date", "type", "title", "tag", "time", "body"] as const;
+const PATCH_FIELDS = [...FIELDS, "indent"] as const;
 
 /** The markdown body of a free note: any text up to BODY_MAX, line breaks and tabs allowed. Blank means none. */
 function checkBody(value: unknown): Checked<string | null> {
@@ -117,6 +118,10 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
     if (!text.ok) return text;
     out.body = text.value;
   }
+  if ("indent" in body) {
+    if (body.indent !== 0 && body.indent !== 1) return fail("indent must be 0 or 1");
+    out.indent = body.indent;
+  }
   return { ok: true, value: out };
 }
 
@@ -133,9 +138,9 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   return { ok: true, value: { date: date!, type: type!, title: title!, tag, time, body: text } };
 }
 
-/** Checks an edit body: any of the fields, at least one. Clients cannot set sync. */
+/** Checks an edit body: any of the fields (and indent, which a create cannot set), at least one. Clients cannot set sync. */
 export function checkEntryPatch(body: Record<string, unknown>): Checked<EntryPatch> {
-  const extra = unknownField(body, FIELDS);
+  const extra = unknownField(body, PATCH_FIELDS);
   if (extra) return fail(extra === "sync" ? "sync cannot be set" : `unknown field: ${extra}`);
   if (Object.keys(body).length === 0) return fail("nothing to change");
   return checkFields(body);

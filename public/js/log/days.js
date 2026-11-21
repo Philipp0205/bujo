@@ -7,15 +7,23 @@
 
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** Days in date order, each with its entries. Today is always there, even with no entries. */
+  /** The order of a day: by position, then by creation time for entries that share a position. */
+  function byPosition(a, b) {
+    return (a.position - b.position) || (a.createdAt - b.createdAt);
+  }
+
+  /** The entries of one day, in the order the server keeps them. */
+  function dayEntries(entries, date) {
+    return entries.filter(function (entry) { return entry.date === date; }).sort(byPosition);
+  }
+
+  /** Days in date order, each with its entries in order. Today is always there, even with no entries. */
   function groupDays(entries, today) {
-    var byDate = {};
-    entries.forEach(function (entry) {
-      (byDate[entry.date] = byDate[entry.date] || []).push(entry);
-    });
-    if (!byDate[today]) byDate[today] = [];
-    return Object.keys(byDate).sort().map(function (date) {
-      return { date: date, isToday: date === today, entries: byDate[date] };
+    var dates = {};
+    entries.forEach(function (entry) { dates[entry.date] = true; });
+    dates[today] = true;
+    return Object.keys(dates).sort().map(function (date) {
+      return { date: date, isToday: date === today, entries: dayEntries(entries, date) };
     });
   }
 
@@ -42,5 +50,5 @@
     return parts.join(' \u00b7 ');
   }
 
-  L.days = { groupDays: groupDays, metaText: metaText, showsSync: showsSync, editPills: editPills };
+  L.days = { groupDays: groupDays, dayEntries: dayEntries, metaText: metaText, showsSync: showsSync, editPills: editPills };
 })();

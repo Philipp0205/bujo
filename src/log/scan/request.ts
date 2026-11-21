@@ -5,10 +5,10 @@ import type { LogDraft } from "./draft.ts";
 
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
-const ITEM_KEYS = ["id", "type", "title", "tag", "include"];
+const ITEM_KEYS = ["id", "type", "title", "tag", "time", "include"];
 
 /** One line as the review sends it back: edits included. */
-export type SentItem = { id: string; type: EntryType; title: string; tag: unknown; include: boolean };
+export type SentItem = { id: string; type: EntryType; title: string; tag: unknown; time: unknown; include: boolean };
 export type SentReview = { date: string; items: SentItem[] };
 
 function bad(message: string): never {
@@ -29,11 +29,11 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   if (!isEntryType(raw.type)) bad(`${at}: type must be task, note, event, done, migrated or scheduled`);
   if (typeof raw.title !== "string") bad(`${at}: title must be text`);
   if (raw.include !== undefined && typeof raw.include !== "boolean") bad(`${at}: include must be true or false`);
-  return { id: raw.id, type: raw.type, title: raw.title, tag: raw.tag ?? null, include: raw.include !== false };
+  return { id: raw.id, type: raw.type, title: raw.title, tag: raw.tag ?? null, time: raw.time ?? null, include: raw.include !== false };
 }
 
 /**
- * Checks a request body of the shape { date, items: [{ id, type, title, tag?, include? }] }.
+ * Checks a request body of the shape { date, items: [{ id, type, title, tag?, time?, include? }] }.
  * Used by both the check and the apply step, so they read the same thing. 400 on anything else.
  */
 export function parseReview(body: Record<string, unknown>, draft: LogDraft): SentReview {

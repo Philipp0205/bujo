@@ -307,6 +307,12 @@ html.ak-base body {
   cursor: pointer;
 }
 
+/* A nested entry sits one step in from its parent. The first entry of a day never nests (the server sees to that too). */
+.paper-row[data-indent="1"] {
+  width: calc(100% - 24px);
+  margin-left: 24px;
+}
+
 /* ----- The line being typed ----- */
 
 .paper-line { cursor: text; }
@@ -365,12 +371,7 @@ html.is-editing .paper-page { padding-bottom: 160px; }
   bottom: 0;
   z-index: 25;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 56px;
-  padding: 6px 16px calc(6px + var(--bar-safe, 0px)) 16px;
+  padding: 0 0 var(--bar-safe, 0px) 0;
   background: var(--paper-bg);
   border-top: 1px solid color-mix(in srgb, var(--paper-ink) 18%, transparent);
   color: var(--paper-ink);
@@ -378,45 +379,46 @@ html.is-editing .paper-page { padding-bottom: 160px; }
 }
 .inline-bar[hidden],
 .inline-bar [hidden] { display: none; }
-.inline-bar :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: 2px; }
+/* Paper focus mark: a thin muted ring, never the kit accent. */
+html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
 
-.bar-keys { display: flex; gap: 8px; }
+/* One row of icon keys. It scrolls sideways when the phone is too narrow for all of them; the scrollbar stays hidden. */
+.bar-keys {
+  display: flex;
+  align-items: center;
+  height: 51px;
+  padding: 0 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.bar-keys::-webkit-scrollbar { display: none; }
 
 .bar-key {
   appearance: none;
   -webkit-appearance: none;
+  flex: none;
   box-sizing: border-box;
-  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
   height: 44px;
+  margin: 0;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--paper-ink);
-  font: 500 11px/1 var(--font-ui);
-  letter-spacing: 0.02em;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.bar-key[aria-expanded="true"] {
-  background: var(--paper-ink);
-  border-color: var(--paper-ink);
-  color: var(--paper-bg);
-}
-
-.bar-details {
-  appearance: none;
-  -webkit-appearance: none;
-  min-height: 44px;
-  padding: 0 4px;
-  border: 0;
-  background: transparent;
-  color: var(--paper-muted);
-  font: italic 16px/24px var(--font-text);
-  text-decoration: underline;
-  text-decoration-thickness: 0.75px;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
+.bar-key svg { display: block; width: 22px; height: 22px; stroke: currentColor; fill: none; }
+/* The key whose popover is open gets an ink underline, not a filled box. */
+.bar-key[aria-expanded="true"] { box-shadow: inset 0 -2px 0 var(--paper-ink); }
+.bar-key[aria-disabled="true"] { opacity: 0.3; cursor: default; }
+.bar-key[data-key="details"] { color: var(--paper-muted); }
 
 /* ----- The popovers of the bar ----- */
 

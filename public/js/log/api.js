@@ -30,6 +30,20 @@
     });
   }
 
+  /** Removes an entry from the log (never from Nextcloud). Resolves with the entries left in its day. */
+  function remove(id) {
+    return call('DELETE', '/api/entries/' + encodeURIComponent(id)).then(function (body) {
+      return body.entries;
+    });
+  }
+
+  /** Swaps an entry with its neighbour in the day ('up' or 'down'). Resolves with the day in its new order. */
+  function move(id, direction) {
+    return call('POST', '/api/entries/' + encodeURIComponent(id) + '/move', { direction: direction }).then(function (body) {
+      return body.entries;
+    });
+  }
+
   /** Asks the server to push an entry again after a failed sync. Resolves with the entry as it is now (pending). */
   function retrySync(id) {
     return call('POST', '/api/entries/' + encodeURIComponent(id) + '/sync').then(function (body) {
@@ -49,5 +63,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, create: create, update: update, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();
