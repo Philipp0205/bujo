@@ -10,7 +10,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-# --include=dev: NODE_ENV=production above would otherwise skip tsx, which npm start needs.
+# --include=dev: NODE_ENV=production above would otherwise skip tsx, which the CMD below needs.
 RUN npm ci --ignore-scripts --include=dev
 
 COPY tsconfig.json ./
@@ -27,4 +27,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 
-CMD ["npm", "start"]
+# Not "npm start": npm would be PID 1, swallow Railway's SIGTERM and exit non-zero, which Railway reports as a crash.
+# Running tsx directly lets SIGTERM reach the process that has graceful shutdown (installGracefulShutdown in src/server.ts).
+CMD ["./node_modules/.bin/tsx", "src/server.ts"]
