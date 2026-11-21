@@ -73,7 +73,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   const patch = valid(checkEntryPatch(await readJson(req, { max: ENTRY_BODY_MAX })));
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
-  sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch) ? ctx.sync.enqueue(userId, entry) : entry });
+  sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch, entry) ? ctx.sync.enqueue(userId, entry) : entry });
   return true;
 }
 

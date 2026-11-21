@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v13',
+  version: 'v15',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -14,6 +14,8 @@ AppKitSW.setup({
     '/css/styles.css',
     '/css/log.css',
     '/css/log-scan.css',
+    '/css/whats-new.css',
+    '/whats-new.json',
     '/fonts/newsreader.woff2',
     '/fonts/newsreader-italic.woff2',
     '/fonts/ibm-plex-sans.woff2',
@@ -44,6 +46,12 @@ AppKitSW.setup({
     '/js/log/scan/review.js',
     '/js/log/scan/flow.js',
     '/js/log/main.js',
+    '/js/whats-new/copy.js',
+    '/js/whats-new/catalog.js',
+    '/js/whats-new/seen.js',
+    '/js/whats-new/sheet.js',
+    '/js/whats-new/boot.js',
+    '/js/whats-new/settings-row.js',
     '/js/settings.js',
     '/js/scan.js',
     '/manifest.webmanifest?v=1',
@@ -57,6 +65,7 @@ AppKitSW.setup({
     '/app-kit/ak-dom.js',
     '/app-kit/ak-sheet.js',
     '/app-kit/ak-toast.js',
+    '/app-kit/ak-whats-new.js',
     '/app-kit/ak-native.js',
     '/app-kit/install-prompt.js',
     '/app-kit/ak-sw-register.js'

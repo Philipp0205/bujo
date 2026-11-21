@@ -12,7 +12,7 @@ import { linesToMarkdown, noteTitle, suggestNote } from "../src/log/scan/note.ts
 import { BODY_MAX, TITLE_MAX, checkEntryPatch, checkNewEntry } from "../src/log/validation.ts";
 import { createOcrClient } from "../src/scan/ocr-client.ts";
 import { createSyncService } from "../src/sync/service.ts";
-import { startFakeCalDav, syncEnv } from "./fake-caldav.ts";
+import { SYNC_SETTINGS, startFakeCalDav, syncEnv } from "./fake-caldav.ts";
 import { line, startFakeOcr } from "./fake-ocr.ts";
 import { api, signUp, withApp } from "./helpers.ts";
 
@@ -150,7 +150,7 @@ test("a free note is never queued for CalDAV: the sync service leaves it local a
   const db = openDb(":memory:");
   db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES ('u', 'P', 'h', 1)").run();
   try {
-    const service = createSyncService({ db, caldav: loadCalDavConfig(syncEnv(fake))!, sync: { listName: "bujo-test", live: false }, log: () => undefined });
+    const service = createSyncService({ db, caldav: loadCalDavConfig(syncEnv(fake))!, sync: { ...SYNC_SETTINGS }, log: () => undefined });
     const note = createEntryStore(db).create("u", { date: DAY, type: "note", title: "Notiz", tag: null, time: null, body: "# Notiz" }, 1);
     const answered = service.enqueue("u", note);
     await service.idle();

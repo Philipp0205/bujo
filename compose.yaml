@@ -20,6 +20,7 @@ services:
       BUJO_CALDAV_USER: ${BUJO_CALDAV_USER:-}
       BUJO_CALDAV_PASSWORD: ${BUJO_CALDAV_PASSWORD:-}
       BUJO_CALDAV_LISTS: ${BUJO_CALDAV_LISTS:-}
+      BUJO_CALDAV_EVENT_CALENDAR: ${BUJO_CALDAV_EVENT_CALENDAR:-}
     volumes:
       - bujo-data:/data
     depends_on:
@@ -29,6 +30,11 @@ services:
 
   ocr:
     build: ./ocr
+    environment:
+      OCR_LLM_BASE: ${OCR_LLM_BASE:-}
+      OCR_LLM_KEY: ${OCR_LLM_KEY:-}
+      OCR_LLM_MODEL: ${OCR_LLM_MODEL:-}
+      OCR_LLM_TIMEOUT: ${OCR_LLM_TIMEOUT:-}
     expose:
       - "8090"
     restart: unless-stopped

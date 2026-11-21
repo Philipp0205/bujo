@@ -1,4 +1,4 @@
-// CalDAV client for VTODO collections, over fetch.
+// CalDAV client for VTODO and VEVENT collections, over fetch.
 //
 // It can send PROPFIND and REPORT (read), GET (read one resource) and PUT (create with If-None-Match: *,
 // update with If-Match: <etag>). There is no DELETE, PROPPATCH, MOVE or MKCALENDAR code path in this
@@ -54,6 +54,13 @@ export const CALENDAR_QUERY_VTODO = `<?xml version="1.0" encoding="utf-8"?>
 ${NS}
   <d:prop><d:getetag/><c:calendar-data/></d:prop>
   <c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VTODO"/></c:comp-filter></c:filter>
+</c:calendar-query>`;
+
+/** Asks for every VEVENT of a collection. No time range: the sync looks its own events up by X-BUJO-ID. */
+export const CALENDAR_QUERY_VEVENT = `<?xml version="1.0" encoding="utf-8"?>
+${NS}
+  <d:prop><d:getetag/><c:calendar-data/></d:prop>
+  <c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter>
 </c:calendar-query>`;
 
 export const PROPFIND_COLLECTION = `<?xml version="1.0" encoding="utf-8"?>
@@ -216,8 +223,17 @@ export class CalDavClient {
 
   /** REPORT calendar-query for VTODO: the raw calendar objects of a collection. */
   async queryTodos(path: string): Promise<CalendarObject[]> {
+    return await this.query(path, CALENDAR_QUERY_VTODO);
+  }
+
+  /** REPORT calendar-query for VEVENT: the raw calendar objects of a collection. */
+  async queryEvents(path: string): Promise<CalendarObject[]> {
+    return await this.query(path, CALENDAR_QUERY_VEVENT);
+  }
+
+  private async query(path: string, body: string): Promise<CalendarObject[]> {
     const url = this.collectionUrl(path);
-    const xml = await this.request("REPORT", url, CALENDAR_QUERY_VTODO, "1");
+    const xml = await this.request("REPORT", url, body, "1");
     return parseMultistatus(xml).map((object) => ({ ...object, href: new URL(object.href, url).href }));
   }
 

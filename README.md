@@ -91,14 +91,17 @@ Names only; copy `.env.example` and keep real values in your shell or an untrack
 | `BUJO_CALDAV_PASSWORD` | Basic auth password (an app password is best). |
 | `BUJO_CALDAV_LISTS` | `name=path` pairs, comma separated: `Aufgaben=/remote.php/dav/calendars/admin/tasks/,Arbeit=/remote.php/dav/calendars/admin/arbeit/` |
 | `BUJO_SYNC_LIST` | Name (from `BUJO_CALDAV_LISTS`) of the list rapid-log tasks are pushed to. Default `bujo-test`. If that name is not in `BUJO_CALDAV_LISTS`, entries show a sync error and nothing is sent. |
-| `BUJO_LIVE_SYNC` | `1` lets the sync write to the live lists `Aufgaben` and `Arbeit`. Anything else keeps them blocked. |
+| `BUJO_LIVE_SYNC` | `1` lets the sync write to the live task lists `Aufgaben` and `Arbeit`. Anything else keeps them blocked. It never opens a calendar for events. |
+| `BUJO_CALDAV_EVENT_CALENDAR` | One `name=path` pair, for example `bujo-test-cal=/remote.php/dav/calendars/admin/bujo-test-cal/`. The calendar rapid-log events are pushed to. Not part of `BUJO_CALDAV_LISTS`. Only the calendar named `bujo-test-cal` is ever written; any other name or path is refused. Unset: events show a sync error and nothing is sent. |
 | `PORT`, `HOST` | Listen address. Default `3000` and `127.0.0.1`. |
 | `BUJO_TRUST_PROXY` | `1` behind a reverse proxy, so rate limits use `X-Forwarded-For`. Leave unset otherwise. |
 | `OCR_URL` | Address of the OCR service, for example `http://127.0.0.1:8090`. Unset: the scan answers 503. |
+| `OCR_LLM_BASE`, `OCR_LLM_KEY` | Set on the OCR service, not the app. Gateway root (OpenAI-compatible, for example `https://gateway.example/v1`) and its key. Both set turns the LLM page reader on. |
+| `OCR_LLM_MODEL`, `OCR_LLM_TIMEOUT` | Set on the OCR service. Model name (default `claude-haiku-5-5`) and seconds to wait per request (default `25`, so a retry plus the local fallback still fit the app's 60 s scan timeout). |
 
 Set `BUJO_CALDAV_BASE` and `BUJO_CALDAV_LISTS` together, or neither. Behind HTTPS, set `BUJO_ORIGIN` to the `https://` address so the cookie is marked Secure.
 
-Rapid-log sync is one way, from bujo to Nextcloud, and only when CalDAV is set up. Tasks, done, moved and scheduled entries become VTODOs in the `BUJO_SYNC_LIST` list; notes and events stay local. It never deletes anything in Nextcloud. A push that fails shows a short reason in the entry sheet with a Retry sync button.
+Rapid-log sync is one way, from bujo to Nextcloud, and only when CalDAV is set up. Tasks, done, moved and scheduled entries become VTODOs in the `BUJO_SYNC_LIST` list. Events become VEVENTs in the `BUJO_CALDAV_EVENT_CALENDAR` calendar: all-day without a time, or one hour from the given time in Europe/Berlin. Notes stay local. It never deletes anything in Nextcloud, and it never touches an event that bujo did not write. A push that fails shows a short reason in the entry sheet with a Retry sync button.
 
 Other endpoints: `GET /healthz`, `GET /api/backlog` (browser session only; `?status=all` adds completed and cancelled), `/api/auth/*` and `/api/tokens` for the pages, static files from `public/`.
 
@@ -124,7 +127,7 @@ The camera button in the log header opens the scan screen. Take a photo of the p
 
 ### The OCR service
 
-The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
+The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu, or an optional vision LLM). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
 
 With Docker, one command starts both (the OCR image downloads its model while it is built):
 
@@ -140,6 +143,8 @@ Without Docker:
     OCR_URL=http://127.0.0.1:8090 npm start
 
 The OCR service has no auth, so keep it on a private network and never publish its port. Tests use a fake OCR server and a fake CalDAV server, never real photos or a real Nextcloud.
+
+Optional LLM reading: set `OCR_LLM_BASE`, `OCR_LLM_KEY` and, if you like, `OCR_LLM_MODEL` and `OCR_LLM_TIMEOUT` on the OCR service (compose passes them through). The service then sends the whole page photo to a vision model behind that OpenAI-compatible gateway (for example a LiteLLM proxy) instead of the detector and TrOCR. Any problem (a missing setting, an HTTP error, a timeout, an unusable answer) falls back to the local path, unchanged. Page photos leave the OCR service for that gateway only when `OCR_LLM_KEY` is set. The answer carries `engine` `llm:<model>`, plus `tags` and `time` per line and a page `date`.
 
 ## Layout
 

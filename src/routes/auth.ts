@@ -1,6 +1,7 @@
 import { normalizeEmail } from "../app-kit/auth-code.ts";
 import { HttpError, readJson, sendJson } from "../app-kit/http.ts";
 import { countUsers } from "../db.ts";
+import { setSeen } from "../whats-new/store.ts";
 import { requireSession, textField, type RouteContext } from "./context.ts";
 
 const NAME_MAX = 40;
@@ -12,6 +13,12 @@ function userView(user: { name: string; email: string | null; emailVerifiedAt: n
 /** The first and only account. A second one is refused, in code and by a trigger in the schema. */
 function isSingleUserRefusal(error: unknown): boolean {
   return error instanceof Error && /single user/i.test(error.message);
+}
+
+/** A new account starts at the newest what's-new entry, so it does not get the whole history. */
+function skipHistory(ctx: RouteContext, userId: string): void {
+  const latest = ctx.whatsNew.latestId();
+  if (latest) setSeen(ctx.accounts.db, userId, latest);
 }
 
 /** /api/auth/*. Returns false when the path is not one of these. */
@@ -55,6 +62,7 @@ export async function handleAuthRoutes(ctx: RouteContext): Promise<boolean> {
       throw error;
     }
     if (!created.ok) throw new HttpError(400, "enter a valid email");
+    skipHistory(ctx, created.user.id);
     const session = await auth.startSession(created.user.id);
     sendJson(
       res,

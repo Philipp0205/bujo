@@ -1,7 +1,8 @@
 /*
  * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
  * log file and core.js. The state lives here and nowhere else. While an entry waits for its push to Nextcloud, the log
- * reads its own API again every so often (never Nextcloud) and stops when nothing is pending.
+ * reads its own API again every so often (never Nextcloud) and stops when nothing is pending. It also asks the
+ * what's-new boot to show entries the person has not seen yet.
  */
 (function () {
   'use strict';
@@ -136,4 +137,5 @@
   root.addEventListener('click', onPaperTap);
   render();
   load();
+  BujoWhatsNew.boot.showUnseen({ paper: true });
 })();
