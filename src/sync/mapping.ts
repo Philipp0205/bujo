@@ -1,13 +1,26 @@
 import { buildNewTodo, parseVTodos, type TodoPatch } from "../caldav/ics.ts";
+import { buildNewEvent, eventDifferences, parseVEvents, type EventFields } from "../caldav/vevent.ts";
 import type { Entry, EntryType } from "../log/types.ts";
 import { mismatchReason } from "./strings.ts";
 
-/** The entry types that become a VTODO. Notes never sync, events wait until the VEVENT conventions are agreed. */
-const SYNCED_TYPES: readonly EntryType[] = ["task", "done", "migrated", "scheduled"];
+/** What an entry type becomes in Nextcloud: a VTODO, a VEVENT, or nothing (notes stay local). */
+export type SyncKind = "todo" | "event";
+
+/** The entry types that become a VTODO. */
+const TODO_TYPES: readonly EntryType[] = ["task", "done", "migrated", "scheduled"];
+
+/** The kind of calendar object an entry type is written as, or null for a type that stays local. */
+export function syncKind(type: EntryType): SyncKind | null {
+  if (type === "event") return "event";
+  return TODO_TYPES.includes(type) ? "todo" : null;
+}
 
 export function isSyncable(type: EntryType): boolean {
-  return SYNCED_TYPES.includes(type);
+  return syncKind(type) !== null;
 }
+
+/** The category every event written by bujo carries, so it can be found in the calendar. */
+export const EVENT_CATEGORY = "bujo";
 
 /** What the VTODO must say for an entry: the part the read-back checks. */
 export type TodoShape = {
@@ -48,4 +61,24 @@ export function readBackMismatch(text: string, uid: string, shape: TodoShape): s
   if (todo.status !== shape.status) return mismatchReason("STATUS");
   if ((todo.due?.date ?? null) !== shape.due) return mismatchReason("DUE");
   return null;
+}
+
+/** The VEVENT an entry stands for: its id, title, day, optional time, and the categories bujo plus the tag. */
+export function eventFieldsFor(entry: Pick<Entry, "id" | "title" | "date" | "time" | "tag">): EventFields {
+  const tag = entry.tag?.trim();
+  const categories = tag && tag !== EVENT_CATEGORY ? [EVENT_CATEGORY, tag] : [EVENT_CATEGORY];
+  return { entryId: entry.id, summary: entry.title, date: entry.date, time: entry.time, categories };
+}
+
+/** A whole new VCALENDAR for an event entry. */
+export function newEventFor(fields: EventFields, uid: string, nowMs: number): string {
+  return buildNewEvent({ ...fields, uid }, nowMs);
+}
+
+/** Compares a calendar object read back with what was written. Null when it matches, else the fields that differ. */
+export function eventReadBackMismatch(text: string, uid: string, fields: EventFields): string | null {
+  const event = parseVEvents(text).find((item) => item.uid === uid);
+  if (!event) return mismatchReason("UID");
+  const differences = event.entryId === fields.entryId ? eventDifferences(event, fields) : ["X-BUJO-ID"];
+  return differences.length === 0 ? null : mismatchReason(differences.join(", "));
 }

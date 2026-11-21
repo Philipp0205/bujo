@@ -7,6 +7,7 @@ import { caldavSource, demoSource } from "./caldav/source.ts";
 import { openDb } from "./db.ts";
 import { loadSyncConfig } from "./sync/config.ts";
 import { createSyncService, failInterrupted } from "./sync/service.ts";
+import { eventsStartupText } from "./sync/startup.ts";
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
@@ -33,6 +34,7 @@ server.listen(port, host, () => {
   else console.log("  tasks       demo data (set BUJO_CALDAV_BASE and BUJO_CALDAV_LISTS to use CalDAV)");
   if (config) console.log(`  sync        task entries to list "${syncConfig.listName}"${syncConfig.live ? " (live writes on)" : ""}`);
   else console.log("  sync        off (task entries stay local)");
+  console.log(`  events      ${eventsStartupText(config, syncConfig)}`);
   if (process.env.OCR_URL) console.log(`  ocr         ${process.env.OCR_URL}`);
   else console.log("  ocr         off (set OCR_URL to use the evening scan)");
 });

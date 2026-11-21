@@ -80,6 +80,38 @@ test("no Retry sync button for a synced entry or a note", async ({ page }) => {
   }
 });
 
+test("an event shows a pending dot, then a synced dot, and a note beside it stays local", async ({ page }) => {
+  app.fake.switches.putDelayMs = 1500;
+  await create(page, "event", "Zahnarzt Müller");
+  await create(page, "note", "Gedanke zum Termin");
+  await page.goto(app.baseUrl);
+
+  await expect(row(page, "Zahnarzt Müller")).toHaveAttribute("data-sync", "pending");
+  await expect(dot(page, "Zahnarzt Müller")).toHaveAttribute("title", "Waiting to sync");
+  await expect(row(page, "Gedanke zum Termin")).toHaveAttribute("data-sync", "local");
+
+  await expect(row(page, "Zahnarzt Müller")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
+  await expect(dot(page, "Zahnarzt Müller")).toHaveAttribute("title", "Synced");
+  await expect(page.locator('[data-state="error"]')).toHaveCount(0);
+});
+
+test("a failed event push shows the event reason and Retry sync, and a retry ends synced", async ({ page }) => {
+  app.fake.switches.conflictOnPut = true;
+  await create(page, "event", "Elternabend");
+  await page.goto(app.baseUrl);
+  await expect(row(page, "Elternabend")).toHaveAttribute("data-sync", "error", { timeout: 10_000 });
+
+  await openDetails(page, "Elternabend");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByTestId("sync-reason")).toContainText("changed this event at the same moment");
+  await expect(sheet.getByTestId("sync-reason")).not.toContainText("http");
+
+  app.fake.switches.conflictOnPut = false;
+  await sheet.getByRole("button", { name: "Retry sync" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(row(page, "Elternabend")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
+});
+
 test("a failing refresh while an entry is pending keeps the log on screen", async ({ page }) => {
   app.fake.switches.putDelayMs = 2500;
   await create(page, "task", "Bleibt sichtbar");
