@@ -14,13 +14,14 @@
   var POLL_MS = 800;
   var pollTimer = null;
 
-  /** The things a card or the add row can do. A note with a body opens the note sheet, any other entry opens the edit sheet. */
+  /** The things a card or the add row can do. A note with a body opens the note sheet, any other entry opens the edit sheet. select is select mode. */
   var actions = {
     open: function (entry) {
       if (L.note.model.isNote(entry)) L.inline.editor.settle(function () { openNote(entry); });
       else L.inline.editor.editEntry(entry);
     },
-    add: function () { L.inline.editor.addLine(); }
+    add: function () { L.inline.editor.addLine(); },
+    select: L.select.mode
   };
 
   /** Starts the scan flow with the phone camera opening at once, which is what the Scan tab does. */
@@ -83,9 +84,14 @@
     return L.view.stateNote(state.status, reload);
   }
 
+  /** The top of the page: the select bar while selecting, otherwise the italic title header. */
+  function top() {
+    return L.select.mode.on() ? L.select.mode.bar() : L.view.header();
+  }
+
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
   function draw() {
-    root.replaceChildren(L.view.header(), AppKit.h('div', { class: 'paper-page' }, body()));
+    root.replaceChildren(top(), AppKit.h('div', { class: 'paper-page' }, body()));
     L.ink.decorate.list(root);
   }
 
@@ -94,11 +100,11 @@
     L.inline.editor.paint();
   }
 
-  /** A tap on the paper itself (not on a row, heading or button) starts a line, like a text document. */
+  /** A tap on the paper itself (not on a row, heading or button) starts a line, like a text document. Not while selecting. */
   function onPaperTap(event) {
     var target = event.target;
     var bare = target === root || target.classList.contains('paper-page') || target.hasAttribute('data-today');
-    if (bare && state.status === 'ready') L.inline.editor.addLine();
+    if (bare && state.status === 'ready' && !L.select.mode.on()) L.inline.editor.addLine();
   }
 
   /** Loads the window around today, stretched to the day of the last applied scan. A failed quiet refresh keeps the entries on screen. */
@@ -150,6 +156,7 @@
   BujoNav.tabs.mount('log', { onScan: startScan });
 
   L.inline.editor.init(host);
+  L.select.mode.init({ host: host, root: root });
   root.addEventListener('click', onPaperTap);
   render();
   load();

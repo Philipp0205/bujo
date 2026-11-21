@@ -1,7 +1,7 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
- * Needs markup.js, tags.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js.
+ * Needs markup.js, tags.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
  * host: today(), draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
@@ -23,6 +23,7 @@
   var active = null;
   var muted = false;
   var acting = false;
+  var copying = false;
   var pressed = false;
   var blurred = null;
 
@@ -48,14 +49,15 @@
     });
   }
 
-  /** What the bar keys may do for the active line. A key is off when there is no neighbour or when the day is being changed. */
+  /** What the bar keys may do for the active line. A key is off when there is no neighbour or when the day is being changed. Copy needs a title. */
   function caps() {
-    if (!active) return { up: false, down: false, indent: false, outdent: false };
+    if (!active) return { copy: false, up: false, down: false, indent: false, outdent: false };
     var saved = !active.isNew && active.date === active.original.date;
     var day = host.dayEntries(active.isNew ? active.date : active.original.date);
     var at = day.findIndex(function (entry) { return entry.id === active.id; });
     var nested = active.indent === 1;
     return {
+      copy: model.hasTitle(active),
       up: saved && at > 0,
       down: saved && at >= 0 && at < day.length - 1,
       indent: !nested && (active.isNew ? day.length > 0 : saved && at > 0),
@@ -313,10 +315,10 @@
     var cleaned = absorbTyped(value, composing);
     refreshStrip(composing);
     reveal();
+    showBar();
     if (!cleaned && !active.error) return;
     active.error = '';
     L.inline.row.update(active);
-    showBar();
   }
 
   /** A suggestion was chosen: its word replaces the one being typed, the caret goes after it, and it becomes a pill like a typed one. */
@@ -388,10 +390,27 @@
     });
   }
 
+  /**
+   * Copy: the draft of the line goes to the clipboard as one paper line (the markup in the title is read first, like a save does).
+   * The sheet stays open. The kit's textarea fallback takes the focus for a moment, so the blur is not a person's and the title gets the focus back.
+   */
+  function copyLine() {
+    var line = active;
+    settleMarkup(line);
+    if (!model.hasTitle(line)) { showBar(); return; }
+    var entry = { type: line.type, title: line.title.trim(), tags: line.tags, time: line.time, date: line.date };
+    copying = true;
+    L.clipboard.copy([entry]).then(function () {
+      copying = false;
+      if (active) focusTitle();
+    });
+  }
+
   /** A tap on an action key of the bar. A key that cannot act right now does nothing. */
   function act(name) {
     if (!active || acting) return;
-    if (name === 'remove') removeLine();
+    if (name === 'copy') copyLine();
+    else if (name === 'remove') removeLine();
     else if (!caps()[name]) return;
     else if (name === 'up' || name === 'down') moveLine(name);
     else nestLine(name === 'indent' ? 1 : 0);
@@ -483,7 +502,7 @@
 
   /** Focus left the editing zone (title, bar, popover): that ends the edit like Escape does. */
   function onFocusOut(event) {
-    if (!active || muted || inZone(event.relatedTarget) || !inZone(event.target)) return;
+    if (!active || muted || copying || inZone(event.relatedTarget) || !inZone(event.target)) return;
     if (pressed) {
       blurred = active;
       window.setTimeout(releaseBlur, 400);

@@ -109,7 +109,102 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* A long press selects the entry, so the browser's own text selection and callout stay out of it. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
+
+/* ----- Select mode ----- */
+
+/* The select bar takes the place of the page header (same 96px, so the page does not jump): ink on paper, and it stays on top while the list scrolls. */
+.select-bar {
+  position: sticky;
+  top: var(--ak-safe-top, 0px);
+  z-index: 5;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 96px;
+  padding: 32px 8px 0 12px;
+  background: var(--paper-bg);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--paper-ink) 14%, transparent);
+  color: var(--paper-ink);
+  font-family: var(--font-ui);
+}
+
+.select-count {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-text);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 28px;
+  font-variation-settings: "opsz" 20, "wght" 400;
+  font-synthesis: none;
+}
+
+.select-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 500 14px/20px var(--font-ui);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.select-btn[data-action="select-day"] { color: var(--paper-muted); font-weight: 400; }
+.select-btn.select-copy { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.select-btn:disabled { opacity: 0.35; cursor: default; text-decoration: none; }
+html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
+
+/* The ring in front of a row: a fine pen circle in ink, empty when off, with a tick when on. The card outline is untouched. */
+.select-check {
+  position: relative;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 1px 0 0 -2px;
+  color: var(--pen);
+}
+.select-check svg { position: absolute; inset: 0; display: block; width: 24px; height: 24px; }
+.paper-row[aria-selected="true"] .paper-title { font-variation-settings: "opsz" 18, "wght" 500; }
+
+/* ----- The paper toast ----- */
+
+.paper-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--ak-tab, 64px) + 16px);
+  z-index: 60;
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  padding: 10px 20px;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 55%, transparent);
+  border-radius: 14px;
+  background: var(--sheet-bg);
+  box-shadow: 0 4px 18px rgba(20, 14, 10, 0.2);
+  color: var(--paper-ink);
+  font: italic 17px/24px var(--font-text);
+  font-variation-settings: "opsz" 17, "wght" 400;
+  font-synthesis: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.paper-toast[role="alert"] { color: var(--paper-today); border-color: var(--paper-today); }
 
 /* The symbol column is as tall as one title line, so the glyph sits on the title's first line. */
 .paper-sym {
