@@ -2,6 +2,7 @@ import { HttpError } from "../../app-kit/http.ts";
 import { isEntryType, isValidDate } from "../validation.ts";
 import type { EntryType } from "../types.ts";
 import type { LogDraft } from "./draft.ts";
+import type { Line } from "./types.ts";
 
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
@@ -10,6 +11,17 @@ const ITEM_KEYS = ["id", "type", "title", "tag", "time", "include"];
 /** One line as the review sends it back: edits included. */
 export type SentItem = { id: string; type: EntryType; title: string; tag: unknown; time: unknown; include: boolean };
 export type SentReview = { date: string; items: SentItem[] };
+
+/** A sent line as the matcher reads it: a tag or time that is not text counts as none. The apply step checks them for real. */
+export function toLine(item: SentItem): Line {
+  return {
+    id: item.id,
+    type: item.type,
+    title: item.title,
+    tag: typeof item.tag === "string" ? item.tag : null,
+    time: typeof item.time === "string" ? item.time : null,
+  };
+}
 
 function bad(message: string): never {
   throw new HttpError(400, message);
@@ -35,6 +47,7 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
 /**
  * Checks a request body of the shape { date, items: [{ id, type, title, tag?, time?, include? }] }.
  * Used by both the check and the apply step, so they read the same thing. 400 on anything else.
+ * The apply step may send every line of the review: skipped lines (include false) let it record the key of an unchanged one.
  */
 export function parseReview(body: Record<string, unknown>, draft: LogDraft): SentReview {
   for (const key of Object.keys(body)) if (key !== "date" && key !== "items") bad(`unknown field: ${key.slice(0, 40)}`);

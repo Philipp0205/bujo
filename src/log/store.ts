@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
-import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, SyncChange } from "./types.ts";
+import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange } from "./types.ts";
 
 type Row = {
   id: string;
@@ -19,11 +19,27 @@ type Row = {
   updated_at: number;
 };
 
+type ScanRow = Row & {
+  scan_key: string | null;
+  scan_type: Entry["type"] | null;
+  scan_title: string | null;
+  scan_tag: string | null;
+  scan_time: string | null;
+  scan_at: number | null;
+};
+
 type LinkRow = { remote_href: string | null; remote_uid: string | null; remote_etag: string | null };
 
 export type EntryStore = {
   /** Entries from one day to another, both included, by date then position. */
   list(userId: string, range: DateRange): Entry[];
+  /** Like list, with the scan provenance of each entry. For the scan routes only: it never reaches the public API. */
+  listScan(userId: string, range: DateRange): ScanEntry[];
+  /**
+   * Records the paper line a scan last applied to an entry. Not an edit: updated_at and sync stay as they are.
+   * Does nothing for an unknown entry.
+   */
+  setScanProvenance(userId: string, id: string, snapshot: ScanSnapshot): void;
   get(userId: string, id: string): Entry | undefined;
   /** A new entry goes to the end of its day, with sync "local". */
   create(userId: string, input: NewEntry, now: number): Entry;
@@ -57,6 +73,15 @@ const COLUMNS =
 
 /** The order of a day: by position, and by creation time for entries that share a position. */
 const DAY_ORDER = "ORDER BY position, created_at, id";
+
+/** The scan provenance columns, selected next to COLUMNS by listScan. */
+const SCAN_COLUMNS = "scan_key, scan_type, scan_title, scan_tag, scan_time, scan_at";
+
+/** The snapshot of a row, or null when no scan has been applied to it. */
+function toSnapshot(row: ScanRow): ScanSnapshot | null {
+  if (row.scan_key === null || row.scan_type === null || row.scan_title === null || row.scan_at === null) return null;
+  return { key: row.scan_key, type: row.scan_type, title: row.scan_title, tag: row.scan_tag, time: row.scan_time, at: Number(row.scan_at) };
+}
 
 function toEntry(row: Row): Entry {
   return {
@@ -123,6 +148,26 @@ export function createEntryStore(db: Db): EntryStore {
     },
 
     get,
+
+    listScan(userId, range) {
+      const rows = db
+        .prepare(`SELECT ${COLUMNS}, ${SCAN_COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .all(userId, range.from, range.to) as ScanRow[];
+      return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
+    },
+
+    setScanProvenance(userId, id, snapshot) {
+      db.prepare("UPDATE entries SET scan_key = ?, scan_type = ?, scan_title = ?, scan_tag = ?, scan_time = ?, scan_at = ? WHERE user_id = ? AND id = ?").run(
+        snapshot.key,
+        snapshot.type,
+        snapshot.title,
+        snapshot.tag,
+        snapshot.time,
+        snapshot.at,
+        userId,
+        id,
+      );
+    },
 
     create(userId, input, now) {
       const id = crypto.randomUUID();

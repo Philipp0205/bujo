@@ -1,13 +1,14 @@
 import { randomBytes } from "node:crypto";
 import type { OcrResult } from "../../scan/ocr-client.ts";
-import type { Entry } from "../types.ts";
+import type { ScanEntry } from "../types.ts";
 import { parsePage, type ParsedLine } from "./parse.ts";
-import { resolveLines, type Line, type ScanStatus } from "./resolve.ts";
+import { resolveLines } from "./resolve.ts";
+import type { Fields, Line, ScanStatus } from "./types.ts";
 
 /**
  * A rapid-log scan draft: the parsed lines of one photo, held in memory (the store in src/scan/store.ts) and
  * never holding the photo. Nothing in it is written to the log until the apply step.
- * Whether a line is new, a duplicate or completes a task depends on its day and its edited text, so that is
+ * Whether a line is new, edited or unchanged depends on its day and its edited text, so that is
  * worked out per request (checkLines) and is not part of the draft.
  */
 export type LogDraft = {
@@ -27,8 +28,13 @@ export type LogDraft = {
 export type LineCheck = {
   id: string;
   status: ScanStatus;
-  /** The open task a "completes" line marks done. */
+  /** The entry of the day the line is matched to (for "edited" and "unchanged"), else null. */
   target: { id: string; title: string } | null;
+  /** For an "edited" line: the entry as it is now and what the paper proposes. Null otherwise. */
+  before: Fields | null;
+  after: Fields | null;
+  /** True when the paper and the app both changed the entry since the last scan. Such a line starts unticked. */
+  contested: boolean;
 };
 
 /** A line as the review starts: the parsed line, its check and whether it starts ticked. */
@@ -77,21 +83,26 @@ export function defaultDate(draft: LogDraft): string {
  * Checks lines (as the review holds them, edits included) against the entries of one day.
  * Pure: `existing` is that day's entries, and nothing is written.
  */
-export function checkLines(lines: readonly Line[], existing: readonly Entry[]): LineCheck[] {
+export function checkLines(lines: readonly Line[], existing: readonly ScanEntry[]): LineCheck[] {
   const resolved = resolveLines(lines, existing);
   return lines.map((line) => {
-    const { status, target } = resolved.get(line.id)!;
-    return { id: line.id, status, target: target ? { id: target.id, title: target.title } : null };
+    const { status, target, before, after, contested } = resolved.get(line.id)!;
+    return { id: line.id, status, target: target ? { id: target.id, title: target.title } : null, before, after, contested };
   });
 }
 
-/** A line starts ticked when it has a bullet and text, and the day has no entry with that title. */
-function startsIncluded(line: ParsedLine, status: ScanStatus): boolean {
-  return !line.noBullet && line.title !== "" && status !== "duplicate";
+/**
+ * A line starts ticked when it would write something and can be trusted: a new line with a bullet and text, or an edit with a
+ * bullet that the app did not also change. An unchanged line, and a line with no bullet (maybe a stray mark), start off.
+ */
+function startsIncluded(line: ParsedLine, check: LineCheck): boolean {
+  if (line.noBullet) return false;
+  if (check.status === "new") return line.title !== "";
+  return check.status === "edited" && !check.contested;
 }
 
-/** The review a fresh draft starts with, for its default day. `existing` is that day's entries. */
-export function startReview(draft: LogDraft, existing: readonly Entry[]): Review {
+/** The review a fresh draft starts with, for its default day. `existing` is that day's entries with their scan provenance. */
+export function startReview(draft: LogDraft, existing: readonly ScanEntry[]): Review {
   const date = defaultDate(draft);
   const checks = checkLines(draft.lines, existing);
   return {
@@ -100,6 +111,6 @@ export function startReview(draft: LogDraft, existing: readonly Entry[]): Review
     date,
     pageDate: draft.pageDate,
     fallbackDate: draft.fallbackDate,
-    items: draft.lines.map((line, index) => ({ ...line, ...checks[index], include: startsIncluded(line, checks[index].status) })),
+    items: draft.lines.map((line, index) => ({ ...line, ...checks[index], include: startsIncluded(line, checks[index]) })),
   };
 }

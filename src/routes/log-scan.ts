@@ -4,7 +4,7 @@ import { createEntryStore } from "../log/store.ts";
 import { applyLogDraft } from "../log/scan/apply.ts";
 import { buildLogDraft, checkLines, startReview, type LogDraft } from "../log/scan/draft.ts";
 import { suggestNote } from "../log/scan/note.ts";
-import { parseReview } from "../log/scan/request.ts";
+import { parseReview, toLine } from "../log/scan/request.ts";
 import { isValidDate } from "../log/validation.ts";
 import type { OcrClient } from "../scan/ocr-client.ts";
 import { readPhoto } from "../scan/photo.ts";
@@ -46,7 +46,7 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   deps.drafts.add(draft);
   const store = createEntryStore(ctx.accounts.db);
   const day = draft.pageDate ?? draft.fallbackDate;
-  const existing = store.list(session.user.id, { from: day, to: day });
+  const existing = store.listScan(session.user.id, { from: day, to: day });
   sendJson(ctx.res, 201, { draft: startReview(draft, existing) });
 }
 
@@ -59,16 +59,16 @@ async function scanNote(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   sendJson(ctx.res, 200, { note: suggestNote(ocr.lines, fallbackDate) });
 }
 
-/** POST /api/log/scan/:id/check: tells the review which lines are duplicates or finish a task, for one day. */
+/** POST /api/log/scan/:id/check: tells the review which lines are new, edited or unchanged for one day, with before and after for edits. */
 async function checkDay(ctx: RouteContext, deps: LogScanDeps, id: string): Promise<void> {
   const session = requireSession(ctx.who);
   const draft = draftOf(deps, id);
   const review = parseReview(await readJson(ctx.req, { max: REVIEW_BODY_MAX }), draft);
-  const existing = createEntryStore(ctx.accounts.db).list(session.user.id, { from: review.date, to: review.date });
-  sendJson(ctx.res, 200, { date: review.date, items: checkLines(review.items, existing) });
+  const existing = createEntryStore(ctx.accounts.db).listScan(session.user.id, { from: review.date, to: review.date });
+  sendJson(ctx.res, 200, { date: review.date, items: checkLines(review.items.map(toLine), existing) });
 }
 
-/** POST /api/log/scan/:id/apply: writes the kept lines as entries. Once per draft. */
+/** POST /api/log/scan/:id/apply: adds the kept new lines and updates the kept edited ones. Once per draft. Never deletes. */
 async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Promise<void> {
   const session = requireSession(ctx.who);
   const draft = draftOf(deps, id);
@@ -84,8 +84,10 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *   POST /api/log/scan?date=       raw image body. OCR, then a draft kept in memory (never the photo). Writes nothing.
  *   POST /api/log/scan/note?date=  raw image body. OCR, then a suggested title, day and markdown for a free note. Keeps and writes
  *                                  nothing: the note is saved by the review through POST /api/entries.
- *   POST /api/log/scan/:id/check   the review's lines and day. Answers duplicates and tasks to mark done. Writes nothing.
- *   POST /api/log/scan/:id/apply   the review's lines and day. Writes the kept lines. Once per draft.
+ *   POST /api/log/scan/:id/check   the review's lines and day. Answers new, edited (with before and after) or unchanged per line. Writes nothing.
+ *   POST /api/log/scan/:id/apply   the review's lines and day. Adds the kept new lines and updates the kept edited ones (outcome
+ *                                  "created" or "updated"). Skipped lines may be sent so unchanged ones are recorded. Once per draft.
+ *                                  An entry no line names is never touched, and nothing is deleted.
  */
 export async function handleLogScan(ctx: RouteContext, deps: LogScanDeps): Promise<boolean> {
   const { pathname, method } = ctx;
