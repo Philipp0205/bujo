@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-scan-bar",
+    "date": "2026-11-21",
+    "title": "Scan from the bottom bar",
+    "bullets": [
+      "Scan now lives in the bottom bar and opens the camera straight away.",
+      "While a page is read you see the photo, a clear progress state and the elapsed time."
+    ]
+  },
+  {
     "id": "2026-11-21-autocomplete",
     "date": "2026-11-21",
     "title": "Tags and days that complete themselves",

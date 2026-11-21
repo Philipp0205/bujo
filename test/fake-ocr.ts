@@ -16,6 +16,8 @@ export type FakeOcr = {
   failWith(status: number): void;
   /** Never answer (for the timeout test). */
   hang(on: boolean): void;
+  /** Wait this many ms before each answer of POST /ocr (0 = answer at once). */
+  delay(ms: number): void;
   close(): Promise<void>;
 };
 
@@ -42,6 +44,7 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
   let lines = initial;
   let failStatus = 0;
   let hanging = false;
+  let delayMs = 0;
   const requests: FakeOcr["requests"] = [];
   const server = http.createServer((req, res) => {
     let bytes = 0;
@@ -63,8 +66,12 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
       }
       const result: OcrResult = { lines, width: 900, height: 700, ms: 12 };
       const body = JSON.stringify(result);
-      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
-      res.end(body);
+      const answer = () => {
+        res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
+        res.end(body);
+      };
+      if (delayMs > 0) setTimeout(answer, delayMs);
+      else answer();
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -79,6 +86,9 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
     },
     hang: (on) => {
       hanging = on;
+    },
+    delay: (ms) => {
+      delayMs = ms;
     },
     close: async () => {
       server.closeAllConnections?.();

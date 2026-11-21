@@ -2,8 +2,8 @@
  * The scan camera screen (mock 03 and 04): a full-screen overlay with a frame, a mode toggle, a gallery button and a shutter.
  * The toggle picks Rapid log or Free note and the mode goes along with each photo.
  * The shutter opens the phone camera and the gallery button the photo library, each through a file input,
- * so no live video and no photo is kept here.
- * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js, glyph.js and nav/overlays.js. It is a Back layer: Back closes it like the close button.
+ * so no live video and no photo is kept here. While a photo is read, the dot frame gives way to the progress state (progress.js).
+ * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js, scan/progress.js, glyph.js and nav/overlays.js. It is a Back layer: Back closes it like the close button.
  */
 (function () {
   'use strict';
@@ -69,27 +69,50 @@
     return { row: h('div', { class: 'scan-actions' }, gallery, shutter), gallery: gallery, shutter: shutter };
   }
 
+  /** Swaps the dot frame for the progress state while a photo is read, and back. */
+  function workingState(node, guide) {
+    var current = null;
+    return {
+      show: function (file) {
+        if (current) return;
+        current = L.scan.progress.start(file);
+        node.replaceChild(current.node, guide);
+      },
+      hide: function () {
+        if (!current) return;
+        current.stop();
+        node.replaceChild(guide, current.node);
+        current = null;
+      },
+      stop: function () { if (current) current.stop(); }
+    };
+  }
+
   /** The handle the flow drives: an error line, a busy state and close. */
-  function controls(node, buttons, slot, copy) {
+  function controls(node, buttons, slot, working) {
     return {
       /** Shows or clears one line of trouble. The camera stays open so the person can try again. */
       error: function (message) { Bujo.say(slot, message); },
-      /** Busy: the shutter and the gallery button are off and the line says the page is being read. */
-      busy: function (on) {
+      /** Busy: the shutter and the gallery button are off and the progress state shows the photo (file) being read. */
+      busy: function (on, file) {
         buttons.shutter.disabled = on;
         buttons.gallery.disabled = on;
         node.setAttribute('aria-busy', on ? 'true' : 'false');
-        if (on) slot.replaceChildren(h('p', { class: 'scan-busy', role: 'status', 'data-testid': 'scan-busy' }, copy.busy));
-        else if (slot.querySelector('.scan-busy')) slot.replaceChildren();
+        if (on) working.show(file);
+        else working.hide();
       },
       close: function () {
+        working.stop();
         node.remove();
         BujoNav.overlays.release('camera');
       }
     };
   }
 
-  /** Opens the screen. options.onPhoto(file, mode) gets a photo and the mode ('rapid' or 'note'), options.onClose() the close button. */
+  /**
+   * Opens the screen. options.onPhoto(file, mode) gets a photo and the mode ('rapid' or 'note'), options.onClose() the close button.
+   * With options.autoCapture the camera input opens at once (call it inside a tap, or the browser may refuse); the screen stays up under it.
+   */
   function open(options) {
     var copy = L.copy.scan.camera;
     var mode = 'rapid';
@@ -115,8 +138,9 @@
     document.body.appendChild(node);
     buttons.shutter.focus({ preventScroll: true });
     BujoNav.overlays.open('camera', options.onClose);
+    if (options.autoCapture) cameraInput.click();
 
-    return controls(node, buttons, slot, copy);
+    return controls(node, buttons, slot, workingState(node, guide));
   }
 
   L.scan.camera = { open: open };

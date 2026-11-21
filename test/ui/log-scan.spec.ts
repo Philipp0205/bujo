@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
+import { openScan, scanTab } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -18,6 +19,7 @@ const KIT_PINK = ["#e3166b", "#ff4d8d", "#c40e52", "#c2185b"].flatMap((hex) => {
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   app.ocr.failWith(0);
+  app.ocr.delay(0);
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
@@ -41,22 +43,147 @@ async function seed(page: Page, entries: Array<{ date: string; type: string; tit
   for (const entry of entries) expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: entry })).status()).toBe(201);
 }
 
-/** Opens the camera screen and sends the photo. The review sheet is up after this. */
+/** Taps Scan, sends the photo through the camera chooser the tab opened. The review sheet is up after this. */
 async function scanPage(page: Page, lines: ReturnType<typeof line>[]): Promise<void> {
   app.ocr.setLines(lines);
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
-  await page.locator("#scan-file").setInputFiles(photo);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
   await expect(page.getByTestId("scan-review")).toBeVisible();
 }
 
 const review = (page: Page) => page.getByTestId("scan-review");
 const rows = (page: Page) => review(page).locator(".scan-row");
 const logRow = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
+const bar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 
-test("the scan button opens the camera screen: title, frame, toggle, shutter, and close", async ({ page }) => {
+test("the bar shows Scan on the log, Notes and Account, never as the current page, and the header has no scan icon", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
+  await expect(page.getByRole("button", { name: "Scan a page" })).toHaveCount(0);
+  await expect(page.locator(".paper-head [data-action=scan]")).toHaveCount(0);
+  await expect(page.locator(".paper-head button")).toHaveCount(0);
+
+  for (const path of ["/", "/notes", "/settings"]) {
+    await page.goto(`${app.baseUrl}${path}`);
+    await expect(scanTab(page)).toBeVisible();
+    await expect(scanTab(page)).toHaveAccessibleName("Scan");
+    await expect(scanTab(page)).not.toHaveAttribute("aria-current", "page");
+  }
+
+  // Scan sits between Notes and Account, raised above the other tabs.
+  await page.goto(app.baseUrl);
+  const boxes = await Promise.all(["log", "notes", "scan", "account"].map((id) => bar(page).locator(`[data-tab=${id}]`).boundingBox()));
+  const [log, notes, scan, account] = boxes.map((box) => box!);
+  expect(log.x).toBeLessThan(notes.x);
+  expect(notes.x + notes.width).toBeLessThanOrEqual(scan.x + 1);
+  expect(scan.x + scan.width).toBeLessThanOrEqual(account.x + 1);
+  const centre = scan.x + scan.width / 2;
+  expect(Math.abs(centre - 390 / 2)).toBeLessThan(24);
+  const circle = (await scanTab(page).locator(".ak-tab-icon").boundingBox())!;
+  expect(circle.y).toBeLessThan(log.y);
+});
+
+test("tapping Scan opens the camera screen and the capture input at once, with the gallery still there", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  expect(chooser.isMultiple()).toBe(false);
+  expect(await chooser.element().getAttribute("id")).toBe("scan-file");
+
+  const screen = page.getByTestId("scan-screen");
+  await expect(screen.getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
+  await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
+  await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
+  await expect(scanTab(page)).not.toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(`${app.baseUrl}/`);
+
+  // The person cancels the camera: the screen stays and the gallery sends the photo.
+  app.ocr.setLines([headerLine(day(0)), line("•", "Nach dem Abbrechen", 0.9)]);
+  await screen.locator("#scan-gallery").setInputFiles(photo);
+  await expect(page.getByTestId("scan-review")).toBeVisible();
+});
+
+test("Scan from Notes and from Account goes to the log, opens the camera at once, and a reload does not reopen it", async ({ page }) => {
+  for (const path of ["/notes", "/settings"]) {
+    await page.goto(`${app.baseUrl}${path}`);
+    await scanTab(page).click();
+    await expect(page.getByTestId("scan-screen")).toBeVisible();
+    await expect(page).toHaveURL(`${app.baseUrl}/`);
+    await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+    await expect(scanTab(page)).not.toHaveAttribute("aria-current", "page");
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+    await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  }
+});
+
+test("while a page is read the progress state shows the photo, the step and a ticking time, then the review follows", async ({ page }) => {
+  app.ocr.delay(3000);
+  app.ocr.setLines([headerLine(day(0)), line("•", "Langsam gelesen", 0.9)]);
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
+
+  const progress = page.getByTestId("scan-progress");
+  await expect(progress).toBeVisible();
+  await expect(progress.getByTestId("scan-step")).toHaveText("Reading your page\u2026");
+  await expect(progress.locator("img.scan-progress-img")).toHaveAttribute("src", /^data:image\/png/);
+  await expect(progress.locator(".scan-progress-shimmer")).toBeAttached();
+  await expect(progress.getByTestId("scan-elapsed")).toHaveText(/^0:\d\d$/);
+  await expect(progress.getByTestId("scan-elapsed")).toHaveText(/^0:0[1-9]$/);
+  await expect(page.getByTestId("scan-screen")).toHaveAttribute("aria-busy", "true");
+  await expect(page.getByRole("button", { name: "Take a photo" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Close" })).toBeEnabled();
+
+  await expect(page.getByTestId("scan-review")).toBeVisible();
+  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  await expect(page.getByTestId("scan-progress")).toHaveCount(0);
+  await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Langsam gelesen");
+});
+
+test("the shimmer stands still with reduced motion, and the time still ticks", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  app.ocr.delay(2500);
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
+  const shimmer = page.getByTestId("scan-progress").locator(".scan-progress-shimmer");
+  await expect(shimmer).toBeAttached();
+  expect(await shimmer.evaluate((node) => getComputedStyle(node).animationName)).toBe("none");
+  await expect(page.getByTestId("scan-elapsed")).toHaveText(/^0:0[1-9]$/);
+});
+
+test("closing during the read ignores the late answer: no review opens", async ({ page }) => {
+  app.ocr.delay(1500);
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
+  await expect(page.getByTestId("scan-progress")).toBeVisible();
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  await expect.poll(() => app.ocr.requests.filter((request) => request.path === "/ocr").length).toBeGreaterThan(0);
+  await page.waitForTimeout(2200);
+  await expect(page.getByTestId("scan-review")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+});
+
+test("a failed read leaves the progress state and shows the trouble on the camera screen", async ({ page }) => {
+  app.ocr.failWith(500);
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
+  const screen = page.getByTestId("scan-screen");
+  await expect(screen.getByRole("alert")).toBeVisible();
+  await expect(page.getByTestId("scan-progress")).toHaveCount(0);
+  await expect(screen.locator(".scan-frame")).toBeVisible();
+});
+
+test("the camera screen has the title, frame, toggle, shutter, and close", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await openScan(page);
 
   const screen = page.getByTestId("scan-screen");
   await expect(screen.getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
@@ -81,7 +208,7 @@ test("the scan button opens the camera screen: title, frame, toggle, shutter, an
 test("a photo picked through the gallery input reaches the review sheet", async ({ page }) => {
   app.ocr.setLines([headerLine(day(0)), line("•", "Aus der Galerie", 0.9)]);
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   await page.locator("#scan-gallery").setInputFiles(photo);
   await expect(page.getByTestId("scan-review")).toBeVisible();
   await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Aus der Galerie");
@@ -294,7 +421,7 @@ test("a kept line needs a title, and dismissing the review writes nothing", asyn
 
 test("trouble stays on the camera screen: a wrong file, a failing OCR and an empty page", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   const screen = page.getByTestId("scan-screen");
 
   await page.locator("#scan-file").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
@@ -320,8 +447,8 @@ test("trouble stays on the camera screen: a wrong file, a failing OCR and an emp
 test("a HEIC photo with no type is accepted, and the photo is never put in the page", async ({ page }) => {
   app.ocr.setLines([line("•", "Aus dem Foto", 0.9)]);
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
-  await page.locator("#scan-file").setInputFiles({ name: "IMG_0001.HEIC", mimeType: "", buffer: PNG });
+  const chooser = await openScan(page);
+  await chooser.setFiles({ name: "IMG_0001.HEIC", mimeType: "", buffer: PNG });
   await expect(page.getByTestId("scan-review")).toBeVisible();
   expect(await page.locator('[data-testid="scan-review"] :is(img, canvas, video)').count()).toBe(0);
   expect(await page.locator('[data-testid="scan-review"] [src], [data-testid="scan-review"] [style*="url("]').count()).toBe(0);
@@ -345,7 +472,7 @@ test("the scan screen and the review use paper colours, never the kit pink", asy
   for (const pink of KIT_PINK) expect(sheet.used).not.toContain(pink);
 
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   await page.locator('[data-testid="scan-screen"] .scan-shutter').focus();
   const screen = await probe('[data-testid="scan-screen"]');
   expect(screen.accent.toLowerCase()).toBe(paperInk.toLowerCase());

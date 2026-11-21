@@ -1,6 +1,7 @@
 /*
  * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
- * log file and core.js. The state lives here and nowhere else. While an entry waits for its push to Nextcloud, the log
+ * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here.
+ * While an entry waits for its push to Nextcloud, the log
  * reads its own API again every so often (never Nextcloud) and stops when nothing is pending. It also asks the
  * what's-new boot to show entries the person has not seen yet.
  */
@@ -19,9 +20,23 @@
       if (L.note.model.isNote(entry)) L.inline.editor.settle(function () { openNote(entry); });
       else L.inline.editor.editEntry(entry);
     },
-    add: function () { L.inline.editor.addLine(); },
-    scan: function () { L.scan.flow.start({ day: state.today, onApplied: applied }); }
+    add: function () { L.inline.editor.addLine(); }
   };
+
+  /** Starts the scan flow with the phone camera opening at once, which is what the Scan tab does. */
+  function startScan() {
+    L.scan.flow.start({ day: state.today, onApplied: applied, autoCapture: true });
+  }
+
+  /** Arriving from Notes or Account with ?scan=1: drops the query so a refresh does not reopen the camera, then starts the scan.
+   * Returns true when it started one. */
+  function scanFromLink() {
+    var params = new URLSearchParams(window.location.search);
+    if (!params.has('scan')) return false;
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.hash);
+    startScan();
+    return true;
+  }
 
   function openNote(entry) {
     L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload });
@@ -70,7 +85,7 @@
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
   function draw() {
-    root.replaceChildren(L.view.header(actions.scan), AppKit.h('div', { class: 'paper-page' }, body()));
+    root.replaceChildren(L.view.header(), AppKit.h('div', { class: 'paper-page' }, body()));
     L.ink.decorate.list(root);
   }
 
@@ -132,11 +147,12 @@
   AppKit.themeColor.start();
   AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
   AppKit.sw.register({ url: '/sw.js', scope: '/' });
-  BujoNav.tabs.mount('log');
+  BujoNav.tabs.mount('log', { onScan: startScan });
 
   L.inline.editor.init(host);
   root.addEventListener('click', onPaperTap);
   render();
   load();
-  BujoWhatsNew.boot.showUnseen();
+  // The camera of a scan started by a link is not covered by the what's-new sheet: that waits for the next visit.
+  if (!scanFromLink()) BujoWhatsNew.boot.showUnseen();
 })();

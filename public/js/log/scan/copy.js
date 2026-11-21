@@ -16,8 +16,16 @@
       rapid: 'Rapid log',
       note: 'Free note',
       shutter: 'Take a photo',
-      gallery: 'Choose from gallery',
-      busy: 'Reading the page\u2026'
+      gallery: 'Choose from gallery'
+    },
+    progress: {
+      step: 'Reading your page\u2026',
+      hint: 'This can take a little while.',
+      /** The time since the photo was sent, as m:ss. */
+      elapsed: function (seconds) {
+        var rest = seconds % 60;
+        return Math.floor(seconds / 60) + ':' + (rest < 10 ? '0' : '') + rest;
+      }
     },
     note: {
       reviewHeading: 'Free note',

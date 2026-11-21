@@ -69,30 +69,43 @@
     });
   }
 
-  /** Reads a photo for the mode the camera is in, then shows the screen that mode ends in. */
-  function readFor(mode, file, camera, options) {
-    if (mode === 'note') return readNote(file, options.day).then(function (read) { showNote(camera, read, options); });
-    return readPhoto(file, options.day).then(function (draft) { showReview(camera, draft, options); });
+  /** Reads a photo for the mode the camera is in, then shows the screen that mode ends in, unless the camera was closed meanwhile. */
+  function readFor(mode, file, camera, options, isClosed) {
+    if (mode === 'note') {
+      return readNote(file, options.day).then(function (read) { if (!isClosed()) showNote(camera, read, options); });
+    }
+    return readPhoto(file, options.day).then(function (draft) { if (!isClosed()) showReview(camera, draft, options); });
   }
 
-  /** Opens the camera screen. options.day is the day open in the log, options.onApplied({ date }) runs after a save. */
+  /**
+   * Opens the camera screen. options.day is the day open in the log, options.onApplied({ date }) runs after a save.
+   * options.autoCapture opens the phone camera at once, so the tab needs no second tap. Closing the screen while a photo is read
+   * drops the late answer: no review opens and no error shows.
+   */
   function start(options) {
     var camera = null;
     var working = false;
+    var closed = false;
 
     function onPhoto(file, mode) {
       if (working) return;
       working = true;
       camera.error('');
-      camera.busy(true);
-      readFor(mode, file, camera, options).then(null, function (error) {
+      camera.busy(true, file);
+      readFor(mode, file, camera, options, function () { return closed; }).then(null, function (error) {
+        if (closed) return;
         camera.busy(false);
         camera.error(error.message);
         working = false;
       });
     }
 
-    camera = L.scan.camera.open({ onPhoto: onPhoto, onClose: function () { camera.close(); } });
+    function onClose() {
+      closed = true;
+      camera.close();
+    }
+
+    camera = L.scan.camera.open({ onPhoto: onPhoto, onClose: onClose, autoCapture: !!options.autoCapture });
   }
 
   L.scan.flow = { start: start };

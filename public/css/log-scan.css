@@ -96,12 +96,50 @@
   font: italic 16px/24px var(--font-text);
   text-align: center;
 }
-.scan-busy {
-  margin: 0 0 12px;
-  color: var(--paper-muted);
-  font: italic 16px/24px var(--font-text);
-  text-align: center;
+/* The OCR progress state takes the place of the dot frame while a photo is read: the photo with a shimmer over it, the step and the time. */
+.scan-progress {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 360px;
+  margin: 24px 0;
 }
+.scan-progress-photo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--paper-ink) 10%, var(--paper-bg));
+}
+.scan-progress-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.scan-progress-img[hidden] { display: none; }
+
+/* A soft band of light that sweeps across the photo, the same warm white on both papers. With reduced motion it stands still as a faint wash. */
+.scan-progress-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 250, 238, 0.6) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: scan-sweep 1.8s ease-in-out infinite;
+}
+@keyframes scan-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-progress-shimmer { animation: none; transform: none; opacity: 0.35; }
+}
+
+.scan-progress-text { flex: none; padding-top: 16px; text-align: center; }
+.scan-progress-text p { margin: 0; }
+.scan-progress-step { font: italic 20px/24px var(--font-text); color: var(--paper-ink); }
+.scan-progress-time { font: 500 16px/24px var(--font-ui); font-variant-numeric: tabular-nums; color: var(--paper-ink); }
+.scan-progress-hint { font: 14px/24px var(--font-ui); color: var(--paper-muted); }
 
 .scan-modes {
   flex: none;
