@@ -44,11 +44,11 @@
       day.isToday ? todayMark() : null);
   }
 
-  /** The grey line under a title: tag and time, then the sync dot. */
+  /** The grey line under a title: tag and time, then the sync dot (not for notes, which are never synced). */
   function metaLine(entry) {
     return h('span', { class: 'paper-meta' },
       h('span', { class: 'meta-text' }, L.days.metaText(entry)),
-      L.glyph.syncMark(entry.sync));
+      L.days.showsSync(entry.type) ? L.glyph.syncMark(entry.sync) : null);
   }
 
   /** One entry as a tappable row. The type, sync state and id are on the row so tests and styles can find it. */

@@ -94,14 +94,70 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   expect(await glyph("Küchengarten")).toBe("#g-note");
   expect(await glyph("Vermieter")).toBe("#g-sched");
 
-  // Meta line: the tag, then the time, or "not synced" when a local entry has no tag. The dot says local.
+  // Meta line: the tag, then the time, or "not synced" when a local task has no tag. The dot says local.
+  // A note is never synced, so it shows no label and no dot.
   await expect(row(page, "Heute Aufgabe").locator(".meta-text")).toHaveText("Haushalt");
   await expect(row(page, "Mittagessen").locator(".meta-text")).toHaveText("Freizeit \u00b7 13:00");
-  await expect(row(page, "Küchengarten").locator(".meta-text")).toHaveText("not synced");
-  await expect(row(page, "Küchengarten").locator(".sync-mark")).toHaveAttribute("data-sync", "local");
+  await expect(row(page, "Küchengarten")).toHaveAttribute("data-sync", "local");
+  await expect(row(page, "Küchengarten").locator(".meta-text")).toHaveText("");
+  await expect(row(page, "Küchengarten").locator(".sync-mark")).toHaveCount(0);
+  await expect(row(page, "Küchengarten")).not.toContainText("not synced");
+  await expect(row(page, "Heute Aufgabe").locator(".sync-mark")).toHaveAttribute("data-sync", "local");
   await expect(row(page, "Gestern erledigt")).toHaveAttribute("data-type", "done");
   await expect(row(page, "Gestern erledigt").locator(".paper-title")).toHaveCSS("text-decoration-line", "line-through");
   await expect(row(page, "Gestern verschoben")).toHaveCSS("opacity", "0.55");
+});
+
+test("a note shows no sync label and no dot, a task and an event next to it still do", async ({ page }) => {
+  await seed(page, [
+    { date: day(0), type: "note", title: "Notiz ohne Tag" },
+    { date: day(0), type: "note", title: "Notiz mit Tag", tag: "Garten", time: "08:15" },
+    { date: day(0), type: "task", title: "Aufgabe ohne Tag" },
+    { date: day(0), type: "event", title: "Termin ohne Tag" },
+  ]);
+  await page.goto(app.baseUrl);
+  await expect(row(page, "Aufgabe ohne Tag")).toBeVisible();
+
+  for (const title of ["Aufgabe ohne Tag", "Termin ohne Tag"]) {
+    await expect(row(page, title).locator(".meta-text")).toHaveText("not synced");
+    await expect(row(page, title).locator(".sync-mark")).toHaveAttribute("data-sync", "local");
+  }
+  await expect(row(page, "Notiz ohne Tag").locator(".meta-text")).toHaveText("");
+  await expect(row(page, "Notiz ohne Tag").locator(".sync-mark")).toHaveCount(0);
+  await expect(row(page, "Notiz mit Tag").locator(".meta-text")).toHaveText("Garten \u00b7 08:15");
+  await expect(row(page, "Notiz mit Tag").locator(".sync-mark")).toHaveCount(0);
+  await expect(page.locator('.paper-row[data-type="note"]', { hasText: /not synced/i })).toHaveCount(0);
+});
+
+test("the entry sheet of a short note has no sync line, and it follows the chosen type", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "note", title: "Kurze Notiz" }]);
+  await page.goto(app.baseUrl);
+  await row(page, "Kurze Notiz").click();
+
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { name: "Edit entry" })).toBeVisible();
+  await expect(sheet.getByTestId("sync-line")).toHaveCount(0);
+  await expect(sheet.locator(".sync-mark")).toHaveCount(0);
+  await expect(sheet).not.toContainText(/not synced/i);
+
+  await sheet.locator(".type-btn", { hasText: "Task" }).click();
+  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
+  await expect(sheet.locator(".sync-mark")).toHaveCount(1);
+
+  await sheet.locator(".type-btn", { hasText: "Note" }).click();
+  await expect(sheet.getByTestId("sync-line")).toHaveCount(0);
+  await expect(sheet.locator(".sync-mark")).toHaveCount(0);
+});
+
+test("the add sheet shows the sync line for a task and hides it when Note is chosen", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
+  await sheet.locator(".type-btn", { hasText: "Note" }).click();
+  await expect(sheet.getByTestId("sync-line")).toHaveCount(0);
+  await sheet.locator(".type-btn", { hasText: "Event" }).click();
+  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
 });
 
 test("the paper is the mock's solid dot grid in the page colour, never white", async ({ page }, testInfo) => {

@@ -14,8 +14,8 @@
     return h('label', { class: 'ak-field' }, h('span', { class: 'ak-label' }, label), control);
   }
 
-  /** The six type buttons. Returns the node and a getter for the chosen type. */
-  function typeGrid(initial) {
+  /** The six type buttons. Returns the node and a getter for the chosen type. onPick(type) runs on every tap. */
+  function typeGrid(initial, onPick) {
     var chosen = initial;
     var buttons = L.glyph.TYPES.map(function (type) {
       return h('button', {
@@ -31,6 +31,7 @@
       buttons.forEach(function (button) {
         button.setAttribute('aria-pressed', button.getAttribute('data-type') === type ? 'true' : 'false');
       });
+      onPick(type);
     }
     var node = h('div', { class: 'ak-field' },
       h('span', { class: 'ak-label' }, L.copy.sheet.type),
@@ -53,6 +54,23 @@
     return h('div', { class: 'ak-field sync-failure' },
       h('p', { class: 'sync-reason', 'data-testid': 'sync-reason' }, entry.syncError || L.copy.sheet.syncErrorFallback),
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry-sync', onclick: onRetry }, L.copy.sheet.retrySync));
+  }
+
+  /** The sync block for a type: the sync line and any retry block, or nothing for a note (notes never sync). */
+  function syncBlock(values, type, onRetry) {
+    if (!L.days.showsSync(type)) return [];
+    return [syncLine(values.sync), syncFailure(values, onRetry)];
+  }
+
+  /** A holder for the sync block that is refilled when the type changes. */
+  function syncSlot(values, onRetry) {
+    var node = h('div', { class: 'sync-slot' });
+    function show(type) {
+      node.textContent = '';
+      syncBlock(values, type, onRetry).forEach(function (part) { if (part) node.appendChild(part); });
+    }
+    show(values.type);
+    return { node: node, show: show };
   }
 
   /** The starting values: the entry to edit, or a new task on the given day. */
@@ -89,9 +107,10 @@
     return '';
   }
 
-  /** The form: type grid, title, tag, date, time and the sync line. Returns the node and a reader of the values. */
+  /** The form: type grid, title, tag, date, time and the sync block (not for notes). Returns the node and a reader of the values. */
   function buildForm(values, onSubmit, onRetry) {
-    var grid = typeGrid(values.type);
+    var sync = syncSlot(values, onRetry);
+    var grid = typeGrid(values.type, sync.show);
     var controls = inputs(values);
     var node = h('form', { class: 'detail-form', id: FORM_ID, novalidate: true, onsubmit: function (event) {
       event.preventDefault();
@@ -102,8 +121,7 @@
       field(L.copy.sheet.tag, controls.tag),
       field(L.copy.sheet.date, controls.date),
       field(L.copy.sheet.time, controls.time),
-      syncLine(values.sync),
-      syncFailure(values, onRetry));
+      sync.node);
     return { node: node, controls: controls, read: function () { return readValues(controls, grid); } };
   }
 

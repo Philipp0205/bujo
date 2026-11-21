@@ -19,14 +19,19 @@
     });
   }
 
-  /** The tag (or "not synced" for a local entry without one), then the time, joined with a middle dot. */
+  /** Whether an entry of this type has a sync state to show. Notes never go to CalDAV, so they show none. */
+  function showsSync(type) {
+    return type !== 'note';
+  }
+
+  /** The tag (or "not synced" for a local entry without one, never for a note), then the time, joined with a middle dot. */
   function metaText(entry) {
     var parts = [];
     if (entry.tag) parts.push(entry.tag);
-    else if (entry.sync === 'local') parts.push(L.copy.notSynced);
+    else if (entry.sync === 'local' && showsSync(entry.type)) parts.push(L.copy.notSynced);
     if (entry.time) parts.push(entry.time);
     return parts.join(' \u00b7 ');
   }
 
-  L.days = { groupDays: groupDays, metaText: metaText };
+  L.days = { groupDays: groupDays, metaText: metaText, showsSync: showsSync };
 })();
