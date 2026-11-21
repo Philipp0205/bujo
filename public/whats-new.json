@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-android-back",
+    "date": "2026-11-21",
+    "title": "Back stays in the app",
+    "bullets": [
+      "On Android, Back now closes the open sheet, scan view or page instead of leaving the app.",
+      "The icon bar now hides when the keyboard closes."
+    ]
+  },
+  {
     "id": "2026-11-21-paper-cards",
     "date": "2026-11-21",
     "title": "Soft paper cards",

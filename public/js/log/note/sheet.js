@@ -1,7 +1,7 @@
 /*
  * The free-note sheet (mock 06 without Obsidian): one paper sheet to review a scanned note and to view or edit a saved one.
  * It edits title, day and markdown, saves through /api/entries (and stores the scan photo with the note), and copies the markdown.
- * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js.
+ * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js.
  */
 (function () {
   'use strict';
@@ -151,7 +151,7 @@
       head(options, function () { sheet.close(); }),
       h('div', { class: 'ak-sheet-scroll' }, slot, form),
       h('div', { class: 'ak-sheet-dock' }, save));
-    sheet = AppKit.sheet.show(node, {});
+    sheet = BujoNav.overlays.showSheet(node, {});
     return sheet;
   }
 

@@ -1,7 +1,7 @@
 /*
  * The scan review sheet (mock 05): the day, then one editable row per scanned line, then the apply button.
  * Rows are updated in place, never rebuilt, so a field keeps focus while the person types.
- * Needs ak-dom.js, ak-sheet.js, copy.js, scan/copy.js, scan/model.js, dates.js and glyph.js.
+ * Needs ak-dom.js, ak-sheet.js, nav/overlays.js, copy.js, scan/copy.js, scan/model.js, dates.js and glyph.js.
  */
 (function () {
   'use strict';
@@ -169,7 +169,7 @@
       h('div', { class: 'ak-sheet-scroll' }, slot, date.node, h('div', { class: 'scan-rows' }, rows.map(function (entry) { return entry.node; }))),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
-    sheet = AppKit.sheet.show(node, {});
+    sheet = BujoNav.overlays.showSheet(node, {});
     return sheet;
   }
 

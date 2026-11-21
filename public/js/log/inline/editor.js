@@ -1,7 +1,8 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
- * Needs markup.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, viewport.js, api.js, copy.js.
+ * Needs markup.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, viewport.js, keyboard.js, layers.js, api.js, copy.js.
+ * The bar hides when a keyboard that was up has closed (the sheet stays), and the phone's Back ends the edit (see layers.js).
  *
  * host: today(), draw() renders the page, upsert(entry) keeps the state in step with a saved entry,
  *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
@@ -67,6 +68,27 @@
     bar.show(active, caps());
   }
 
+  /** Tells the Back layers what is open now: the sheet while a line is active, and the bar popover. */
+  function syncLayers() {
+    L.inline.layers.update();
+  }
+
+  /** The bar goes with the keyboard: hidden once a keyboard that was up has closed, shown again when it comes back. */
+  function placeBar() {
+    var hide = L.inline.keyboard.isClosed();
+    quietly(function () { bar.setShown(!hide); });
+    syncLayers();
+  }
+
+  /** The visual viewport moved: the sheet follows the keyboard, the bar hides or shows with it, the card stays above the sheet. */
+  function onViewport() {
+    sheet.place();
+    if (!active) return;
+    L.inline.keyboard.track();
+    placeBar();
+    reveal();
+  }
+
   /** The card (or the add row) the sheet must not cover: the card of a saved entry, the end of the day for a new one. */
   function anchorNode() {
     if (!active) return null;
@@ -86,10 +108,11 @@
   /** The sheet follows the active line: shown with its draft, caret and focus, or hidden when nothing is being typed. */
   function sync(caret) {
     document.documentElement.classList.toggle('is-editing', !!active);
-    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); return; }
+    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); syncLayers(); return; }
     sheet.show();
     L.inline.row.update(active);
     showBar();
+    placeBar();
     var input = titleInput();
     if (input.value !== active.title) input.value = active.title;
     if (!document.activeElement || !document.activeElement.closest('.inline-bar')) focusTitle();
@@ -113,6 +136,7 @@
   /** Makes a line the active one and shows it in the sheet, focused. Runs inside the tap that asked for it, so the keyboard opens. */
   function start(line) {
     active = line;
+    L.inline.keyboard.reset();
     quietly(function () { bar.closePop(); });
     paint();
   }
@@ -253,6 +277,7 @@
   /** Closes the bar popover and gives the focus back to the title. */
   function closePop() {
     quietly(function () { bar.closePop(); });
+    syncLayers();
     focusTitle();
   }
 
@@ -341,6 +366,7 @@
     if (!active) return;
     if (bar.popKind() === kind) { closePop(); return; }
     bar.openPop(kind, active, choices());
+    syncLayers();
     if (kind === 'tag') bar.popInput().focus();
   }
 
@@ -411,10 +437,13 @@
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('mouseup', function () { window.setTimeout(releaseBlur, 0); }, true);
-    L.inline.viewport.follow(function () {
-      sheet.place();
-      if (active) reveal();
+    L.inline.layers.init({
+      editing: function () { return !!active; },
+      popOpen: bar.popOpen,
+      commit: function () { return commit(false); },
+      closePop: closePop
     });
+    L.inline.viewport.follow(onViewport);
   }
 
   L.inline.editor = {

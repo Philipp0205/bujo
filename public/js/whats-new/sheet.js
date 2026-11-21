@@ -1,7 +1,7 @@
 /*
  * The what's-new sheet: dated entries with a title and bullets, in an AppKit.sheet. Text only, built with textContent
  * (AppKit.h text nodes), never innerHTML. options.paper picks the paper look of the log, else the plain look of settings.
- * Needs ak-dom.js, ak-sheet.js, ak-whats-new.js and copy.js.
+ * Needs ak-dom.js, ak-sheet.js, ak-whats-new.js, nav/overlays.js and copy.js.
  */
 (function () {
   'use strict';
@@ -46,7 +46,7 @@
   function open(options) {
     var sheet = null;
     var node = build(options, function () { if (sheet) sheet.close(); });
-    sheet = AppKit.sheet.show(node, { onClose: options.onClose });
+    sheet = BujoNav.overlays.showSheet(node, { onClose: options.onClose });
     return sheet;
   }
 

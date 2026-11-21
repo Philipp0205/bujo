@@ -1,7 +1,7 @@
 /*
  * The photo of a free note on its sheet: a thumbnail row, and a full-size view over the page when it is tapped.
  * The view is its own paper layer, not a kit sheet, because the kit shows one sheet at a time and the note sheet stays open under it.
- * Needs ak-dom.js, copy.js and glyph.js.
+ * Needs ak-dom.js, copy.js, glyph.js and nav/overlays.js. The view is a Back layer: the phone's Back closes it and leaves the note sheet open.
  */
 (function () {
   'use strict';
@@ -19,6 +19,7 @@
     opened = null;
     window.removeEventListener('keydown', view.onKey, true);
     view.node.remove();
+    BujoNav.overlays.release('photo');
     if (view.opener && view.opener.focus) view.opener.focus({ preventScroll: true });
   }
 
@@ -41,6 +42,7 @@
     window.addEventListener('keydown', onKey, true);
     document.body.appendChild(node);
     close.focus({ preventScroll: true });
+    BujoNav.overlays.open('photo', closeView);
   }
 
   /** The labelled thumbnail of a note photo. A tap opens the full-size view. */

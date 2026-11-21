@@ -39,5 +39,5 @@
     window.visualViewport.addEventListener('scroll', onChange);
   }
 
-  L.inline.viewport = { place: place, reveal: reveal, follow: follow };
+  L.inline.viewport = { keyboardGap: keyboardGap, place: place, reveal: reveal, follow: follow };
 })();
