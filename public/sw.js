@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v23',
+  version: 'v24',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -36,7 +36,9 @@ AppKitSW.setup({
     '/js/notes/main.js',
     '/js/backlog.js',
     '/js/log/copy.js',
+    '/js/log/date-token.js',
     '/js/log/markup.js',
+    '/js/log/tags.js',
     '/js/log/dates.js',
     '/js/log/days.js',
     '/js/log/ink/path.js',
@@ -45,6 +47,12 @@ AppKitSW.setup({
     '/js/log/api.js',
     '/js/log/view.js',
     '/js/log/sheet.js',
+    '/js/log/suggest/fuzzy.js',
+    '/js/log/suggest/dates.js',
+    '/js/log/suggest/token.js',
+    '/js/log/suggest/pool.js',
+    '/js/log/suggest/options.js',
+    '/js/log/suggest/strip.js',
     '/js/log/inline/model.js',
     '/js/log/inline/viewport.js',
     '/js/log/inline/keyboard.js',
@@ -52,6 +60,7 @@ AppKitSW.setup({
     '/js/log/inline/pop.js',
     '/js/log/inline/bar.js',
     '/js/log/inline/edit-sheet.js',
+    '/js/log/inline/complete.js',
     '/js/log/inline/layers.js',
     '/js/log/inline/editor.js',
     '/js/log/note/model.js',

@@ -24,16 +24,36 @@ test("/api/entries needs a browser session", async () => {
 test("POST creates an entry with sync local, at the end of its day", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
-    const first = await api(base, "POST", "/api/entries", { body: { ...NEW, title: "  eins  ", tag: " Reise " }, headers });
+    const first = await api(base, "POST", "/api/entries", { body: { ...NEW, title: "  eins  ", tags: [" Reise ", "work", "reise"] }, headers });
     assert.equal(first.status, 201);
     assert.deepEqual(
-      { title: first.json.entry.title, tag: first.json.entry.tag, sync: first.json.entry.sync, position: first.json.entry.position, time: first.json.entry.time },
-      { title: "eins", tag: "Reise", sync: "local", position: 0, time: null },
+      { title: first.json.entry.title, tags: first.json.entry.tags, sync: first.json.entry.sync, position: first.json.entry.position, time: first.json.entry.time },
+      { title: "eins", tags: ["Reise", "work"], sync: "local", position: 0, time: null },
     );
     const second = await api(base, "POST", "/api/entries", { body: { ...NEW, type: "event", time: "13:00", title: "zwei" }, headers });
     assert.equal(second.json.entry.position, 1);
     assert.equal(second.json.entry.time, "13:00");
+    assert.deepEqual(second.json.entry.tags, []);
     assert.equal(first.json.entry.userId, undefined);
+  });
+});
+
+test("GET /api/tags lists each tag once with its count and last use, newest first, session only", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    assert.equal((await api(base, "GET", "/api/tags")).status, 401);
+    const signed = await signUp(base);
+    const { headers } = signed;
+    assert.deepEqual((await api(base, "GET", "/api/tags", { headers })).json, { tags: [] });
+    const add = (title: string, tags: string[]) => api(base, "POST", "/api/entries", { body: { ...NEW, title, tags }, headers });
+    await add("a", ["Reise", "work"]);
+    await add("b", ["reise"]);
+    await add("c", ["Küche"]);
+    const listed = await api(base, "GET", "/api/tags", { headers });
+    assert.equal(listed.status, 200);
+    assert.deepEqual(listed.json.tags.map((item: { tag: string; count: number }) => [item.tag.toLowerCase(), item.count]).sort(), [["küche", 1], ["reise", 2], ["work", 1]]);
+    for (const item of listed.json.tags) assert.equal(typeof item.lastUsed, "number");
+    const { token } = await makeToken(base, signed, "read");
+    assert.equal((await api(base, "GET", "/api/tags", { headers: { authorization: `Bearer ${token}` } })).status, 403);
   });
 });
 
@@ -91,17 +111,20 @@ test("GET refuses a missing, bad, reversed or too wide range", async () => {
 test("PATCH edits an entry, 404 for an unknown id, and clients cannot set sync", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
-    const made = (await api(base, "POST", "/api/entries", { body: { ...NEW, tag: "Reise", time: "09:00" }, headers })).json.entry;
+    const made = (await api(base, "POST", "/api/entries", { body: { ...NEW, tags: ["Reise", "work"], time: "09:00" }, headers })).json.entry;
 
     const edited = await api(base, "PATCH", `/api/entries/${made.id}`, {
-      body: { title: " Koffer packen ", type: "done", date: "2026-11-21", time: null, tag: "" },
+      body: { title: " Koffer packen ", type: "done", date: "2026-11-21", time: null, tags: [] },
       headers,
     });
     assert.equal(edited.status, 200);
     assert.deepEqual(
-      { title: edited.json.entry.title, type: edited.json.entry.type, date: edited.json.entry.date, time: edited.json.entry.time, tag: edited.json.entry.tag, sync: edited.json.entry.sync },
-      { title: "Koffer packen", type: "done", date: "2026-11-21", time: null, tag: null, sync: "local" },
+      { title: edited.json.entry.title, type: edited.json.entry.type, date: edited.json.entry.date, time: edited.json.entry.time, tags: edited.json.entry.tags, sync: edited.json.entry.sync },
+      { title: "Koffer packen", type: "done", date: "2026-11-21", time: null, tags: [], sync: "local" },
     );
+    const retagged = await api(base, "PATCH", `/api/entries/${made.id}`, { body: { tags: ["b", "a"] }, headers });
+    assert.deepEqual(retagged.json.entry.tags, ["b", "a"], "the order is kept");
+    assert.equal((await api(base, "PATCH", `/api/entries/${made.id}`, { body: { time: "10:00" }, headers })).json.entry.tags.length, 2, "an edit of another field keeps the tags");
     const listed = await api(base, "GET", "/api/entries?from=2026-11-20&to=2026-11-21", { headers });
     assert.equal(listed.json.entries[0].title, "Koffer packen");
 
@@ -120,7 +143,11 @@ test("bad input is a 400 with an error message", async () => {
       {},
       { ...NEW, title: "   " },
       { ...NEW, title: "x".repeat(201) },
-      { ...NEW, tag: "t".repeat(41) },
+      { ...NEW, tags: ["t".repeat(41)] },
+      { ...NEW, tags: Array.from({ length: 11 }, (_, i) => `t${i}`) },
+      { ...NEW, tags: "Reise" },
+      { ...NEW, tags: null },
+      { ...NEW, tag: "Reise" },
       { ...NEW, date: "20.11.2026" },
       { ...NEW, type: "idea" },
       { ...NEW, time: "25:61" },
@@ -131,7 +158,7 @@ test("bad input is a 400 with an error message", async () => {
       assert.equal(result.status, 400, JSON.stringify(body));
       assert.equal(typeof result.json.error, "string");
     }
-    for (const body of [{}, { title: "" }, { type: "idea" }, { date: "tomorrow" }, { time: "9" }, { indent: 2 }, { indent: "1" }]) {
+    for (const body of [{}, { title: "" }, { type: "idea" }, { date: "tomorrow" }, { time: "9" }, { indent: 2 }, { indent: "1" }, { tag: "Reise" }, { tags: "Reise" }, { tags: [1] }]) {
       assert.equal((await api(base, "PATCH", `/api/entries/${made.id}`, { body, headers })).status, 400, JSON.stringify(body));
     }
     assert.equal((await api(base, "POST", "/api/entries", { body: { ...NEW, indent: 1 }, headers })).status, 400);

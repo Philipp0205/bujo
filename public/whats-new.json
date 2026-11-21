@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-autocomplete",
+    "date": "2026-11-21",
+    "title": "Tags and days that complete themselves",
+    "bullets": [
+      "Type # or @ in an entry and suggestions appear above the keyboard: your own tags, or days like @morgen, @mo and @23.11.",
+      "An entry can carry several tags now, and the Tag key opens a search that finds a tag even when you type it roughly."
+    ]
+  },
+  {
     "id": "2026-11-21-settings-theme",
     "date": "2026-11-21",
     "title": "Settings on paper, and a theme choice",

@@ -37,20 +37,24 @@
     return showsSync(entry.type) && (entry.sync === 'local' || entry.sync === 'error');
   }
 
-  /** The pills under a title as { kind, text }: tag, time, then a quiet "not synced" for a local entry without a tag (never a note). */
+  /** One tag pill per tag, in the order they were written. */
+  function tagPills(tags) {
+    return (tags || []).map(function (tag) { return { kind: 'tag', text: tag }; });
+  }
+
+  /** The pills under a title as { kind, text }: the tags, time, then a quiet "not synced" for a local entry without tags (never a note). */
   function entryPills(entry) {
-    var pills = [];
-    if (entry.tag) pills.push({ kind: 'tag', text: entry.tag });
+    var pills = tagPills(entry.tags);
     if (entry.time) pills.push({ kind: 'time', text: entry.time });
-    if (!entry.tag && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
+    if (!pills.some(function (pill) { return pill.kind === 'tag'; }) && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
     return pills;
   }
 
-  /** The chips of a line being edited: its day when it differs from the day it sits in, then tag and time. No sync words. */
+  /** The chips of a line being edited: its day when it differs from the day it sits in, then the tags and time. No sync words. */
   function editPills(line) {
     var pills = [];
     if (line.date !== line.home) pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
-    if (line.tag) pills.push({ kind: 'tag', text: line.tag });
+    pills = pills.concat(tagPills(line.tags));
     if (line.time) pills.push({ kind: 'time', text: line.time });
     return pills;
   }

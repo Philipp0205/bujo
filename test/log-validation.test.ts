@@ -8,6 +8,7 @@ import {
   isValidTime,
   RANGE_MAX_DAYS,
   TAG_MAX,
+  TAGS_MAX,
   TITLE_MAX,
 } from "../src/log/validation.ts";
 
@@ -37,18 +38,23 @@ test("checkRange: a good range, a reversed one, a bad date and the span cap", ()
   assert.equal(RANGE_MAX_DAYS, 92);
 });
 
-test("checkNewEntry trims, defaults tag and time to null and keeps the rest", () => {
-  const checked = checkNewEntry({ date: "2026-11-20", type: "event", title: "  Lunch mit Mira  ", tag: " Freizeit ", time: "13:00" });
-  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", type: "event", title: "Lunch mit Mira", tag: "Freizeit", time: "13:00", body: null } });
+test("checkNewEntry trims, defaults tags and time to none and keeps the rest", () => {
+  const checked = checkNewEntry({ date: "2026-11-20", type: "event", title: "  Lunch mit Mira  ", tags: [" Freizeit ", "Mira"], time: "13:00" });
+  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", type: "event", title: "Lunch mit Mira", tags: ["Freizeit", "Mira"], time: "13:00", body: null } });
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß", tag: null, time: null, body: null },
+    value: { date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß", tags: [], time: null, body: null },
   });
-  // A blank tag or time means none.
-  assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "note", title: "x", tag: "   ", time: "" }), {
+  // An empty tag list and a blank time mean none.
+  assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "note", title: "x", tags: [], time: "" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "note", title: "x", tag: null, time: null, body: null },
+    value: { date: "2026-11-20", type: "note", title: "x", tags: [], time: null, body: null },
   });
+});
+
+test("checkNewEntry drops a repeated tag ignoring case and keeps the first spelling and the order", () => {
+  const checked = checkNewEntry({ date: "2026-11-20", type: "task", title: "x", tags: ["Reise", "work", "reise", " WORK ", "Küche"] });
+  assert.deepEqual(checked.ok && checked.value.tags, ["Reise", "work", "Küche"]);
 });
 
 test("checkNewEntry refuses missing, empty, long, malformed and unknown input", () => {
@@ -61,8 +67,13 @@ test("checkNewEntry refuses missing, empty, long, malformed and unknown input", 
     { ...base, title: 5 },
     { ...base, title: "x".repeat(TITLE_MAX + 1) },
     { ...base, title: "two\nlines" },
-    { ...base, tag: "t".repeat(TAG_MAX + 1) },
-    { ...base, tag: 7 },
+    { ...base, tags: ["t".repeat(TAG_MAX + 1)] },
+    { ...base, tags: [7] },
+    { ...base, tags: ["a", ""] },
+    { ...base, tags: ["a\nb"] },
+    { ...base, tags: "Reise" },
+    { ...base, tags: null },
+    { ...base, tag: "Reise" },
     { ...base, date: "20.11.2026" },
     { ...base, type: "idea" },
     { ...base, time: "25:00" },
@@ -71,12 +82,27 @@ test("checkNewEntry refuses missing, empty, long, malformed and unknown input", 
   ];
   for (const body of refused) assert.equal(checkNewEntry(body).ok, false, JSON.stringify(body));
   assert.equal(checkNewEntry({ ...base, title: "x".repeat(TITLE_MAX) }).ok, true);
+  assert.equal(checkNewEntry({ ...base, tags: ["t".repeat(TAG_MAX)] }).ok, true);
 });
 
-test("checkEntryPatch keeps only the keys given and lets null clear a tag or time", () => {
+test("the old single tag field is refused with a message that names tags", () => {
+  const checked = checkNewEntry({ date: "2026-11-20", type: "task", title: "x", tag: "Reise" });
+  assert.deepEqual(checked, { ok: false, error: "tag is gone: send tags, a list of text" });
+  assert.equal(checkEntryPatch({ tag: null }).ok, false);
+});
+
+test("a list may hold TAGS_MAX tags and no more", () => {
+  const base = { date: "2026-11-20", type: "task", title: "x" };
+  const tags = (count: number) => Array.from({ length: count }, (_, i) => `t${i}`);
+  assert.equal(checkNewEntry({ ...base, tags: tags(TAGS_MAX) }).ok, true);
+  const over = checkNewEntry({ ...base, tags: tags(TAGS_MAX + 1) });
+  assert.deepEqual(over, { ok: false, error: `tags has too many entries (at most ${TAGS_MAX})` });
+});
+
+test("checkEntryPatch keeps only the keys given and lets an empty list or null clear tags and time", () => {
   assert.deepEqual(checkEntryPatch({ title: " New " }), { ok: true, value: { title: "New" } });
-  assert.deepEqual(checkEntryPatch({ tag: null, time: null }), { ok: true, value: { tag: null, time: null } });
-  assert.deepEqual(checkEntryPatch({ tag: "", time: "" }), { ok: true, value: { tag: null, time: null } });
+  assert.deepEqual(checkEntryPatch({ tags: [], time: null }), { ok: true, value: { tags: [], time: null } });
+  assert.deepEqual(checkEntryPatch({ tags: ["a", "b"], time: "" }), { ok: true, value: { tags: ["a", "b"], time: null } });
   assert.deepEqual(checkEntryPatch({ type: "done", date: "2026-11-21" }), { ok: true, value: { type: "done", date: "2026-11-21" } });
 });
 

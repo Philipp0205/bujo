@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
-import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange } from "./types.ts";
+import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
 
 type Row = {
   id: string;
@@ -8,7 +8,7 @@ type Row = {
   time: string | null;
   type: Entry["type"];
   title: string;
-  tag: string | null;
+  tags_json: string;
   body: string | null;
   has_photo: number;
   sync: Entry["sync"];
@@ -23,7 +23,7 @@ type ScanRow = Row & {
   scan_key: string | null;
   scan_type: Entry["type"] | null;
   scan_title: string | null;
-  scan_tag: string | null;
+  scan_tags: string | null;
   scan_time: string | null;
   scan_at: number | null;
 };
@@ -43,6 +43,8 @@ export type EntryStore = {
    */
   setScanProvenance(userId: string, id: string, snapshot: ScanSnapshot): void;
   get(userId: string, id: string): Entry | undefined;
+  /** The tags in use, with how many entries carry each and when one last changed. Newest use first, then by name. */
+  listTags(userId: string): TagUse[];
   /** A new entry goes to the end of its day, with sync "local". */
   create(userId: string, input: NewEntry, now: number): Entry;
   /**
@@ -68,21 +70,33 @@ export type EntryStore = {
   failPending(message: string): void;
 };
 
-/** The entry columns, plus a flag for a stored photo (the bytes are never selected here). */
+/** The entry columns, plus the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
-  "id, date, time, type, title, tag, body, sync, sync_error, position, indent, created_at, updated_at, " +
+  "id, date, time, type, title, body, sync, sync_error, position, indent, created_at, updated_at, " +
+  "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
 
 /** The order of a day: by position, and by creation time for entries that share a position. */
 const DAY_ORDER = "ORDER BY position, created_at, id";
 
 /** The scan provenance columns, selected next to COLUMNS by listScan. */
-const SCAN_COLUMNS = "scan_key, scan_type, scan_title, scan_tag, scan_time, scan_at";
+const SCAN_COLUMNS = "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at";
+
+/** A JSON list of text from the database, or an empty list when it is missing or not one. */
+function parseTags(json: string | null): string[] {
+  if (json === null) return [];
+  try {
+    const value: unknown = JSON.parse(json);
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 /** The snapshot of a row, or null when no scan has been applied to it. */
 function toSnapshot(row: ScanRow): ScanSnapshot | null {
   if (row.scan_key === null || row.scan_type === null || row.scan_title === null || row.scan_at === null) return null;
-  return { key: row.scan_key, type: row.scan_type, title: row.scan_title, tag: row.scan_tag, time: row.scan_time, at: Number(row.scan_at) };
+  return { key: row.scan_key, type: row.scan_type, title: row.scan_title, tags: parseTags(row.scan_tags), time: row.scan_time, at: Number(row.scan_at) };
 }
 
 function toEntry(row: Row): Entry {
@@ -92,7 +106,7 @@ function toEntry(row: Row): Entry {
     time: row.time,
     type: row.type,
     title: row.title,
-    tag: row.tag,
+    tags: parseTags(row.tags_json),
     body: row.body ?? null,
     hasPhoto: Number(row.has_photo) === 1,
     sync: row.sync,
@@ -104,8 +118,32 @@ function toEntry(row: Row): Entry {
   };
 }
 
+/**
+ * One use per tag, ignoring case: the spelling of the newest use, how many entries carry it, and the newest change.
+ * Newest first, then by name.
+ */
+function tagUses(rows: ReadonlyArray<{ tag: string; updated_at: number }>): TagUse[] {
+  const byKey = new Map<string, TagUse>();
+  for (const row of rows) {
+    const key = row.tag.toLowerCase();
+    const at = Number(row.updated_at);
+    const seen = byKey.get(key);
+    if (!seen) byKey.set(key, { tag: row.tag, count: 1, lastUsed: at });
+    else if (at > seen.lastUsed) byKey.set(key, { tag: row.tag, count: seen.count + 1, lastUsed: at });
+    else seen.count += 1;
+  }
+  return [...byKey.values()].sort((a, b) => b.lastUsed - a.lastUsed || a.tag.localeCompare(b.tag));
+}
+
 /** The entries table, always scoped to one user. */
 export function createEntryStore(db: Db): EntryStore {
+  /** Replaces the tags of an entry with this list, in order. */
+  function writeTags(id: string, tags: readonly string[]): void {
+    db.prepare("DELETE FROM entry_tags WHERE entry_id = ?").run(id);
+    const insert = db.prepare("INSERT INTO entry_tags (entry_id, position, tag) VALUES (?, ?, ?)");
+    tags.forEach((tag, position) => insert.run(id, position, tag));
+  }
+
   function nextPosition(userId: string, date: string): number {
     const row = db.prepare("SELECT MAX(position) AS top FROM entries WHERE user_id = ? AND date = ?").get(userId, date) as {
       top: number | null;
@@ -166,11 +204,11 @@ export function createEntryStore(db: Db): EntryStore {
     },
 
     setScanProvenance(userId, id, snapshot) {
-      db.prepare("UPDATE entries SET scan_key = ?, scan_type = ?, scan_title = ?, scan_tag = ?, scan_time = ?, scan_at = ? WHERE user_id = ? AND id = ?").run(
+      db.prepare("UPDATE entries SET scan_key = ?, scan_type = ?, scan_title = ?, scan_tags = ?, scan_time = ?, scan_at = ? WHERE user_id = ? AND id = ?").run(
         snapshot.key,
         snapshot.type,
         snapshot.title,
-        snapshot.tag,
+        JSON.stringify(snapshot.tags),
         snapshot.time,
         snapshot.at,
         userId,
@@ -178,11 +216,21 @@ export function createEntryStore(db: Db): EntryStore {
       );
     },
 
+    listTags(userId) {
+      const rows = db
+        .prepare("SELECT t.tag AS tag, e.updated_at AS updated_at FROM entry_tags t JOIN entries e ON e.id = t.entry_id WHERE e.user_id = ?")
+        .all(userId) as Array<{ tag: string; updated_at: number }>;
+      return tagUses(rows);
+    },
+
     create(userId, input, now) {
       const id = crypto.randomUUID();
-      db.prepare(
-        "INSERT INTO entries (id, user_id, date, time, type, title, tag, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      ).run(id, userId, input.date, input.time, input.type, input.title, input.tag, input.body ?? null, nextPosition(userId, input.date), now, now);
+      inTransaction(db, () => {
+        db.prepare(
+          "INSERT INTO entries (id, user_id, date, time, type, title, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ).run(id, userId, input.date, input.time, input.type, input.title, input.body ?? null, nextPosition(userId, input.date), now, now);
+        writeTags(id, input.tags);
+      });
       return get(userId, id)!;
     },
 
@@ -193,19 +241,21 @@ export function createEntryStore(db: Db): EntryStore {
       const sameDay = next.date === current.date;
       const position = sameDay ? current.position : nextPosition(userId, next.date);
       const indent = sameDay ? next.indent : (patch.indent ?? 0);
-      db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, tag = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
-        next.date,
-        next.time,
-        next.type,
-        next.title,
-        next.tag,
-        next.body,
-        position,
-        indent,
-        now,
-        userId,
-        id,
-      );
+      inTransaction(db, () => {
+        db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+          next.date,
+          next.time,
+          next.type,
+          next.title,
+          next.body,
+          position,
+          indent,
+          now,
+          userId,
+          id,
+        );
+        if (patch.tags !== undefined) writeTags(id, patch.tags);
+      });
       settleIndent(userId, get(userId, id)!);
       if (!sameDay) renumber(userId, dayIds(userId, current.date));
       return get(userId, id);

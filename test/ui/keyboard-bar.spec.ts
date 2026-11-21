@@ -15,7 +15,7 @@ function day(offset: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-type Entry = { id: string; title: string; tag: string | null; time: string | null; indent: number };
+type Entry = { id: string; title: string; tags: string[]; time: string | null; indent: number };
 
 /** Entries of one day as the API holds them, in order. Each test uses its own day, so tests do not see each other. */
 async function stored(page: Page, offset: number): Promise<Entry[]> {
@@ -142,7 +142,7 @@ test("a #tag and a time typed into a line become pills and leave the title", asy
   await expect(saved.locator(".paper-title")).toHaveText("Zahnarzt");
   await expect(saved.locator(".pill")).toHaveText(["health", "14:30"]);
   const entry = (await stored(page, 0)).find((item) => item.title === "Zahnarzt")!;
-  expect(entry).toMatchObject({ tag: "health", time: "14:30" });
+  expect(entry).toMatchObject({ tags: ["health"], time: "14:30" });
 });
 
 test("a tag at the very end is read when the line is saved", async ({ page }) => {

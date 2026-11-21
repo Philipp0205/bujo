@@ -32,9 +32,9 @@ async function seedNested(page: Page): Promise<void> {
     expect(response.status()).toBe(201);
     return ((await response.json()) as { entry: { id: string } }).entry;
   };
-  await make({ type: "task", title: "Zahnarzt anrufen", tag: "health", time: "14:30" });
+  await make({ type: "task", title: "Zahnarzt anrufen", tags: ["health"], time: "14:30" });
   const child = await make({ type: "task", title: "Rechnung prüfen" });
-  await make({ type: "event", title: "Mittagessen mit Mira", tag: "friends", time: "12:15" });
+  await make({ type: "event", title: "Mittagessen mit Mira", tags: ["friends"], time: "12:15" });
   const patch = await page.request.patch(`${app.baseUrl}/api/entries/${child.id}`, { data: { indent: 1 } });
   expect(patch.status()).toBe(200);
 }
@@ -133,9 +133,9 @@ test("the edit sheet is inked: a wobbly top, a handle, a rule above the bar and 
   await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("work");
   await page.keyboard.press("Enter");
-  await expect(sheet.locator(".sheet-chips .pill-tag")).toHaveText("work");
-  await expect(sheet.locator(".sheet-chips .pill > svg.ink-stroke")).toHaveCount(2);
-  await expect(sheet.locator(".sheet-chips .pill-tag > svg.ink-stroke")).toHaveCount(1);
+  await expect(sheet.locator(".sheet-chips .pill-tag")).toHaveText(["friends", "work"]);
+  await expect(sheet.locator(".sheet-chips .pill > svg.ink-stroke")).toHaveCount(3);
+  await expect(sheet.locator(".sheet-chips .pill-tag > svg.ink-stroke")).toHaveCount(2);
 
   // The sheet is solid and the list behind it is dimmed.
   expect(await sheet.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");

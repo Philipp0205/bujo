@@ -232,7 +232,7 @@ test("a rescan after an app edit does not overwrite the edit", async ({ page }) 
   const stored = await page.request.get(`${app.baseUrl}/api/entries?from=${day(0)}&to=${day(0)}`);
   const made = (await stored.json()).entries.find((entry: { title: string }) => entry.title === "Gartentor streichen");
   await page.waitForTimeout(10);
-  expect((await page.request.patch(`${app.baseUrl}/api/entries/${made.id}`, { data: { type: "migrated", tag: "Haushalt" } })).status()).toBe(200);
+  expect((await page.request.patch(`${app.baseUrl}/api/entries/${made.id}`, { data: { type: "migrated", tags: ["Haushalt"] } })).status()).toBe(200);
 
   await scanPage(page, [headerLine(day(0)), line("•", "Gartentor streichen", 0.9), line("•", "Eier holen", 0.9)]);
   await expect(page.getByTestId("scan-unchanged")).toContainText("1 unchanged");

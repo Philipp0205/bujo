@@ -25,8 +25,9 @@ function methodNotAllowed(allow: string): never {
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
+ *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day
- *   PATCH /api/entries/:id         change date, type, title, tag, time, indent (0 or 1) or body (the markdown of a free note, null when none)
+ *   PATCH /api/entries/:id         change date, type, title, tags (a list, empty when none), time, indent (0 or 1) or body (the markdown of a free note, null when none)
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
@@ -36,6 +37,7 @@ function methodNotAllowed(allow: string): never {
  */
 export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   const { req, res, url, method, pathname, accounts, who } = ctx;
+  if (pathname === "/api/tags") return listTags(ctx);
   if (pathname !== "/api/entries" && !pathname.startsWith("/api/entries/")) return false;
   const session = requireSession(who);
   const store = createEntryStore(accounts.db);
@@ -76,6 +78,14 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch, entry) ? ctx.sync.enqueue(userId, entry) : entry });
+  return true;
+}
+
+/** GET /api/tags answers the tags the log uses, for the autocomplete. Rapid-log tags only, not the backlog's. */
+function listTags(ctx: RouteContext): boolean {
+  const session = requireSession(ctx.who);
+  if (!isRead(ctx.method)) methodNotAllowed("GET");
+  sendJson(ctx.res, 200, { tags: createEntryStore(ctx.accounts.db).listTags(session.user.id) });
   return true;
 }
 

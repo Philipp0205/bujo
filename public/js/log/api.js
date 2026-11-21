@@ -37,6 +37,13 @@
     });
   }
 
+  /** The tags in use, newest first: [{ tag, count, lastUsed }]. Feeds the autocomplete. */
+  function listTags() {
+    return call('GET', '/api/tags').then(function (body) {
+      return body.tags;
+    });
+  }
+
   /** Removes an entry from the log (never from Nextcloud). Resolves with the entries left in its day. */
   function remove(id) {
     return call('DELETE', '/api/entries/' + encodeURIComponent(id)).then(function (body) {
@@ -70,5 +77,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listNotes: listNotes, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

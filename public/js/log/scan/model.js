@@ -48,7 +48,8 @@
       id: line.id,
       type: line.type,
       title: line.title,
-      tag: line.tag || '',
+      tags: (line.tags || []).slice(),
+      tagText: L.tags.join(line.tags || []),
       time: line.time || null,
       confidence: line.confidence,
       noBullet: line.noBullet,
@@ -133,8 +134,13 @@
     return Math.round(item.confidence * 100);
   }
 
+  /** The tags a row holds: its text field read as a list. A field left as shown keeps the original list. */
+  function tagsOf(item) {
+    return L.tags.fromField(item.tagText, item.tags);
+  }
+
   function lineBody(item) {
-    return { id: item.id, type: item.type, title: item.title.trim(), tag: item.tag.trim() || null, time: item.time };
+    return { id: item.id, type: item.type, title: item.title.trim(), tags: tagsOf(item), time: item.time };
   }
 
   /** The body of a check: every line, edits included. */
@@ -155,15 +161,16 @@
     return { date: state.date, items: items };
   }
 
-  /** What the "was" row shows of an edited line: the old type and title, plus the old tag or time when the paper writes a different one. */
+  /** What the "was" row shows of an edited line: the old type and title, plus the old tags or time when the paper writes different ones. */
   function changedFields(item) {
     var before = item.before;
     if (item.status !== 'edited' || !before) return null;
-    var tag = item.tag.trim();
+    var tags = tagsOf(item);
+    var was = before.tags || [];
     return {
       type: before.type,
       title: before.title,
-      tag: tag && before.tag !== tag ? { value: before.tag } : null,
+      tags: tags.length && !L.tags.same(was, tags) ? { value: was } : null,
       time: item.time && before.time !== item.time ? { value: before.time } : null
     };
   }

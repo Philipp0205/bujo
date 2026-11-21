@@ -65,8 +65,8 @@ test("the store keeps body, a patch edits it, and an entry without one stays nul
   const db = openDb(":memory:");
   db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES ('u', 'P', 'h', 1)").run();
   const store = createEntryStore(db);
-  const short = store.create("u", { date: DAY, type: "note", title: "kurz", tag: null, time: null }, 1);
-  const note = store.create("u", { date: DAY, type: "note", title: "lang", tag: null, time: null, body: "# lang\n- eins" }, 2);
+  const short = store.create("u", { date: DAY, type: "note", title: "kurz", tags: [], time: null }, 1);
+  const note = store.create("u", { date: DAY, type: "note", title: "lang", tags: [], time: null, body: "# lang\n- eins" }, 2);
   assert.equal(short.body, null);
   assert.equal(note.body, "# lang\n- eins");
   assert.equal(store.update("u", note.id, { body: "# lang\n- zwei" }, 3)!.body, "# lang\n- zwei");
@@ -151,7 +151,7 @@ test("a free note is never queued for CalDAV: the sync service leaves it local a
   db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES ('u', 'P', 'h', 1)").run();
   try {
     const service = createSyncService({ db, caldav: loadCalDavConfig(syncEnv(fake))!, sync: { ...SYNC_SETTINGS }, log: () => undefined });
-    const note = createEntryStore(db).create("u", { date: DAY, type: "note", title: "Notiz", tag: null, time: null, body: "# Notiz" }, 1);
+    const note = createEntryStore(db).create("u", { date: DAY, type: "note", title: "Notiz", tags: [], time: null, body: "# Notiz" }, 1);
     const answered = service.enqueue("u", note);
     await service.idle();
     assert.equal(answered.sync, "local");

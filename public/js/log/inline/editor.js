@@ -1,10 +1,10 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
- * Needs markup.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, viewport.js, keyboard.js, layers.js, api.js, copy.js.
+ * Needs markup.js, tags.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js.
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
- * host: today(), draw() renders the page, upsert(entry) keeps the state in step with a saved entry,
+ * host: today(), draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
  *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
  *       openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
@@ -122,7 +122,7 @@
   /** The sheet follows the active line: shown with its draft, caret and focus, or hidden when nothing is being typed. */
   function sync(caret) {
     document.documentElement.classList.toggle('is-editing', !!active);
-    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); syncLayers(); return; }
+    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); L.inline.complete.hide(); syncLayers(); return; }
     sheet.show();
     L.inline.row.update(active);
     showBar();
@@ -152,6 +152,8 @@
   function start(line) {
     active = line;
     L.inline.keyboard.reset();
+    L.inline.complete.hide();
+    L.suggest.pool.refresh();
     quietly(function () { bar.closePop(); });
     paint();
   }
@@ -220,9 +222,9 @@
     return line.saving;
   }
 
-  /** Reads the written #tag and time of the line before it is saved, and shows the cleaned title. */
+  /** Reads the written #tags, day and time of the line before it is saved, and shows the cleaned title. */
   function settleMarkup(line) {
-    model.settle(line);
+    model.settle(line, markupContext());
     var input = titleInput();
     if (input && input.value !== line.title) L.inline.row.setTitle(input, line.title);
     L.inline.row.update(line);
@@ -266,28 +268,67 @@
     });
   }
 
+  /** The tags the person already uses: the server's list merged with the entries on screen. */
+  function tagPool() {
+    return L.suggest.pool.items(host.entries());
+  }
+
+  /** What reading the markup of a line needs: the day "@morgen" counts from and the spelling of known tags. */
+  function markupContext() {
+    return { today: host.today(), known: tagPool() };
+  }
+
   /** True when the caret sits after the last character, so cleaning the text cannot jump the caret. */
   function caretAtEnd(input, value) {
     return !!input && input.selectionStart === value.length && input.selectionEnd === value.length;
   }
 
+  /** Shows the suggestions for the word at the caret, or hides them (no line, a popover open, an IME composing). */
+  function refreshStrip(composing) {
+    var input = titleInput();
+    var live = active && !bar.popOpen() && input === document.activeElement;
+    if (live) L.inline.complete.update(active, input, composing);
+    else L.inline.complete.hide();
+  }
+
+  /** The text of a written #tag or @date, moved into the line. Cleans the input when the caret is at the end. */
+  function absorbTyped(value, composing) {
+    var input = titleInput();
+    var context = markupContext();
+    var cleaned = !composing && caretAtEnd(input, value) && model.absorb(active, value, { final: false, today: context.today, known: context.known });
+    if (cleaned) {
+      L.inline.row.setTitle(input, active.title);
+      input.setSelectionRange(active.title.length, active.title.length);
+    }
+    return !!cleaned;
+  }
+
   /**
-   * Every keystroke lands in the draft, so a redraw never loses it. A shown error goes away. A tag or time written at the
+   * Every keystroke lands in the draft, so a redraw never loses it. A shown error goes away. A tag, day or time written at the
    * end of the line becomes a pill as soon as its word is finished (not while the person composes with an IME).
    */
   function typed(value, composing) {
     active.title = value;
     active.edited = true;
+    var cleaned = absorbTyped(value, composing);
+    refreshStrip(composing);
     reveal();
-    var input = titleInput();
-    var cleaned = !composing && caretAtEnd(input, value) && model.absorb(active, value, false);
-    if (cleaned) {
-      L.inline.row.setTitle(input, active.title);
-      input.setSelectionRange(active.title.length, active.title.length);
-    }
     if (!cleaned && !active.error) return;
     active.error = '';
     L.inline.row.update(active);
+    showBar();
+  }
+
+  /** A suggestion was chosen: its word replaces the one being typed, the caret goes after it, and it becomes a pill like a typed one. */
+  function picked(option, token) {
+    var input = titleInput();
+    if (!active || !input || !token) return;
+    var next = L.suggest.token.apply(input.value, token, option.insert);
+    L.inline.row.setTitle(input, next.text);
+    input.setSelectionRange(next.caret, next.caret);
+    focusTitle();
+    typed(next.text, false);
+    input.setSelectionRange(Math.min(next.caret, input.value.length), Math.min(next.caret, input.value.length));
   }
 
   /** Closes the bar popover and gives the focus back to the title. */
@@ -356,7 +397,20 @@
     else nestLine(name === 'indent' ? 1 : 0);
   }
 
-  /** The callbacks the popovers use. Each updates the line and the pills. A chosen value closes the popover. */
+  /** Says the tag list is full, on the line, until the next keystroke. */
+  function tagsFull() {
+    active.error = L.copy.inline.tagsFull;
+    L.inline.row.update(active);
+  }
+
+  /** Puts a tag on the line or takes it off (a full line says so). The popover stays open. */
+  function toggleTag(tag) {
+    if (!model.toggleTag(active, tag)) { tagsFull(); return; }
+    active.error = '';
+    L.inline.row.update(active);
+  }
+
+  /** The callbacks the popovers use. Each updates the line and the pills. A chosen day, time or type closes the popover. */
   function choices() {
     function set(key, value, close) {
       active[key] = value;
@@ -366,7 +420,10 @@
     }
     return {
       type: function (type) { set('type', type, true); },
-      tag: function (text) { set('tag', text.trim() || null, false); },
+      tagPool: tagPool,
+      tagToggle: toggleTag,
+      tagAdd: function (text) { if (!L.tags.has(active.tags, text)) toggleTag(L.tags.spell(text, tagPool())); },
+      tagClear: function () { set('tags', [], false); },
       date: function (iso) {
         if (!iso) return;
         if (iso !== active.date) active.indent = 0;
@@ -381,6 +438,7 @@
   function toggle(kind) {
     if (!active) return;
     if (bar.popKind() === kind) { closePop(); return; }
+    L.inline.complete.hide();
     bar.openPop(kind, active, choices());
     syncLayers();
     if (kind === 'tag') bar.popInput().focus();
@@ -389,6 +447,7 @@
   /** Enter saves a non-empty line and starts the next. Backspace on an empty new line removes it. */
   function onTitleKey(event) {
     if (active.saving) return;
+    if (L.inline.complete.key(event)) return;
     if (event.key === 'Enter') {
       event.preventDefault();
       if (model.hasTitle(active)) commit(true);
@@ -447,13 +506,28 @@
     if (inZone(target) && !isTextField(target)) event.preventDefault();
   }
 
-  /** Wires the editor to its host: the sheet with its bar, the key and focus listeners, and the keyboard tracking. */
+  /** The strip follows the caret too: a tap or an arrow key into another word, or the focus coming back, asks again. */
+  function watchCaret(input) {
+    ['keyup', 'click', 'focus'].forEach(function (name) {
+      input.addEventListener(name, function (event) {
+        if (active && !(name === 'keyup' && /^(Arrow(Down|Up)|Enter|Escape)$/.test(event.key))) refreshStrip(false);
+      });
+    });
+  }
+
+  /** Wires the editor to its host: the sheet with its strip and bar, the key and focus listeners, and the keyboard tracking. */
   function init(options) {
     host = options;
     model = L.inline.model;
     bar = L.inline.bar;
     sheet = L.inline.editSheet;
-    sheet.mount(L.inline.row.build(typed), bar.mount({ toggle: toggle, act: act, details: details }));
+    var strip = L.inline.complete.init({
+      entries: host.entries, today: host.today, picked: picked, shifted: function () { sheet.layout(); reveal(); }
+    });
+    var line = L.inline.row.build(typed);
+    watchCaret(line.querySelector('.paper-edit-input'));
+    sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details }));
+    L.suggest.pool.refresh();
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('mousedown', onMouseDown, true);

@@ -11,7 +11,7 @@ import { line } from "./fake-ocr.ts";
 const TODAY = "2026-11-20";
 
 function entry(id: string, type: Entry["type"], title: string): Entry {
-  return { id, date: TODAY, type, title, tag: null, body: null, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
+  return { id, date: TODAY, type, title, tags: [], body: null, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
 }
 
 test("header dates: full, year-less with a weekday, OCR noise, and what is no date", () => {
@@ -47,13 +47,19 @@ test("parsePage: bullets give types, the header is not an entry, ids follow the 
   assert.equal(page.lines[0].noBullet, false);
 });
 
-test("parsePage: a written #tag and time leave the title and ride along with the line", () => {
-  const page = parsePage([line("•", "Zahnarzt #health 14h30", 0.9), line("•", "#home", 0.9)], TODAY);
+test("parsePage: written #tags and a time leave the title and ride along with the line", () => {
+  const page = parsePage([line("•", "Zahnarzt #health #Arzt #HEALTH 14h30", 0.9), line("•", "#home", 0.9)], TODAY);
   assert.equal(page.lines[0].title, "Zahnarzt");
-  assert.equal(page.lines[0].tag, "health");
+  assert.deepEqual(page.lines[0].tags, ["health", "Arzt"]);
   assert.equal(page.lines[0].time, "14:30");
   assert.equal(page.lines[1].title, "#home");
-  assert.equal(page.lines[1].tag, null);
+  assert.deepEqual(page.lines[1].tags, []);
+});
+
+test("parsePage: an @ date word stays in the title, because scanned paper has no date field to put it in", () => {
+  const page = parsePage([line("•", "Zahnarzt @morgen #health", 0.9)], TODAY);
+  assert.equal(page.lines[0].title, "Zahnarzt @morgen");
+  assert.deepEqual(page.lines[0].tags, ["health"]);
 });
 
 test("parsePage: no header line means no page date", () => {
@@ -130,8 +136,8 @@ test("checkLines: answers the id, status, target and before and after of each li
       id: "a",
       status: "edited",
       target: { id: "e1", title: "Brot kaufen" },
-      before: { type: "task", title: "Brot kaufen", tag: null, time: null },
-      after: { type: "done", title: "Brot kaufen", tag: null, time: null },
+      before: { type: "task", title: "Brot kaufen", tags: [], time: null },
+      after: { type: "done", title: "Brot kaufen", tags: [], time: null },
       contested: false,
     },
     { id: "b", status: "new", target: null, before: null, after: null, contested: false },

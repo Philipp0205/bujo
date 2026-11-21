@@ -88,7 +88,22 @@ CREATE TABLE IF NOT EXISTS entry_photos (
   image BLOB NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+-- The tags of an entry, in the order written. entries.tag is the old single tag: see moveSingleTags.
+CREATE TABLE IF NOT EXISTS entry_tags (
+  entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  tag TEXT NOT NULL,
+  PRIMARY KEY (entry_id, position)
+);
+
+-- One row per one-time data migration that has run.
+CREATE TABLE IF NOT EXISTS migrations (
+  name TEXT PRIMARY KEY
+);
 `;
+
+const SINGLE_TAGS_MIGRATION = "entry-tags-v1";
 
 /** Columns added after the first release of the entries table, with their SQL type. Older databases get them on open. */
 const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
@@ -103,6 +118,7 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["scan_type", "TEXT"],
   ["scan_title", "TEXT"],
   ["scan_tag", "TEXT"],
+  ["scan_tags", "TEXT"],
   ["scan_time", "TEXT"],
   ["scan_at", "INTEGER"],
 ];
@@ -124,10 +140,30 @@ function addMissingColumns(
   }
 }
 
-/** Brings tables of older databases up to date: the sync columns, body, indent and scan provenance of entries, the seen id of users. */
+/** Brings tables of older databases up to date: the sync columns, body, indent and scan provenance of entries, the seen id of users, the tag list. */
 function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
+  moveSingleTags(db);
+}
+
+/**
+ * Entries once held one tag in entries.tag (and scan_tag for the last scanned line). They hold a list now: entry_tags, and
+ * scan_tags as a JSON array. This copies the old values over once. The flag is set in the same transaction as the copy, so a
+ * tag cleared later is never copied back. The old columns stay in the table but are never read or written again.
+ */
+function moveSingleTags(db: Db): void {
+  const done = db.prepare("SELECT 1 FROM migrations WHERE name = ?").get(SINGLE_TAGS_MIGRATION);
+  if (done) return;
+  inTransaction(db, () => {
+    db.exec(`
+      INSERT OR IGNORE INTO entry_tags (entry_id, position, tag)
+        SELECT id, 0, tag FROM entries WHERE tag IS NOT NULL AND tag <> '';
+      UPDATE entries SET scan_tags = CASE WHEN scan_tag IS NULL OR scan_tag = '' THEN '[]' ELSE json_array(scan_tag) END
+        WHERE scan_key IS NOT NULL AND scan_tags IS NULL;
+    `);
+    db.prepare("INSERT INTO migrations (name) VALUES (?)").run(SINGLE_TAGS_MIGRATION);
+  });
 }
 
 /** Opens (and creates) the database. ":memory:" for tests. A file path gets its folder made and WAL on. */
@@ -141,8 +177,9 @@ export function openDb(file: string): Db {
   return db;
 }
 
-/** Runs fn inside one transaction: everything it writes is kept, or nothing is. */
+/** Runs fn inside one transaction: everything it writes is kept, or nothing is. Inside a transaction already, fn joins it. */
 export function inTransaction<T>(db: Db, fn: () => T): T {
+  if (db.isTransaction) return fn();
   db.exec("BEGIN");
   try {
     const result = fn();

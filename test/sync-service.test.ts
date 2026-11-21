@@ -46,7 +46,7 @@ async function withSync(
   }
 }
 
-const NEW: NewEntry = { date: "2026-11-24", type: "task", title: UMLAUT, tag: "Haushalt", time: null };
+const NEW: NewEntry = { date: "2026-11-24", type: "task", title: UMLAUT, tags: ["Haushalt", "Einkauf"], time: null };
 const make = (ctx: Ctx, patch: Partial<NewEntry> = {}): Entry => ctx.entries.create(USER_ID, { ...NEW, ...patch }, NOW);
 const puts = (fake: FakeCalDav) => fake.requests.filter((request) => request.method === "PUT");
 const stored = (fake: FakeCalDav, uid = "uid-1") => fake.read(BOX, `${uid}.ics`)!;
@@ -471,7 +471,7 @@ test("API: a PATCH of title, type or day pushes again, a PATCH of the tag does n
     const patch = (body: object) => api(ctx.base, "PATCH", `/api/entries/${id}`, { body, headers: ctx.headers });
     const before = puts(ctx.fake).length;
 
-    const tagged = await patch({ tag: "Haushalt" });
+    const tagged = await patch({ tags: ["Haushalt", "Einkauf"] });
     assert.equal(tagged.json.entry.sync, "synced");
     await ctx.service.idle();
     assert.equal(puts(ctx.fake).length, before);

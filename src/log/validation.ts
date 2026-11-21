@@ -9,6 +9,8 @@ import {
 
 export const TITLE_MAX = 200;
 export const TAG_MAX = 40;
+/** The most tags one entry carries. */
+export const TAGS_MAX = 10;
 /** The longest free-note markdown, in characters. */
 export const BODY_MAX = 50_000;
 /** The widest list request, in days from the first to the last day, inclusive. */
@@ -74,8 +76,22 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(body).find((key) => !allowed.includes(key));
 }
 
-const FIELDS = ["date", "type", "title", "tag", "time", "body"] as const;
+const FIELDS = ["date", "type", "title", "tags", "time", "body"] as const;
 const PATCH_FIELDS = [...FIELDS, "indent"] as const;
+
+/** Checks a list of tags: each one line, trimmed, within TAG_MAX; repeats (ignoring case) dropped; at most TAGS_MAX. */
+function checkTags(value: unknown): Checked<string[]> {
+  if (!Array.isArray(value)) return fail("tags must be a list of text");
+  const tags: string[] = [];
+  for (const item of value) {
+    const tag = checkText("tag", item, TAG_MAX, true);
+    if (!tag.ok) return tag as Checked<string[]>;
+    const text = tag.value as string;
+    if (!tags.some((have) => have.toLowerCase() === text.toLowerCase())) tags.push(text);
+  }
+  if (tags.length > TAGS_MAX) return fail(`tags has too many entries (at most ${TAGS_MAX})`);
+  return { ok: true, value: tags };
+}
 
 /** The markdown body of a free note: any text up to BODY_MAX, line breaks and tabs allowed. Blank means none. */
 function checkBody(value: unknown): Checked<string | null> {
@@ -103,10 +119,10 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
     if (!title.ok) return title;
     out.title = title.value as string;
   }
-  if ("tag" in body) {
-    const tag = checkText("tag", body.tag, TAG_MAX, false);
-    if (!tag.ok) return tag;
-    out.tag = tag.value;
+  if ("tags" in body) {
+    const tags = checkTags(body.tags);
+    if (!tags.ok) return tags;
+    out.tags = tags.value;
   }
   if ("time" in body) {
     const time = checkTime(body.time);
@@ -125,23 +141,31 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
   return { ok: true, value: out };
 }
 
-/** Checks a create body: date, type and title are required, tag and time are optional. */
+/** The error for a body that names a field it may not: the old single "tag", "sync", or any other unknown key. */
+function badField(body: Record<string, unknown>, allowed: readonly string[]): string | null {
+  const extra = unknownField(body, allowed);
+  if (extra === undefined) return null;
+  if (extra === "sync") return "sync cannot be set";
+  return extra === "tag" ? "tag is gone: send tags, a list of text" : `unknown field: ${extra}`;
+}
+
+/** Checks a create body: date, type and title are required, tags and time are optional. */
 export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> {
-  const extra = unknownField(body, FIELDS);
-  if (extra) return fail(extra === "sync" ? "sync cannot be set" : `unknown field: ${extra}`);
+  const bad = badField(body, FIELDS);
+  if (bad) return fail(bad);
   for (const key of ["date", "type", "title"] as const) {
     if (!(key in body)) return fail(`${key} is required`);
   }
   const fields = checkFields(body);
   if (!fields.ok) return fields;
-  const { date, type, title, tag = null, time = null, body: text = null } = fields.value;
-  return { ok: true, value: { date: date!, type: type!, title: title!, tag, time, body: text } };
+  const { date, type, title, tags = [], time = null, body: text = null } = fields.value;
+  return { ok: true, value: { date: date!, type: type!, title: title!, tags, time, body: text } };
 }
 
 /** Checks an edit body: any of the fields (and indent, which a create cannot set), at least one. Clients cannot set sync. */
 export function checkEntryPatch(body: Record<string, unknown>): Checked<EntryPatch> {
-  const extra = unknownField(body, PATCH_FIELDS);
-  if (extra) return fail(extra === "sync" ? "sync cannot be set" : `unknown field: ${extra}`);
+  const bad = badField(body, PATCH_FIELDS);
+  if (bad) return fail(bad);
   if (Object.keys(body).length === 0) return fail("nothing to change");
   return checkFields(body);
 }

@@ -69,7 +69,7 @@ test("the photo needs a session: signed out is 401 for GET and POST", async () =
 test("only the owner reads or writes a photo: another user's store sees 404", () => {
   const db = openDb(":memory:");
   db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES ('u', 'P', 'h', 1)").run();
-  const note = createEntryStore(db).create("u", { date: DAY, type: "note", title: "n", tag: null, time: null, body: "x" }, 1);
+  const note = createEntryStore(db).create("u", { date: DAY, type: "note", title: "n", tags: [], time: null, body: "x" }, 1);
   const photos = createPhotoStore(db);
   assert.equal(photos.put("someone-else", note.id, { image: JPEG, contentType: "image/jpeg" }, 2), false);
   assert.equal(photos.put("u", note.id, { image: JPEG, contentType: "image/jpeg" }, 2), true);

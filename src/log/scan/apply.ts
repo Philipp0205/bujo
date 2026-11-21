@@ -17,7 +17,7 @@ type Planned = { item: SentItem; index: number; resolution: Resolution };
 
 /** The line's fields checked like POST /api/entries, or null when they do not pass. */
 function validFields(item: SentItem, date: string): { ok: true; entry: NewEntry } | { ok: false; error: string } {
-  const result = checkNewEntry({ date, type: item.type, title: item.title, tag: item.tag, time: item.time });
+  const result = checkNewEntry({ date, type: item.type, title: item.title, tags: item.tags, time: item.time });
   return result.ok ? { ok: true, entry: result.value } : { ok: false, error: result.error };
 }
 
@@ -33,7 +33,7 @@ function planReview(store: EntryStore, userId: string, review: SentReview): Plan
   return review.items.map((item, index) => ({ item, index, resolution: resolved.get(item.id)! }));
 }
 
-/** A bad title, tag or time on a kept line is a 400 that names the line. Throws before anything is written. */
+/** A bad title, tags or time on a kept line is a 400 that names the line. Throws before anything is written. */
 function checkKept(plan: readonly Planned[], date: string): void {
   for (const { item, index } of plan) {
     const result = item.include ? validFields(item, date) : null;
@@ -43,7 +43,7 @@ function checkKept(plan: readonly Planned[], date: string): void {
 
 /** The paper line as the snapshot a scan leaves on an entry. */
 function snapshotOf(entry: NewEntry, now: number): ScanSnapshot {
-  return { key: matchKey(entry.title), type: entry.type, title: entry.title, tag: entry.tag, time: entry.time, at: now };
+  return { key: matchKey(entry.title), type: entry.type, title: entry.title, tags: entry.tags, time: entry.time, at: now };
 }
 
 /** Adds a new entry at the end of the day, or changes the four scanned fields of the matched one. Never touches date, indent, position or body. */
@@ -51,8 +51,8 @@ function writeOne(store: EntryStore, userId: string, date: string, now: number, 
   const paper = validFields(item, date);
   if (!paper.ok) throw new HttpError(400, paper.error);
   if (resolution.status === "edited" && resolution.target && resolution.after) {
-    const { type, title, tag, time } = resolution.after;
-    const updated = store.update(userId, resolution.target.id, { type, title, tag, time }, now)!;
+    const { type, title, tags, time } = resolution.after;
+    const updated = store.update(userId, resolution.target.id, { type, title, tags, time }, now)!;
     store.setScanProvenance(userId, updated.id, snapshotOf(paper.entry, now));
     return { id: item.id, outcome: "updated", entry: updated };
   }
@@ -73,7 +73,7 @@ function stampUnchanged(store: EntryStore, userId: string, date: string, now: nu
 
 /**
  * Writes what the person kept from a draft into the log, sync state local (the route then queues the push). Kept new lines add
- * entries, kept edited lines change their entry's type, title, tag or time, and nothing is ever deleted. Unchanged lines are
+ * entries, kept edited lines change their entry's type, title, tags or time, and nothing is ever deleted. Unchanged lines are
  * recorded (key only) and change no content, even when ticked. The whole request is checked first, the day is read again here
  * (the client's status is not trusted), and the writes share one transaction: all or nothing. A draft can be applied once.
  * Throws 409 when it was applied, 400 for a bad request or when no kept line would add or change anything.

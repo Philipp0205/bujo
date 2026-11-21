@@ -5,34 +5,44 @@ import type { Fields, Line, Resolution } from "./types.ts";
 
 const norm = (text: string | null | undefined): string => (text ?? "").trim().toLowerCase();
 
+/** The tags as a sorted list of lowercase keys, so two lists compare as sets (order and case do not matter). */
+const tagKeys = (tags: readonly string[]): string => [...new Set(tags.map(norm))].sort().join("\n");
+
 /** The fields of an entry as the scan compares them. */
 function fieldsOf(entry: ScanEntry): Fields {
-  return { type: entry.type, title: entry.title, tag: entry.tag, time: entry.time };
+  return { type: entry.type, title: entry.title, tags: entry.tags, time: entry.time };
 }
 
-/** True when every field is the same (a title up to case, spacing, punctuation and umlaut spelling). */
+/** True when every field is the same (a title up to case, spacing, punctuation and umlaut spelling; tags as a set). */
 function sameFields(a: Fields, b: Fields): boolean {
-  return a.type === b.type && matchKey(a.title) === matchKey(b.title) && norm(a.tag) === norm(b.tag) && a.time === b.time;
+  return a.type === b.type && matchKey(a.title) === matchKey(b.title) && tagKeys(a.tags) === tagKeys(b.tags) && a.time === b.time;
 }
 
-/** True when the paper agrees with a base: a tag or time the paper does not write is not a difference. */
+/** True when the paper agrees with a base: tags or a time the paper does not write are not a difference. */
 function agrees(paper: Fields, base: Fields): boolean {
-  const tagOk = norm(paper.tag) === "" || norm(paper.tag) === norm(base.tag);
+  const tagOk = paper.tags.length === 0 || tagKeys(paper.tags) === tagKeys(base.tags);
   const timeOk = !paper.time || paper.time === base.time;
   return paper.type === base.type && matchKey(paper.title) === matchKey(base.title) && tagOk && timeOk;
 }
 
-const snapshotFields = (snap: ScanSnapshot): Fields => ({ type: snap.type, title: snap.title, tag: snap.tag, time: snap.time });
+const snapshotFields = (snap: ScanSnapshot): Fields => ({ type: snap.type, title: snap.title, tags: snap.tags, time: snap.time });
 
-/** The paper line as fields. An empty tag or time means the paper says none. */
+/** The paper line as fields. No tags or an empty time means the paper says none. */
 function paperFields(line: Line): Fields {
-  return { type: line.type, title: line.title.trim(), tag: norm(line.tag) === "" ? null : (line.tag ?? "").trim(), time: line.time || null };
+  const tags = (line.tags ?? []).map((tag) => tag.trim()).filter((tag) => tag !== "");
+  return { type: line.type, title: line.title.trim(), tags, time: line.time || null };
+}
+
+/** The paper's tags with the entry's own spelling kept for a tag that differs only in case. */
+function keepSpelling(paper: readonly string[], current: readonly string[]): string[] {
+  return paper.map((tag) => current.find((have) => norm(have) === norm(tag)) ?? tag);
 }
 
 /** The entry with the paper's changes laid over it: what apply would write. Fields the paper does not say stay. */
 function proposal(paper: Fields, current: Fields): Fields {
   const sameTitle = matchKey(paper.title) === matchKey(current.title);
-  return { type: paper.type, title: sameTitle ? current.title : paper.title, tag: paper.tag ?? current.tag, time: paper.time ?? current.time };
+  const tags = paper.tags.length > 0 ? keepSpelling(paper.tags, current.tags) : current.tags;
+  return { type: paper.type, title: sameTitle ? current.title : paper.title, tags, time: paper.time ?? current.time };
 }
 
 const NEW: Resolution = { status: "new", target: null, before: null, after: null, contested: false, protectedEdit: false };

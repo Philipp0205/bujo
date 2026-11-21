@@ -20,8 +20,8 @@ export type ParsedLine = {
   id: string;
   type: EntryType;
   title: string;
-  /** A #tag written in the line, or null. It is cut out of the title. */
-  tag: string | null;
+  /** The #tags written in the line, in order. They are cut out of the title. */
+  tags: string[];
   /** A time written in the line (HH:MM), or null. It is cut out of the title. */
   time: string | null;
   /** What the OCR read, 0..1. */
@@ -46,14 +46,17 @@ function findHeader(lines: readonly OcrLine[], fallbackDate: string): { date: st
   return null;
 }
 
-/** One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected, then a written #tag and time are cut out of the title. */
+/**
+ * One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected, then written #tags and a time
+ * are cut out of the title. An "@..." word stays in the title: the review has no date field per line.
+ */
 function toParsedLine(line: OcrLine, index: number): ParsedLine {
-  const markup = parseMarkup(correctWords(line.text.trim()), { final: true });
+  const markup = parseMarkup(correctWords(line.text.trim()), { final: true, dates: false });
   return {
     id: `l${index + 1}`,
     type: SYMBOL_TYPES[line.symbol],
     title: markup.title,
-    tag: markup.tag,
+    tags: markup.tags,
     time: markup.time,
     confidence: line.confidence,
     noBullet: line.symbol === "none",

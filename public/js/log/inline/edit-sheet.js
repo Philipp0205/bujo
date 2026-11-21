@@ -13,12 +13,12 @@
 
   var node = null;
 
-  /** Builds the sheet once, hidden: a handle, then the line and the bar. */
-  function mount(line, bar) {
+  /** Builds the sheet once, hidden: a handle, then the line, the suggestion strip and the bar. */
+  function mount(line, strip, bar) {
     if (node) return;
     node = h('div', {
       class: 'edit-sheet', role: 'group', 'aria-label': L.copy.inline.sheetLabel, 'data-testid': 'edit-sheet', 'data-edit-zone': '', hidden: true
-    }, h('div', { class: 'edit-handle', 'aria-hidden': 'true' }), line, bar);
+    }, h('div', { class: 'edit-handle', 'aria-hidden': 'true' }), line, strip, bar);
     document.body.appendChild(node);
     L.ink.decorate.sheet(node);
   }
@@ -40,10 +40,17 @@
     if (node) node.hidden = true;
   }
 
+  /** Pins the sheet just above the keyboard and draws its pen strokes again at the size it has now (a strip shown or hidden changes it). */
+  function layout() {
+    if (!node || node.hidden) return;
+    place();
+    L.ink.decorate.sheet(node);
+  }
+
   /** The sheet element, or null before it is mounted. */
   function element() {
     return node;
   }
 
-  L.inline.editSheet = { mount: mount, show: show, hide: hide, place: place, element: element };
+  L.inline.editSheet = { mount: mount, show: show, hide: hide, place: place, layout: layout, element: element };
 })();

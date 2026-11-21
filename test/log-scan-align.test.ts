@@ -9,31 +9,47 @@ import type { EntryType, ScanEntry } from "../src/log/types.ts";
 
 const DAY = "2026-11-20";
 
-type Over = Partial<ScanEntry> & { snap?: { type?: EntryType; title?: string; tag?: string | null; time?: string | null; at: number } };
+type Over = Partial<ScanEntry> & { snap?: { type?: EntryType; title?: string; tags?: string[]; time?: string | null; at: number } };
 
 /** A day entry with an optional last-scan snapshot. */
 function entry(id: string, type: EntryType, title: string, over: Over = {}): ScanEntry {
   const { snap, ...rest } = over;
   const scan = snap
-    ? { key: matchKey(snap.title ?? title), type: snap.type ?? type, title: snap.title ?? title, tag: snap.tag ?? null, time: snap.time ?? null, at: snap.at }
+    ? { key: matchKey(snap.title ?? title), type: snap.type ?? type, title: snap.title ?? title, tags: snap.tags ?? [], time: snap.time ?? null, at: snap.at }
     : null;
-  return { id, date: DAY, type, title, tag: null, time: null, body: null, hasPhoto: false, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, scan, ...rest };
+  return { id, date: DAY, type, title, tags: [], time: null, body: null, hasPhoto: false, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, scan, ...rest };
 }
 
-const paper = (id: string, type: EntryType, title: string, tag: string | null = null, time: string | null = null): Line => ({ id, type, title, tag, time });
+const paper = (id: string, type: EntryType, title: string, tags: string[] = [], time: string | null = null): Line => ({ id, type, title, tags, time });
 const statusOf = (lines: Line[], existing: ScanEntry[]) => [...resolveLines(lines, existing)].map(([id, r]) => [id, r.status]);
 
 test("unchanged: the same type, title, tag and time binds and is not new", () => {
-  const existing = [entry("e1", "task", "Brot kaufen", { tag: "Haushalt", time: "10:00" })];
-  const out = resolveLines([paper("a", "task", "Brot kaufen", "Haushalt", "10:00")], existing);
+  const existing = [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt"], time: "10:00" })];
+  const out = resolveLines([paper("a", "task", "Brot kaufen", ["Haushalt"], "10:00")], existing);
   assert.equal(out.get("a")?.status, "unchanged");
   assert.equal(out.get("a")?.target?.id, "e1");
   assert.equal(out.get("a")?.before, null);
 });
 
 test("unchanged: a paper line that says no tag or time does not clear the entry's", () => {
-  const out = resolveLines([paper("a", "task", "Brot kaufen")], [entry("e1", "task", "Brot kaufen", { tag: "Haushalt", time: "10:00" })]);
+  const out = resolveLines([paper("a", "task", "Brot kaufen")], [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt", "Einkauf"], time: "10:00" })]);
   assert.equal(out.get("a")?.status, "unchanged");
+});
+
+test("unchanged: the same tags in another order or another case are the same set", () => {
+  const existing = [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt", "Einkauf"] })];
+  const out = resolveLines([paper("a", "task", "Brot kaufen", ["einkauf", "HAUSHALT"])], existing);
+  assert.equal(out.get("a")?.status, "unchanged");
+});
+
+test("edited: a tag added to or removed from a non-empty set is a change, and the entry's spelling is kept for the rest", () => {
+  const existing = [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt", "Einkauf"] }), entry("e2", "task", "Putzen", { tags: ["Haushalt"], position: 1 })];
+  const out = resolveLines([paper("a", "task", "Brot kaufen", ["haushalt"]), paper("b", "task", "Putzen", ["haushalt", "Bad"])], existing);
+  assert.equal(out.get("a")?.status, "edited", "a tag removed");
+  assert.deepEqual(out.get("a")?.after?.tags, ["Haushalt"]);
+  assert.deepEqual(out.get("a")?.before?.tags, ["Haushalt", "Einkauf"]);
+  assert.equal(out.get("b")?.status, "edited", "a tag added");
+  assert.deepEqual(out.get("b")?.after?.tags, ["Haushalt", "Bad"]);
 });
 
 test("edited: a symbol change, for every task-family symbol, with before and after", () => {
@@ -50,13 +66,13 @@ test("edited: a symbol change, for every task-family symbol, with before and aft
 test("edited: a title change, a tag added and a time added", () => {
   const existing = [entry("e1", "task", "Brot kaufen"), entry("e2", "event", "Zahnarzt", { position: 1 }), entry("e3", "task", "Putzen", { position: 2 })];
   const out = resolveLines(
-    [paper("a", "task", "Brot kaufen und Milch"), paper("b", "event", "Zahnarzt", "health"), paper("c", "task", "Putzen", null, "09:30")],
+    [paper("a", "task", "Brot kaufen und Milch"), paper("b", "event", "Zahnarzt", ["health"]), paper("c", "task", "Putzen", [], "09:30")],
     existing,
   );
   assert.deepEqual([...out.values()].map((r) => r.status), ["edited", "edited", "edited"]);
   assert.equal(out.get("a")?.after?.title, "Brot kaufen und Milch");
   assert.equal(out.get("a")?.target?.id, "e1");
-  assert.deepEqual([out.get("b")?.before?.tag, out.get("b")?.after?.tag], [null, "health"]);
+  assert.deepEqual([out.get("b")?.before?.tags, out.get("b")?.after?.tags], [[], ["health"]]);
   assert.deepEqual([out.get("c")?.before?.time, out.get("c")?.after?.time], [null, "09:30"]);
 });
 
@@ -99,18 +115,18 @@ test("app-edited: an unchanged paper line does not overwrite an entry the person
 });
 
 test("app-edited: a paper line that differs from the snapshot is a real paper change", () => {
-  const existing = [entry("e1", "task", "Brot kaufen", { tag: "Haushalt", snap: { at: 100 }, updatedAt: 200 })];
+  const existing = [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt"], snap: { at: 100 }, updatedAt: 200 })];
   const out = resolveLines([paper("a", "migrated", "Brot kaufen")], existing);
   assert.equal(out.get("a")?.status, "edited");
 });
 
 test("both changed: edited with the app values as before and the paper as after, and it starts unticked", () => {
-  const existing = [entry("e1", "task", "Brot kaufen", { tag: "Haushalt", snap: { type: "task", at: 100 }, updatedAt: 200 })];
+  const existing = [entry("e1", "task", "Brot kaufen", { tags: ["Haushalt", "Einkauf"], snap: { type: "task", at: 100 }, updatedAt: 200 })];
   const [check] = checkLines([paper("a", "done", "Brot kaufen")], existing);
   assert.equal(check.status, "edited");
   assert.equal(check.contested, true);
-  assert.deepEqual(check.before, { type: "task", title: "Brot kaufen", tag: "Haushalt", time: null });
-  assert.deepEqual(check.after, { type: "done", title: "Brot kaufen", tag: "Haushalt", time: null });
+  assert.deepEqual(check.before, { type: "task", title: "Brot kaufen", tags: ["Haushalt", "Einkauf"], time: null });
+  assert.deepEqual(check.after, { type: "done", title: "Brot kaufen", tags: ["Haushalt", "Einkauf"], time: null });
 });
 
 test("an entry the app edited before the last scan is not protected", () => {
