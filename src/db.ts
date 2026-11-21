@@ -74,18 +74,19 @@ CREATE TABLE IF NOT EXISTS entries (
   remote_href TEXT,
   remote_uid TEXT,
   remote_etag TEXT,
-  sync_error TEXT
+  sync_error TEXT,
+  body TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position);
 `;
 
 /** Columns added after the first release of the entries table. Older databases get them on open. */
-const ENTRY_SYNC_COLUMNS = ["remote_href", "remote_uid", "remote_etag", "sync_error"] as const;
+const ENTRY_EXTRA_COLUMNS = ["remote_href", "remote_uid", "remote_etag", "sync_error", "body"] as const;
 
-/** Adds the remote sync columns to an entries table made before they existed. Safe to run on every open. */
+/** Adds the sync columns and the markdown body to an entries table made before they existed. Safe to run on every open. */
 function migrateEntries(db: Db): void {
   const have = (db.prepare("PRAGMA table_info(entries)").all() as Array<{ name: string }>).map((column) => column.name);
-  for (const column of ENTRY_SYNC_COLUMNS) {
+  for (const column of ENTRY_EXTRA_COLUMNS) {
     if (!have.includes(column)) db.exec(`ALTER TABLE entries ADD COLUMN ${column} TEXT`);
   }
 }

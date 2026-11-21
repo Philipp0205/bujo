@@ -12,6 +12,8 @@ export type Entry = {
   type: EntryType;
   title: string;
   tag: string | null;
+  /** The markdown of a free note. Null for a short rapid-log line. */
+  body: string | null;
   sync: SyncState;
   /** A short reason for the error state, safe to show. Null in every other state. */
   syncError: string | null;
@@ -33,9 +35,10 @@ export type NewEntry = {
   title: string;
   tag: string | null;
   time: string | null;
+  body?: string | null;
 };
 
-/** A checked edit. Only the keys present are changed. A null tag or time clears it. */
+/** A checked edit. Only the keys present are changed. A null tag, time or body clears it. */
 export type EntryPatch = Partial<NewEntry>;
 
 export type DateRange = { from: string; to: string };

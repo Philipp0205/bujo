@@ -50,6 +50,24 @@
       dateRequired: 'Pick a date.',
       saveFailed: 'Could not save. Try again.',
       retryFailed: 'Could not retry the sync. Try again.'
+    },
+    note: {
+      untitled: 'Untitled note',
+      savedHeading: 'Note',
+      savedSub: 'Saved in your log',
+      dayHint: 'Tap to change the day',
+      title: 'Title',
+      date: 'Date',
+      body: 'Markdown',
+      saving: 'Saving\u2026',
+      copy: 'Copy markdown',
+      copied: 'Copied',
+      copyFailed: 'Could not copy. Select the text and copy it by hand.',
+      titleRequired: 'Give the note a title.',
+      dateRequired: 'Pick a date.',
+      bodyRequired: 'Write something in the note.',
+      saveFailed: 'Could not save the note. Try again.',
+      save: 'Save'
     }
   };
 })();

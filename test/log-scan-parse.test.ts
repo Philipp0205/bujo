@@ -11,7 +11,7 @@ import { line } from "./fake-ocr.ts";
 const TODAY = "2026-11-20";
 
 function entry(id: string, type: Entry["type"], title: string): Entry {
-  return { id, date: TODAY, type, title, tag: null, time: null, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
+  return { id, date: TODAY, type, title, tag: null, body: null, time: null, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0 };
 }
 
 test("header dates: full, year-less with a weekday, OCR noise, and what is no date", () => {

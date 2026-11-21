@@ -6,6 +6,9 @@ import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
 
+/** Room for a free note: BODY_MAX characters can take up to four bytes each in JSON. */
+const ENTRY_BODY_MAX = 256 * 1024;
+
 /** A failed check is a 400 with the message. */
 function valid<T>(checked: Checked<T>): T {
   if (!checked.ok) throw new HttpError(400, checked.error);
@@ -20,7 +23,7 @@ function methodNotAllowed(allow: string): never {
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
  *   POST  /api/entries             a new entry, at the end of its day
- *   PATCH /api/entries/:id         change date, type, title, tag or time
+ *   PATCH /api/entries/:id         change date, type, title, tag, time or body (the markdown of a free note, null when none)
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  * A task entry answers with sync "pending" and is pushed to Nextcloud after the answer is sent.
  */
@@ -38,7 +41,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
       return true;
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
-    const input = valid(checkNewEntry(await readJson(req)));
+    const input = valid(checkNewEntry(await readJson(req, { max: ENTRY_BODY_MAX })));
     const created = store.create(userId, input, accounts.now());
     sendJson(res, 201, { entry: ctx.sync ? ctx.sync.enqueue(userId, created) : created });
     return true;
@@ -53,7 +56,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return true;
   }
   if (method !== "PATCH") methodNotAllowed("PATCH");
-  const patch = valid(checkEntryPatch(await readJson(req)));
+  const patch = valid(checkEntryPatch(await readJson(req, { max: ENTRY_BODY_MAX })));
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch) ? ctx.sync.enqueue(userId, entry) : entry });

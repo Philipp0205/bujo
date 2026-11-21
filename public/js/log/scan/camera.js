@@ -1,5 +1,6 @@
 /*
- * The scan camera screen (mock 03): a full-screen overlay with a frame, a mode toggle, a gallery button and a shutter.
+ * The scan camera screen (mock 03 and 04): a full-screen overlay with a frame, a mode toggle, a gallery button and a shutter.
+ * The toggle picks Rapid log or Free note and the mode goes along with each photo.
  * The shutter opens the phone camera and the gallery button the photo library, each through a file input,
  * so no live video and no photo is kept here.
  * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js and glyph.js.
@@ -13,24 +14,30 @@
   var INPUT_ID = 'scan-file';
   var GALLERY_ID = 'scan-gallery';
 
-  /** The dot grid frame with a guide symbol (a bullet and a line) so the page is lined up the right way. */
+  /** The dot grid frame with a guide symbol: a bullet and a line for the rapid log, lined prose for a free note. */
   function frame() {
     return h('div', { class: 'scan-frame', 'aria-hidden': 'true' }, L.glyph.use('g-scan-guide', { viewBox: '0 0 120 160' }));
   }
 
-  /** The Rapid log / Free note switch. Free note is shown and disabled: it is not built yet. */
-  function modes(copy) {
-    return h('div', { class: 'scan-modes', role: 'group', 'aria-label': copy.modes },
-      h('button', { class: 'scan-mode', type: 'button', 'aria-pressed': 'true', 'data-mode': 'rapid' }, copy.rapid),
-      h('button', {
-        class: 'scan-mode',
-        type: 'button',
-        'aria-pressed': 'false',
-        'aria-disabled': 'true',
-        title: copy.noteLater,
-        'data-mode': 'note',
-        onclick: function (event) { event.preventDefault(); }
-      }, copy.note));
+  /** Points the frame guide and the title at a mode. */
+  function showMode(mode, parts, copy) {
+    var note = mode === 'note';
+    parts.title.textContent = note ? copy.titleNote : copy.title;
+    parts.frame.replaceChildren(L.glyph.use(note ? 'g-scan-prose' : 'g-scan-guide', { viewBox: '0 0 120 160' }));
+    parts.node.setAttribute('data-mode', mode);
+    parts.buttons.forEach(function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute('data-mode') === mode ? 'true' : 'false');
+    });
+  }
+
+  /** The Rapid log / Free note switch. onPick(mode) runs when a button is tapped. */
+  function modes(copy, onPick) {
+    function button(mode, label) {
+      return h('button', { class: 'scan-mode', type: 'button', 'aria-pressed': mode === 'rapid' ? 'true' : 'false', 'data-mode': mode, onclick: function () { onPick(mode); } }, label);
+    }
+    var rapid = button('rapid', copy.rapid);
+    var note = button('note', copy.note);
+    return { node: h('div', { class: 'scan-modes', role: 'group', 'aria-label': copy.modes }, rapid, note), buttons: [rapid, note] };
   }
 
   /** A hidden file input. Only the camera one sets capture, so the gallery one can pick any existing photo. */
@@ -79,9 +86,10 @@
     };
   }
 
-  /** Opens the screen. options.onPhoto(file) gets a photo the model accepted, options.onClose() the close button. */
+  /** Opens the screen. options.onPhoto(file, mode) gets a photo and the mode ('rapid' or 'note'), options.onClose() the close button. */
   function open(options) {
     var copy = L.copy.scan.camera;
+    var mode = 'rapid';
     var slot = h('div', { class: 'scan-slot', 'aria-live': 'polite' });
     var cameraInput = fileInput(INPUT_ID, 'environment');
     var galleryInput = fileInput(GALLERY_ID, null);
@@ -89,11 +97,15 @@
     var title = h('h2', { class: 'scan-title', id: 'scan-title' }, copy.title);
     var close = h('button', { class: 'scan-close', type: 'button', 'aria-label': copy.close, 'data-action': 'scan-close', onclick: options.onClose },
       L.glyph.use('g-close', { viewBox: '0 0 24 24', width: 24, height: 24 }));
-    var node = h('div', { class: 'scan-screen', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-title', 'data-testid': 'scan-screen' },
-      h('div', { class: 'scan-top' }, close, title), frame(), slot, modes(copy), buttons.row, cameraInput, galleryInput);
+    var picker = modes(copy, function (next) { mode = next; showMode(mode, parts, copy); });
+    var guide = frame();
+    var node = h('div', { class: 'scan-screen', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-title', 'data-testid': 'scan-screen', 'data-mode': mode },
+      h('div', { class: 'scan-top' }, close, title), guide, slot, picker.node, buttons.row, cameraInput, galleryInput);
+    var parts = { node: node, title: title, frame: guide, buttons: picker.buttons };
 
-    feed(cameraInput, options.onPhoto);
-    feed(galleryInput, options.onPhoto);
+    function photo(file) { options.onPhoto(file, mode); }
+    feed(cameraInput, photo);
+    feed(galleryInput, photo);
     node.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') options.onClose();
     });
