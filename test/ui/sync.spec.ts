@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { openDetails, useBujo } from "./harness.ts";
 
 const app = useBujo({ sync: true });
 
@@ -50,7 +50,7 @@ test("a failed push shows an error dot, the reason and Retry sync in the sheet, 
   await page.goto(app.baseUrl);
   await expect(row(page, "Schlüssel abholen")).toHaveAttribute("data-sync", "error", { timeout: 10_000 });
 
-  await row(page, "Schlüssel abholen").click();
+  await openDetails(page, "Schlüssel abholen");
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByTestId("sync-line")).toContainText("Sync failed");
   await expect(sheet.getByTestId("sync-reason")).toContainText("same moment");
@@ -61,7 +61,7 @@ test("a failed push shows an error dot, the reason and Retry sync in the sheet, 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(row(page, "Schlüssel abholen")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
 
-  await row(page, "Schlüssel abholen").click();
+  await openDetails(page, "Schlüssel abholen");
   await expect(page.getByRole("dialog").getByTestId("sync-reason")).toHaveCount(0);
   await expect(page.getByRole("dialog").getByRole("button", { name: "Retry sync" })).toHaveCount(0);
 });
@@ -73,7 +73,7 @@ test("no Retry sync button for a synced entry or a note", async ({ page }) => {
   await expect(row(page, "Alles gut")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
 
   for (const title of ["Alles gut", "Nur lokal hier"]) {
-    await row(page, title).click();
+    await openDetails(page, title);
     await expect(page.getByRole("dialog").getByRole("button", { name: "Retry sync" })).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);

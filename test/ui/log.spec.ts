@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { openDetails, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -129,10 +129,10 @@ test("a note shows no sync label and no dot, a task and an event next to it stil
   await expect(page.locator('.paper-row[data-type="note"]', { hasText: /not synced/i })).toHaveCount(0);
 });
 
-test("the entry sheet of a short note has no sync line, and it follows the chosen type", async ({ page }) => {
+test("the details sheet of a short note has no sync line, and it follows the chosen type", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "note", title: "Kurze Notiz" }]);
   await page.goto(app.baseUrl);
-  await row(page, "Kurze Notiz").click();
+  await openDetails(page, "Kurze Notiz");
 
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("heading", { name: "Edit entry" })).toBeVisible();
@@ -149,15 +149,21 @@ test("the entry sheet of a short note has no sync line, and it follows the chose
   await expect(sheet.locator(".sync-mark")).toHaveCount(0);
 });
 
-test("the add sheet shows the sync line for a task and hides it when Note is chosen", async ({ page }) => {
+test("tapping Add entry opens no sheet: a focused task line with the bar, and the bar sits at the bottom", async ({ page }) => {
   await page.goto(app.baseUrl);
+  await expect(page.locator(".inline-bar")).toBeHidden();
   await page.locator("[data-action=add-entry]").click();
-  const sheet = page.getByRole("dialog");
-  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
-  await sheet.locator(".type-btn", { hasText: "Note" }).click();
-  await expect(sheet.getByTestId("sync-line")).toHaveCount(0);
-  await sheet.locator(".type-btn", { hasText: "Event" }).click();
-  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const line = page.locator(".paper-line[data-new=true]");
+  await expect(line.locator(".paper-sym use")).toHaveAttribute("href", "#g-task");
+  await expect(line.locator("input")).toBeFocused();
+  const bar = page.locator(".inline-bar");
+  await expect(bar).toBeVisible();
+  await expect(bar.locator(".bar-key")).toHaveText(["Type", "Tag", "Date", "Time"]);
+  const box = (await bar.boundingBox())!;
+  expect(Math.round(box.y + box.height)).toBe(844);
+  await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-line`)).toHaveCount(1);
 });
 
 test("the paper is the mock's solid dot grid in the page colour, never white", async ({ page }, testInfo) => {
@@ -174,95 +180,117 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
-test("add an entry through the sheet: today and task are preselected", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(String(error)));
+test("rows are one 24px line: the title and the pills side by side, a long title ends in an ellipsis", async ({ page }) => {
+  const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb abgeschnitten werden muss ".repeat(2);
+  await seed(page, [
+    { date: day(0), type: "task", title: "Winzig", tag: "Haushalt" },
+    { date: day(0), type: "event", title: long, tag: "Arbeit", time: "13:00" },
+  ]);
   await page.goto(app.baseUrl);
-  await page.locator("[data-action=add-entry]").click();
+  await expect(row(page, "Winzig")).toBeVisible();
 
-  const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("heading", { name: "New entry" })).toBeVisible();
-  await expect(sheet.locator("[data-testid=sheet-date]")).toHaveText(heading(day(0)));
-  await expect(sheet.locator('.type-btn[aria-pressed="true"]')).toHaveText("Task");
-  await expect(sheet.locator(".type-btn")).toHaveText(["Task", "Note", "Event", "Done", "Moved", "Scheduled"]);
-  await expect(sheet.locator('input[name="date"]')).toHaveValue(day(0));
-  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
+  const short = row(page, "Winzig");
+  expect((await short.boundingBox())!.height).toBe(24);
+  const title = await short.locator(".paper-title").boundingBox();
+  const pills = await short.locator(".paper-meta").boundingBox();
+  expect(Math.abs(title!.y - pills!.y)).toBeLessThan(4);
+  expect(pills!.x).toBeGreaterThan(title!.x + title!.width - 1);
 
-  // An empty title is refused in the sheet, nothing is sent.
-  await sheet.locator("[data-action=save]").click();
-  await expect(sheet.getByRole("alert")).toContainText("Give the entry a title.");
-
-  await sheet.locator(".type-btn", { hasText: "Event" }).click();
-  await sheet.locator('input[name="title"]').fill("  Zahnarzt  ");
-  await sheet.locator('input[name="tag"]').fill("Gesundheit");
-  await sheet.locator('input[name="time"]').fill("09:30");
-  await sheet.locator("[data-action=save]").click();
-
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  const created = row(page, "Zahnarzt");
-  await expect(created).toHaveAttribute("data-type", "event");
-  await expect(created.locator(".paper-title")).toHaveText("Zahnarzt");
-  await expect(created.locator(".meta-text")).toHaveText("Gesundheit \u00b7 09:30");
-  await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-row`, { hasText: "Zahnarzt" })).toHaveCount(1);
-  expect(errors).toEqual([]);
+  const wide = page.locator(".paper-row", { hasText: "Ein sehr langer" });
+  expect((await wide.boundingBox())!.height).toBe(24);
+  await expect(wide.locator(".paper-title")).toHaveCSS("text-overflow", "ellipsis");
+  await expect(wide.locator(".paper-title")).toHaveCSS("white-space", "nowrap");
+  const rowBox = (await wide.boundingBox())!;
+  const pillBox = (await wide.locator(".paper-meta").boundingBox())!;
+  expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+  await expect(wide.locator(".meta-text")).toHaveText("Arbeit \u00b7 13:00");
+  const clipped = await wide.locator(".paper-title").evaluate((el) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(true);
 });
 
-test("a server error stays inside the open sheet", async ({ page }) => {
+test("a server error keeps the new line in edit mode with its draft and an error", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.route("**/api/entries", (route) =>
-    route.request().method() === "POST" ? route.fulfill({ status: 400, json: { error: "title is too long (at most 200 characters)" } }) : route.continue(),
-  );
+  let posts = 0;
+  await page.route("**/api/entries", (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    posts += 1;
+    return route.fulfill({ status: 400, json: { error: "title is too long (at most 200 characters)" } });
+  });
   await page.locator("[data-action=add-entry]").click();
-  const sheet = page.getByRole("dialog");
-  await sheet.locator('input[name="title"]').fill("Zu lang");
-  await sheet.locator("[data-action=save]").click();
+  await page.keyboard.type("Zu lang");
+  await page.keyboard.press("Enter");
 
-  await expect(sheet.getByRole("alert")).toContainText("title is too long");
-  await expect(sheet.locator("[data-action=save]")).toBeEnabled();
-  await expect(sheet.locator('input[name="title"]')).toHaveValue("Zu lang");
+  const line = page.locator(".paper-line[data-new=true]");
+  await expect(line.getByRole("alert")).toContainText("title is too long");
+  await expect(line.locator("input")).toHaveValue("Zu lang");
+  await expect(line.locator("input")).toBeFocused();
+  await expect(page.locator(".inline-bar")).toBeVisible();
+  expect(posts).toBe(1);
+  await expect(page.locator('.paper-row[data-id]', { hasText: "Zu lang" })).toHaveCount(0);
 });
 
-test("tap a row to edit it: the sheet shows its values and Save changes them", async ({ page }) => {
+test("a failing request with no server message shows the safe copy line", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.route("**/api/entries", (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+  await page.locator("[data-action=add-entry]").click();
+  await page.keyboard.type("Offline Zeile");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".paper-line .paper-line-error")).toHaveText("Could not save this line. Try again.");
+  await expect(page.locator(".paper-line input")).toHaveValue("Offline Zeile");
+});
+
+test("tap a row to type in its title; type, tag and day change through the bar and save", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Kaffeebohnen bestellen", tag: "Haushalt" }]);
   await page.goto(app.baseUrl);
   await row(page, "Kaffeebohnen").click();
 
-  const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("heading", { name: "Edit entry" })).toBeVisible();
-  await expect(sheet.locator("[data-testid=sheet-date]")).toHaveText(heading(day(0)));
-  await expect(sheet.locator('.type-btn[aria-pressed="true"]')).toHaveText("Task");
-  await expect(sheet.locator('input[name="title"]')).toHaveValue("Kaffeebohnen bestellen");
-  await expect(sheet.locator('input[name="tag"]')).toHaveValue("Haushalt");
-  await expect(sheet.getByTestId("sync-line")).toContainText("Not synced");
-
-  await sheet.locator(".type-btn", { hasText: "Done" }).click();
-  await sheet.locator('input[name="title"]').fill("Kaffeebohnen bestellt");
-  await sheet.locator('input[name="tag"]').fill("");
-  await sheet.locator('input[name="date"]').fill(day(1));
-  await sheet.locator("[data-action=save]").click();
-
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  const input = page.locator(".paper-line input");
+  await expect(input).toHaveValue("Kaffeebohnen bestellen");
+  await expect(input).toBeFocused();
+  await expect(page.locator(".paper-line .meta-text")).toHaveText("Haushalt");
+
+  await page.locator(".bar-key", { hasText: "Type" }).click();
+  await page.locator('.inline-pop .pop-type[data-type="done"]').click();
+  await page.locator(".bar-key", { hasText: "Tag" }).click();
+  await page.locator('.inline-pop input[name="tag"]').fill("");
+  await page.keyboard.press("Enter");
+  await page.locator(".bar-key", { hasText: "Date" }).click();
+  await page.locator('.inline-pop input[name="date"]').fill(day(1));
+  await expect(page.locator(".inline-pop")).toHaveCount(0);
+
+  await input.fill("Kaffeebohnen bestellt");
+  await page.keyboard.press("Escape");
+
   const moved = page.locator(`.paper-day-group[data-date="${day(1)}"] .paper-row`, { hasText: "Kaffeebohnen bestellt" });
   await expect(moved).toHaveAttribute("data-type", "done");
   await expect(moved.locator(".meta-text")).toHaveText("not synced");
   await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-row`, { hasText: "Kaffeebohnen" })).toHaveCount(0);
+  await expect(page.locator(".inline-bar")).toBeHidden();
 });
 
-test("Escape and a tap on the scrim close the sheet without saving", async ({ page }) => {
+test("the details sheet of a saved entry saves its fields, Escape and the scrim close it without saving", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "note", title: "Bleibt wie es ist" }]);
   await page.goto(app.baseUrl);
 
-  await row(page, "Bleibt wie es ist").click();
+  await openDetails(page, "Bleibt wie es ist");
   await page.getByRole("dialog").locator('input[name="title"]').fill("Nicht gespeichert");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(row(page, "Bleibt wie es ist")).toBeVisible();
 
-  await row(page, "Bleibt wie es ist").click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await openDetails(page, "Bleibt wie es ist");
   await page.locator(".ak-scrim").click({ position: { x: 195, y: 20 } });
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(row(page, "Nicht gespeichert")).toHaveCount(0);
+
+  await openDetails(page, "Bleibt wie es ist");
+  const sheet = page.getByRole("dialog");
+  await sheet.locator('input[name="title"]').fill("Jetzt gespeichert");
+  await sheet.locator(".type-btn", { hasText: "Event" }).click();
+  await sheet.locator("[data-action=save]").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(row(page, "Jetzt gespeichert")).toHaveAttribute("data-type", "event");
 });
 
 test("a failing list shows a quiet error with a retry", async ({ page }) => {
