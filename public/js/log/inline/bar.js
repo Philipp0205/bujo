@@ -1,8 +1,9 @@
 /*
- * The accessory bar: one thin paper row of icon keys pinned above the keyboard. It scrolls sideways when the keys do not fit.
- * Type, Tag, Date and Time open a popover. Delete, Up, Down, Indent and Outdent act on the entry. Details opens the sheet
- * and only shows for an entry that is already saved. One bar lives in <body> so a page redraw never touches it.
- * Needs ak-dom.js, copy.js, glyph.js, pop.js and viewport.js. actions: toggle(kind), act(name) and details().
+ * The accessory bar: one thin row of icon keys at the bottom of the edit sheet, above the keyboard. It scrolls sideways when
+ * the keys do not fit. Type, Tag, Date and Time open a popover. Delete, Up, Down, Indent and Outdent act on the entry.
+ * Details opens the details sheet and only shows for an entry that is already saved. The bar is built once and the edit
+ * sheet holds it, so a page redraw never touches it.
+ * Needs ak-dom.js, copy.js, glyph.js and pop.js. actions: toggle(kind), act(name) and details().
  */
 (function () {
   'use strict';
@@ -39,15 +40,15 @@
     });
   }
 
-  /** Builds the bar once and puts it in the page, hidden. */
+  /** Builds the bar once. The edit sheet puts it in the page. */
   function mount(actions) {
-    if (node) return;
+    if (node) return node;
     var row = POPS.map(function (kind) { return popKey(kind, actions); })
       .concat(ACTS.map(function (kind) { return actKey(kind, actions); }))
       .concat([keyButton('details', { 'data-action': 'details' }, actions.details)]);
-    node = h('div', { class: 'inline-bar', role: 'toolbar', 'aria-label': L.copy.inline.barLabel, 'data-edit-zone': '', hidden: true },
+    node = h('div', { class: 'inline-bar', role: 'toolbar', 'aria-label': L.copy.inline.barLabel },
       h('div', { class: 'bar-keys' }, row));
-    document.body.appendChild(node);
+    return node;
   }
 
   /** Greys the keys that cannot act now. caps: { up, down, indent, outdent } as true or false. */
@@ -57,20 +58,13 @@
     });
   }
 
-  /** Shows the bar for a line and pins it above the keyboard. Details only shows for an entry that is already saved. */
+  /** Updates the bar for a line: Details only shows for a saved entry, and the keys that cannot act are greyed. */
   function show(line, caps) {
-    node.hidden = false;
     keys.details.hidden = line.isNew;
     setCaps(caps);
-    L.inline.viewport.place(node);
   }
 
-  /** Pins the bar again after the keyboard moved. */
-  function place() {
-    if (node && !node.hidden) L.inline.viewport.place(node);
-  }
-
-  /** The bar element, for scrolling checks. */
+  /** The bar element, for the sheet. */
   function element() {
     return node;
   }
@@ -101,15 +95,8 @@
     return pop;
   }
 
-  /** Hides the bar and its popover. */
-  function hide() {
-    if (!node) return;
-    closePop();
-    node.hidden = true;
-  }
-
   L.inline.bar = {
-    mount: mount, show: show, hide: hide, place: place, element: element,
+    mount: mount, show: show, element: element,
     openPop: openPop, closePop: closePop,
     popKind: function () { return popKind; },
     popOpen: function () { return popKind !== ''; },

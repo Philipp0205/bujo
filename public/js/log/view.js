@@ -1,6 +1,6 @@
 /*
- * Render functions of the rapid log: header, day groups, rows. They build nodes and call back, they never fetch.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js and inline/row.js.
+ * Render functions of the rapid log: header, day groups, soft paper cards. They build nodes and call back, they never fetch.
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js and days.js.
  */
 (function () {
   'use strict';
@@ -44,15 +44,15 @@
       day.isToday ? todayMark() : null);
   }
 
-  /** The pills after a title: tag and time (or "not synced"), then the sync dot (not for notes, which are never synced). */
+  /** The pills under a title: tag, time, "not synced", then the sync dot (local or failed only). Null when there is nothing to show. */
   function pills(entry) {
-    var text = L.days.metaText(entry);
-    return h('span', { class: 'paper-meta' },
-      text ? h('span', { class: 'meta-text' }, text) : h('span', { class: 'meta-text' }),
-      L.days.showsSync(entry.type) ? L.glyph.syncMark(entry.sync) : null);
+    var items = L.days.entryPills(entry).map(L.glyph.pill);
+    var mark = L.days.showsMark(entry) ? L.glyph.syncMark(entry.sync) : null;
+    if (!items.length && !mark) return null;
+    return h('span', { class: 'paper-meta' }, items, mark);
   }
 
-  /** One entry as a tappable row: symbol, title and pills on one 24px line. The type, sync state, indent and id are on the row. */
+  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet. */
   function entryRow(entry, onOpen, indent) {
     return h('button', {
       class: 'paper-row',
@@ -60,7 +60,7 @@
       'data-id': entry.id,
       'data-type': entry.type,
       'data-sync': entry.sync,
-      'data-indent': String(indent === undefined ? entry.indent || 0 : indent),
+      'data-indent': String(indent),
       onclick: function () { onOpen(entry); }
     },
       h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
@@ -74,26 +74,26 @@
     return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
   }
 
-  /** The rows of a day. The row being edited is swapped for the line, and a new line comes last in its day. The first row never nests. */
-  function dayRows(day, actions, line) {
-    var rows = day.entries.map(function (entry, index) {
-      return line && line.id === entry.id ? L.inline.row.build(line, actions.typed) : entryRow(entry, actions.open, index === 0 ? 0 : entry.indent || 0);
-    });
-    if (line && line.isNew && line.home === day.date) rows.push(L.inline.row.build(line, actions.typed));
-    return rows;
+  /** One soft paper card: the entry on top, its nested entries in an inset well inside the same card. */
+  function entryCard(card, actions) {
+    return h('article', { class: 'entry-card' },
+      entryRow(card.entry, actions.open, 0),
+      card.children.map(function (child) {
+        return h('div', { class: 'card-child' }, entryRow(child, actions.open, 1));
+      }));
   }
 
-  /** A day: its heading, its rows, and the add row when it is today. */
-  function dayGroup(day, actions, line) {
+  /** A day: its heading, a card per top-level entry, and the add row when it is today. */
+  function dayGroup(day, actions) {
     return h('section', { class: 'paper-day-group', 'data-date': day.date, 'data-today': day.isToday ? 'true' : null },
       dayHeader(day),
-      dayRows(day, actions, line),
+      L.days.cardsOf(day.entries).map(function (card) { return entryCard(card, actions); }),
       day.isToday ? addRow(actions.add) : null);
   }
 
-  /** All the days of the window, oldest first. line is the inline line being typed, or null. */
-  function dayList(entries, today, actions, line) {
-    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions, line); });
+  /** All the days of the window, oldest first. */
+  function dayList(entries, today, actions) {
+    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions); });
   }
 
   /** A quiet line for loading, with a retry button after a failed load. */
@@ -105,5 +105,5 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, L.copy.retry));
   }
 
-  L.view = { header: header, dayList: dayList, stateNote: stateNote, entryRow: entryRow };
+  L.view = { header: header, dayList: dayList, stateNote: stateNote };
 })();

@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-paper-cards",
+    "date": "2026-11-21",
+    "title": "Soft paper cards",
+    "bullets": [
+      "Each entry is now a card. Tags and times sit under the title as small pills.",
+      "Editing opens a sheet above the keyboard, with the icon bar at its foot."
+    ]
+  },
+  {
     "id": "2026-11-21-llm-scans",
     "date": "2026-11-21",
     "title": "Sharper handwriting scans",

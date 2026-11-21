@@ -1,5 +1,5 @@
 /*
- * Pure view model of the log: entries grouped by day, and the pills (meta text) of an entry.
+ * Pure view model of the log: entries grouped by day, the cards of a day, and the pills of an entry.
  * No DOM here. Words come from copy.js.
  */
 (function () {
@@ -32,23 +32,41 @@
     return type !== 'note';
   }
 
-  /** The tag (or "not synced" for a local entry without one, never for a note), then the time, joined with a middle dot. */
-  function metaText(entry) {
-    var parts = [];
-    if (entry.tag) parts.push(entry.tag);
-    else if (entry.sync === 'local' && showsSync(entry.type)) parts.push(L.copy.notSynced);
-    if (entry.time) parts.push(entry.time);
-    return parts.join(' \u00b7 ');
+  /** Whether the sync dot shows: only for an entry that is not synced or failed. Notes never show one. */
+  function showsMark(entry) {
+    return showsSync(entry.type) && (entry.sync === 'local' || entry.sync === 'error');
   }
 
-  /** The pills of a line being edited: its day when it differs from the day it sits in, then tag and time. No sync words. */
+  /** The pills under a title as { kind, text }: tag, time, then a quiet "not synced" for a local entry without a tag (never a note). */
+  function entryPills(entry) {
+    var pills = [];
+    if (entry.tag) pills.push({ kind: 'tag', text: entry.tag });
+    if (entry.time) pills.push({ kind: 'time', text: entry.time });
+    if (!entry.tag && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
+    return pills;
+  }
+
+  /** The chips of a line being edited: its day when it differs from the day it sits in, then tag and time. No sync words. */
   function editPills(line) {
-    var parts = [];
-    if (line.date !== line.home) parts.push(line.date.slice(8, 10) + '.' + line.date.slice(5, 7));
-    if (line.tag) parts.push(line.tag);
-    if (line.time) parts.push(line.time);
-    return parts.join(' \u00b7 ');
+    var pills = [];
+    if (line.date !== line.home) pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
+    if (line.tag) pills.push({ kind: 'tag', text: line.tag });
+    if (line.time) pills.push({ kind: 'time', text: line.time });
+    return pills;
   }
 
-  L.days = { groupDays: groupDays, dayEntries: dayEntries, metaText: metaText, showsSync: showsSync, editPills: editPills };
+  /** The cards of a day: each top-level entry with the entries nested under it. The first entry of a day never nests. */
+  function cardsOf(entries) {
+    var cards = [];
+    entries.forEach(function (entry, index) {
+      if (index > 0 && entry.indent === 1) cards[cards.length - 1].children.push(entry);
+      else cards.push({ entry: entry, children: [] });
+    });
+    return cards;
+  }
+
+  L.days = {
+    groupDays: groupDays, dayEntries: dayEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
+    entryPills: entryPills, editPills: editPills
+  };
 })();

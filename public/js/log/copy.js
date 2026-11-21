@@ -33,6 +33,7 @@
     },
     inline: {
       titleLabel: 'Entry title',
+      sheetLabel: 'Entry editor',
       barLabel: 'Entry options',
       keys: {
         type: 'Entry type',

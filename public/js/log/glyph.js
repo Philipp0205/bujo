@@ -34,11 +34,16 @@
     return use(SYMBOLS[type]);
   }
 
-  /** The small ink dot for a sync state. The state is in data-sync, the colour in paper.css. */
+  /** The small ink dot for a sync state. The state is in data-sync, the colour in log.css. */
   function syncMark(sync) {
     var label = L.copy.sync[sync];
     return h('span', { class: 'sync-mark', 'data-sync': sync, title: label, role: 'img', 'aria-label': label }, use('g-mark'));
   }
 
-  L.glyph = { TYPES: TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark };
+  /** A soft rounded chip for a tag, a time, a day or "not synced". item is { kind, text }. */
+  function pill(item) {
+    return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind }, item.text);
+  }
+
+  L.glyph = { TYPES: TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark, pill: pill };
 })();

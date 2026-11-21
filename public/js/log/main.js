@@ -13,14 +13,13 @@
   var POLL_MS = 800;
   var pollTimer = null;
 
-  /** The things a row or the add row can do. A note with a body opens the note sheet, any other entry is typed in place. */
+  /** The things a card or the add row can do. A note with a body opens the note sheet, any other entry opens the edit sheet. */
   var actions = {
     open: function (entry) {
       if (L.note.model.isNote(entry)) L.inline.editor.settle(function () { openNote(entry); });
       else L.inline.editor.editEntry(entry);
     },
     add: function () { L.inline.editor.addLine(); },
-    typed: function (value, composing) { L.inline.editor.typed(value, composing); },
     scan: function () { L.scan.flow.start({ day: state.today, onApplied: applied }); }
   };
 
@@ -35,7 +34,6 @@
     upsert: upsert,
     replaceDay: replaceDay,
     dayEntries: function (date) { return L.days.dayEntries(state.entries, date); },
-    rowFor: function (entry) { return L.view.entryRow(entry, actions.open); },
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };
 
@@ -63,9 +61,9 @@
     reload();
   }
 
-  /** The body under the header for the current status. The line being typed rides along in the day list. */
+  /** The body under the header for the current status. */
   function body() {
-    if (state.status === 'ready') return L.view.dayList(state.entries, state.today, actions, L.inline.editor.line());
+    if (state.status === 'ready') return L.view.dayList(state.entries, state.today, actions);
     return L.view.stateNote(state.status, reload);
   }
 
