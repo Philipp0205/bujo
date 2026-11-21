@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-notes-screen",
+    "date": "2026-11-21",
+    "title": "A home for your notes",
+    "bullets": [
+      "Your notes have their own screen now, in a two-column grid with a photo and a title on each card.",
+      "Rapid log, Notes and Account sit in a bar at the bottom. The settings icon at the top right is gone."
+    ]
+  },
+  {
     "id": "2026-11-21-rescan",
     "date": "2026-11-21",
     "title": "Scan the same page again",

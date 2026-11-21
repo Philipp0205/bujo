@@ -42,7 +42,7 @@ test("without a session the rapid log sends you to sign in", async ({ browser })
   await context.close();
 });
 
-test("an empty log shows today with its mark and the add row, and no scan or settings error", async ({ page }) => {
+test("an empty log shows today with its mark and the add row, the tab bar and no settings link, and no error", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto(app.baseUrl);
@@ -56,7 +56,11 @@ test("an empty log shows today with its mark and the add row, and no scan or set
 
   const scan = page.getByRole("button", { name: "Scan a page" });
   await expect(scan).toBeEnabled();
-  await expect(page.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+  await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
+  const tabs = page.getByRole("navigation", { name: "Main" });
+  await expect(tabs.locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Account"]);
+  await expect(tabs.locator("[data-tab=log]")).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
 

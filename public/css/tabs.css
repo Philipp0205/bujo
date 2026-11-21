@@ -1,0 +1,41 @@
+/*
+ * The bottom tab bar in the paper palette, on every page that has it (the log, Notes, Settings). Settings does not load log.css,
+ * so the bar carries its own paper colours: dark by default, light with prefers-color-scheme. The kit takes its colours from
+ * --ak-* tokens, so they are set on the bar itself: the glass and the bar colour (ak-native paints the glass), the text and
+ * muted colours of the tabs, the hairline on top and the accent of the focus ring. No kit blue is left on the bar.
+ */
+
+.ak-tabbar {
+  --tab-bg: rgba(22, 19, 15, 0.94);
+  --tab-ink: #f0eadc;
+  --tab-muted: #9a9184;
+  --tab-rule: #3a342c;
+  --ak-tabbar: var(--tab-bg);
+  --ak-glass: var(--tab-bg);
+  --ak-text: var(--tab-ink);
+  --ak-muted: var(--tab-muted);
+  --ak-hairline: var(--tab-rule);
+  --ak-accent: var(--tab-ink);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  .ak-tabbar {
+    --tab-bg: rgba(244, 239, 228, 0.94);
+    --tab-ink: #1a1612;
+    --tab-muted: #6f675c;
+    --tab-rule: #c4b6a2;
+  }
+}
+
+.ak-tabbar .ak-tab:focus-visible {
+  outline: 2px solid var(--tab-muted);
+  outline-offset: -6px;
+}
+
+/* An editor or a sheet takes the whole bottom of the screen, so the bar steps aside while the edit sheet is up. */
+html.is-editing .ak-tabbar { display: none; }
+
+/* The last row and the settings footer stay clear of the bar. */
+html.has-tabbar:not(.is-editing) .paper-page { padding-bottom: calc(var(--ak-tab) + 24px); }
+html.has-tabbar .bj-app { padding-bottom: calc(var(--ak-tab) + 24px); }

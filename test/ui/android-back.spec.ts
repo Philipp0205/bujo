@@ -135,7 +135,7 @@ test("closing the sheet inside the app leaves no extra history entry", async ({ 
 
 test("Back from settings returns to the log", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Account" }).click();
   await expect(page).toHaveURL(`${app.baseUrl}/settings`);
   await expect(page.locator("[data-action=open-whats-new]")).toBeVisible();
 

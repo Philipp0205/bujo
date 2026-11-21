@@ -8,7 +8,7 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title, the scan button and the settings link. */
+  /** The page header: the italic title and the scan button. Settings lives in the tab bar. */
   function header(onScan) {
     var copy = L.copy;
     var scan = h('button', {
@@ -19,15 +19,9 @@
       'data-action': 'scan',
       onclick: onScan
     }, L.glyph.use('g-camera', { width: 24, height: 24, viewBox: '0 0 24 24' }));
-    var settings = h('a', {
-      class: 'ak-icon-btn',
-      href: '/settings',
-      'aria-label': copy.settingsLabel,
-      'data-nav': 'settings'
-    }, L.glyph.use('g-settings', { width: 24, height: 24, viewBox: '0 0 24 24' }));
     return h('div', { class: 'paper-head' },
       h('h1', null, copy.title),
-      h('div', { class: 'paper-actions' }, scan, settings));
+      h('div', { class: 'paper-actions' }, scan));
   }
 
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */

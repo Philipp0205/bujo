@@ -24,6 +24,7 @@ function methodNotAllowed(allow: string): never {
 /**
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
+ *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   POST  /api/entries             a new entry, at the end of its day
  *   PATCH /api/entries/:id         change date, type, title, tag, time, indent (0 or 1) or body (the markdown of a free note, null when none)
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
@@ -42,6 +43,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
 
   if (pathname === "/api/entries") {
     if (isRead(method)) {
+      if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
       sendJson(res, 200, { entries: store.list(userId, range) });
       return true;
@@ -74,6 +76,13 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch, entry) ? ctx.sync.enqueue(userId, entry) : entry });
+  return true;
+}
+
+/** GET ?kind=notes lists every free note of the user, newest first, for the Notes screen. Any other kind is a 400. */
+function listNotes(ctx: RouteContext, store: EntryStore, userId: string): boolean {
+  if (ctx.url.searchParams.get("kind") !== "notes") throw new HttpError(400, "kind must be notes");
+  sendJson(ctx.res, 200, { entries: store.listNotes(userId) });
   return true;
 }
 

@@ -53,6 +53,29 @@ test("GET lists a date range sorted by date then position", async () => {
   });
 });
 
+test("GET ?kind=notes lists every free note of any day, newest first, session only", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    assert.equal((await api(base, "GET", "/api/entries?kind=notes")).status, 401);
+    const signed = await signUp(base);
+    const { headers } = signed;
+    const add = (date: string, title: string, body?: string) =>
+      api(base, "POST", "/api/entries", { body: { date, type: "note", title, ...(body ? { body } : {}) }, headers });
+    await add("2026-01-02", "january", "# january");
+    await add("2026-12-30", "december", "# december");
+    await add("2026-06-01", "short line");
+    await api(base, "POST", "/api/entries", { body: { ...NEW, title: "a task" }, headers });
+
+    const listed = await api(base, "GET", "/api/entries?kind=notes", { headers });
+    assert.equal(listed.status, 200);
+    assert.deepEqual(listed.json.entries.map((e: { title: string }) => e.title), ["december", "january"]);
+    assert.equal(typeof listed.json.entries[0].hasPhoto, "boolean");
+
+    assert.equal((await api(base, "GET", "/api/entries?kind=tasks", { headers })).status, 400);
+    const { token } = await makeToken(base, signed, "read");
+    assert.equal((await api(base, "GET", "/api/entries?kind=notes", { headers: { authorization: `Bearer ${token}` } })).status, 403);
+  });
+});
+
 test("GET refuses a missing, bad, reversed or too wide range", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);

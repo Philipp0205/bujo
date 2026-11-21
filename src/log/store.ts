@@ -33,6 +33,8 @@ type LinkRow = { remote_href: string | null; remote_uid: string | null; remote_e
 export type EntryStore = {
   /** Entries from one day to another, both included, by date then position. */
   list(userId: string, range: DateRange): Entry[];
+  /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. */
+  listNotes(userId: string): Entry[];
   /** Like list, with the scan provenance of each entry. For the scan routes only: it never reaches the public API. */
   listScan(userId: string, range: DateRange): ScanEntry[];
   /**
@@ -144,6 +146,13 @@ export function createEntryStore(db: Db): EntryStore {
       const rows = db
         .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
         .all(userId, range.from, range.to) as Row[];
+      return rows.map(toEntry);
+    },
+
+    listNotes(userId) {
+      const rows = db
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND body IS NOT NULL AND body <> '' ORDER BY date DESC, created_at DESC, id DESC`)
+        .all(userId) as Row[];
       return rows.map(toEntry);
     },
 

@@ -64,6 +64,8 @@ const APP_PAGES: Record<string, string> = {
   "/index.html": "/index.html",
   "/backlog": "/backlog.html",
   "/backlog.html": "/backlog.html",
+  "/notes": "/notes.html",
+  "/notes.html": "/notes.html",
   "/scan": "/scan.html",
   "/scan.html": "/scan.html",
   "/settings": "/settings.html",

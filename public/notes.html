@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" class="ak-base ak-native">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>bujo notes</title>
+
+  <!-- From app-kit head.html (v0.7.0). The theme-color colours are the paper colours: dark #16130f, light #f4efe4. -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark) and (max-width: 719px)">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light) and (max-width: 719px)">
+  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest?v=1">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <link rel="stylesheet" href="/app-kit/ak-tokens.css">
+  <link rel="stylesheet" href="/app-kit/ak-base.css">
+  <link rel="stylesheet" href="/app-kit/ak-components.css">
+  <link rel="stylesheet" href="/app-kit/ak-native.css">
+  <!-- The paper look comes last, so its colours win over the kit tokens. -->
+  <link rel="stylesheet" href="/css/log.css">
+  <link rel="stylesheet" href="/css/log-scan.css">
+  <link rel="stylesheet" href="/css/notes.css">
+  <link rel="stylesheet" href="/css/tabs.css">
+</head>
+<body>
+  <svg class="paper-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="g-close" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="g-scan-prose" viewBox="0 0 120 160"><path d="M20 30h80M20 52h70M20 70h80M20 88h54M20 112h60M32 130h50" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="g-scan-page" viewBox="0 0 40 52"><rect x=".75" y=".75" width="38.5" height="50.5" rx="3" fill="#f1ece0" stroke="#d8cfbd" stroke-width="1"/><path d="M8 12h24M8 18h20M8 24h24M8 30h18M8 36h22M8 42h14" fill="none" stroke="#6f675c" stroke-width="1.1" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <main id="notes" class="paper" aria-label="Notes"></main>
+
+  <script src="/app-kit/theme-color.js"></script>
+  <script src="/app-kit/ak-dom.js"></script>
+  <script src="/app-kit/ak-sheet.js"></script>
+  <script src="/app-kit/ak-nav.js"></script>
+  <script src="/app-kit/ak-tabbar.js"></script>
+  <script src="/app-kit/ak-sw-register.js"></script>
+  <script src="/js/core.js"></script>
+  <script src="/js/nav/overlays.js"></script>
+  <script src="/js/nav/page-back.js"></script>
+  <script src="/js/nav/copy.js"></script>
+  <script src="/js/nav/icons.js"></script>
+  <script src="/js/nav/tabs.js"></script>
+  <script src="/js/log/copy.js"></script>
+  <script src="/js/log/scan/copy.js"></script>
+  <script src="/js/log/dates.js"></script>
+  <script src="/js/log/ink/path.js"></script>
+  <script src="/js/log/ink/decorate.js"></script>
+  <script src="/js/log/glyph.js"></script>
+  <script src="/js/log/api.js"></script>
+  <script src="/js/log/note/model.js"></script>
+  <script src="/js/log/note/photo.js"></script>
+  <script src="/js/log/note/sheet.js"></script>
+  <script src="/js/notes/copy.js"></script>
+  <script src="/js/notes/model.js"></script>
+  <script src="/js/notes/view.js"></script>
+  <script src="/js/notes/main.js"></script>
+</body>
+</html>

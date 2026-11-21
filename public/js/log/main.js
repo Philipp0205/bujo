@@ -131,6 +131,7 @@
   AppKit.themeColor.start();
   AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
   AppKit.sw.register({ url: '/sw.js', scope: '/' });
+  BujoNav.tabs.mount('log');
 
   L.inline.editor.init(host);
   root.addEventListener('click', onPaperTap);

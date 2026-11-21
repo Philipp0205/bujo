@@ -18,6 +18,13 @@
     });
   }
 
+  /** Every free note of any day, newest day first (the Notes screen). */
+  function listNotes() {
+    return call('GET', '/api/entries?kind=notes').then(function (body) {
+      return body.entries;
+    });
+  }
+
   function create(values) {
     return call('POST', '/api/entries', values).then(function (body) {
       return body.entry;
@@ -63,5 +70,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listNotes: listNotes, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();
