@@ -1,5 +1,5 @@
 /*
- * The content of the edit sheet: the type symbol, the title input, the chips (day, tag, time) and a short error line.
+ * The content of the edit sheet: the type symbol, the title field (a wrapping textarea), the chips (day, tag, time) and a short error line.
  * Needs ak-dom.js, copy.js, glyph.js, days.js. It is built once and patched after that, so the input keeps its focus
  * and the keyboard stays up. It builds and patches nodes, it never saves anything.
  */
@@ -15,11 +15,35 @@
     return h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[type] }, L.glyph.typeGlyph(type));
   }
 
-  /** The text input of the line. onType(value, composing) runs on every keystroke so the line always holds the draft. */
+  /** Makes the field as tall as its wrapped text, up to the CSS max-height, and scrolls inside it only past that. */
+  function grow(input) {
+    input.style.height = 'auto';
+    var max = parseFloat(window.getComputedStyle(input).maxHeight) || Infinity;
+    input.style.height = Math.min(input.scrollHeight, max) + 'px';
+    input.style.overflowY = input.scrollHeight > max ? 'auto' : 'hidden';
+  }
+
+  /** Titles are one line of plain text on the server, so a typed or pasted line break (any control character) becomes a space. */
+  function flatten(input) {
+    var flat = input.value.replace(/[\u0000-\u001f\u007f]/g, ' ');
+    if (flat === input.value) return;
+    var start = input.selectionStart;
+    var end = input.selectionEnd;
+    input.value = flat;
+    input.setSelectionRange(start, end);
+  }
+
+  /** Sets the text of the field from code and sizes the field to it. */
+  function setTitle(input, value) {
+    input.value = value;
+    grow(input);
+  }
+
+  /** The text field of the line, a wrapping textarea that grows with its text. onType(value, composing) runs on every keystroke. */
   function titleInput(onType) {
-    var input = h('input', {
+    var input = h('textarea', {
       class: 'paper-edit-input',
-      type: 'text',
+      rows: 1,
       name: 'title',
       maxlength: 200,
       autocomplete: 'off',
@@ -27,7 +51,11 @@
       enterkeyhint: 'enter',
       'aria-label': L.copy.inline.titleLabel
     });
-    input.addEventListener('input', function (event) { onType(input.value, !!event.isComposing); });
+    input.addEventListener('input', function (event) {
+      flatten(input);
+      grow(input);
+      onType(input.value, !!event.isComposing);
+    });
     input.addEventListener('compositionend', function () { onType(input.value, false); });
     return input;
   }
@@ -75,5 +103,5 @@
     patchError(node, line);
   }
 
-  L.inline.row = { build: build, update: update };
+  L.inline.row = { build: build, update: update, setTitle: setTitle, grow: grow };
 })();

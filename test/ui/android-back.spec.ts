@@ -57,11 +57,15 @@ const row = (page: Page, title: string) => page.locator(".paper-row", { hasText:
 test("Back closes the edit sheet and stays on the log", async ({ page }) => {
   await seed(page, 1, "Eins");
   await page.goto(app.baseUrl);
+  const tabs = page.getByRole("navigation", { name: "Main" });
+  await expect(tabs).toBeVisible();
   await row(page, "Eins").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
+  await expect(tabs).toBeHidden();
 
   await page.goBack();
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  await expect(tabs).toBeVisible();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(log(page)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Rapid Log" })).toBeVisible();
@@ -170,30 +174,86 @@ test("Back closes the scan camera and stays on the log", async ({ page }) => {
   await expect(log(page)).toBeVisible();
 });
 
-test("the bar hides when the keyboard closes, the sheet stays, and Back then closes the sheet", async ({ page }) => {
+/** The titles the API holds on one day. */
+async function storedTitles(page: Page, offset: number): Promise<string[]> {
+  const stored = await page.request.get(`${app.baseUrl}/api/entries?from=${day(offset)}&to=${day(offset)}`);
+  return ((await stored.json()).entries as Array<{ title: string }>).map((entry) => entry.title);
+}
+
+/** Settings first, then the log through its link, so there is a real page before the log to go back to. */
+async function openLogFromSettings(page: Page, title: string): Promise<void> {
+  await page.goto(`${app.baseUrl}/settings`);
+  await page.getByRole("link", { name: "Rapid Log" }).click();
+  await expect(log(page)).toBeVisible();
+  await row(page, title).click();
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+}
+
+test("Back after the keyboard was up closes the sheet and the keyboard together and saves", async ({ page }) => {
   await seed(page, 6, "Sechs");
   await fakeViewport(page);
-  await page.goto(app.baseUrl);
-  await row(page, "Sechs").click();
+  await openLogFromSettings(page, "Sechs");
   const sheet = page.getByTestId("edit-sheet");
-  await expect(sheet).toBeVisible();
-  await expect(page.locator(".inline-bar")).toBeVisible();
-
   await setKeyboard(page, 320);
   await expect(page.locator(".inline-bar")).toBeVisible();
   await expect(sheet).toBeVisible();
-
-  await setKeyboard(page, 0);
-  await expect(page.locator(".inline-bar")).toBeHidden();
-  await expect(sheet).toBeVisible();
-
-  await setKeyboard(page, 320);
-  await expect(page.locator(".inline-bar")).toBeVisible();
-  await setKeyboard(page, 0);
-  await expect(page.locator(".inline-bar")).toBeHidden();
+  await page.locator(".paper-edit-input").fill("Sechs geaendert");
 
   await page.goBack();
   await expect(sheet).toBeHidden();
+  await expect(page.locator(".paper-edit-input")).not.toBeFocused();
+  await expect(row(page, "Sechs geaendert")).toBeVisible();
+  expect(await storedTitles(page, 6)).toEqual(["Sechs geaendert"]);
+
+  await page.goBack();
+  await expect(page).toHaveURL(`${app.baseUrl}/settings`);
+});
+
+test("the Android Back that only dismisses the keyboard closes the sheet and saves", async ({ page }) => {
+  await seed(page, -1, "Acht");
+  await fakeViewport(page);
+  await openLogFromSettings(page, "Acht");
+  const sheet = page.getByTestId("edit-sheet");
+  await setKeyboard(page, 320);
+  await expect(sheet).toBeVisible();
+  await page.locator(".paper-edit-input").fill("Acht geaendert");
+
+  await setKeyboard(page, 0);
+  await expect(sheet).toBeHidden();
+  await expect(page.locator(".paper-edit-input")).not.toBeFocused();
+  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
+  await expect(row(page, "Acht geaendert")).toBeVisible();
+  expect(await storedTitles(page, -1)).toEqual(["Acht geaendert"]);
+
+  // The kit drops the sheet's entry with history.go(-1). Wait until that has landed, then Back is a normal page back.
+  await expect.poll(() => page.evaluate(() => history.state)).toBeNull();
+  await page.goBack();
+  await expect(page).toHaveURL(`${app.baseUrl}/settings`);
+});
+
+test("a keyboard dismissal with a popover open closes the popover first and keeps the sheet", async ({ page }) => {
+  await seed(page, -3, "Neun");
+  await fakeViewport(page);
+  await page.goto(app.baseUrl);
+  await row(page, "Neun").click();
+  await setKeyboard(page, 320);
+  await page.locator(".inline-bar [data-key=tag]").click();
+  await expect(page.locator(".inline-pop")).toBeVisible();
+
+  await setKeyboard(page, 0);
+  await expect(page.locator(".inline-pop")).toHaveCount(0);
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+});
+
+test("the Android keyboard dismissal drops an empty new line", async ({ page }) => {
+  await fakeViewport(page);
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await setKeyboard(page, 320);
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+
+  await setKeyboard(page, 0);
+  await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await expect(log(page)).toBeVisible();
 });
 
@@ -206,17 +266,18 @@ test("without a keyboard the bar stays, even when the viewport events fire", asy
   await setKeyboard(page, 40);
   await setKeyboard(page, 0);
   await expect(page.locator(".inline-bar")).toBeVisible();
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
 });
 
-test("a tap on the backdrop still saves and closes the sheet with the keyboard gone", async ({ page }) => {
-  await seed(page, -2, "Acht");
+test("a tap on the backdrop still saves and closes the sheet while the keyboard is up", async ({ page }) => {
+  await seed(page, -2, "Zehn");
   await fakeViewport(page);
   await page.goto(app.baseUrl);
-  await row(page, "Acht").click();
+  await row(page, "Zehn").click();
   await setKeyboard(page, 320);
-  await setKeyboard(page, 0);
-  await expect(page.locator(".inline-bar")).toBeHidden();
+  await page.locator(".paper-edit-input").fill("Zehn geaendert");
 
   await page.getByRole("heading", { name: "Rapid Log" }).click();
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  expect(await storedTitles(page, -2)).toEqual(["Zehn geaendert"]);
 });

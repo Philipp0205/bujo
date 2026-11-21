@@ -274,7 +274,7 @@ test("a short note with no body is typed in place, and its details sheet is the 
   expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day, type: "note", title: "Kurze Notiz" } })).status()).toBe(201);
   await page.goto(app.baseUrl);
   await page.locator(".paper-row", { hasText: "Kurze Notiz" }).click();
-  await expect(page.locator(".paper-line input")).toHaveValue("Kurze Notiz");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Kurze Notiz");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.locator(".inline-bar [data-action=details]").click();
   await expect(page.getByRole("heading", { name: "Edit entry" })).toBeVisible();

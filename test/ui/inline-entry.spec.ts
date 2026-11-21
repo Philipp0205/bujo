@@ -46,7 +46,7 @@ async function seedEntry(page: Page, data: Record<string, unknown>): Promise<voi
 
 const today = (page: Page) => page.locator(`.paper-day-group[data-date="${day(0)}"]`);
 const saved = (page: Page, title: string) => today(page).locator(".paper-row[data-id]", { hasText: title });
-const line = (page: Page) => page.locator(".paper-line input");
+const line = (page: Page) => page.locator(".paper-line .paper-edit-input");
 const sheet = (page: Page) => page.locator(".edit-sheet");
 
 test("tap add, type a title, Enter creates a task on today", async ({ page }) => {
@@ -332,3 +332,53 @@ test("the edit sheet is pinned to the bottom of the visual viewport when a keybo
   expect(Math.round(bar.y + bar.height)).toBeLessThanOrEqual(544);
   expect(bar.y).toBeGreaterThan(box.y);
 });
+
+const LONG_TITLE = "Den langen Bericht fuer das Quartal noch einmal in Ruhe durchlesen, die Zahlen mit dem Vorjahr vergleichen und danach alles zusammenfassen";
+
+test("a long title wraps, the field grows, and Enter saves it as one line", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  const input = line(page);
+  const oneLine = (await input.boundingBox())!.height;
+  expect(oneLine).toBe(32);
+
+  await input.fill(LONG_TITLE);
+  await expect.poll(async () => (await input.boundingBox())!.height).toBeGreaterThanOrEqual(96);
+  const metrics = await input.evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth, value: (node as HTMLTextAreaElement).value }));
+  expect(metrics.scroll).toBeLessThanOrEqual(metrics.client);
+  expect(metrics.value).toBe(LONG_TITLE);
+  expect(metrics.value).not.toMatch(/[\n\r]/);
+
+  await page.keyboard.press("Enter");
+  await expect(saved(page, "Quartal")).toBeVisible();
+  const entries = await stored(page);
+  expect(entries.map((entry) => entry.title)).toEqual([LONG_TITLE]);
+});
+
+test("pasted line breaks become spaces, so the title stays one line", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await line(page).evaluate((node) => {
+    const area = node as HTMLTextAreaElement;
+    area.value = "Erste\nZweite\nDritte";
+    area.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(line(page)).toHaveValue("Erste Zweite Dritte");
+  await page.keyboard.press("Enter");
+  await expect(saved(page, "Erste Zweite")).toBeVisible();
+  expect((await stored(page)).map((entry) => entry.title)).toEqual(["Erste Zweite Dritte"]);
+});
+
+test("the field stops growing at its cap and scrolls inside", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await line(page).fill(("Wort ").repeat(39).trim());
+  const input = line(page);
+  const cap = await input.evaluate((node) => parseFloat(getComputedStyle(node).maxHeight));
+  await expect.poll(async () => (await input.boundingBox())!.height).toBeLessThanOrEqual(cap);
+  expect(await input.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
+  expect(await input.evaluate((node) => getComputedStyle(node).overflowY)).toBe("auto");
+  const box = (await sheet(page).boundingBox())!;
+  expect(box.y).toBeGreaterThan(0);
+});
+

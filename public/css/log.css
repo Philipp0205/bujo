@@ -408,7 +408,7 @@ html.is-editing .paper-page { padding-bottom: 320px; }
   gap: 8px;
   cursor: text;
 }
-.paper-edit .paper-body { display: flex; align-items: center; }
+.paper-edit .paper-body { display: flex; align-items: flex-start; }
 .paper-edit .paper-sym { height: 32px; }
 
 .sheet-chips {
@@ -420,19 +420,26 @@ html.is-editing .paper-page { padding-bottom: 320px; }
 .sheet-chips:empty { display: none; }
 .sheet-chips .pill-tag::before { content: "#"; }
 
+/* A wrapping textarea of one line that grows with its text (js/log/inline/row.js sets the height) up to about 5 lines. */
 .paper-edit-input {
   appearance: none;
   -webkit-appearance: none;
   flex: 1 1 auto;
+  display: block;
   box-sizing: border-box;
   width: 0;
   min-width: 0;
   height: 32px;
+  min-height: 32px;
+  max-height: min(160px, 25vh);
   margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
   outline: none;
+  resize: none;
+  overflow-y: hidden;
+  overflow-wrap: anywhere;
   background: transparent;
   color: var(--paper-ink);
   caret-color: var(--paper-ink);

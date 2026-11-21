@@ -1,7 +1,8 @@
 /*
- * Whether the soft keyboard has closed on the edit sheet. The accessory bar belongs to the keyboard, so it goes with it.
+ * Whether the soft keyboard has just been dismissed under the edit sheet. On Android the system Back first closes the keyboard
+ * and fires no popstate, so the editor treats that dismissal as the Back that closes the sheet too.
  * A keyboard counts only after it was seen (the gap above the screen bottom grew past a clear height). Desktop and tests have
- * no keyboard, the gap stays 0, and the bar stays. Needs viewport.js. It reads the viewport and keeps two flags, nothing else.
+ * no keyboard, the gap stays 0, and nothing is ever dismissed. Needs viewport.js. It reads the viewport and keeps one flag.
  */
 (function () {
   'use strict';
@@ -12,31 +13,23 @@
   var OPEN_PX = 100;
   var CLOSED_PX = 20;
   var seen = false;
-  var closed = false;
 
-  /** Reads the keyboard gap and says whether a keyboard that was up has gone, so the bar must hide. A gap in between changes nothing. */
+  /** Reads the keyboard gap. True only on the reading where a keyboard that was up has gone. A gap in between changes nothing. */
   function track() {
     var gap = L.inline.viewport.keyboardGap();
     if (gap > OPEN_PX) {
       seen = true;
-      closed = false;
     } else if (seen && gap < CLOSED_PX) {
       seen = false;
-      closed = true;
+      return true;
     }
-    return closed;
+    return false;
   }
 
-  /** A new edit starts with the bar shown. A keyboard that is up right now still counts, so its closing is noticed later. */
+  /** A new edit starts here. A keyboard that is up right now still counts, so its dismissal is noticed later. */
   function reset() {
     seen = L.inline.viewport.keyboardGap() > OPEN_PX;
-    closed = false;
   }
 
-  /** True while a keyboard that was seen is believed to be up. */
-  function isUp() {
-    return seen;
-  }
-
-  L.inline.keyboard = { track: track, reset: reset, isUp: isUp, isClosed: function () { return closed; } };
+  L.inline.keyboard = { track: track, reset: reset };
 })();
