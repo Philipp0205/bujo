@@ -163,7 +163,7 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
   await expect(sheet).toBeVisible();
   const line = sheet.locator(".paper-line[data-new=true]");
   await expect(line.locator(".paper-sym use")).toHaveAttribute("href", "#g-task");
-  await expect(line.locator("input")).toBeFocused();
+  await expect(line.locator(".paper-edit-input")).toBeFocused();
   const bar = sheet.locator(".inline-bar");
   await expect(bar).toBeVisible();
   const keys = bar.locator(".bar-key:visible");
@@ -238,8 +238,8 @@ test("a server error keeps the new line in edit mode with its draft and an error
 
   const line = page.locator(".paper-line[data-new=true]");
   await expect(line.getByRole("alert")).toContainText("title is too long");
-  await expect(line.locator("input")).toHaveValue("Zu lang");
-  await expect(line.locator("input")).toBeFocused();
+  await expect(line.locator(".paper-edit-input")).toHaveValue("Zu lang");
+  await expect(line.locator(".paper-edit-input")).toBeFocused();
   await expect(page.locator(".inline-bar")).toBeVisible();
   expect(posts).toBe(1);
   await expect(page.locator('.paper-row[data-id]', { hasText: "Zu lang" })).toHaveCount(0);
@@ -252,7 +252,7 @@ test("a failing request with no server message shows the safe copy line", async 
   await page.keyboard.type("Offline Zeile");
   await page.keyboard.press("Enter");
   await expect(page.locator(".paper-line .paper-line-error")).toHaveText("Could not save this line. Try again.");
-  await expect(page.locator(".paper-line input")).toHaveValue("Offline Zeile");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Offline Zeile");
 });
 
 test("tap a row to type in its title; type, tag and day change through the bar and save", async ({ page }) => {
@@ -261,7 +261,7 @@ test("tap a row to type in its title; type, tag and day change through the bar a
   await row(page, "Kaffeebohnen").click();
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  const input = page.locator(".paper-line input");
+  const input = page.locator(".paper-line .paper-edit-input");
   await expect(input).toHaveValue("Kaffeebohnen bestellen");
   await expect(input).toBeFocused();
   await expect(page.locator(".sheet-chips .pill")).toHaveText(["Haushalt"]);

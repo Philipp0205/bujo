@@ -64,12 +64,6 @@
     setCaps(caps);
   }
 
-  /** Shows or hides the whole bar (hidden while the keyboard it belongs to is closed). A hidden bar has no popover. */
-  function setShown(on) {
-    if (node) node.hidden = !on;
-    if (!on) closePop();
-  }
-
   /** The bar element, for the sheet. */
   function element() {
     return node;
@@ -102,7 +96,7 @@
   }
 
   L.inline.bar = {
-    mount: mount, show: show, setShown: setShown, element: element,
+    mount: mount, show: show, element: element,
     openPop: openPop, closePop: closePop,
     popKind: function () { return popKind; },
     popOpen: function () { return popKind !== ''; },

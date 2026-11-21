@@ -82,7 +82,7 @@ test("move up and down reorder the day, keep the line open, and are off at the e
 
   await key(page, "up").click();
   await expect.poll(async () => (await stored(page, 3)).map((entry) => entry.title)).toEqual(["b-zwei", "a-eins", "c-drei"]);
-  await expect(page.locator(".paper-line input")).toHaveValue("b-zwei");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("b-zwei");
   await expect(key(page, "up")).toHaveAttribute("aria-disabled", "true");
   const order = await group(page, 3).locator(".paper-row").evaluateAll((rows) => rows.map((node) => node.getAttribute("data-id")));
   expect(order).toEqual((await stored(page, 3)).map((entry) => entry.id));
@@ -128,12 +128,12 @@ test("a #tag and a time typed into a line become pills and leave the title", asy
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Zahnarzt #health ");
-  await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt ");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Zahnarzt ");
   await expect(page.locator(".sheet-chips .pill")).toHaveText(["health"]);
   await page.keyboard.type("14h30");
-  await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt 14h30");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Zahnarzt 14h30");
   await page.keyboard.type(" ");
-  await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt ");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Zahnarzt ");
   await expect(page.locator(".sheet-chips .pill")).toHaveText(["health", "14:30"]);
 
   await page.keyboard.press("Enter");
@@ -149,7 +149,7 @@ test("a tag at the very end is read when the line is saved", async ({ page }) =>
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Mira anrufen #work");
-  await expect(page.locator(".paper-line input")).toHaveValue("Mira anrufen #work");
+  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Mira anrufen #work");
   await page.keyboard.press("Enter");
   const saved = group(page, 0).locator(".paper-row[data-id]", { hasText: "Mira anrufen" });
   await expect(saved.locator(".paper-title")).toHaveText("Mira anrufen");

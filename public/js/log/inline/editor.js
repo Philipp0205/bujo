@@ -2,7 +2,7 @@
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
  * Needs markup.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, viewport.js, keyboard.js, layers.js, api.js, copy.js.
- * The bar hides when a keyboard that was up has closed (the sheet stays), and the phone's Back ends the edit (see layers.js).
+ * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
  * host: today(), draw() renders the page, upsert(entry) keeps the state in step with a saved entry,
  *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
@@ -73,20 +73,34 @@
     L.inline.layers.update();
   }
 
-  /** The bar goes with the keyboard: hidden once a keyboard that was up has closed, shown again when it comes back. */
-  function placeBar() {
-    var hide = L.inline.keyboard.isClosed();
-    quietly(function () { bar.setShown(!hide); });
-    syncLayers();
+  /** Blurs the title so the soft keyboard stays closed once the sheet is gone. Not a person's blur, so it saves nothing by itself. */
+  function dismissKeyboard() {
+    var input = titleInput();
+    if (input && input === document.activeElement) quietly(function () { input.blur(); });
   }
 
-  /** The visual viewport moved: the sheet follows the keyboard, the bar hides or shows with it, the card stays above the sheet. */
+  /** Back on the sheet (history pop or the keyboard going away): the keyboard and the sheet close together, saving like Escape. */
+  function closeWithKeyboard() {
+    dismissKeyboard();
+    return commit(false);
+  }
+
+  /** The Android Back that only dismissed the keyboard fires no popstate, so it ends the edit here. An open popover closes first instead. */
+  function onKeyboardDismissed() {
+    if (bar.popOpen()) {
+      quietly(function () { bar.closePop(); });
+      syncLayers();
+      return;
+    }
+    closeWithKeyboard();
+  }
+
+  /** The visual viewport moved: the sheet follows the keyboard, a dismissed keyboard ends the edit, the card stays above the sheet. */
   function onViewport() {
     sheet.place();
     if (!active) return;
-    L.inline.keyboard.track();
-    placeBar();
-    reveal();
+    if (L.inline.keyboard.track()) onKeyboardDismissed();
+    else reveal();
   }
 
   /** The card (or the add row) the sheet must not cover: the card of a saved entry, the end of the day for a new one. */
@@ -112,9 +126,10 @@
     sheet.show();
     L.inline.row.update(active);
     showBar();
-    placeBar();
+    syncLayers();
     var input = titleInput();
-    if (input.value !== active.title) input.value = active.title;
+    if (input.value !== active.title) L.inline.row.setTitle(input, active.title);
+    else L.inline.row.grow(input);
     if (!document.activeElement || !document.activeElement.closest('.inline-bar')) focusTitle();
     if (caret) input.setSelectionRange(caret.start, caret.end);
     reveal();
@@ -209,7 +224,7 @@
   function settleMarkup(line) {
     model.settle(line);
     var input = titleInput();
-    if (input && input.value !== line.title) input.value = line.title;
+    if (input && input.value !== line.title) L.inline.row.setTitle(input, line.title);
     L.inline.row.update(line);
   }
 
@@ -263,10 +278,11 @@
   function typed(value, composing) {
     active.title = value;
     active.edited = true;
+    reveal();
     var input = titleInput();
     var cleaned = !composing && caretAtEnd(input, value) && model.absorb(active, value, false);
     if (cleaned) {
-      input.value = active.title;
+      L.inline.row.setTitle(input, active.title);
       input.setSelectionRange(active.title.length, active.title.length);
     }
     if (!cleaned && !active.error) return;
@@ -417,13 +433,18 @@
     }
   }
 
+  /** True for a node the caret lives in (the title textarea, the tag input), so a tap on it may place the caret. */
+  function isTextField(node) {
+    return node.tagName === 'INPUT' || node.tagName === 'TEXTAREA';
+  }
+
   /** A press inside the editing zone must not move focus off the title. A press outside an open popover only closes it. */
   function onMouseDown(event) {
     if (!active) return;
     pressed = true;
     var target = event.target;
     if (bar.popOpen() && !target.closest('.inline-pop, .inline-bar')) closePop();
-    if (inZone(target) && target.tagName !== 'INPUT') event.preventDefault();
+    if (inZone(target) && !isTextField(target)) event.preventDefault();
   }
 
   /** Wires the editor to its host: the sheet with its bar, the key and focus listeners, and the keyboard tracking. */
@@ -440,7 +461,7 @@
     L.inline.layers.init({
       editing: function () { return !!active; },
       popOpen: bar.popOpen,
-      commit: function () { return commit(false); },
+      commit: closeWithKeyboard,
       closePop: closePop
     });
     L.inline.viewport.follow(onViewport);
