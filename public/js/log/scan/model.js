@@ -43,7 +43,8 @@
       id: line.id,
       type: line.type,
       title: line.title,
-      tag: '',
+      tag: line.tag || '',
+      time: line.time || null,
       confidence: line.confidence,
       noBullet: line.noBullet,
       status: line.status,
@@ -104,7 +105,7 @@
   }
 
   function lineBody(item) {
-    return { id: item.id, type: item.type, title: item.title.trim(), tag: item.tag.trim() || null };
+    return { id: item.id, type: item.type, title: item.title.trim(), tag: item.tag.trim() || null, time: item.time };
   }
 
   /** The body of a check: every line, edits included. */

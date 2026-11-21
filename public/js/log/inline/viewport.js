@@ -8,7 +8,7 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.inline = L.inline || {};
 
-  var BAR_HEIGHT = 56;
+  var BAR_HEIGHT = 52;
   var MARGIN = 8;
 
   /** The height the keyboard takes from the bottom of the layout viewport, 0 when there is none. */

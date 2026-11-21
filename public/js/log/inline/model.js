@@ -10,9 +10,9 @@
 
   var FIELDS = ['date', 'type', 'title', 'tag', 'time'];
 
-  /** An empty new line: a task on the given day, with no tag or time. */
+  /** An empty new line: a task on the given day, with no tag or time, not nested. */
   function blank(date) {
-    return { id: null, isNew: true, home: date, date: date, type: 'task', title: '', tag: null, time: null, original: null, error: '', saving: null };
+    return { id: null, isNew: true, home: date, date: date, type: 'task', title: '', tag: null, time: null, indent: 0, edited: false, original: null, error: '', saving: null };
   }
 
   /** A line that edits a saved entry. home is the day group it sits in until it is saved. */
@@ -26,6 +26,8 @@
       title: entry.title,
       tag: entry.tag || null,
       time: entry.time || null,
+      indent: entry.indent || 0,
+      edited: false,
       original: entry,
       error: '',
       saving: null
@@ -35,6 +37,23 @@
   /** True when the title has something other than spaces. */
   function hasTitle(line) {
     return line.title.trim() !== '';
+  }
+
+  /**
+   * Moves a written #tag and time out of the text into the line. final is true when the text is done (save), false while
+   * it is being typed. Resolves to true when the text changed, so the input must show the cleaned title.
+   */
+  function absorb(line, text, final) {
+    var found = L.markup.parse(text, { final: final });
+    if (found.tag !== null) line.tag = found.tag;
+    if (found.time !== null) line.time = found.time;
+    line.title = found.title;
+    return found.title !== text;
+  }
+
+  /** Reads the markup of a line that was typed in: a new line, or a saved one whose title was edited. Untouched titles stay as saved. */
+  function settle(line) {
+    if (line.isNew || line.edited) absorb(line, line.title, true);
   }
 
   /** All the fields of a line, as the API wants them. A blank tag or time is null so an edit can clear it. */
@@ -54,5 +73,5 @@
     return out;
   }
 
-  L.inline.model = { blank: blank, fromEntry: fromEntry, hasTitle: hasTitle, changes: changes };
+  L.inline.model = { blank: blank, fromEntry: fromEntry, hasTitle: hasTitle, absorb: absorb, settle: settle, changes: changes };
 })();

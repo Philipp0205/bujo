@@ -108,13 +108,57 @@ test("bad input is a 400 with an error message", async () => {
       assert.equal(result.status, 400, JSON.stringify(body));
       assert.equal(typeof result.json.error, "string");
     }
-    for (const body of [{}, { title: "" }, { type: "idea" }, { date: "tomorrow" }, { time: "9" }]) {
+    for (const body of [{}, { title: "" }, { type: "idea" }, { date: "tomorrow" }, { time: "9" }, { indent: 2 }, { indent: "1" }]) {
       assert.equal((await api(base, "PATCH", `/api/entries/${made.id}`, { body, headers })).status, 400, JSON.stringify(body));
     }
+    assert.equal((await api(base, "POST", "/api/entries", { body: { ...NEW, indent: 1 }, headers })).status, 400);
     const notJson = await fetch(`${base}/api/entries`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: "{oops" });
     assert.equal(notJson.status, 400);
-    assert.equal((await api(base, "DELETE", `/api/entries/${made.id}`, { headers })).status, 405);
+    assert.equal((await api(base, "PUT", `/api/entries/${made.id}`, { body: NEW, headers })).status, 405);
     assert.equal((await api(base, "PUT", "/api/entries", { body: NEW, headers })).status, 405);
+  });
+});
+
+test("DELETE removes the entry from the log and answers what is left of its day", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const add = async (title: string) => (await api(base, "POST", "/api/entries", { body: { ...NEW, title }, headers })).json.entry;
+    const a = await add("a");
+    const b = await add("b");
+    const removed = await api(base, "DELETE", `/api/entries/${a.id}`, { headers });
+    assert.equal(removed.status, 200);
+    assert.deepEqual(removed.json.entries.map((e: { title: string; position: number }) => [e.title, e.position]), [["b", 0]]);
+    assert.equal((await api(base, "DELETE", `/api/entries/${a.id}`, { headers })).status, 404);
+    assert.equal((await api(base, "DELETE", `/api/entries/${b.id}`, {})).status, 401);
+    const listed = await api(base, "GET", "/api/entries?from=2026-11-20&to=2026-11-20", { headers });
+    assert.equal(listed.json.entries.length, 1);
+  });
+});
+
+test("POST /move swaps with the neighbour and answers the day in its new order", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const add = async (title: string) => (await api(base, "POST", "/api/entries", { body: { ...NEW, title }, headers })).json.entry;
+    const a = await add("a");
+    await add("b");
+    const moved = await api(base, "POST", `/api/entries/${a.id}/move`, { body: { direction: "down" }, headers });
+    assert.equal(moved.status, 200);
+    assert.deepEqual(moved.json.entries.map((e: { title: string }) => e.title), ["b", "a"]);
+    assert.equal((await api(base, "POST", `/api/entries/${a.id}/move`, { body: { direction: "sideways" }, headers })).status, 400);
+    assert.equal((await api(base, "POST", "/api/entries/nope/move", { body: { direction: "up" }, headers })).status, 404);
+    assert.equal((await api(base, "POST", `/api/entries/${a.id}/move`, { body: { direction: "up" } })).status, 401);
+  });
+});
+
+test("PATCH indent nests an entry under the one above and clears itself for the first", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const add = async (title: string) => (await api(base, "POST", "/api/entries", { body: { ...NEW, title }, headers })).json.entry;
+    const a = await add("a");
+    const b = await add("b");
+    assert.equal((await api(base, "PATCH", `/api/entries/${a.id}`, { body: { indent: 1 }, headers })).json.entry.indent, 0);
+    assert.equal((await api(base, "PATCH", `/api/entries/${b.id}`, { body: { indent: 1 }, headers })).json.entry.indent, 1);
+    assert.equal((await api(base, "PATCH", `/api/entries/${b.id}`, { body: { indent: 0 }, headers })).json.entry.indent, 0);
   });
 });
 

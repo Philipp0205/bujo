@@ -529,3 +529,36 @@ test("API: without a sync service every entry stays local and retry answers 503"
     assert.deepEqual(ctx.fake.requests, []);
   }, false);
 });
+
+test("API: moving, indenting and outdenting an entry write nothing to Nextcloud", async () => {
+  await withSyncedApp(async (ctx) => {
+    const first = (await post(ctx, { date: "2026-11-24", type: "task", title: "eins" })).json.entry.id as string;
+    const second = (await post(ctx, { date: "2026-11-24", type: "task", title: "zwei" })).json.entry.id as string;
+    await ctx.service.idle();
+    const before = ctx.fake.requests.length;
+
+    const patch = (id: string, body: object) => api(ctx.base, "PATCH", `/api/entries/${id}`, { body, headers: ctx.headers });
+    const indented = await patch(second, { indent: 1 });
+    assert.equal(indented.json.entry.indent, 1);
+    assert.equal(indented.json.entry.sync, "synced");
+    assert.equal((await patch(second, { indent: 0 })).json.entry.sync, "synced");
+    const moved = await api(ctx.base, "POST", `/api/entries/${first}/move`, { body: { direction: "down" }, headers: ctx.headers });
+    assert.equal(moved.status, 200);
+    await ctx.service.idle();
+    assert.equal(ctx.fake.requests.length, before, "no request reached the fake server");
+  });
+});
+
+test("API: deleting a synced entry removes the local row only and never sends a DELETE", async () => {
+  await withSyncedApp(async (ctx) => {
+    const id = (await post(ctx, { date: "2026-11-24", type: "task", title: UMLAUT })).json.entry.id as string;
+    await ctx.service.idle();
+    const before = ctx.fake.requests.length;
+    const removed = await api(ctx.base, "DELETE", `/api/entries/${id}`, { headers: ctx.headers });
+    assert.equal(removed.status, 200);
+    await ctx.service.idle();
+    assert.equal(ctx.fake.requests.length, before);
+    assert.equal(ctx.fake.requests.some((request) => request.method === "DELETE"), false);
+    assert.equal(ctx.fake.names(BOX).length, 1, "the VTODO stays on the server");
+  });
+});

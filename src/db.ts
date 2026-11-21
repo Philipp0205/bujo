@@ -76,7 +76,8 @@ CREATE TABLE IF NOT EXISTS entries (
   remote_uid TEXT,
   remote_etag TEXT,
   sync_error TEXT,
-  body TEXT
+  body TEXT,
+  indent INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position);
 
@@ -89,21 +90,34 @@ CREATE TABLE IF NOT EXISTS entry_photos (
 );
 `;
 
-/** Columns added after the first release of the entries table. Older databases get them on open. */
-const ENTRY_EXTRA_COLUMNS = ["remote_href", "remote_uid", "remote_etag", "sync_error", "body"] as const;
+/** Columns added after the first release of the entries table, with their SQL type. Older databases get them on open. */
+const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
+  ["remote_href", "TEXT"],
+  ["remote_uid", "TEXT"],
+  ["remote_etag", "TEXT"],
+  ["sync_error", "TEXT"],
+  ["body", "TEXT"],
+  ["indent", "INTEGER NOT NULL DEFAULT 0"],
+];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
-const USER_EXTRA_COLUMNS = ["whats_new_seen"] as const;
+const USER_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
+  ["whats_new_seen", "TEXT"],
+];
 
-/** Adds the TEXT columns a table made before they existed lacks. Safe to run on every open. */
-function addMissingColumns(db: Db, table: "users" | "entries", columns: readonly string[]): void {
+/** Adds the columns a table made before they existed lacks. Safe to run on every open. */
+function addMissingColumns(
+  db: Db,
+  table: "users" | "entries",
+  columns: ReadonlyArray<readonly [name: string, type: string]>,
+): void {
   const have = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name);
-  for (const column of columns) {
-    if (!have.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
+  for (const [column, type] of columns) {
+    if (!have.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
 }
 
-/** Brings tables of older databases up to date: the sync columns and body of entries, the seen id of users. */
+/** Brings tables of older databases up to date: the sync columns, body and indent of entries, the seen id of users. */
 function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);

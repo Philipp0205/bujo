@@ -34,9 +34,19 @@
     inline: {
       titleLabel: 'Entry title',
       barLabel: 'Entry options',
-      keys: { type: 'Type', tag: 'Tag', date: 'Date', time: 'Time' },
+      keys: {
+        type: 'Entry type',
+        tag: 'Tag',
+        date: 'Date',
+        time: 'Time',
+        remove: 'Delete entry',
+        up: 'Move up',
+        down: 'Move down',
+        indent: 'Indent',
+        outdent: 'Indent back',
+        details: 'Details'
+      },
       popLabels: { type: 'Choose a type', tag: 'Tag', date: 'Day', time: 'Time (optional)' },
-      details: 'Details',
       clear: 'Clear'
     },
     sheet: {
@@ -57,6 +67,7 @@
       dateRequired: 'Pick a date.',
       saveFailed: 'Could not save. Try again.',
       lineFailed: 'Could not save this line. Try again.',
+      actionFailed: 'Could not do that. Try again.',
       retryFailed: 'Could not retry the sync. Try again.'
     },
     note: {

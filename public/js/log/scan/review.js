@@ -16,6 +16,7 @@
   function metaText(item) {
     var copy = L.copy.scan.review;
     var parts = [L.scan.model.percent(item) + '%'];
+    if (item.time) parts.push(item.time);
     if (L.scan.model.isLowConfidence(item)) parts.push(copy.checkSpelling);
     if (item.status === 'duplicate') parts.push(copy.duplicate);
     if (item.status === 'completes') parts.push(copy.marksDone);

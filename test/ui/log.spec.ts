@@ -160,7 +160,12 @@ test("tapping Add entry opens no sheet: a focused task line with the bar, and th
   await expect(line.locator("input")).toBeFocused();
   const bar = page.locator(".inline-bar");
   await expect(bar).toBeVisible();
-  await expect(bar.locator(".bar-key")).toHaveText(["Type", "Tag", "Date", "Time"]);
+  const keys = bar.locator(".bar-key:visible");
+  expect(await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-key")))).toEqual(
+    ["type", "tag", "date", "time", "remove", "up", "down", "indent", "outdent"],
+  );
+  expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""))).every(Boolean)).toBe(true);
+  expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""))).join("")).toBe("");
   const box = (await bar.boundingBox())!;
   expect(Math.round(box.y + box.height)).toBe(844);
   await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-line`)).toHaveCount(1);
@@ -250,12 +255,12 @@ test("tap a row to type in its title; type, tag and day change through the bar a
   await expect(input).toBeFocused();
   await expect(page.locator(".paper-line .meta-text")).toHaveText("Haushalt");
 
-  await page.locator(".bar-key", { hasText: "Type" }).click();
+  await page.locator(".bar-key[data-key=type]").click();
   await page.locator('.inline-pop .pop-type[data-type="done"]').click();
-  await page.locator(".bar-key", { hasText: "Tag" }).click();
+  await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("");
   await page.keyboard.press("Enter");
-  await page.locator(".bar-key", { hasText: "Date" }).click();
+  await page.locator(".bar-key[data-key=date]").click();
   await page.locator('.inline-pop input[name="date"]').fill(day(1));
   await expect(page.locator(".inline-pop")).toHaveCount(0);
 

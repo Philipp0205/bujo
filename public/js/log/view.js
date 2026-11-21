@@ -52,14 +52,15 @@
       L.days.showsSync(entry.type) ? L.glyph.syncMark(entry.sync) : null);
   }
 
-  /** One entry as a tappable row: symbol, title and pills on one 24px line. The type, sync state and id are on the row. */
-  function entryRow(entry, onOpen) {
+  /** One entry as a tappable row: symbol, title and pills on one 24px line. The type, sync state, indent and id are on the row. */
+  function entryRow(entry, onOpen, indent) {
     return h('button', {
       class: 'paper-row',
       type: 'button',
       'data-id': entry.id,
       'data-type': entry.type,
       'data-sync': entry.sync,
+      'data-indent': String(indent === undefined ? entry.indent || 0 : indent),
       onclick: function () { onOpen(entry); }
     },
       h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
@@ -73,10 +74,10 @@
     return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
   }
 
-  /** The rows of a day. The row being edited is swapped for the line, and a new line comes last in its day. */
+  /** The rows of a day. The row being edited is swapped for the line, and a new line comes last in its day. The first row never nests. */
   function dayRows(day, actions, line) {
-    var rows = day.entries.map(function (entry) {
-      return line && line.id === entry.id ? L.inline.row.build(line, actions.typed) : entryRow(entry, actions.open);
+    var rows = day.entries.map(function (entry, index) {
+      return line && line.id === entry.id ? L.inline.row.build(line, actions.typed) : entryRow(entry, actions.open, index === 0 ? 0 : entry.indent || 0);
     });
     if (line && line.isNew && line.home === day.date) rows.push(L.inline.row.build(line, actions.typed));
     return rows;

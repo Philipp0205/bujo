@@ -20,7 +20,7 @@
       else L.inline.editor.editEntry(entry);
     },
     add: function () { L.inline.editor.addLine(); },
-    typed: function (value) { L.inline.editor.typed(value); },
+    typed: function (value, composing) { L.inline.editor.typed(value, composing); },
     scan: function () { L.scan.flow.start({ day: state.today, onApplied: applied }); }
   };
 
@@ -33,9 +33,18 @@
     today: function () { return state.today; },
     draw: draw,
     upsert: upsert,
+    replaceDay: replaceDay,
+    dayEntries: function (date) { return L.days.dayEntries(state.entries, date); },
     rowFor: function (entry) { return L.view.entryRow(entry, actions.open); },
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };
+
+  /** Swaps every entry of one day for the server's list of that day (after a delete or a move). */
+  function replaceDay(date, entries) {
+    state.entries = state.entries.filter(function (entry) { return entry.date !== date; }).concat(entries);
+    state.status = 'ready';
+    state.version += 1;
+  }
 
   /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end.
    * The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */

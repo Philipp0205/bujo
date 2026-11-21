@@ -13,9 +13,9 @@ export type ApplyOutcome = { id: string; outcome: "created" | "completed"; entry
 /** An included line that has passed the same checks as POST /api/entries, with its entry fields ready to write. */
 type Checked = { item: SentItem; entry: NewEntry };
 
-/** Checks one kept line like a new entry. A bad title or tag is a 400 that names the line. */
+/** Checks one kept line like a new entry. A bad title, tag or time is a 400 that names the line. */
 function checkItem(item: SentItem, date: string, index: number): Checked {
-  const result = checkNewEntry({ date, type: item.type, title: item.title, tag: item.tag });
+  const result = checkNewEntry({ date, type: item.type, title: item.title, tag: item.tag, time: item.time });
   if (!result.ok) throw new HttpError(400, `items[${index}]: ${result.error}`);
   return { item, entry: result.value };
 }

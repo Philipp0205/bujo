@@ -1,9 +1,10 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js and bar.js, the page is drawn by the host (main.js).
- * Needs model.js, row.js, pop.js, bar.js, viewport.js, api.js, copy.js.
+ * Needs markup.js, model.js, row.js, pop.js, bar.js, viewport.js, api.js, copy.js.
  *
  * host: today(), draw() renders the page, upsert(entry) keeps the state in step with a saved entry,
+ *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
  *       rowFor(entry) builds a saved row, openSheet(entry) opens the details sheet.
  * The page is always redrawn through paint(), which puts the line being typed back with its draft, caret and focus.
  * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter saves and starts the next.
@@ -19,6 +20,7 @@
   var host = null;
   var active = null;
   var muted = false;
+  var acting = false;
   var pressed = false;
   var blurred = null;
 
@@ -49,11 +51,31 @@
     });
   }
 
+  /** What the bar keys may do for the active line. A key is off when there is no neighbour or when the day is being changed. */
+  function caps() {
+    if (!active) return { up: false, down: false, indent: false, outdent: false };
+    var saved = !active.isNew && active.date === active.original.date;
+    var day = host.dayEntries(active.isNew ? active.date : active.original.date);
+    var at = day.findIndex(function (entry) { return entry.id === active.id; });
+    var nested = active.indent === 1;
+    return {
+      up: saved && at > 0,
+      down: saved && at >= 0 && at < day.length - 1,
+      indent: !nested && (active.isNew ? day.length > 0 : saved && at > 0),
+      outdent: nested
+    };
+  }
+
+  /** Shows the bar for the active line with the keys that can act right now. */
+  function showBar() {
+    bar.show(active, caps());
+  }
+
   /** After any draw: show or hide the bar, and put the draft, the caret and the focus back into the fresh input. */
   function sync(caret) {
     document.documentElement.classList.toggle('is-editing', !!active);
     if (!active) { bar.hide(); return; }
-    bar.show(active);
+    showBar();
     var input = titleInput();
     if (!input) return;
     input.value = active.title;
@@ -100,9 +122,12 @@
     return error && error.status && error.message ? error.message : L.copy.errors.lineFailed;
   }
 
-  /** Sends a line: POST for a new one, PATCH with only the changes for an existing one. */
+  /** Sends a line: POST for a new one (then its indent, which a create does not take), PATCH with only the changes for an existing one. */
   function send(line, body) {
-    return line.isNew ? L.api.create(body) : L.api.update(line.id, body);
+    if (!line.isNew) return L.api.update(line.id, body);
+    return L.api.create(body).then(function (entry) {
+      return line.indent === 1 ? L.api.update(entry.id, { indent: 1 }) : entry;
+    });
   }
 
   /** Locks the title while a save is in flight, without closing the keyboard. */
@@ -119,7 +144,7 @@
     quietly(function () { bar.closePop(); });
     titleInput().value = '';
     L.inline.row.update(active);
-    bar.show(active);
+    showBar();
     L.inline.viewport.reveal(node);
   }
 
@@ -155,11 +180,20 @@
     return line.saving;
   }
 
+  /** Reads the written #tag and time of the line before it is saved, and shows the cleaned title. */
+  function settleMarkup(line) {
+    model.settle(line);
+    var input = titleInput();
+    if (input && input.value !== line.title) input.value = line.title;
+    L.inline.row.update(line);
+  }
+
   /** Saves the active line (or drops or cancels it when the title is empty). next starts a fresh line after. */
   function commit(next) {
     var line = active;
     if (!line) return Promise.resolve({ ok: true, entry: null });
     if (line.saving) return line.saving;
+    settleMarkup(line);
     if (!model.hasTitle(line)) return Promise.resolve(abandon(line, next));
     var body = model.changes(line);
     if (!line.isNew && Object.keys(body).length === 0) return Promise.resolve(abandon(line, next));
@@ -192,10 +226,25 @@
     });
   }
 
-  /** Every keystroke lands in the draft, so a redraw never loses it. A shown error goes away. */
-  function typed(value) {
+  /** True when the caret sits after the last character, so cleaning the text cannot jump the caret. */
+  function caretAtEnd(input, value) {
+    return !!input && input.selectionStart === value.length && input.selectionEnd === value.length;
+  }
+
+  /**
+   * Every keystroke lands in the draft, so a redraw never loses it. A shown error goes away. A tag or time written at the
+   * end of the line becomes a pill as soon as its word is finished (not while the person composes with an IME).
+   */
+  function typed(value, composing) {
     active.title = value;
-    if (!active.error) return;
+    active.edited = true;
+    var input = titleInput();
+    var cleaned = !composing && caretAtEnd(input, value) && model.absorb(active, value, false);
+    if (cleaned) {
+      input.value = active.title;
+      input.setSelectionRange(active.title.length, active.title.length);
+    }
+    if (!cleaned && !active.error) return;
     active.error = '';
     L.inline.row.update(active);
   }
@@ -206,17 +255,82 @@
     focusTitle();
   }
 
+  /** A failed bar action says so on the line and leaves everything as it was. */
+  function actionFailed() {
+    active.error = L.copy.errors.actionFailed;
+    L.inline.row.update(active);
+  }
+
+  /** Runs one request for a bar key, one at a time. onDone gets what the API answered. */
+  function request(call, onDone) {
+    if (acting) return;
+    acting = true;
+    call().then(function (result) {
+      acting = false;
+      if (active) onDone(result);
+    }, function () {
+      acting = false;
+      if (active) actionFailed();
+    });
+  }
+
+  /** Delete: a new line is just dropped, a saved one is removed from the log (never from Nextcloud). */
+  function removeLine() {
+    var line = active;
+    if (line.isNew) { end(); return; }
+    request(function () { return L.api.remove(line.id); }, function (entries) {
+      host.replaceDay(line.original.date, entries);
+      end();
+    });
+  }
+
+  /** Up or down: swaps the saved entry with its neighbour. The line stays active and keeps its draft. */
+  function moveLine(direction) {
+    var line = active;
+    request(function () { return L.api.move(line.id, direction); }, function (entries) {
+      host.replaceDay(line.original.date, entries);
+      paint();
+    });
+  }
+
+  /** Indent or outdent: saved at once for a saved entry, a draft choice for a new line (sent when the line is saved). */
+  function nestLine(level) {
+    var line = active;
+    if (line.isNew) { line.indent = level; L.inline.row.update(line); showBar(); return; }
+    request(function () { return L.api.update(line.id, { indent: level }); }, function (entry) {
+      host.upsert(entry);
+      line.original = entry;
+      line.indent = entry.indent;
+      L.inline.row.update(line);
+      showBar();
+    });
+  }
+
+  /** A tap on an action key of the bar. A key that cannot act right now does nothing. */
+  function act(name) {
+    if (!active || acting) return;
+    if (name === 'remove') removeLine();
+    else if (!caps()[name]) return;
+    else if (name === 'up' || name === 'down') moveLine(name);
+    else nestLine(name === 'indent' ? 1 : 0);
+  }
+
   /** The callbacks the popovers use. Each updates the line and the pills. A chosen value closes the popover. */
   function choices() {
     function set(key, value, close) {
       active[key] = value;
       L.inline.row.update(active);
+      showBar();
       if (close) closePop();
     }
     return {
       type: function (type) { set('type', type, true); },
       tag: function (text) { set('tag', text.trim() || null, false); },
-      date: function (iso) { if (iso) set('date', iso, true); },
+      date: function (iso) {
+        if (!iso) return;
+        if (iso !== active.date) active.indent = 0;
+        set('date', iso, true);
+      },
       time: function (hhmm) { set('time', hhmm || null, true); },
       close: closePop
     };
@@ -291,7 +405,7 @@
     host = options;
     model = L.inline.model;
     bar = L.inline.bar;
-    bar.mount({ toggle: toggle, details: details });
+    bar.mount({ toggle: toggle, act: act, details: details });
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('mousedown', onMouseDown, true);
