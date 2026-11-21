@@ -120,10 +120,14 @@ test("edit title and markdown, save, see the note in the log, open it, copy it, 
   await expect(row).toHaveCount(1);
   await expect(row).toHaveAttribute("data-type", "note");
   await expect(row).toHaveAttribute("data-sync", "local");
+  await expect(row.locator(".sync-mark")).toHaveCount(0);
+  await expect(row).not.toContainText(/not synced/i);
 
   await row.click();
   await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Garten im Frühjahr");
+  await expect(sheet(page).locator(".sync-mark, [data-testid=sync-line]")).toHaveCount(0);
+  await expect(sheet(page)).not.toContainText(/not synced/i);
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(`${MARKDOWN}\n- Kompost umschichten`);
 
   const copy = sheet(page).locator('[data-action="copy-note"]');
@@ -164,5 +168,6 @@ test("a short note with no body still opens the entry sheet", async ({ page }) =
   await page.goto(app.baseUrl);
   await page.locator(".paper-row", { hasText: "Kurze Notiz" }).click();
   await expect(page.getByRole("heading", { name: "Edit entry" })).toBeVisible();
+  await expect(page.getByTestId("sync-line")).toHaveCount(0);
   await expect(sheet(page)).toHaveCount(0);
 });
