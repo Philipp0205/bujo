@@ -46,3 +46,9 @@ Use OpenCode with the litellm provider.
 ## Real data
 
 Never point tests or agent runs at the live Aufgaben or Arbeit lists. Never delete CalDAV collections. Never delete items without an explicit yes from Philipp.
+
+## Tools
+
+- View files with the read tool (offset/limit for long files), search with the grep tool, find files with the glob tool, including inside `public/app-kit` and `node_modules`. Do not use `cat`, `sed -n`, `head`, `grep`, `git grep`, `ls` or `wc` in bash to read or search files, not even chained after `cd ...;`. Those are blocked and each try wastes a call. Trimming a command's own output (`npm run test:ui 2>&1 | tail -40`) is fine.
+- The grep tool uses ripgrep regex: no lookaround (`(?!...)`, `(?<=...)`). Search for the plain term and filter by reading.
+- Create files with the write tool, scratch specs and scripts too (put them in `/tmp/opencode/`). Never `cat > file <<EOF`, `cat >> file` or `sed -i`, also not behind `cd ... &&`.
