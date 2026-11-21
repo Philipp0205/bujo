@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-smooth-nav",
+    "date": "2026-11-21",
+    "title": "Tabs that switch at once",
+    "bullets": [
+      "Rapid log, Notes and Account now swap in place. The bar stays put and the page fades in.",
+      "A page you have seen before shows right away, with no loading flash, and updates quietly."
+    ]
+  },
+  {
     "id": "2026-11-21-copy-select",
     "date": "2026-11-21",
     "title": "Copy entries as paper lines",

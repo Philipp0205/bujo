@@ -46,6 +46,10 @@
 }
 .ak-tabbar .ak-tab[data-tab="scan"]:focus-visible { outline-offset: -2px; }
 
+/* The router keeps a tab page in the document while another tab is on screen. A page's own display rules must not show it. */
+main[hidden],
+.paper[hidden] { display: none; }
+
 /* An editor or a sheet takes the whole bottom of the screen, so the bar steps aside while the edit sheet is up. */
 html.is-editing .ak-tabbar { display: none; }
 

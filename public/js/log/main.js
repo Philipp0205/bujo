@@ -1,6 +1,8 @@
 /*
  * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
  * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here.
+ * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Rapid log tab is tapped
+ * (the page stays in the document, hidden, while another tab is on screen). The last rows come from AppKit.swr at once.
  * While an entry waits for its push to Nextcloud, the log
  * reads its own API again every so often (never Nextcloud) and stops when nothing is pending. It also asks the
  * what's-new boot to show entries the person has not seen yet.
@@ -10,7 +12,8 @@
 
   var L = window.BujoLog = window.BujoLog || {};
   var root = document.getElementById('log');
-  var state = { status: 'loading', entries: [], today: L.dates.todayIso(), focus: null, version: 0 };
+  var state = { status: 'loading', entries: [], today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null };
+  var booted = false;
   var POLL_MS = 800;
   var pollTimer = null;
 
@@ -91,6 +94,7 @@
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
   function draw() {
+    state.drawnToday = state.today;
     root.replaceChildren(top(), AppKit.h('div', { class: 'paper-page' }, body()));
     L.ink.decorate.list(root);
   }
@@ -107,29 +111,50 @@
     if (bare && state.status === 'ready' && !L.select.mode.on()) L.inline.editor.addLine();
   }
 
-  /** Loads the window around today, stretched to the day of the last applied scan. A failed quiet refresh keeps the entries on screen. */
-  function load(quiet) {
+  /** Reads the window around today, stretched to the day of the last applied scan. */
+  function fetchWindow() {
     state.today = L.dates.todayIso();
     var range = L.dates.windowWith(state.today, state.focus);
+    return L.api.list(range.from, range.to);
+  }
+
+  /** Takes a list that was read while the state was at version `seen`. True when the screen has to change. */
+  function accept(entries, seen) {
+    if (seen !== state.version) return false;
+    var same = state.status === 'ready' && state.drawnToday === state.today && JSON.stringify(entries) === JSON.stringify(state.entries);
+    state.entries = entries;
+    state.status = 'ready';
+    return !same;
+  }
+
+  /**
+   * Loads the window and draws it. via says where the list comes from: 'plain' is the server alone (after a save, and the pending
+   * poll: a read must not join an older one), 'cache' goes through AppKit.swr, and 'first' also paints the last cached rows at
+   * once, so a visit starts with rows instead of a loading note. A failed quiet refresh, or a failure behind rows that are
+   * already shown, keeps those rows on screen.
+   */
+  function load(quiet, via) {
     var seen = state.version;
-    return L.api.list(range.from, range.to).then(function (entries) {
-      if (seen !== state.version) return;
-      state.entries = entries;
-      state.status = 'ready';
-    }, function () {
-      if (!quiet) state.status = 'error';
-    }).then(function () {
+    var take = function (entries) { if (accept(entries, seen)) render(); };
+    var failed = function () {
+      if (quiet || state.status === 'ready') return;
+      state.status = 'error';
       render();
+    };
+    var done = function () {
       watchPending();
-      if (seen !== state.version) load(true);
-    });
+      if (seen !== state.version) load(true, 'plain');
+    };
+    if (via === 'plain') return BujoNav.data.fresh(BujoNav.data.KEYS.log, fetchWindow).then(take, failed).then(done);
+    var stale = function (entries) { if (via === 'first' && state.status !== 'ready') take(entries); };
+    return BujoNav.data.load(BujoNav.data.KEYS.log, fetchWindow, { stale: stale, fresh: take, fail: failed }).then(done);
   }
 
   /** Reads the log again with the loading note. Never used while a line is being typed. */
   function reload() {
     state.status = 'loading';
     render();
-    return load();
+    return load(false, 'plain');
   }
 
   /** True while some entry still waits for its push to Nextcloud. */
@@ -141,7 +166,7 @@
   function refreshQuietly() {
     pollTimer = null;
     if (!anyPending()) return;
-    load(true);
+    load(true, 'plain');
   }
 
   /** While an entry is pending, ask the app's own API again soon. With none pending the timer is left off. */
@@ -150,16 +175,31 @@
     pollTimer = window.setTimeout(refreshQuietly, POLL_MS);
   }
 
-  AppKit.themeColor.start();
-  AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
-  AppKit.sw.register({ url: '/sw.js', scope: '/' });
-  BujoNav.tabs.mount('log', { onScan: startScan });
+  /** One-time setup of the page: the install banner, the inline editor, the first rows (from the cache when there is one), what's new. */
+  function boot(ctx) {
+    booted = true;
+    AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
+    L.inline.editor.init(host);
+    L.select.mode.init({ host: host, root: root });
+    root.addEventListener('click', onPaperTap);
+    render();
+    load(false, 'first');
+    // The camera of a scan is not covered by the what's-new sheet: that waits for the next visit.
+    if (ctx.scan || scanFromLink()) startScan();
+    else BujoWhatsNew.boot.showUnseen();
+  }
 
-  L.inline.editor.init(host);
-  L.select.mode.init({ host: host, root: root });
-  root.addEventListener('click', onPaperTap);
-  render();
-  load();
-  // The camera of a scan started by a link is not covered by the what's-new sheet: that waits for the next visit.
-  if (!scanFromLink()) BujoWhatsNew.boot.showUnseen();
+  /** The router shows the log (the first time, or again from another tab): boots once, then reads the rows again quietly. */
+  function show(ctx) {
+    if (!booted) return boot(ctx);
+    if (ctx.scan) startScan();
+    load(true, 'cache');
+  }
+
+  /** Reads the rows into the cache while another tab is on screen, so the first switch here can paint them at once. */
+  function warm() {
+    BujoNav.data.warm(BujoNav.data.KEYS.log, fetchWindow);
+  }
+
+  BujoNav.router.start('log', { show: show, scan: startScan, warm: warm });
 })();

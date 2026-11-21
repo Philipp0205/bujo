@@ -1,6 +1,8 @@
 /*
  * bujo settings: account email, theme, agent tokens, what's new, sign out. Plain JS, no build step.
  * A token is shown once, right after it is created. Only its prefix is listed afterwards.
+ * The page registers with BujoNav.router, which shows it on a cold load of /settings and again whenever the Account tab is
+ * tapped (the page stays in the document, hidden, while another tab is on screen). The account is read through AppKit.swr.
  */
 (function () {
   'use strict';
@@ -8,19 +10,44 @@
   var h = AppKit.h;
   var app = document.getElementById('app');
   var state = { me: null, tokens: [], fresh: null, confirming: null, scope: 'read', error: null, mailNote: null };
+  var booted = false;
 
   function req(method, path, body) {
     return Bujo.request(method, path, body, { guarded: true });
   }
 
-  function load() {
+  /** The account and its tokens in one read, the shape that is cached. */
+  function fetchAccount() {
     return Promise.all([req('GET', '/api/auth/me'), req('GET', '/api/tokens')]).then(function (results) {
-      state.me = results[0];
-      state.tokens = results[1].tokens;
-      state.error = null;
-    }).catch(function (error) {
-      state.error = error.message;
-    }).then(render);
+      return { me: results[0], tokens: results[1].tokens };
+    });
+  }
+
+  /** Takes a read of the account. The page is only drawn again when it differs from what is on screen. */
+  function accept(data) {
+    var same = !state.error && !!state.me && JSON.stringify({ me: state.me, tokens: state.tokens }) === JSON.stringify(data);
+    state.me = data.me;
+    state.tokens = data.tokens;
+    state.error = null;
+    if (!same) render();
+  }
+
+  /** A failed read keeps the page that is on screen, and shows the error only when there is none. */
+  function failed(error) {
+    if (state.me) return;
+    state.error = error.message;
+    render();
+  }
+
+  /** Reads the account through the cache: the last read is drawn at once, the fresh one replaces it only when it changed. */
+  function loadCached() {
+    var stale = function (data) { if (!state.me) accept(data); };
+    return BujoNav.data.load(BujoNav.data.KEYS.settings, fetchAccount, { stale: stale, fresh: accept, fail: failed });
+  }
+
+  /** Reads the account after a change (a token made or revoked): the server alone, so the list cannot be an older shared read. */
+  function load() {
+    return BujoNav.data.fresh(BujoNav.data.KEYS.settings, fetchAccount).then(accept, failed);
   }
 
   function formatTime(ms) {
@@ -157,15 +184,16 @@
   function signOut() {
     return h('section', { class: 'bj-section' },
       h('button', { type: 'button', class: 'ak-btn ak-btn-secondary', 'data-action': 'sign-out', onclick: function () {
-        req('POST', '/api/auth/logout').then(function () { window.location.assign('/signin'); })
+        req('POST', '/api/auth/logout').then(function () { BujoNav.data.clear(); window.location.assign('/signin'); })
           .catch(function (error) { AppKit.toast(error.message, { kind: 'error' }); });
       } }, 'Sign out'));
   }
 
   function render() {
     var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'));
-    if (state.error && !state.me) {
-      app.replaceChildren(title, h('div', { class: 'bj-state', role: 'alert' }, h('div', { class: 'ak-empty' }, state.error)));
+    if (!state.me) {
+      var note = state.error ? h('div', { class: 'bj-state', role: 'alert' }, h('div', { class: 'ak-empty' }, state.error)) : null;
+      app.replaceChildren.apply(app, [title, note].filter(Boolean));
       return;
     }
     var focus = document.activeElement && document.activeElement.id;
@@ -174,8 +202,19 @@
     if (focus) { var again = document.getElementById(focus); if (again) again.focus(); }
   }
 
-  AppKit.themeColor.start();
-  AppKit.sw.register({ url: '/sw.js', scope: '/' });
-  BujoNav.tabs.mount('account');
-  load();
+  /** The router shows Account: paints the cached account at once on the first show (else the title alone), then reads it quietly. */
+  function show() {
+    if (booted) return loadCached();
+    booted = true;
+    var reading = loadCached();
+    if (!app.firstChild) render();
+    return reading;
+  }
+
+  /** Reads the account into the cache while another tab is on screen, so the first switch here can paint it at once. */
+  function warm() {
+    return BujoNav.data.warm(BujoNav.data.KEYS.settings, fetchAccount);
+  }
+
+  BujoNav.router.start('account', { show: show, warm: warm });
 })();
