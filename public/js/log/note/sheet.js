@@ -1,7 +1,7 @@
 /*
  * The free-note sheet (mock 06 without Obsidian): one paper sheet to review a scanned note and to view or edit a saved one.
- * It edits title, day and markdown, saves through /api/entries, and copies the markdown. Dismissing writes nothing.
- * Needs ak-dom.js, ak-sheet.js, core.js, copy.js, dates.js, glyph.js, api.js and note/model.js.
+ * It edits title, day and markdown, saves through /api/entries (and stores the scan photo with the note), and copies the markdown.
+ * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js.
  */
 (function () {
   'use strict';
@@ -75,10 +75,23 @@
       cancel);
   }
 
-  /** Sends the values: a POST for a scanned note, a PATCH for a saved one. */
-  function send(values) {
+  /**
+   * Sends the values: a POST for a scanned note, a PATCH for a saved one. A photo not stored yet goes up after the note, once.
+   * The new note's id is kept in options.values, so a retry after a failed photo upload edits that note and adds no second one.
+   */
+  function send(values, pending, options) {
     var body = L.note.model.payload(values);
-    return values.id === null ? L.api.create(body) : L.api.update(values.id, body);
+    var saved = values.id === null ? L.api.create(body) : L.api.update(values.id, body);
+    return saved.then(function (entry) {
+      options.values.id = entry.id;
+      if (!pending.blob) return entry;
+      return L.api.uploadPhoto(entry.id, pending.blob).then(function (withPhoto) {
+        pending.blob = null;
+        return withPhoto;
+      }, function () {
+        throw new Error(L.copy.note.photoFailed);
+      });
+    });
   }
 
   /** The words for a problem key of the model. */
@@ -87,13 +100,22 @@
     return { title: copy.titleRequired, date: copy.dateRequired, body: copy.bodyRequired }[key] || '';
   }
 
+  /** The photo field of the sheet: the one waiting to be saved, else the stored one, else nothing. */
+  function photoField(options) {
+    var values = options.values;
+    if (options.photo) return L.note.photo.field(options.photo.url);
+    if (values.id !== null && values.hasPhoto) return L.note.photo.field(L.api.photoUrl(values.id));
+    return null;
+  }
+
   /**
    * Opens the sheet. options.mode is 'review' (a scan, not saved yet) or 'saved'. options.values come from the model.
-   * options.onSaved(entry) runs after a successful save.
+   * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    */
   function open(options) {
     var copy = L.copy.note;
     var inputs = controls(options.values);
+    var pending = { blob: options.photo ? options.photo.blob : null };
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var save = h('button', { class: 'ak-btn ak-btn-accent', type: 'submit', form: FORM_ID, 'data-action': 'save-note' },
       options.mode === 'review' ? L.copy.scan.note.save : copy.save);
@@ -111,7 +133,7 @@
       Bujo.say(slot, messageFor(key));
       if (key || save.disabled) return;
       busy(true);
-      send(values).then(function (entry) {
+      send(values, pending, options).then(function (entry) {
         sheet.close();
         options.onSaved(entry);
       }, function (error) {
@@ -124,7 +146,7 @@
       event.preventDefault();
       submit();
     } },
-      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), field(copy.body, inputs.body), copyButton(inputs));
+      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), field(copy.body, inputs.body), photoField(options), copyButton(inputs));
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan sheet-note', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'note-title', 'data-testid': 'note-sheet', 'data-mode': options.mode },
       head(options, function () { sheet.close(); }),
       h('div', { class: 'ak-sheet-scroll' }, slot, form),

@@ -37,5 +37,17 @@
     });
   }
 
-  L.api = { list: list, create: create, update: update, retrySync: retrySync };
+  /** Stores the scan photo (a JPEG Blob) with a note. Resolves with the entry, which then has hasPhoto. */
+  function uploadPhoto(id, blob) {
+    return Bujo.upload('/api/entries/' + encodeURIComponent(id) + '/photo', blob, { guarded: true }).then(function (body) {
+      return body.entry;
+    });
+  }
+
+  /** The address of a note's stored photo. The server answers it for the signed-in owner only. */
+  function photoUrl(id) {
+    return '/api/entries/' + encodeURIComponent(id) + '/photo';
+  }
+
+  L.api = { list: list, create: create, update: update, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

@@ -1,7 +1,9 @@
-import { HttpError, readJson, sendJson } from "../app-kit/http.ts";
+import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
+import { createPhotoStore } from "../log/photo-store.ts";
 import { createEntryStore, type EntryStore } from "../log/store.ts";
 import { checkEntryPatch, checkNewEntry, checkRange } from "../log/validation.ts";
 import type { Checked, Entry } from "../log/types.ts";
+import { readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
@@ -25,6 +27,8 @@ function methodNotAllowed(allow: string): never {
  *   POST  /api/entries             a new entry, at the end of its day
  *   PATCH /api/entries/:id         change date, type, title, tag, time or body (the markdown of a free note, null when none)
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
+ *   GET   /api/entries/:id/photo   the scan photo of a free note (JPEG), 404 when it has none
+ *   POST  /api/entries/:id/photo   store the scan photo of a note (a JPEG as the raw body), replacing an earlier one
  * A task entry answers with sync "pending" and is pushed to Nextcloud after the answer is sent.
  */
 export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
@@ -47,9 +51,10 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  const match = /^\/api\/entries\/([^/]+)(\/sync)?$/.exec(pathname);
+  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
   const id = decodeId(match[1]);
+  if (match[2] === "/photo") return handlePhoto(ctx, userId, id);
   if (match[2]) {
     if (method !== "POST") methodNotAllowed("POST");
     sendJson(res, 200, { entry: retrySync(ctx, store, userId, id) });
@@ -70,6 +75,32 @@ function retrySync(ctx: RouteContext, store: EntryStore, userId: string, id: str
   if (!ctx.sync) throw new HttpError(503, SYNC_MESSAGES.notSetUp);
   if (entry.sync !== "error") throw new HttpError(409, SYNC_MESSAGES.retryNotNeeded);
   return ctx.sync.enqueue(userId, entry);
+}
+
+/** True when the bytes start like a JPEG file (the client sends JPEG only, so anything else is not a photo). */
+function looksLikeJpeg(image: Buffer): boolean {
+  return image.length > 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
+}
+
+/** GET sends the stored photo of the owner's note, POST stores one (the page photo of a scan). 404 when there is none or it is not theirs. */
+async function handlePhoto(ctx: RouteContext, userId: string, id: string): Promise<boolean> {
+  const { req, res, method, accounts } = ctx;
+  const entries = createEntryStore(accounts.db);
+  const photos = createPhotoStore(accounts.db);
+  if (isRead(method)) {
+    const photo = photos.get(userId, id);
+    if (!photo) throw new HttpError(404, "no photo");
+    res.writeHead(200, { ...SECURITY_HEADERS, "content-type": photo.contentType, "content-length": photo.image.length });
+    res.end(method === "HEAD" ? undefined : photo.image);
+    return true;
+  }
+  if (method !== "POST") methodNotAllowed("GET or POST");
+  if (!entries.get(userId, id)) throw new HttpError(404, "unknown entry");
+  const { image, contentType } = await readPhoto(req, ["image/jpeg"]);
+  if (!looksLikeJpeg(image)) throw new HttpError(415, "the photo is not a JPEG file");
+  photos.put(userId, id, { image, contentType }, accounts.now());
+  sendJson(ctx.res, 200, { entry: entries.get(userId, id) });
+  return true;
 }
 
 function decodeId(raw: string): string {

@@ -10,6 +10,7 @@ type Row = {
   title: string;
   tag: string | null;
   body: string | null;
+  has_photo: number;
   sync: Entry["sync"];
   sync_error: string | null;
   position: number;
@@ -35,7 +36,10 @@ export type EntryStore = {
   failPending(message: string): void;
 };
 
-const COLUMNS = "id, date, time, type, title, tag, body, sync, sync_error, position, created_at, updated_at";
+/** The entry columns, plus a flag for a stored photo (the bytes are never selected here). */
+const COLUMNS =
+  "id, date, time, type, title, tag, body, sync, sync_error, position, created_at, updated_at, " +
+  "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
 
 function toEntry(row: Row): Entry {
   return {
@@ -46,6 +50,7 @@ function toEntry(row: Row): Entry {
     title: row.title,
     tag: row.tag,
     body: row.body ?? null,
+    hasPhoto: Number(row.has_photo) === 1,
     sync: row.sync,
     syncError: row.sync_error,
     position: Number(row.position),
