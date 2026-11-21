@@ -1,5 +1,6 @@
 /*
  * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
+ * actions: open(entry), add(), and select { on(), ticked(entry), toggle(entry) } for select mode.
  * Needs ak-dom.js, copy.js, dates.js, glyph.js and days.js.
  */
 (function () {
@@ -33,8 +34,25 @@
     return h('span', { class: 'paper-meta' }, items, mark);
   }
 
-  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet. */
-  function entryRow(entry, onOpen, indent) {
+  /** The ink ring in front of a row while selecting: a pen circle, with a tick inside when the entry is ticked. */
+  function ring(ticked) {
+    return h('span', { class: 'select-check', 'data-testid': 'select-check', 'data-checked': ticked ? 'true' : 'false' },
+      L.glyph.use('g-ring', { width: 24, height: 24, viewBox: '0 0 24 24' }),
+      ticked ? L.glyph.use('g-check', { width: 24, height: 24, viewBox: '0 0 24 24' }) : null);
+  }
+
+  /** What a tap on a row does: ticks it while selecting, otherwise opens it. */
+  function tapOf(entry, actions) {
+    return function () {
+      if (actions.select.on()) actions.select.toggle(entry);
+      else actions.open(entry);
+    };
+  }
+
+  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet, or ticks while selecting. */
+  function entryRow(entry, actions, indent) {
+    var picking = actions.select.on();
+    var ticked = picking && actions.select.ticked(entry);
     return h('button', {
       class: 'paper-row',
       type: 'button',
@@ -42,8 +60,10 @@
       'data-type': entry.type,
       'data-sync': entry.sync,
       'data-indent': String(indent),
-      onclick: function () { onOpen(entry); }
+      'aria-selected': picking ? String(ticked) : null,
+      onclick: tapOf(entry, actions)
     },
+      picking ? ring(ticked) : null,
       h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
@@ -58,18 +78,18 @@
   /** One card: the entry on top, its nested entries inside the same card, each with its own pen outline (drawn by the ink decorator). */
   function entryCard(card, actions) {
     return h('article', { class: 'entry-card' },
-      entryRow(card.entry, actions.open, 0),
+      entryRow(card.entry, actions, 0),
       card.children.map(function (child) {
-        return h('div', { class: 'card-child' }, entryRow(child, actions.open, 1));
+        return h('div', { class: 'card-child' }, entryRow(child, actions, 1));
       }));
   }
 
-  /** A day: its heading, a card per top-level entry, and the add row when it is today. */
+  /** A day: its heading, a card per top-level entry, and the add row when it is today (not while selecting). */
   function dayGroup(day, actions) {
     return h('section', { class: 'paper-day-group', 'data-date': day.date, 'data-today': day.isToday ? 'true' : null },
       dayHeader(day),
       L.days.cardsOf(day.entries).map(function (card) { return entryCard(card, actions); }),
-      day.isToday ? addRow(actions.add) : null);
+      day.isToday && !actions.select.on() ? addRow(actions.add) : null);
   }
 
   /** All the days of the window, oldest first. */

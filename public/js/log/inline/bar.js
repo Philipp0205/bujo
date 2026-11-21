@@ -1,6 +1,6 @@
 /*
  * The accessory bar: one thin row of icon keys at the bottom of the edit sheet, above the keyboard. It scrolls sideways when
- * the keys do not fit. Type, Tag, Date and Time open a popover. Delete, Up, Down, Indent and Outdent act on the entry.
+ * the keys do not fit. Type, Tag, Date and Time open a popover. Copy, Delete, Up, Down, Indent and Outdent act on the entry.
  * Details opens the details sheet and only shows for an entry that is already saved. The bar is built once and the edit
  * sheet holds it, so a page redraw never touches it.
  * Needs ak-dom.js, copy.js, glyph.js and pop.js. actions: toggle(kind), act(name) and details().
@@ -13,7 +13,7 @@
   L.inline = L.inline || {};
 
   var POPS = ['type', 'tag', 'date', 'time'];
-  var ACTS = ['remove', 'up', 'down', 'indent', 'outdent'];
+  var ACTS = ['copy', 'remove', 'up', 'down', 'indent', 'outdent'];
   var node = null;
   var keys = {};
   var pop = null;
@@ -58,9 +58,10 @@
     });
   }
 
-  /** Updates the bar for a line: Details only shows for a saved entry, and the keys that cannot act are greyed. */
+  /** Updates the bar for a line: Details only shows for a saved entry, Copy only once there is a title, and the keys that cannot act are greyed. */
   function show(line, caps) {
     keys.details.hidden = line.isNew;
+    keys.copy.hidden = !caps.copy;
     setCaps(caps);
   }
 

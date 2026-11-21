@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-copy-select",
+    "date": "2026-11-21",
+    "title": "Copy entries as paper lines",
+    "bullets": [
+      "Tap the copy key in the bar above the keyboard to copy the entry you are editing.",
+      "Press and hold an entry to select several, then copy them as paper lines, grouped by day."
+    ]
+  },
+  {
     "id": "2026-11-21-scan-bar",
     "date": "2026-11-21",
     "title": "Scan from the bottom bar",

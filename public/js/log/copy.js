@@ -38,6 +38,7 @@
         tag: 'Tag',
         date: 'Date',
         time: 'Time',
+        copy: 'Copy entry',
         remove: 'Delete entry',
         up: 'Move up',
         down: 'Move down',
@@ -63,6 +64,19 @@
         montag: 'Montag', dienstag: 'Dienstag', mittwoch: 'Mittwoch', donnerstag: 'Donnerstag',
         freitag: 'Freitag', samstag: 'Samstag', sonntag: 'Sonntag'
       }
+    },
+    clip: {
+      /** The German weekday of the day headers in copied text, in the order of Date.getUTCDay (Sunday first). */
+      weekdays: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+      copied: function (count) { return 'Copied ' + count; },
+      failed: 'Could not copy. Try again.'
+    },
+    select: {
+      barLabel: 'Selection',
+      count: function (count) { return count + ' selected'; },
+      cancel: 'Cancel',
+      day: 'Select day',
+      copy: 'Copy'
     },
     sheet: {
       editTitle: 'Edit entry',
