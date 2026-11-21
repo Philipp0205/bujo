@@ -1,4 +1,5 @@
 """Line text recognition. TrOCR-small-handwritten first, Tesseract (eng+deu, psm 7) as the fallback.
+(llm.py can read the whole page instead, when a gateway is configured; this is the path it falls back to.)
 
 torch and transformers are imported lazily, once, the first time a line is read. Without them (or when the model
 cannot load) every line goes to Tesseract. A line also falls back to Tesseract when TrOCR fails or returns nothing.
