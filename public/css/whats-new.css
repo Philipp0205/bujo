@@ -1,8 +1,6 @@
 /*
- * bujo what's new sheet. Two looks of one list:
- *   - on the rapid log it is a paper sheet (.sheet-entry, from log.css): entries sit on the 24px dot grid, every height a multiple of 24.
- *   - on settings it is a plain kit sheet in the settings colours (the accent comes from styles.css).
- * Loaded after log.css or styles.css.
+ * bujo what's new sheet: a paper sheet (.sheet-entry, from sheet.css) on the rapid log and on settings.
+ * Entries sit on the 24px dot grid, every height a multiple of 24. Loaded after sheet.css.
  */
 
 .wn-entry { margin: 0; }
@@ -12,10 +10,8 @@
 .wn-bullets { margin: 0; }
 .wn-bullets { padding: 0; list-style: none; }
 .wn-bullets li { position: relative; }
-.wn-bullets li::before { content: "\2013"; position: absolute; left: 0; color: var(--paper-muted, var(--ak-muted)); }
+.wn-bullets li::before { content: "\2013"; position: absolute; left: 0; color: var(--paper-muted); }
 .wn-title { font-weight: 400; }
-
-/* ----- Paper look (the rapid log) ----- */
 
 .sheet-entry .wn-list { margin: 0 0 0 var(--text-col); }
 .sheet-entry .wn-date {
@@ -37,35 +33,3 @@
   font-size: 16px;
   line-height: 24px;
 }
-
-/* ----- Settings look (a plain kit sheet) ----- */
-
-.wn-heading {
-  margin: 0;
-  padding: 0 var(--ak-gutter);
-  font-size: var(--ak-fs-xl);
-  font-weight: var(--ak-fw-bold);
-}
-.wn-sub {
-  margin: 0;
-  padding: var(--ak-s1) var(--ak-gutter) 0;
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-md);
-}
-.wn-sheet:not(.sheet-entry) .ak-sheet-scroll { padding-left: 0; padding-right: 0; }
-.wn-sheet:not(.sheet-entry) .wn-list { padding: 0 var(--ak-gutter); }
-.wn-sheet:not(.sheet-entry) .wn-date {
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-sm);
-}
-.wn-sheet:not(.sheet-entry) .wn-title {
-  font-size: var(--ak-fs-lg);
-  font-weight: var(--ak-fw-bold);
-}
-.wn-sheet:not(.sheet-entry) .wn-bullets li {
-  padding-left: var(--ak-s3);
-  font-size: var(--ak-fs-md);
-}
-.wn-sheet:not(.sheet-entry) .wn-bullets { margin-top: var(--ak-s1); }
-.wn-sheet:not(.sheet-entry) .ak-sheet-dock { padding: var(--ak-s3) var(--ak-gutter) 0; }
-.wn-sheet:not(.sheet-entry) .ak-sheet-dock .ak-btn { width: 100%; }

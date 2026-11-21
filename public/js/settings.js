@@ -1,5 +1,5 @@
 /*
- * bujo settings: account email, agent tokens, sign out. Plain JS, no build step.
+ * bujo settings: account email, theme, agent tokens, what's new, sign out. Plain JS, no build step.
  * A token is shown once, right after it is created. Only its prefix is listed afterwards.
  */
 (function () {
@@ -66,7 +66,7 @@
       h('button', { type: 'submit', class: 'ak-btn ak-btn-secondary' }, 'Save email'),
       resend);
     if (state.mailNote) Bujo.say(slot, state.mailNote, 'ok');
-    return h('section', { class: 'bj-section' }, h('h2', { class: 'bj-group-title' }, 'Account'), h('div', { class: 'ak-card' }, form));
+    return h('section', { class: 'bj-section' }, h('h2', { class: 'bj-group-title' }, 'Account'), h('div', { class: 'bj-card', 'data-card': 'account' }, form));
   }
 
   /* ---------- tokens ---------- */
@@ -74,7 +74,7 @@
   function freshPanel() {
     if (!state.fresh) return null;
     var copied = h('span', { class: 'bj-copied', role: 'status' });
-    return h('div', { class: 'ak-card bj-code-panel', 'data-panel': 'new-token' },
+    return h('div', { class: 'bj-card bj-code-panel', 'data-panel': 'new-token' },
       h('p', null, 'Token for ' + state.fresh.name + ' (' + state.fresh.scope + '). Copy it now. It is not shown again.'),
       h('p', { class: 'bj-code', 'data-testid': 'new-token' }, state.fresh.token),
       h('div', { class: 'bj-actions' },
@@ -150,7 +150,7 @@
       h('h2', { class: 'bj-group-title' }, 'Agent tokens'),
       h('p', { class: 'bj-note' }, 'A token lets a script or an AI agent use /api/v1 and /mcp. A read token cannot change anything. A token can never manage tokens.'),
       freshPanel(),
-      h('div', { class: 'ak-card' }, form),
+      h('div', { class: 'bj-card', 'data-card': 'new-token-form' }, form),
       list);
   }
 
@@ -163,16 +163,14 @@
   }
 
   function render() {
-    var links = h('span', { class: 'bj-links' },
-      h('a', { class: 'bj-link', href: '/', 'data-nav': 'log' }, 'Rapid Log'),
-      h('a', { class: 'bj-link', href: '/backlog', 'data-nav': 'backlog' }, 'Backlog'));
-    var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'), links);
+    var title = h('div', { class: 'bj-head' }, h('h1', { class: 'ak-large-title' }, 'Settings'));
     if (state.error && !state.me) {
       app.replaceChildren(title, h('div', { class: 'bj-state', role: 'alert' }, h('div', { class: 'ak-empty' }, state.error)));
       return;
     }
     var focus = document.activeElement && document.activeElement.id;
-    app.replaceChildren.apply(app, [title, emailSection(), tokenSection(), BujoWhatsNew.settingsRow.section(), signOut()].filter(Boolean));
+    app.replaceChildren.apply(app, [title, emailSection(), BujoTheme.section.section(), tokenSection(), BujoWhatsNew.settingsRow.section(), signOut()].filter(Boolean));
+    BujoLog.ink.decorate.screen(app);
     if (focus) { var again = document.getElementById(focus); if (again) again.focus(); }
   }
 

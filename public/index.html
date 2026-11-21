@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>bujo</title>
 
+  <!-- Sets the saved theme before the first paint (an external file: the CSP blocks inline scripts). -->
+  <script src="/js/theme/boot.js"></script>
+
   <!-- From app-kit head.html (v0.7.0). The theme-color colours are the paper colours: dark #16130f, light #f4efe4. -->
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark) and (max-width: 719px)">
@@ -24,6 +27,8 @@
   <link rel="stylesheet" href="/app-kit/ak-native.css">
   <link rel="stylesheet" href="/app-kit/install-prompt.css">
   <!-- The paper look comes last, so its colours win over the kit tokens. -->
+  <link rel="stylesheet" href="/css/paper.css">
+  <link rel="stylesheet" href="/css/sheet.css">
   <link rel="stylesheet" href="/css/log.css">
   <link rel="stylesheet" href="/css/log-scan.css">
   <link rel="stylesheet" href="/css/whats-new.css">

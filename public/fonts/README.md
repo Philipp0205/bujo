@@ -9,4 +9,4 @@ Self-hosted for the paper look of the rapid log. Both families are licensed unde
 | `newsreader-italic.woff2` | Newsreader (variable, italic) | the page title, day headings, labels |
 | `ibm-plex-sans.woff2` | IBM Plex Sans (variable) | meta lines, buttons |
 
-Newsreader is by Production Type. IBM Plex Sans is by IBM. They are loaded from `public/css/log.css`.
+Newsreader is by Production Type. IBM Plex Sans is by IBM. They are loaded from `public/css/paper.css`.

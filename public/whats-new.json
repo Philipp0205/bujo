@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-settings-theme",
+    "date": "2026-11-21",
+    "title": "Settings on paper, and a theme choice",
+    "bullets": [
+      "Settings, sign-in, Backlog and Scan now match the paper look of the rapid log.",
+      "You can pick System, Light or Dark in Settings. The choice stays on every page."
+    ]
+  },
+  {
     "id": "2026-11-21-editor-fixes",
     "date": "2026-11-21",
     "title": "Longer titles, better Back",

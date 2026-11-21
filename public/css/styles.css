@@ -1,30 +1,60 @@
 /*
- * bujo styles. Components come from app-kit (ak-*). This file only sets the accent through the
- * ak-tokens custom properties, the page layout, and the few things the kit has no class for:
- * the priority marker, the small tag chip and the due line.
- *
- * Light and dark both follow prefers-color-scheme through the kit tokens. Only the accent is ours.
+ * bujo plain pages (Settings, sign-in, Backlog, Scan) in the paper look. Components come from app-kit (ak-*); this file
+ * maps the kit tokens to the paper tokens of paper.css (so every kit class, the toast and the install banner turn paper)
+ * and restyles the few kit pieces these pages use: buttons, fields, the segmented control, banners, rows and chips.
+ * Loaded after the kit and after paper.css. Light and dark both come from the paper tokens, so a forced theme works too.
  */
 
-:root {
-  --ak-accent: #8d99ff;
-  --ak-accent-2: #8d99ff;
-  --ak-accent-strong: #6f7cf0;
-  --ak-accent-ink: #000000;
+/* The kit tokens become paper. The selector is as specific as the kit's forced-scheme rules, and this file loads after them. */
+html.ak-base {
+  --ak-bg: var(--paper-bg);
+  --ak-text: var(--paper-ink);
+  --ak-muted: var(--paper-muted);
+  --ak-faint: var(--paper-muted);
+  --ak-hairline: color-mix(in srgb, var(--paper-ink) 18%, transparent);
+  --ak-surface: var(--sheet-bg);
+  --ak-surface-2: color-mix(in srgb, var(--paper-ink) 8%, var(--paper-bg));
+  --ak-surface-3: color-mix(in srgb, var(--paper-ink) 14%, var(--paper-bg));
+  --ak-panel: var(--sheet-bg);
+  --ak-danger: var(--paper-today);
+  --ak-warning: var(--ink-ochre);
+  --ak-success: var(--ink-sage);
+  --ak-scrim: var(--paper-scrim);
+  --ak-tabbar: color-mix(in srgb, var(--paper-bg) 94%, transparent);
+  --ak-overlay: color-mix(in srgb, var(--sheet-bg) 80%, transparent);
+  --ak-glass: color-mix(in srgb, var(--paper-bg) 80%, transparent);
+  --ak-btn-fill: var(--paper-btn-bg);
+  --ak-btn-ink: var(--paper-btn-ink);
+  --ak-accent: var(--paper-ink);
+  --ak-accent-2: var(--paper-muted);
+  --ak-accent-strong: var(--paper-ink);
+  --ak-accent-ink: var(--paper-bg);
+  --ak-font: var(--font-ui);
 }
-@media (prefers-color-scheme: light) {
-  :root {
-    --ak-accent: #3341b8;
-    --ak-accent-2: #3341b8;
-    --ak-accent-strong: #3341b8;
-    --ak-accent-ink: #ffffff;
-  }
+
+/* ----- The page ----- */
+
+/* A page with a sticky kit navbar: the bar already clears the status bar. */
+.paper-flush { padding-top: 0; background-position: 0 var(--grid-shift); }
+/* The navbar is already 44px of top space and shows its title only once scrolled, so the large title needs less. */
+.paper-flush .bj-app .ak-large-title { padding-top: 8px; }
+.ak-navbar {
+  background: var(--paper-bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .bj-app {
   max-width: var(--ak-phone);
   margin: 0 auto;
   padding-bottom: calc(var(--ak-s5) + var(--ak-safe-bottom));
+  font-family: var(--font-text);
+}
+
+.ak-navbar-title {
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 400;
 }
 
 /* The title row. Flex children next to .ak-large-title get max-width: none (app-kit gotcha). */
@@ -35,58 +65,274 @@
 }
 .bj-head > * { max-width: none; }
 
+.bj-app .ak-large-title,
+.bj-app .ak-screen-title {
+  padding: 32px 20px 16px;
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 48px;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 32, "wght" 400;
+  font-synthesis: none;
+  color: var(--paper-ink);
+}
+.bj-app .ak-screen-title { padding: 0; }
+
 .bj-sub {
   margin: 0;
-  padding: 0 20px var(--ak-s2);
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-md);
+  padding: 0 20px 8px;
+  color: var(--paper-muted);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 24px;
 }
 
-/* Filter chips scroll sideways on a narrow phone. */
+/* ----- Section titles, notes, links ----- */
+
+.bj-group-title {
+  margin: 24px 0 0;
+  padding: 0 20px 8px;
+  color: var(--paper-muted);
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variation-settings: "opsz" 16, "wght" 450;
+  font-synthesis: none;
+}
+
+.bj-note {
+  margin: 0;
+  padding: 8px 20px;
+  color: var(--paper-muted);
+  font-size: 15px;
+  line-height: 22px;
+}
+.bj-form .bj-note,
+.bj-card .bj-note { padding: 0; }
+
+/* Links are italic ink with a thin underline, never the browser blue. */
+.bj-app a,
+.bj-link {
+  color: var(--paper-ink);
+  font-style: italic;
+  text-decoration: underline;
+  text-decoration-thickness: 0.75px;
+  text-underline-offset: 3px;
+}
+.bj-link {
+  flex: none;
+  align-self: center;
+  padding: 8px 20px;
+  font-size: 16px;
+}
+.bj-links { display: flex; align-items: center; }
+
+/* ----- Cards: a pen outline drawn by js/log/ink (decorate.screen), no fill and no border ----- */
+
+.bj-card {
+  position: relative;
+  margin: 0 16px 16px;
+  padding: 4px 0;
+  background: transparent;
+}
+.bj-card > :not(.ink-stroke) { position: relative; z-index: 1; }
+
+/* Forms, sections and the one-time code panel (sign-in pages and settings). */
+.bj-section { padding-bottom: 8px; }
+.bj-form { display: grid; gap: 16px; padding: 16px 20px; }
+.bj-card > .bj-form { padding: 16px; }
+.bj-slot:empty { display: none; }
+.bj-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bj-code-panel { display: grid; gap: 16px; padding: 16px; }
+.bj-code-panel > p { margin: 0; }
+.bj-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.bj-copied { color: var(--paper-muted); font-style: italic; font-size: 15px; }
+.bj-app .ak-screen-head { padding: 32px 20px 0; }
+.bj-app > .ak-btn { width: auto; margin: 16px 20px; }
+.bj-app > .bj-slot { padding: 0 20px; }
+
+.bj-state { padding: 24px 20px; }
+.bj-state .ak-btn { margin-top: 16px; }
+.bj-loading { padding: 24px 20px; display: grid; gap: 16px; }
+
+/* Sign-in pages: room under the status bar above the title. */
+.bj-auth-head { padding-top: 16px; }
+.bj-auth-head .ak-screen-head { padding-top: 32px; }
+
+/* ----- Buttons: filled ink for the main action, a thin ink outline for the rest ----- */
+
+.bj-app .ak-btn,
+.ak-sheet .ak-btn {
+  min-height: 48px;
+  border-radius: 12px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.bj-app .ak-btn-accent { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
+.bj-app .ak-btn-secondary {
+  background: transparent;
+  color: var(--paper-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 40%, transparent);
+}
+.bj-app .ak-btn-danger {
+  background: transparent;
+  color: var(--paper-today);
+  box-shadow: inset 0 0 0 1px var(--paper-today);
+}
+/* A text button is an italic underlined link. */
+.bj-app .ak-btn-text {
+  width: auto;
+  min-height: 44px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--paper-ink);
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-thickness: 0.75px;
+  text-underline-offset: 3px;
+}
+
+/* ----- Fields: ink on an underline, like the detail sheet ----- */
+
+.bj-app .ak-field { gap: 0; color: var(--paper-muted); }
+.bj-app .ak-label {
+  display: block;
+  height: 24px;
+  color: var(--paper-muted);
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 24px;
+  font-variation-settings: "opsz" 14, "wght" 400;
+  font-synthesis: none;
+}
+.bj-app .ak-input {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--paper-ink) 25%, transparent);
+  color: var(--paper-ink);
+  font-family: var(--font-text);
+  line-height: 24px;
+  caret-color: var(--paper-ink);
+}
+.bj-app .ak-input::placeholder { color: var(--paper-muted); opacity: 0.8; }
+.bj-app .ak-input:focus,
+.bj-app .ak-input:focus-visible { outline: none; box-shadow: inset 0 -1.5px 0 var(--paper-ink); }
+
+/* ----- The segmented control: an ink-filled pressed button, any number of choices ----- */
+
+.bj-app .ak-segment {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 4px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--paper-ink) 10%, var(--paper-bg));
+}
+.bj-app .ak-segment-btn {
+  border-radius: 10px;
+  color: var(--paper-muted);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 500;
+}
+.bj-app .ak-segment-btn[aria-pressed="true"],
+.bj-app .ak-segment-btn.ak-on { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
+
+/* ----- Banners and empty states: italic text, no box ----- */
+
+.bj-app .ak-banner {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--paper-today);
+  font: italic 16px/24px var(--font-text);
+}
+.bj-app .ak-banner[data-kind="ok"] { color: var(--paper-ink); }
+.bj-app .ak-empty {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--paper-muted);
+  font: italic 16px/24px var(--font-text);
+}
+
+/* A loose empty line or button inside a section keeps the same gutter as the cards. */
+.bj-section > .ak-empty { padding: 8px 20px; }
+.bj-section > .ak-btn { width: calc(100% - 32px); margin: 8px 16px 0; }
+
+/* ----- Lists, rows, chips ----- */
+
 .bj-filters {
   display: flex;
-  gap: var(--ak-s2);
-  padding: var(--ak-s2) var(--ak-gutter);
+  gap: 8px;
+  padding: 8px 20px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .bj-filters::-webkit-scrollbar { display: none; }
 .bj-filters > .ak-chip { flex: none; }
 
-.bj-group-title {
-  margin: var(--ak-s4) 0 0;
-  padding: 0 var(--ak-gutter) var(--ak-s2);
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-sm);
-  font-weight: var(--ak-fw-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.bj-app .ak-chip {
+  background: transparent;
+  color: var(--paper-ink);
+  font-family: var(--font-ui);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 35%, transparent);
 }
+.bj-app .ak-chip-on { background: var(--paper-btn-bg); color: var(--paper-btn-ink); box-shadow: none; }
 
 .bj-list { margin: 0; padding: 0; list-style: none; }
-.bj-list > li.ak-row { align-items: flex-start; }
+.bj-list > li.ak-row { align-items: flex-start; padding: 12px 20px; }
+.bj-app .ak-row-title { font-family: var(--font-text); font-size: 18px; font-weight: 400; line-height: 24px; }
+.bj-app .ak-row-sub { font-size: 15px; line-height: 22px; }
 
 .bj-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px var(--ak-s2);
+  gap: 2px 8px;
   margin: 2px 0 0;
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-md);
+  color: var(--paper-muted);
+  font-size: 15px;
+  line-height: 22px;
 }
-.bj-overdue { color: var(--ak-danger); }
+.bj-overdue { color: var(--paper-today); }
 
 .bj-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ak-s1);
-  margin: var(--ak-s2) 0 0;
+  gap: 4px;
+  margin: 8px 0 0;
 }
 /* A tag in a row is a small ak-chip: same look, not a tap target. */
 .bj-tags > .ak-chip {
   min-height: 0;
   padding: 2px 10px;
-  font-size: var(--ak-fs-sm);
+  font-size: 13px;
   cursor: default;
 }
 
@@ -94,89 +340,40 @@
   flex: none;
   min-width: 2.2em;
   padding: 2px 8px;
-  border-radius: var(--ak-radius-pill);
-  background: var(--ak-surface-2);
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-xs);
-  font-weight: var(--ak-fw-bold);
+  color: var(--paper-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
   text-align: center;
 }
-.bj-prio[data-priority="1"] { color: var(--ak-danger); }
-.bj-prio[data-priority="5"] { color: var(--ak-text); }
+.bj-prio[data-priority="1"] { color: var(--paper-today); }
+.bj-prio[data-priority="5"] { color: var(--paper-ink); }
 
-/* A plain text link in the title row (Settings, Backlog). */
-.bj-link {
-  flex: none;
-  align-self: center;
-  padding: var(--ak-s2) var(--ak-gutter);
-  color: var(--ak-accent);
-  font-size: var(--ak-fs-lg);
-  text-decoration: none;
-}
+/* ----- The scan page: the review cards, the photo preview and the sticky accept bar ----- */
 
-.bj-links { display: flex; align-items: center; }
-
-/* Forms, sections and the one-time code panel (sign-in pages and settings). */
-.bj-section { padding-bottom: var(--ak-s3); }
-.bj-form { display: grid; gap: var(--ak-s3); padding: var(--ak-s3) var(--ak-gutter); }
-.ak-card > .bj-form { padding: var(--ak-s2) 0; }
-.bj-slot:empty { display: none; }
-.bj-note {
-  margin: 0;
-  padding: var(--ak-s2) var(--ak-gutter);
-  color: var(--ak-muted);
-  font-size: var(--ak-fs-md);
-}
-.bj-form .bj-note { padding: 0; }
-.bj-actions { display: flex; flex-wrap: wrap; gap: var(--ak-s2); align-items: center; }
-.bj-code-panel { display: grid; gap: var(--ak-s3); margin: var(--ak-s3) var(--ak-gutter); }
-.bj-code-panel > p { margin: 0; }
-.bj-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: var(--ak-fs-lg);
-  font-weight: var(--ak-fw-bold);
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-.bj-copied { color: var(--ak-muted); font-size: var(--ak-fs-md); }
-.bj-app .ak-screen-head { padding: var(--ak-s4) var(--ak-gutter) 0; }
-.bj-app > .ak-btn { margin: var(--ak-s3) var(--ak-gutter); }
-.bj-app > .bj-slot { padding: 0 var(--ak-gutter); }
-
-.bj-state { padding: var(--ak-s4) var(--ak-gutter); }
-.bj-state .ak-btn { margin-top: var(--ak-s3); }
-.bj-loading { padding: var(--ak-s4) var(--ak-gutter); display: grid; gap: var(--ak-s3); }
-
-/* Links in notes use the accent, not the browser default blue. */
-.bj-note a { color: var(--ak-accent); }
-
-/* Sign-in pages: room under the status bar above the title. */
-.bj-auth-head { padding-top: calc(var(--ak-safe-top) + var(--ak-s4)); }
-
-/* Scan screen: the review cards, the photo preview and the sticky accept bar. */
 .bj-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
-.bj-pad { padding: var(--ak-s2) var(--ak-gutter); }
-.bj-preview { padding: var(--ak-s2) var(--ak-gutter); }
-.bj-preview img, .bj-preview-fold img { display: block; max-width: 100%; max-height: 40vh; margin: 0 auto; border-radius: var(--ak-radius-xl); object-fit: contain; }
-.bj-preview-fold { padding: var(--ak-s2) var(--ak-gutter); color: var(--ak-muted); }
-.bj-preview-fold summary { padding: var(--ak-s2) 0; cursor: pointer; }
-.bj-items { display: grid; gap: var(--ak-s3); padding: var(--ak-s2) var(--ak-gutter); }
-.bj-item { display: grid; gap: var(--ak-s2); }
+.bj-pad { padding: 8px 20px; }
+.bj-preview { padding: 8px 20px; }
+.bj-preview img, .bj-preview-fold img { display: block; max-width: 100%; max-height: 40vh; margin: 0 auto; border-radius: 4px; object-fit: contain; }
+.bj-preview-fold { padding: 8px 20px; color: var(--paper-muted); font-style: italic; }
+.bj-preview-fold summary { padding: 8px 0; cursor: pointer; }
+.bj-items { display: grid; gap: 0; padding: 8px 0; }
+.bj-item { display: grid; gap: 8px; padding: 12px 16px; }
 .bj-item[data-include="false"] { opacity: 0.7; }
-.bj-item-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ak-s2); }
-.bj-check { display: inline-flex; align-items: center; gap: var(--ak-s2); min-height: 44px; }
-.bj-check input { width: 22px; height: 22px; accent-color: var(--ak-accent); }
-.bj-badge { padding: 2px 10px; border-radius: var(--ak-radius-pill); background: var(--ak-surface-2); color: var(--ak-muted); font-size: var(--ak-fs-sm); }
-.bj-ocr { margin: 0; font-size: var(--ak-fs-lg); font-weight: 600; overflow-wrap: anywhere; }
+.bj-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bj-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.bj-check input { width: 22px; height: 22px; accent-color: var(--paper-ink); }
+.bj-badge { padding: 2px 10px; color: var(--paper-muted); font-family: var(--font-ui); font-size: 13px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 30%, transparent); border-radius: 999px; }
+.bj-ocr { margin: 0; font-size: 18px; font-weight: 400; overflow-wrap: anywhere; }
 .bj-item .bj-meta { margin: 0; }
-.bj-low { color: var(--ak-danger); }
+.bj-low { color: var(--paper-today); }
 .bj-bar {
   position: sticky;
   bottom: 0;
   display: grid;
-  gap: var(--ak-s2);
-  padding: var(--ak-s3) var(--ak-gutter) calc(var(--ak-s3) + var(--ak-safe-bottom));
-  background: var(--ak-bg);
+  gap: 8px;
+  padding: 16px 20px calc(16px + var(--ak-safe-bottom));
+  background: var(--paper-bg);
   border-top: 1px solid var(--ak-hairline);
 }
 .bj-hint { padding: 0; min-height: 1.2em; }

@@ -1,6 +1,6 @@
 /*
  * The what's-new sheet: dated entries with a title and bullets, in an AppKit.sheet. Text only, built with textContent
- * (AppKit.h text nodes), never innerHTML. options.paper picks the paper look of the log, else the plain look of settings.
+ * (AppKit.h text nodes), never innerHTML. It always wears the paper look (sheet.css).
  * Needs ak-dom.js, ak-sheet.js, ak-whats-new.js, nav/overlays.js and copy.js.
  */
 (function () {
@@ -22,8 +22,8 @@
     var copy = W.copy;
     return h('div', { class: 'ak-sheet-head' },
       h('div', { class: 'ak-grabber' }),
-      h('h2', { class: options.paper ? 'sheet-title' : 'wn-heading', id: 'wn-heading' }, copy.heading),
-      h('p', { class: options.paper ? 'sheet-sub' : 'wn-sub', 'data-testid': 'whats-new-sub' },
+      h('h2', { class: 'sheet-title', id: 'wn-heading' }, copy.heading),
+      h('p', { class: 'sheet-sub', 'data-testid': 'whats-new-sub' },
         options.mode === 'all' ? copy.subAll : copy.subUnseen));
   }
 
@@ -31,7 +31,7 @@
   function build(options, close) {
     var done = h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-action': 'whats-new-done', onclick: close }, W.copy.done);
     return h('div', {
-      class: 'ak-sheet wn-sheet' + (options.paper ? ' sheet-entry sheet-scan' : ''),
+      class: 'ak-sheet wn-sheet sheet-entry sheet-scan',
       role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'wn-heading', 'data-testid': 'whats-new-sheet', 'data-mode': options.mode
     },
       head(options),
@@ -40,7 +40,7 @@
   }
 
   /**
-   * Opens the sheet. options: entries (the ones to show), mode ('unseen' or 'all'), paper (true on the log),
+   * Opens the sheet. options: entries (the ones to show), mode ('unseen' or 'all'),
    * onClose (runs once when it starts closing). Returns the sheet handle, or null when another sheet is open.
    */
   function open(options) {

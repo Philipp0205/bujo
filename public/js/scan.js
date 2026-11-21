@@ -268,11 +268,12 @@
   }
 
   function card(item, refresh) {
-    var node = h('li', { class: 'ak-card bj-item', 'data-item': item.id });
+    var node = h('li', { class: 'bj-card bj-item', 'data-item': item.id });
     function redraw() {
       var fresh = card(item, refresh);
       node.replaceWith(fresh);
       refresh();
+      BujoLog.ink.decorate.screen(app);
     }
     var action = actionOf(item);
     var ignored = action === 'ignore';
@@ -408,6 +409,7 @@
     else view = pickView();
     app.setAttribute('data-stage', state.stage);
     app.replaceChildren(view);
+    BujoLog.ink.decorate.screen(app);
   }
 
   /* ---------- start ---------- */
