@@ -18,9 +18,11 @@ import { handleMcp } from "./routes/mcp.ts";
 import { handleScan, type ScanDeps } from "./routes/scan.ts";
 import { handleTokenRoutes } from "./routes/tokens.ts";
 import { handleApiV1 } from "./routes/v1.ts";
+import { handleWhatsNewRoutes } from "./routes/whats-new.ts";
 import { createOcrClient, type OcrClient } from "./scan/ocr-client.ts";
 import { createDraftStore, type DraftStore } from "./scan/store.ts";
 import type { SyncService } from "./sync/service.ts";
+import { createCatalog } from "./whats-new/catalog.ts";
 
 /** The repo root. src/ and dist/ sit at the same depth, so this holds under tsx and under node on the build. */
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -112,6 +114,7 @@ export function createApp(options: AppOptions): http.RequestListener {
     now: options.now,
     trustProxy: options.trustProxy,
   });
+  const whatsNew = createCatalog(options.publicDir ?? PUBLIC_DIR);
   const serve = serveStatic(options.publicDir ?? PUBLIC_DIR, {
     // A file under /app-kit changes only with a new kit version. The service worker and the pages stay no-cache.
     cacheFor: (rel) => (rel.startsWith("app-kit/") ? "no-cache" : undefined),
@@ -137,7 +140,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       // A cross-site form or fetch can carry the cookie but not a matching Origin.
       if (!read && who.kind !== "agent" && foreignOrigin(req, origin)) throw new HttpError(403, "cross-site request refused");
 
-      const ctx: RouteContext = { req, res, url, pathname, method, accounts, source: options.source, sync: options.sync ?? null, who };
+      const ctx: RouteContext = { req, res, url, pathname, method, accounts, source: options.source, sync: options.sync ?? null, whatsNew, who };
 
       if (pathname === "/api/backlog") {
         if (!read) return sendJson(res, 405, { error: "method not allowed" }, { allow: "GET, HEAD" });
@@ -159,6 +162,7 @@ export function createApp(options: AppOptions): http.RequestListener {
 
       if (await handleAuthRoutes(ctx)) return;
       if (await handleTokenRoutes(ctx)) return;
+      if (await handleWhatsNewRoutes(ctx)) return;
       if (await handleApiV1(ctx)) return;
       if (await handleScan(ctx, scan)) return;
       if (await handleLogScan(ctx, logScan)) return;

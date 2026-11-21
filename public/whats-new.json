@@ -1,0 +1,38 @@
+[
+  {
+    "id": "2026-11-21-note-photos",
+    "date": "2026-11-21",
+    "title": "Scanned pages stay with your notes",
+    "bullets": [
+      "The photo of a scanned page is saved with its markdown note.",
+      "Tap the thumbnail in a note to open the photo full size."
+    ]
+  },
+  {
+    "id": "2026-11-21-inline-entries",
+    "date": "2026-11-21",
+    "title": "Type entries right in the log",
+    "bullets": [
+      "Entries are one-line rows now.",
+      "A small bar above the keyboard has Type, Tag, Date and Time.",
+      "Type like in a text document. There is no big new-entry popup."
+    ]
+  },
+  {
+    "id": "2026-11-21-free-notes",
+    "date": "2026-11-21",
+    "title": "Free notes as markdown",
+    "bullets": [
+      "A free note is saved as markdown in the app, with a Copy button.",
+      "Notes no longer show a not-synced label or a sync dot. They stay in the log and are not part of the task-list sync."
+    ]
+  },
+  {
+    "id": "2026-11-21-scan-gallery",
+    "date": "2026-11-21",
+    "title": "Scan from your gallery",
+    "bullets": [
+      "The scan camera can pick a photo from your gallery, not only a live shot."
+    ]
+  }
+]

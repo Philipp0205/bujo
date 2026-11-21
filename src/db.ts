@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT,
   email_verified_at INTEGER,
   recovery_hash TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  whats_new_seen TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_recovery_hash ON users(recovery_hash);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_verified_email ON users(email)
@@ -91,12 +92,21 @@ CREATE TABLE IF NOT EXISTS entry_photos (
 /** Columns added after the first release of the entries table. Older databases get them on open. */
 const ENTRY_EXTRA_COLUMNS = ["remote_href", "remote_uid", "remote_etag", "sync_error", "body"] as const;
 
-/** Adds the sync columns and the markdown body to an entries table made before they existed. Safe to run on every open. */
-function migrateEntries(db: Db): void {
-  const have = (db.prepare("PRAGMA table_info(entries)").all() as Array<{ name: string }>).map((column) => column.name);
-  for (const column of ENTRY_EXTRA_COLUMNS) {
-    if (!have.includes(column)) db.exec(`ALTER TABLE entries ADD COLUMN ${column} TEXT`);
+/** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
+const USER_EXTRA_COLUMNS = ["whats_new_seen"] as const;
+
+/** Adds the TEXT columns a table made before they existed lacks. Safe to run on every open. */
+function addMissingColumns(db: Db, table: "users" | "entries", columns: readonly string[]): void {
+  const have = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name);
+  for (const column of columns) {
+    if (!have.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
   }
+}
+
+/** Brings tables of older databases up to date: the sync columns and body of entries, the seen id of users. */
+function migrate(db: Db): void {
+  addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
+  addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
 }
 
 /** Opens (and creates) the database. ":memory:" for tests. A file path gets its folder made and WAL on. */
@@ -106,7 +116,7 @@ export function openDb(file: string): Db {
   db.exec("PRAGMA foreign_keys = ON");
   if (file !== ":memory:") db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
-  migrateEntries(db);
+  migrate(db);
   return db;
 }
 
