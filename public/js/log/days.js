@@ -1,5 +1,5 @@
 /*
- * Pure view model of the log: entries grouped by day, and the meta line of an entry.
+ * Pure view model of the log: entries grouped by day, and the pills (meta text) of an entry.
  * No DOM here. Words come from copy.js.
  */
 (function () {
@@ -33,5 +33,14 @@
     return parts.join(' \u00b7 ');
   }
 
-  L.days = { groupDays: groupDays, metaText: metaText, showsSync: showsSync };
+  /** The pills of a line being edited: its day when it differs from the day it sits in, then tag and time. No sync words. */
+  function editPills(line) {
+    var parts = [];
+    if (line.date !== line.home) parts.push(line.date.slice(8, 10) + '.' + line.date.slice(5, 7));
+    if (line.tag) parts.push(line.tag);
+    if (line.time) parts.push(line.time);
+    return parts.join(' \u00b7 ');
+  }
+
+  L.days = { groupDays: groupDays, metaText: metaText, showsSync: showsSync, editPills: editPills };
 })();

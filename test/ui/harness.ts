@@ -9,6 +9,13 @@ import { fakeEnv, startFakeCalDav, syncEnv, type FakeCalDav } from "../fake-cald
 import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
+/** Opens the details sheet of a saved row: tap the row to type in it, then Details in the accessory bar. */
+export async function openDetails(page: Page, title: string): Promise<void> {
+  await page.locator(".paper-row", { hasText: title }).click();
+  await page.locator(".inline-bar [data-action=details]").click();
+  await page.getByRole("dialog").waitFor();
+}
+
 export type Harness = {
   baseUrl: string;
   fake: FakeCalDav;
