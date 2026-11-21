@@ -31,8 +31,15 @@
       synced: 'Synced',
       error: 'Sync failed'
     },
+    inline: {
+      titleLabel: 'Entry title',
+      barLabel: 'Entry options',
+      keys: { type: 'Type', tag: 'Tag', date: 'Date', time: 'Time' },
+      popLabels: { type: 'Choose a type', tag: 'Tag', date: 'Day', time: 'Time (optional)' },
+      details: 'Details',
+      clear: 'Clear'
+    },
     sheet: {
-      createTitle: 'New entry',
       editTitle: 'Edit entry',
       type: 'Type',
       title: 'Title',
@@ -49,6 +56,7 @@
       titleRequired: 'Give the entry a title.',
       dateRequired: 'Pick a date.',
       saveFailed: 'Could not save. Try again.',
+      lineFailed: 'Could not save this line. Try again.',
       retryFailed: 'Could not retry the sync. Try again.'
     },
     note: {

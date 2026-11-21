@@ -1,5 +1,6 @@
 /*
- * The entry sheet: one bottom sheet for creating and editing an entry. Needs ak-dom.js, ak-sheet.js,
+ * The entry details sheet: a bottom sheet to change every field of a saved entry, see its sync state and retry a failed
+ * sync. New entries are typed in the log (inline/), never here. Needs ak-dom.js, ak-sheet.js,
  * copy.js, dates.js, glyph.js and api.js. The caller gets onSaved(entry) after a successful save.
  */
 (function () {
@@ -73,13 +74,7 @@
     return { node: node, show: show };
   }
 
-  /** The starting values: the entry to edit, or a new task on the given day. */
-  function initialValues(entry, today) {
-    if (entry) return entry;
-    return { date: today, type: 'task', title: '', tag: null, time: null, sync: 'local' };
-  }
-
-  /** The text inputs and their reader. Title is one line, capped like the server caps it. */
+  /** The inputs of the form. Title is one line, capped like the server caps it. */
   function inputs(values) {
     return {
       title: h('input', { class: 'ak-input', type: 'text', name: 'title', maxlength: 200, autocomplete: 'off', value: values.title }),
@@ -126,22 +121,17 @@
   }
 
   /** The head of the sheet: grabber, title and the date under it. */
-  function sheetHead(entry, subtitle) {
+  function sheetHead(subtitle) {
     return h('div', { class: 'ak-sheet-head' },
       h('div', { class: 'ak-grabber' }),
-      h('h2', { class: 'sheet-title', id: 'entry-title' }, entry ? L.copy.sheet.editTitle : L.copy.sheet.createTitle),
+      h('h2', { class: 'sheet-title', id: 'entry-title' }, L.copy.sheet.editTitle),
       subtitle);
   }
 
-  /** Sends the values: a PATCH for an existing entry, a POST for a new one. */
-  function send(entry, values) {
-    return entry ? L.api.update(entry.id, values) : L.api.create(values);
-  }
-
-  /** Opens the sheet. entry is null to create. today is the day a new entry starts on. */
+  /** Opens the details sheet of a saved entry. New entries are typed in the log, never here. */
   function open(options) {
     var entry = options.entry;
-    var values = initialValues(entry, options.today);
+    var values = entry;
     var subtitle = h('p', { class: 'sheet-sub', 'data-testid': 'sheet-date' }, L.dates.dayHeading(values.date));
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var save = h('button', { class: 'ak-btn ak-btn-accent', type: 'submit', form: FORM_ID, 'data-action': 'save' }, L.copy.sheet.save);
@@ -174,7 +164,7 @@
       showError(message);
       if (message || save.disabled) return;
       busy(true);
-      send(entry, next).then(function (saved) {
+      L.api.update(entry.id, next).then(function (saved) {
         sheet.close();
         options.onSaved(saved);
       }, function (error) {
@@ -188,10 +178,10 @@
     });
 
     var node = h('div', { class: 'ak-sheet sheet-entry', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'entry-title' },
-      sheetHead(entry, subtitle),
+      sheetHead(subtitle),
       h('div', { class: 'ak-sheet-scroll' }, slot, form.node),
       h('div', { class: 'ak-sheet-dock' }, save));
-    sheet = AppKit.sheet.show(node, { focus: entry ? null : form.controls.title });
+    sheet = AppKit.sheet.show(node);
     return sheet;
   }
 

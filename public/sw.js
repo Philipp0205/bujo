@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v10',
+  version: 'v11',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -26,6 +26,12 @@ AppKitSW.setup({
     '/js/log/api.js',
     '/js/log/view.js',
     '/js/log/sheet.js',
+    '/js/log/inline/model.js',
+    '/js/log/inline/viewport.js',
+    '/js/log/inline/row.js',
+    '/js/log/inline/pop.js',
+    '/js/log/inline/bar.js',
+    '/js/log/inline/editor.js',
     '/js/log/note/model.js',
     '/js/log/note/sheet.js',
     '/js/log/scan/copy.js',

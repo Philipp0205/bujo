@@ -1,6 +1,6 @@
 /*
  * Render functions of the rapid log: header, day groups, rows. They build nodes and call back, they never fetch.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js and days.js.
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js and inline/row.js.
  */
 (function () {
   'use strict';
@@ -44,14 +44,15 @@
       day.isToday ? todayMark() : null);
   }
 
-  /** The grey line under a title: tag and time, then the sync dot (not for notes, which are never synced). */
-  function metaLine(entry) {
+  /** The pills after a title: tag and time (or "not synced"), then the sync dot (not for notes, which are never synced). */
+  function pills(entry) {
+    var text = L.days.metaText(entry);
     return h('span', { class: 'paper-meta' },
-      h('span', { class: 'meta-text' }, L.days.metaText(entry)),
+      text ? h('span', { class: 'meta-text' }, text) : h('span', { class: 'meta-text' }),
       L.days.showsSync(entry.type) ? L.glyph.syncMark(entry.sync) : null);
   }
 
-  /** One entry as a tappable row. The type, sync state and id are on the row so tests and styles can find it. */
+  /** One entry as a tappable row: symbol, title and pills on one 24px line. The type, sync state and id are on the row. */
   function entryRow(entry, onOpen) {
     return h('button', {
       class: 'paper-row',
@@ -64,25 +65,34 @@
       h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
-        metaLine(entry)));
+        pills(entry)));
   }
 
-  /** The quiet "+ Add entry" row under today's entries. */
+  /** The quiet "+ Add entry" row under today's entries. Its empty space starts a line too. */
   function addRow(onAdd) {
     return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
   }
 
+  /** The rows of a day. The row being edited is swapped for the line, and a new line comes last in its day. */
+  function dayRows(day, actions, line) {
+    var rows = day.entries.map(function (entry) {
+      return line && line.id === entry.id ? L.inline.row.build(line, actions.typed) : entryRow(entry, actions.open);
+    });
+    if (line && line.isNew && line.home === day.date) rows.push(L.inline.row.build(line, actions.typed));
+    return rows;
+  }
+
   /** A day: its heading, its rows, and the add row when it is today. */
-  function dayGroup(day, actions) {
-    return h('section', { class: 'paper-day-group', 'data-date': day.date },
+  function dayGroup(day, actions, line) {
+    return h('section', { class: 'paper-day-group', 'data-date': day.date, 'data-today': day.isToday ? 'true' : null },
       dayHeader(day),
-      day.entries.map(function (entry) { return entryRow(entry, actions.open); }),
+      dayRows(day, actions, line),
       day.isToday ? addRow(actions.add) : null);
   }
 
-  /** All the days of the window, oldest first. */
-  function dayList(entries, today, actions) {
-    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions); });
+  /** All the days of the window, oldest first. line is the inline line being typed, or null. */
+  function dayList(entries, today, actions, line) {
+    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions, line); });
   }
 
   /** A quiet line for loading, with a retry button after a failed load. */
@@ -94,5 +104,5 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, L.copy.retry));
   }
 
-  L.view = { header: header, dayList: dayList, stateNote: stateNote };
+  L.view = { header: header, dayList: dayList, stateNote: stateNote, entryRow: entryRow };
 })();
