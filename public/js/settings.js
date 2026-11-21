@@ -178,5 +178,6 @@
 
   AppKit.themeColor.start();
   AppKit.sw.register({ url: '/sw.js', scope: '/' });
+  BujoNav.tabs.mount('account');
   load();
 })();

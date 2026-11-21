@@ -42,6 +42,20 @@ test("list returns a date range sorted by date then position", () => {
   assert.deepEqual(store.list(USER, { from: "2026-12-01", to: "2026-12-02" }), []);
 });
 
+test("listNotes returns only free notes of any day, newest day first, ties by newest created", () => {
+  const { store } = setup();
+  const note = (title: string, date: string, now: number, body = "# " + title) => store.create(USER, entry({ type: "note", title, date, body }), now);
+  note("old", "2026-01-05", 1);
+  note("tie first", "2026-11-20", 2);
+  note("tie second", "2026-11-20", 3);
+  note("newest", "2026-12-24", 4);
+  store.create(USER, entry({ title: "plain task" }), 5);
+  store.create(USER, entry({ type: "note", title: "short line" }), 6);
+  store.create(USER, entry({ type: "note", title: "empty body", body: "" }), 7);
+  assert.deepEqual(store.listNotes(USER).map((e) => e.title), ["newest", "tie second", "tie first", "old"]);
+  assert.deepEqual(store.listNotes("someone-else"), []);
+});
+
 test("get finds an entry of this user only", () => {
   const { store } = setup();
   const made = store.create(USER, entry(), 1);

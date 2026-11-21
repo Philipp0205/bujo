@@ -15,6 +15,7 @@
   var SHAPES = {
     card: { kind: 'rect', radius: 16, scale: 1 },
     child: { kind: 'rect', radius: 11, scale: 0.85 },
+    thumb: { kind: 'rect', radius: 10, scale: 0.7 },
     pill: { kind: 'rect', radius: 0, scale: 0.5 },
     sheet: { kind: 'rect', radius: 22, scale: 1.25, openBottom: true },
     underline: { kind: 'line', extra: 3 },
@@ -153,5 +154,20 @@
     drawAll(parts);
   }
 
-  L.ink.decorate = { list: list, chips: chips, sheet: sheet };
+  /** The id of a note card: its own data-id, or the card around it. */
+  function noteId(el) {
+    var card = el.matches('.note-card') ? el : el.closest('.note-card');
+    return card ? card.getAttribute('data-id') || 'new' : 'new';
+  }
+
+  /** Inks the Notes grid: each card, and the frame of each thumbnail inside it. Call after the grid is painted. */
+  function notes(root) {
+    var els = []
+      .concat(dress(root, '.note-card', 'card', function (el) { return 'note|' + noteId(el); }))
+      .concat(dress(root, '.note-thumb', 'thumb', function (el) { return 'thumb|' + noteId(el); }));
+    watch('notes', els);
+    drawAll(els);
+  }
+
+  L.ink.decorate = { list: list, notes: notes, chips: chips, sheet: sheet };
 })();

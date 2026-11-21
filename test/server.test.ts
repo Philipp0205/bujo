@@ -81,6 +81,8 @@ test("pages: signed out goes to sign-up first, then sign-in; signed in gets the 
     const signedOut = await api(base, "GET", "/");
     assert.equal(signedOut.response.headers.get("location"), "/signin");
     assert.equal((await api(base, "GET", "/settings")).response.headers.get("location"), "/signin");
+    assert.equal((await api(base, "GET", "/notes")).response.headers.get("location"), "/signin");
+    assert.equal((await api(base, "GET", "/notes.html")).response.headers.get("location"), "/signin");
     assert.equal((await api(base, "GET", "/signup")).response.headers.get("location"), "/signin");
     assert.equal((await fetch(`${base}/signin`)).status, 200);
     assert.equal((await fetch(`${base}/lost`)).status, 200);
@@ -93,6 +95,8 @@ test("pages: signed out goes to sign-up first, then sign-in; signed in gets the 
     assert.match(page.headers.get("content-security-policy") ?? "", /default-src 'self'/);
     assert.match(await page.text(), /Backlog|bujo/);
     assert.equal((await fetch(`${base}/settings`, { headers })).status, 200);
+    assert.equal((await fetch(`${base}/notes`, { headers })).status, 200);
+    assert.equal((await fetch(`${base}/notes.html`, { headers })).status, 200);
     // A signed-in person is sent away from the sign-in pages.
     assert.equal((await api(base, "GET", "/signin", { headers })).response.headers.get("location"), "/");
   });
