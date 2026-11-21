@@ -1,6 +1,6 @@
 /*
  * The entry details sheet: a bottom sheet to change every field of a saved entry, see its sync state and retry a failed
- * sync. New entries are typed in the log (inline/), never here. Needs ak-dom.js, ak-sheet.js,
+ * sync. New entries are typed in the log (inline/), never here. Needs ak-dom.js, ak-sheet.js, nav/overlays.js,
  * copy.js, dates.js, glyph.js and api.js. The caller gets onSaved(entry) after a successful save.
  */
 (function () {
@@ -181,7 +181,7 @@
       sheetHead(subtitle),
       h('div', { class: 'ak-sheet-scroll' }, slot, form.node),
       h('div', { class: 'ak-sheet-dock' }, save));
-    sheet = AppKit.sheet.show(node);
+    sheet = BujoNav.overlays.showSheet(node);
     return sheet;
   }
 

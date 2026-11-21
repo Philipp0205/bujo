@@ -3,7 +3,7 @@
  * The toggle picks Rapid log or Free note and the mode goes along with each photo.
  * The shutter opens the phone camera and the gallery button the photo library, each through a file input,
  * so no live video and no photo is kept here.
- * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js and glyph.js.
+ * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js, glyph.js and nav/overlays.js. It is a Back layer: Back closes it like the close button.
  */
 (function () {
   'use strict';
@@ -82,7 +82,10 @@
         if (on) slot.replaceChildren(h('p', { class: 'scan-busy', role: 'status', 'data-testid': 'scan-busy' }, copy.busy));
         else if (slot.querySelector('.scan-busy')) slot.replaceChildren();
       },
-      close: function () { node.remove(); }
+      close: function () {
+        node.remove();
+        BujoNav.overlays.release('camera');
+      }
     };
   }
 
@@ -111,6 +114,7 @@
     });
     document.body.appendChild(node);
     buttons.shutter.focus({ preventScroll: true });
+    BujoNav.overlays.open('camera', options.onClose);
 
     return controls(node, buttons, slot, copy);
   }
