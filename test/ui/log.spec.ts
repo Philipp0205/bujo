@@ -184,7 +184,7 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
   await page.goto(app.baseUrl);
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
   const dark = testInfo.project.name === "phone-dark";
-  const paper = await page.locator(".paper").evaluate((el) => {
+  const paper = await page.locator(".paper:visible").evaluate((el) => {
     const style = getComputedStyle(el);
     return { bg: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize };
   });
