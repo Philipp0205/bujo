@@ -16,7 +16,7 @@ Before reporting a change done, run `scripts/check.sh` from the repo root. It mu
 Until `package.json` exists, those steps are placeholders and the script reports an ok line for each.
 
 - If you changed what a screen looks like, take a Playwright screenshot of each changed screen at a 390x844 phone viewport (fake data only) into `/tmp/opencode/shots/<branch-name>/`, and list the paths in your final message. Don't commit them. Before each shot, dismiss the app-kit install banner and wait until toasts are gone.
-- Open each PNG with the read tool and check it against the task's mock if there is one: alignment and centring, paper colors (no leftover app-kit accent in focus rings, links, banners), nothing cut off or covered. Fix and retake before reporting done.
+- Open each PNG with the read tool and check it against the task's mock if there is one: alignment and centring, paper colors (no leftover app-kit accent in focus rings, links, banners), nothing cut off or covered. For any scrollable list or sheet, also shoot it scrolled to the bottom (and expanded, if it can expand) and check that the last row sits fully above any fixed dock, bar or button. Fix and retake before reporting done.
 
 ## Scope
 
