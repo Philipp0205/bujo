@@ -129,7 +129,7 @@ test("a long press on a card starts select mode with that entry selected and no 
   await expect(row(page, "Daneben")).toHaveAttribute("aria-selected", "false");
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toHaveCount(0);
-  await expect(page.locator("[data-action=scan]")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Main" }).locator("[data-tab=scan]")).toBeVisible();
   await expect(page.locator(`.paper-day-group[data-date="${day(-1)}"] [data-testid=select-check]`)).toHaveCount(2);
   await expect(row(page, "Gehalten").getByTestId("select-check")).toHaveAttribute("data-checked", "true");
 });
@@ -234,7 +234,7 @@ test("Cancel leaves select mode, clears the selection and restores the header", 
   await page.locator("[data-action=select-cancel]").click();
 
   await expect(bar(page)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Scan a page" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
   await expect(page.locator(".paper-row[aria-selected]")).toHaveCount(0);
   expect(await copied(page)).toEqual([]);
   // The next long press starts from nothing.
