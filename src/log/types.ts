@@ -14,6 +14,8 @@ export type Entry = {
   tag: string | null;
   /** The markdown of a free note. Null for a short rapid-log line. */
   body: string | null;
+  /** True when a scan photo is stored with the note. The bytes are at GET /api/entries/:id/photo, never in the list. */
+  hasPhoto: boolean;
   sync: SyncState;
   /** A short reason for the error state, safe to show. Null in every other state. */
   syncError: string | null;

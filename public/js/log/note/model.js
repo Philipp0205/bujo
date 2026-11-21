@@ -17,7 +17,7 @@
 
   /** The sheet values for a saved note. */
   function fromEntry(entry) {
-    return { id: entry.id, title: entry.title, date: entry.date, body: entry.body || '' };
+    return { id: entry.id, title: entry.title, date: entry.date, body: entry.body || '', hasPhoto: !!entry.hasPhoto };
   }
 
   /** True for an entry that holds a free note: a short rapid-log line has no body. */

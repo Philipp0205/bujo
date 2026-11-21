@@ -2,7 +2,7 @@
  * The scan flow: camera, then OCR, then the review sheet, then apply (rapid log) or save (free note).
  * It joins camera.js, review.js, note/sheet.js and api.js.
  * Nothing reaches the log until the person applies or saves: a rapid-log draft lives on the server in memory and is dropped when
- * the review is dismissed, and a free note exists only in the open sheet. Needs every scan/ file and note/.
+ * the review is dismissed, and a free note exists only in the open sheet, with its shrunk photo held in memory. Needs every scan/ file, note/ and photo/.
  */
 (function () {
   'use strict';
@@ -34,12 +34,13 @@
     });
   }
 
-  /** Reads one free-note photo. Resolves with the suggestion, or rejects with a message for the camera screen. */
+  /** Reads one free-note photo and shrinks it for storage. Resolves with { note, photo }, or rejects with a message for the camera screen. */
   function readNote(file, day) {
     return checkedPhoto(file).then(function (photo) {
+      var shrunk = L.photo.shrink(file);
       return L.scan.api.note(photo, day).then(function (note) {
         if (!note.body.trim()) throw new Error(L.copy.scan.note.noText);
-        return note;
+        return shrunk.then(function (kept) { return { note: note, photo: kept }; });
       }, function (error) {
         throw new Error(messageOf(error, L.copy.scan.errors.scanFailed));
       });
@@ -57,19 +58,20 @@
     });
   }
 
-  /** Swaps the camera for the free-note sheet. Nothing is written until the person saves it. */
-  function showNote(camera, note, options) {
+  /** Swaps the camera for the free-note sheet, which holds the photo until the person saves. Nothing is written before that. */
+  function showNote(camera, read, options) {
     camera.close();
     L.note.sheet.open({
       mode: 'review',
-      values: L.note.model.fromSuggestion(note, L.copy.note.untitled),
+      values: L.note.model.fromSuggestion(read.note, L.copy.note.untitled),
+      photo: read.photo,
       onSaved: function (entry) { options.onApplied({ date: entry.date }); }
     });
   }
 
   /** Reads a photo for the mode the camera is in, then shows the screen that mode ends in. */
   function readFor(mode, file, camera, options) {
-    if (mode === 'note') return readNote(file, options.day).then(function (note) { showNote(camera, note, options); });
+    if (mode === 'note') return readNote(file, options.day).then(function (read) { showNote(camera, read, options); });
     return readPhoto(file, options.day).then(function (draft) { showReview(camera, draft, options); });
   }
 

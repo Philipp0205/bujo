@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
 
@@ -160,6 +161,112 @@ test("a page with no usable first line gets the Untitled note title", async ({ p
   app.ocr.setLines([line("none", "#"), line("none", "zweite Zeile")]);
   await scanNote(page);
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Untitled note");
+});
+
+/** A solid grey PNG of the given size, made here so no real page photo is ever used. */
+function greyPng(width: number, height: number): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (bytes: Buffer) => {
+    let c = 0xffffffff;
+    for (const byte of bytes) c = crcTable[(c ^ byte) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const head = Buffer.alloc(4);
+    head.writeUInt32BE(data.length);
+    const tail = Buffer.alloc(4);
+    tail.writeUInt32BE(crc(body));
+    return Buffer.concat([head, body, tail]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 0; // grayscale
+  const rows = Buffer.alloc((width + 1) * height, 0x90);
+  for (let y = 0; y < height; y++) rows[y * (width + 1)] = 0; // filter type none
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+/** The width and height in the first start-of-frame marker of a JPEG. */
+function jpegSize(bytes: Buffer): { width: number; height: number } {
+  let at = 2;
+  while (at < bytes.length) {
+    const marker = bytes[at + 1];
+    if (marker >= 0xc0 && marker <= 0xc3) return { height: bytes.readUInt16BE(at + 5), width: bytes.readUInt16BE(at + 7) };
+    at += 2 + bytes.readUInt16BE(at + 2);
+  }
+  throw new Error("no JPEG frame");
+}
+
+test("the photo shows on the review sheet, is stored with the note as a JPEG of at most 2000px, and shows on the saved sheet", async ({ page }) => {
+  const big = { name: "page.png", mimeType: "image/png", buffer: greyPng(3000, 1500) };
+  await openNoteCamera(page);
+  await page.locator("#scan-file").setInputFiles(big);
+  await expect(sheet(page)).toBeVisible();
+  const review = sheet(page).getByTestId("note-photo");
+  await expect(review).toBeVisible();
+  await expect(review).toHaveAttribute("src", /^data:image\/jpeg/);
+
+  await sheet(page).locator('[data-field="title"]').fill("Mit Foto");
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+
+  await page.locator(".paper-row", { hasText: "Mit Foto" }).click();
+  await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
+  const saved = sheet(page).getByTestId("note-photo");
+  await expect(saved).toBeVisible();
+  await expect(saved).toHaveAttribute("src", /^\/api\/entries\/[^/]+\/photo$/);
+  await expect.poll(() => saved.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2000);
+
+  const src = (await saved.getAttribute("src"))!;
+  const served = await page.request.get(`${app.baseUrl}${src}`);
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toBe("image/jpeg");
+  expect(jpegSize(await served.body())).toEqual({ width: 2000, height: 1000 });
+});
+
+test("a tap on the photo opens it full size; the close button, a tap and Escape close it and keep the note sheet", async ({ page }) => {
+  await scanNote(page);
+  const view = page.getByTestId("photo-view");
+  await sheet(page).locator('[data-action="open-photo"]').click();
+  await expect(view).toBeVisible();
+  await expect(view.locator("img")).toBeVisible();
+  await view.locator('[data-action="photo-close"]').click();
+  await expect(view).toHaveCount(0);
+
+  await sheet(page).locator('[data-action="open-photo"]').click();
+  await view.locator("img").click();
+  await expect(view).toHaveCount(0);
+
+  await sheet(page).locator('[data-action="open-photo"]').click();
+  await page.keyboard.press("Escape");
+  await expect(view).toHaveCount(0);
+  await expect(sheet(page)).toBeVisible();
+});
+
+test("saving a saved note again keeps its photo, and a note with no photo shows none", async ({ page }) => {
+  await scanNote(page);
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+  await page.locator(".paper-row", { hasText: "Küchengarten, Frühjahr" }).click();
+  await sheet(page).locator('[data-field="body"]').fill("# Neu\n- nur das");
+  await sheet(page).locator('[data-action="save-note"]').click();
+  await expect(sheet(page)).toHaveCount(0);
+  await page.locator(".paper-row", { hasText: "Küchengarten, Frühjahr" }).click();
+  await expect(sheet(page).getByTestId("note-photo")).toBeVisible();
+
+  const made = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: localDay(), type: "note", title: "Ohne Foto", body: "# nur Text" } });
+  expect(made.status()).toBe(201);
+  await page.reload();
+  await page.locator(".paper-row", { hasText: "Ohne Foto" }).click();
+  await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# nur Text");
+  await expect(sheet(page).getByTestId("note-photo")).toHaveCount(0);
 });
 
 test("a short note with no body still opens the entry sheet", async ({ page }) => {

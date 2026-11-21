@@ -78,6 +78,14 @@ CREATE TABLE IF NOT EXISTS entries (
   body TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position);
+
+-- The scanned page photo of a free note, kept as a JPEG blob next to the note. Older databases get the table on open.
+CREATE TABLE IF NOT EXISTS entry_photos (
+  entry_id TEXT PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,
+  content_type TEXT NOT NULL,
+  image BLOB NOT NULL,
+  created_at INTEGER NOT NULL
+);
 `;
 
 /** Columns added after the first release of the entries table. Older databases get them on open. */
