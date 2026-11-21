@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-ink-cards",
+    "date": "2026-11-21",
+    "title": "Cards drawn with a pen",
+    "bullets": [
+      "Entries are now outlined in fine pen strokes, so the dotted paper shows through.",
+      "The edit sheet is inked too, with a hand-drawn top, handle and chips."
+    ]
+  },
+  {
     "id": "2026-11-21-android-back",
     "date": "2026-11-21",
     "title": "Back stays in the app",

@@ -188,7 +188,7 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
-test("each entry is a soft card: the symbol shares the title's row, the pills sit under the title start, a long title wraps", async ({ page }) => {
+test("each entry is an ink card: the symbol shares the title's row, the pills sit under the title start, a long title wraps", async ({ page }) => {
   const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb umbrechen muss ".repeat(2);
   await seed(page, [
     { date: day(0), type: "task", title: "Winzig", tag: "Haushalt" },
@@ -198,7 +198,7 @@ test("each entry is a soft card: the symbol shares the title's row, the pills si
   await expect(row(page, "Winzig")).toBeVisible();
 
   const card = page.locator(".entry-card", { has: row(page, "Winzig") });
-  await expect(card).toHaveCSS("border-radius", "18px");
+  await expect(card.locator(":scope > svg.ink-stroke")).toHaveCount(1);
   const short = row(page, "Winzig");
   const sym = (await short.locator(".paper-sym").boundingBox())!;
   const title = (await short.locator(".paper-title").boundingBox())!;

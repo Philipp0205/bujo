@@ -1,7 +1,8 @@
 /*
- * bujo paper look: the rapid log (/), its soft paper cards, the edit sheet and the details sheet.
- * A solid 24px dot grid sits behind the page. Each top-level entry is a soft paper card that floats on it, so the
- * card heights are free (a title plus a pill line). The details sheets keep the ruled paper with its margin line.
+ * bujo paper look: the rapid log (/), its ink cards, the edit sheet and the details sheet.
+ * A solid 24px dot grid sits behind the page. Each top-level entry is a card drawn with a fine pen: no fill, no CSS border,
+ * the outline is an <svg class="ink-stroke"> made by js/log/ink, so the dots show through. The details sheets keep the
+ * ruled paper with its margin line.
  * Dark paper is the default. The light paper is the prefers-color-scheme override at the end of the tokens.
  */
 
@@ -25,14 +26,9 @@
   --ink-gray: #8a8378;
   --paper-btn-bg: #f0eadc;
   --paper-btn-ink: #16130f;
-  --card: #1f1b16;
-  --card-2: #26211b;
-  --card-stroke: rgba(240, 234, 220, 0.08);
-  --card-shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 8px 22px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --pen: #efe8d6;
   --sheet-bg: #241f1a;
-  --sheet-shadow: 0 -12px 48px rgba(0, 0, 0, 0.45), 0 -1px 0 rgba(240, 234, 220, 0.08);
-  --pill: rgba(240, 234, 220, 0.08);
-  --hair: rgba(240, 234, 220, 0.1);
+  --sheet-shadow: 0 -8px 36px rgba(0, 0, 0, 0.4);
   --grid: 24px;
   --grid-shift: 4px;
   --gutter: 48px;
@@ -71,14 +67,9 @@
     --ink-gray: #8a8176;
     --paper-btn-bg: #1a1612;
     --paper-btn-ink: #f4efe4;
-    --card: #fbf7f0;
-    --card-2: #f3ece1;
-    --card-stroke: rgba(26, 22, 18, 0.07);
-    --card-shadow: 0 1px 1px rgba(26, 22, 18, 0.04), 0 8px 22px rgba(26, 22, 18, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --pen: #2a2118;
     --sheet-bg: #fbf7f0;
-    --sheet-shadow: 0 -12px 48px rgba(26, 22, 18, 0.22);
-    --pill: rgba(26, 22, 18, 0.06);
-    --hair: rgba(26, 22, 18, 0.1);
+    --sheet-shadow: 0 -8px 36px rgba(26, 22, 18, 0.12);
   }
 }
 
@@ -201,7 +192,7 @@ html.ak-base body {
   color: var(--paper-muted);
 }
 
-/* The hand-drawn underline under "Today" is the g-today symbol. */
+/* The hand-drawn underline under "Today" is an ink stroke, drawn in the today colour. */
 .today {
   position: relative;
   display: inline-block;
@@ -212,40 +203,49 @@ html.ak-base body {
   line-height: 22px;
   font-variation-settings: "opsz" 14, "wght" 500;
 }
-.today svg {
+
+/* ----- Ink strokes: the pen outline of a node, drawn by js/log/ink. It sits under the content and never takes a tap. ----- */
+
+.ink-stroke {
   position: absolute;
-  left: -1px;
-  right: -2px;
-  bottom: 1px;
-  width: calc(100% + 3px);
-  height: 6px;
-  color: var(--paper-today);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
+  z-index: 0;
+  color: var(--pen);
 }
+.pill .ink-stroke,
+.today .ink-stroke { color: inherit; }
+.today .ink-stroke { top: auto; bottom: 1px; left: -1px; width: calc(100% + 3px); height: 7px; }
+.ink-handle,
+.ink-rule { top: 0; bottom: auto; height: 8px; }
+.ink-handle { color: var(--paper-muted); }
 
 /* ----- Rows ----- */
 
-/* One soft paper card per top-level entry. Its nested entries sit in an inset well inside the same card. */
+/* One card per top-level entry: no fill, no border, no shadow. The pen outline is its ink svg. Nested entries get their own smaller outline. */
 .entry-card {
+  position: relative;
   margin: 0 0 8px;
   padding: 4px 0;
-  border: 0.5px solid var(--card-stroke);
-  border-radius: 18px;
-  background: var(--card);
-  box-shadow: var(--card-shadow);
+  background: transparent;
 }
 
 .card-child {
+  position: relative;
   margin: 0 8px 8px;
   padding: 4px 0;
-  border-radius: 12px;
-  background: var(--card-2);
+  background: transparent;
 }
 .card-child:first-of-type { margin-top: 4px; }
 
 .paper-row {
   appearance: none;
   -webkit-appearance: none;
+  position: relative;
+  z-index: 1;
   box-sizing: border-box;
   display: flex;
   align-items: flex-start;
@@ -318,14 +318,15 @@ html.ak-base body {
   margin-top: 4px;
 }
 
+/* A pill has no fill: its outline is an ink stroke in the pill's own colour. */
 .pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
   height: 20px;
   padding: 0 8px;
-  border-radius: 10px;
-  background: var(--pill);
+  background: transparent;
   color: var(--paper-muted);
   font-family: var(--font-ui);
   font-size: 12px;
@@ -377,6 +378,7 @@ html.is-editing::after {
   max-width: 560px;
   margin: 0 auto;
   padding: 0 0 var(--sheet-safe, 0px);
+  /* The radius only clips the solid fill under the ink outline of the sheet's top. */
   border-radius: 22px 22px 0 0;
   background: var(--sheet-bg);
   box-shadow: var(--sheet-shadow);
@@ -384,14 +386,14 @@ html.is-editing::after {
   font-family: var(--font-text);
 }
 .edit-sheet[hidden] { display: none; }
+.edit-sheet > :not(.ink-stroke) { position: relative; z-index: 1; }
 
+/* The handle is a short ink stroke, drawn by js/log/ink. */
 .edit-handle {
-  width: 36px;
-  height: 4px;
-  margin: 8px auto 0;
-  border-radius: 2px;
-  background: var(--paper-muted);
-  opacity: 0.4;
+  position: relative;
+  width: 40px;
+  height: 8px;
+  margin: 10px auto 0;
 }
 
 /* While a line is typed, the page ends high enough that the last card can scroll above the sheet. */
@@ -467,7 +469,6 @@ html.ak-base .pop-input { font-size: 17px; }
   box-sizing: border-box;
   margin-top: 4px;
   padding: 0;
-  border-top: 1px solid var(--hair);
   color: var(--paper-ink);
   font-family: var(--font-ui);
 }

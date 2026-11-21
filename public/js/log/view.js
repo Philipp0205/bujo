@@ -1,5 +1,5 @@
 /*
- * Render functions of the rapid log: header, day groups, soft paper cards. They build nodes and call back, they never fetch.
+ * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
  * Needs ak-dom.js, copy.js, dates.js, glyph.js and days.js.
  */
 (function () {
@@ -30,11 +30,9 @@
       h('div', { class: 'paper-actions' }, scan, settings));
   }
 
-  /** The hand-underlined "Today" mark next to the date of today. */
+  /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */
   function todayMark() {
-    return h('span', { class: 'today', 'data-testid': 'today-mark' },
-      L.copy.today,
-      L.glyph.use('g-today', { viewBox: '0 0 40 6', preserveAspectRatio: 'none' }));
+    return h('span', { class: 'today', 'data-testid': 'today-mark' }, L.copy.today);
   }
 
   /** The heading of a day, like "Friday 20.11", with the today mark on today. */
@@ -74,7 +72,7 @@
     return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
   }
 
-  /** One soft paper card: the entry on top, its nested entries in an inset well inside the same card. */
+  /** One card: the entry on top, its nested entries inside the same card, each with its own pen outline (drawn by the ink decorator). */
   function entryCard(card, actions) {
     return h('article', { class: 'entry-card' },
       entryRow(card.entry, actions.open, 0),
