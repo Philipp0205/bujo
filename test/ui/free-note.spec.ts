@@ -162,11 +162,14 @@ test("a page with no usable first line gets the Untitled note title", async ({ p
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Untitled note");
 });
 
-test("a short note with no body still opens the entry sheet", async ({ page }) => {
+test("a short note with no body is typed in place, and its details sheet is the entry sheet", async ({ page }) => {
   const day = localDay();
   expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day, type: "note", title: "Kurze Notiz" } })).status()).toBe(201);
   await page.goto(app.baseUrl);
   await page.locator(".paper-row", { hasText: "Kurze Notiz" }).click();
+  await expect(page.locator(".paper-line input")).toHaveValue("Kurze Notiz");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator(".inline-bar [data-action=details]").click();
   await expect(page.getByRole("heading", { name: "Edit entry" })).toBeVisible();
   await expect(page.getByTestId("sync-line")).toHaveCount(0);
   await expect(sheet(page)).toHaveCount(0);
