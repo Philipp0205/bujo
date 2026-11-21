@@ -67,9 +67,10 @@
     return L.view.stateNote(state.status, reload);
   }
 
-  /** Draws the whole page from the state. The page is small, so nothing is patched in place. */
+  /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
   function draw() {
     root.replaceChildren(L.view.header(actions.scan), AppKit.h('div', { class: 'paper-page' }, body()));
+    L.ink.decorate.list(root);
   }
 
   /** Redraws through the editor, which puts the line being typed back with its draft and focus. */

@@ -49,6 +49,7 @@
   function patchChips(node, line) {
     var chips = node.querySelector('.sheet-chips');
     chips.replaceChildren.apply(chips, L.days.editPills(line).map(L.glyph.pill));
+    L.ink.decorate.chips(node);
   }
 
   /** Patches the error line: the old one goes, a new one comes when the line has an error. */
