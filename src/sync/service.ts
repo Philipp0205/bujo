@@ -5,10 +5,10 @@ import type { Db } from "../db.ts";
 import { createEntryStore, type EntryStore } from "../log/store.ts";
 import type { Entry, EntryPatch } from "../log/types.ts";
 import type { SyncConfig } from "./config.ts";
-import { writeRefusal } from "./guard.ts";
-import { isSyncable } from "./mapping.ts";
+import { eventWriteRefusal, writeRefusal } from "./guard.ts";
+import { syncKind, type SyncKind } from "./mapping.ts";
 import { describeFailure, pushEntry, type PushDeps } from "./push.ts";
-import { SYNC_MESSAGES, unknownListMessage } from "./strings.ts";
+import { EVENT_CALENDAR_MISSING_MESSAGE, SYNC_MESSAGES, unknownListMessage } from "./strings.ts";
 
 export type SyncServiceOptions = {
   db: Db;
@@ -33,21 +33,44 @@ export type SyncService = {
   idle(): Promise<void>;
 };
 
-/** True when an edit changes something the VTODO shows (title, type, day). A tag or time edit does not. */
-export function touchesMapping(patch: EntryPatch): boolean {
-  return "title" in patch || "type" in patch || "date" in patch;
+/**
+ * True when an edit changes something the calendar object shows. A task shows title, type and day. An event
+ * also shows its time and tag. `entry` is the entry after the edit, so it says which of the two rules applies.
+ */
+export function touchesMapping(patch: EntryPatch, entry: Pick<Entry, "type">): boolean {
+  if ("title" in patch || "type" in patch || "date" in patch) return true;
+  return entry.type === "event" && ("time" in patch || "tag" in patch);
 }
 
 type Queue = { tail: Promise<void>; waiting: number };
 
-/** The one entry of the CalDAV config the sync writes to, or null when it is not there. */
-function targetList(caldav: CalDavConfig, sync: SyncConfig): CalDavList | null {
-  return caldav.lists.find((list) => list.name === sync.listName) ?? null;
+/** Where a push goes: a list to write to, or the message that says why nothing may be written. */
+type Target = { list: CalDavList } | { refusal: string };
+
+/** The task list for a VTODO push, or the reason it cannot be used. Keeps the live-list guard. */
+function todoTarget(caldav: CalDavConfig, sync: SyncConfig): Target {
+  const list = caldav.lists.find((item) => item.name === sync.listName);
+  if (!list) return { refusal: unknownListMessage(sync.listName) };
+  const refusal = writeRefusal(list, caldav.lists, sync);
+  return refusal ? { refusal } : { list };
+}
+
+/** The event calendar for a VEVENT push, or the reason it cannot be used. Only the allow-listed calendar passes. */
+function eventTarget(caldav: CalDavConfig, sync: SyncConfig): Target {
+  const calendar = sync.eventCalendar;
+  const refusal = eventWriteRefusal(calendar, caldav.lists);
+  return refusal !== null || !calendar ? { refusal: refusal ?? EVENT_CALENDAR_MISSING_MESSAGE } : { list: calendar };
+}
+
+/** The target for a kind of object. */
+function targetFor(kind: SyncKind, caldav: CalDavConfig, sync: SyncConfig): Target {
+  return kind === "event" ? eventTarget(caldav, sync) : todoTarget(caldav, sync);
 }
 
 /**
  * Builds the sync service. Pushes for one entry run one after the other, so two quick edits never both create
- * a VTODO. A job reads the entry again when it runs, so it always pushes the newest text.
+ * an object. A job reads the entry again when it runs, so it always pushes the newest text, to the target its
+ * current type needs.
  */
 export function createSyncService(options: SyncServiceOptions): SyncService {
   const store = createEntryStore(options.db);
@@ -56,37 +79,49 @@ export function createSyncService(options: SyncServiceOptions): SyncService {
   const deps = (list: CalDavList): PushDeps => ({
     client,
     list,
+    eventCalendar: options.sync.eventCalendar,
     now: options.now ?? Date.now,
     uuid: options.uuid ?? randomUUID,
   });
   const queues = new Map<string, Queue>();
 
   /** One push for one entry, with the state written when it ends. `last` is false while another push is queued behind it. */
-  async function run(userId: string, id: string, list: CalDavList, last: () => boolean): Promise<void> {
+  async function run(userId: string, id: string, last: () => boolean): Promise<void> {
     const entry = store.get(userId, id);
     if (!entry) return;
-    if (!isSyncable(entry.type)) {
+    const kind = syncKind(entry.type);
+    if (!kind) {
       if (last()) store.setSync(userId, id, { sync: "local" });
       return;
     }
+    const target = targetFor(kind, options.caldav, options.sync);
+    if ("refusal" in target) {
+      if (last()) store.setSync(userId, id, { sync: "error", error: target.refusal });
+      return;
+    }
+    await push(userId, entry, target.list, last);
+  }
+
+  /** The push itself, with the state written when it ends. */
+  async function push(userId: string, entry: Entry, list: CalDavList, last: () => boolean): Promise<void> {
     try {
-      const link = await pushEntry(deps(list), entry, store.getRemote(userId, id));
-      store.setSync(userId, id, { sync: last() ? "synced" : "pending", link });
+      const link = await pushEntry(deps(list), entry, store.getRemote(userId, entry.id));
+      store.setSync(userId, entry.id, { sync: last() ? "synced" : "pending", link });
     } catch (error) {
-      const failure = describeFailure(error);
+      const failure = describeFailure(error, syncKind(entry.type) ?? "todo");
       log(`sync failed: ${failure.message}`);
-      store.setSync(userId, id, { sync: last() ? "error" : "pending", error: failure.shown, link: failure.link });
+      store.setSync(userId, entry.id, { sync: last() ? "error" : "pending", error: failure.shown, link: failure.link });
     }
   }
 
   /** Adds a job to the queue of its entry. */
-  function queue(userId: string, id: string, list: CalDavList): void {
+  function queue(userId: string, id: string): void {
     const q = queues.get(id) ?? { tail: Promise.resolve(), waiting: 0 };
     q.waiting += 1;
     q.tail = q.tail.then(async () => {
       q.waiting -= 1;
       try {
-        await run(userId, id, list, () => q.waiting === 0);
+        await run(userId, id, () => q.waiting === 0);
       } catch (error) {
         log(`sync crashed: ${error instanceof Error ? error.name : "unknown"}`);
         store.setSync(userId, id, { sync: "error", error: SYNC_MESSAGES.unexpected });
@@ -103,15 +138,12 @@ export function createSyncService(options: SyncServiceOptions): SyncService {
 
   return {
     enqueue(userId, entry) {
-      if (!isSyncable(entry.type)) {
-        return entry.sync === "local" ? entry : (store.setSync(userId, entry.id, { sync: "local" }) ?? entry);
-      }
-      const list = targetList(options.caldav, options.sync);
-      if (!list) return refuse(userId, entry, unknownListMessage(options.sync.listName));
-      const refused = writeRefusal(list, options.caldav.lists, options.sync);
-      if (refused) return refuse(userId, entry, refused);
+      const kind = syncKind(entry.type);
+      if (!kind) return entry.sync === "local" ? entry : (store.setSync(userId, entry.id, { sync: "local" }) ?? entry);
+      const target = targetFor(kind, options.caldav, options.sync);
+      if ("refusal" in target) return refuse(userId, entry, target.refusal);
       const pending = store.setSync(userId, entry.id, { sync: "pending" }) ?? entry;
-      queue(userId, entry.id, list);
+      queue(userId, entry.id);
       return pending;
     },
 

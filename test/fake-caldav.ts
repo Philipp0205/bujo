@@ -69,9 +69,14 @@ export const FIXTURES_ARBEIT: Record<string, string> = {
 export const COLLECTIONS: Record<string, Record<string, string>> = {
   "/dav/calendars/test/aufgaben/": FIXTURES,
   "/dav/calendars/test/arbeit/": FIXTURES_ARBEIT,
-  // The empty list the sync tests write to. Not in fakeEnv, so the other tests never see it.
+  // The empty list the sync tests write tasks to. Not in fakeEnv, so the other tests never see it.
   "/dav/calendars/test/bujo-test/": {},
+  // The empty VEVENT calendar the event sync writes to. Its own path, never the VTODO list above.
+  "/dav/calendars/test/bujo-test-cal/": {},
 };
+
+/** The collections that hold VEVENTs. PROPFIND reports VEVENT on these and VTODO on every other one. */
+const EVENT_COLLECTIONS = new Set(["/dav/calendars/test/bujo-test-cal/"]);
 
 const xmlEscape = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -104,6 +109,7 @@ function reportBody(collection: string, files: Map<string, Stored>): string {
 }
 
 function propfindBody(collection: string): string {
+  const component = EVENT_COLLECTIONS.has(collection) ? "VEVENT" : "VTODO";
   return `<?xml version="1.0" encoding="utf-8"?>
 <d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
   <d:response>
@@ -112,7 +118,7 @@ function propfindBody(collection: string): string {
       <d:prop>
         <d:displayname>Fixture list</d:displayname>
         <d:resourcetype><d:collection/><cal:calendar/></d:resourcetype>
-        <cal:supported-calendar-component-set><cal:comp name="VTODO"/></cal:supported-calendar-component-set>
+        <cal:supported-calendar-component-set><cal:comp name="${component}"/></cal:supported-calendar-component-set>
       </d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>
     </d:propstat>
@@ -142,6 +148,8 @@ export type FakeCalDav = {
   names(collection: string): string[];
   /** Pretends another client changed the object: a new ETag, same content (or `data` when given). */
   touch(collection: string, name: string, data?: string): void;
+  /** Puts an object straight into a collection, as another client would. For seeding a VEVENT that bujo did not write. */
+  seed(collection: string, name: string, data: string): void;
   close: () => Promise<void>;
 };
 
@@ -273,6 +281,11 @@ export async function startFakeCalDav(options: FakeOptions = {}): Promise<FakeCa
       if (!entry) throw new Error(`no such file ${name}`);
       store.get(collection)!.set(name, { data: data ?? entry.data, etag: nextEtag() });
     },
+    seed(collection, name, data) {
+      const folder = store.get(collection);
+      if (!folder) throw new Error(`no such collection ${collection}`);
+      folder.set(name, { data, etag: nextEtag() });
+    },
     close: async () => {
       server.closeAllConnections?.();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -284,7 +297,14 @@ export const LIST_PATHS = {
   Aufgaben: "/dav/calendars/test/aufgaben/",
   Arbeit: "/dav/calendars/test/arbeit/",
   "bujo-test": "/dav/calendars/test/bujo-test/",
+  "bujo-test-cal": "/dav/calendars/test/bujo-test-cal/",
 } as const;
+
+/** The one event calendar the sync may write to, as the service gets it from BUJO_CALDAV_EVENT_CALENDAR. */
+export const EVENT_CALENDAR = { name: "bujo-test-cal", path: LIST_PATHS["bujo-test-cal"] } as const;
+
+/** Sync settings for the service in tests: task list bujo-test, the guard on, the event calendar bujo-test-cal. */
+export const SYNC_SETTINGS = { listName: "bujo-test", live: false, eventCalendar: EVENT_CALENDAR } as const;
 
 /** Env for loadCalDavConfig that points at a fake server. */
 export function fakeEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
@@ -296,8 +316,12 @@ export function fakeEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
   };
 }
 
-/** Like fakeEnv, plus the empty bujo-test list that the sync writes to. */
+/** Like fakeEnv, plus the empty bujo-test list that the sync writes to and the one event calendar. */
 export function syncEnv(fake: FakeCalDav): NodeJS.ProcessEnv {
   const env = fakeEnv(fake);
-  return { ...env, BUJO_CALDAV_LISTS: `${env.BUJO_CALDAV_LISTS},bujo-test=${LIST_PATHS["bujo-test"]}` };
+  return {
+    ...env,
+    BUJO_CALDAV_LISTS: `${env.BUJO_CALDAV_LISTS},bujo-test=${LIST_PATHS["bujo-test"]}`,
+    BUJO_CALDAV_EVENT_CALENDAR: `${EVENT_CALENDAR.name}=${EVENT_CALENDAR.path}`,
+  };
 }

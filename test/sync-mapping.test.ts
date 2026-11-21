@@ -3,7 +3,7 @@ import test from "node:test";
 import { editTodo, parseVTodos } from "../src/caldav/ics.ts";
 import { loadSyncConfig } from "../src/sync/config.ts";
 import { isLiveList, writeRefusal } from "../src/sync/guard.ts";
-import { isSyncable, newTodoFor, patchFor, readBackMismatch, todoShape } from "../src/sync/mapping.ts";
+import { isSyncable, newTodoFor, patchFor, readBackMismatch, syncKind, todoShape } from "../src/sync/mapping.ts";
 
 const NOW = Date.parse("2026-11-20T10:00:00Z");
 const UID = "fresh-uid-1";
@@ -52,11 +52,14 @@ test("a new VTODO never has DTSTART, PRIORITY or CATEGORIES, whatever the type",
   }
 });
 
-test("only task, done, migrated and scheduled sync: notes and events do not", () => {
+test("task, event, done, migrated and scheduled sync: notes do not", () => {
   assert.deepEqual(
     (["task", "note", "event", "done", "migrated", "scheduled"] as const).filter(isSyncable),
-    ["task", "done", "migrated", "scheduled"],
+    ["task", "event", "done", "migrated", "scheduled"],
   );
+  assert.equal(syncKind("event"), "event");
+  assert.equal(syncKind("note"), null);
+  for (const type of ["task", "done", "migrated", "scheduled"] as const) assert.equal(syncKind(type), "todo", type);
 });
 
 test("umlauts survive in SUMMARY, through folding and a parse", () => {

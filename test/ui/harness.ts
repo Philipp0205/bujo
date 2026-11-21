@@ -5,7 +5,7 @@ import { caldavSource } from "../../src/caldav/source.ts";
 import { openDb } from "../../src/db.ts";
 import { createOcrClient } from "../../src/scan/ocr-client.ts";
 import { createSyncService, type SyncService } from "../../src/sync/service.ts";
-import { fakeEnv, startFakeCalDav, syncEnv, type FakeCalDav } from "../fake-caldav.ts";
+import { fakeEnv, startFakeCalDav, SYNC_SETTINGS, syncEnv, type FakeCalDav } from "../fake-caldav.ts";
 import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
@@ -45,7 +45,7 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
     const env = options.sync ? syncEnv(fake) : fakeEnv(fake);
     const db = openDb(":memory:");
     const sync = options.sync
-      ? createSyncService({ db, caldav: loadCalDavConfig(env)!, sync: { listName: "bujo-test", live: false }, log: () => undefined })
+      ? createSyncService({ db, caldav: loadCalDavConfig(env)!, sync: { ...SYNC_SETTINGS }, log: () => undefined })
       : undefined;
     const app = await startApp(caldavSource(loadCalDavConfig(env)!), {
       db,

@@ -182,31 +182,37 @@ export function mapPriority(raw: number | null): Priority | null {
   return null;
 }
 
-/** Parses every VTODO in an iCalendar text. A VTODO with no UID is skipped, it cannot be addressed. */
-export function parseVTodos(ics: string): VTodo[] {
-  const todos: VTodo[] = [];
+/** The unfolded lines between BEGIN:<component> and its END, for every such component of a calendar text. Nested blocks stay inside. */
+export function blocksOf(ics: string, component: string): string[][] {
+  const begin = `BEGIN:${component}`;
+  const end = `END:${component}`;
+  const blocks: string[][] = [];
   let lines: string[] | null = null;
   let depth = 0;
   for (const line of unfold(ics)) {
     const upper = line.toUpperCase();
     if (lines === null) {
-      if (upper === "BEGIN:VTODO") {
+      if (upper === begin) {
         lines = [];
         depth = 0;
       }
       continue;
     }
     if (upper.startsWith("BEGIN:")) depth++;
-    if (upper === "END:VTODO" && depth === 0) {
-      const todo = mapVTodo(lines);
-      if (todo) todos.push(todo);
+    if (upper === end && depth === 0) {
+      blocks.push(lines);
       lines = null;
       continue;
     }
     if (upper.startsWith("END:") && depth > 0) depth--;
     lines.push(line);
   }
-  return todos;
+  return blocks;
+}
+
+/** Parses every VTODO in an iCalendar text. A VTODO with no UID is skipped, it cannot be addressed. */
+export function parseVTodos(ics: string): VTodo[] {
+  return blocksOf(ics, "VTODO").flatMap((lines) => mapVTodo(lines) ?? []);
 }
 
 /** Maps the unfolded lines between BEGIN:VTODO and END:VTODO. Null when there is no UID. */
@@ -389,11 +395,11 @@ function dateValue(date: string): string {
   return date.replace(/-/g, "");
 }
 
-const summaryLine = (summary: string) => `SUMMARY:${escapeText(summary)}`;
+export const summaryLine = (summary: string) => `SUMMARY:${escapeText(summary)}`;
 const descriptionLine = (description: string) => `DESCRIPTION:${escapeText(description)}`;
 const dueLine = (date: string) => `DUE;VALUE=DATE:${dateValue(date)}`;
 const priorityLine = (priority: Priority) => `PRIORITY:${priority}`;
-const categoriesLine = (categories: string[]) => `CATEGORIES:${categories.map(escapeText).join(",")}`;
+export const categoriesLine = (categories: string[]) => `CATEGORIES:${categories.map(escapeText).join(",")}`;
 
 /** A whole VCALENDAR with one new VTODO: CRLF line ends, lines folded at 75 octets, no DTSTART. */
 export function buildNewTodo(input: NewTodo, nowMs: number): string {
@@ -448,16 +454,16 @@ export class TodoNotFoundError extends Error {
   }
 }
 
-/** Index range of the VTODO with this UID: `begin` is its BEGIN line, `end` its END line. */
-function findTodo(all: Logical[], uid: string): { begin: number; end: number } | null {
+/** Index range of the component (VTODO, VEVENT) with this UID: `begin` is its BEGIN line, `end` its END line. */
+function findBlock(all: Logical[], component: string, uid: string): { begin: number; end: number } | null {
   for (let i = 0; i < all.length; i++) {
-    if (all[i].text.toUpperCase() !== "BEGIN:VTODO") continue;
+    if (all[i].text.toUpperCase() !== `BEGIN:${component}`) continue;
     let depth = 0;
     let blockUid = "";
     for (let j = i + 1; j < all.length; j++) {
       const upper = all[j].text.toUpperCase();
       if (upper.startsWith("BEGIN:")) depth++;
-      else if (upper === "END:VTODO" && depth === 0) {
+      else if (upper === `END:${component}` && depth === 0) {
         if (blockUid === uid) return { begin: i, end: j };
         break;
       } else if (upper.startsWith("END:") && depth > 0) depth--;
@@ -470,25 +476,18 @@ function findTodo(all: Logical[], uid: string): { begin: number; end: number } |
   return null;
 }
 
-/**
- * Edits one VTODO of a calendar object and keeps everything else as it was: untouched lines come back
- * with their original folding, unknown properties and nested components stay where they are, and a DUE
- * line (a TZID one too) is only rewritten when the date changes.
- *
- * Every real change bumps LAST-MODIFIED, DTSTAMP and SEQUENCE. A patch that changes nothing returns
- * `changed: false` and the text as it came in, so the caller can skip the write.
- */
-export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: number): { ics: string; changed: boolean } {
-  const eol = /\r\n|\n|\r/.exec(ics)?.[0] ?? "\r\n";
-  const all = splitLogical(ics);
-  const range = findTodo(all, uid);
-  if (!range) throw new TodoNotFoundError();
-  const { begin, end } = range;
+/** A calendar component opened for surgical edits: the unfolded lines to read, and setProp to change one property. */
+export type OpenBlock = {
+  /** The unfolded lines between BEGIN and END, as they are now. */
+  lines: string[];
+  /** Replaces the first line of this property and drops its other lines, or adds it. A null text removes it. */
+  setProp(name: string, text: string | null): void;
+  /** Bumps LAST-MODIFIED, DTSTAMP and SEQUENCE and returns the whole text, untouched lines as they were. */
+  finish(nowMs: number): string;
+};
 
-  const inner = all.slice(begin + 1, end);
-  const current = mapVTodo(inner.map((line) => line.text));
-  if (!current) throw new TodoNotFoundError();
-
+/** The items of a component body: plain properties, and nested components kept whole. */
+function itemsOf(inner: Logical[]): Item[] {
   const items: Item[] = [];
   for (let i = 0; i < inner.length; i++) {
     if (/^BEGIN:/i.test(inner[i].text)) {
@@ -504,8 +503,22 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
       items.push({ kind: "prop", name: parseContentLine(inner[i].text)?.name ?? "", line: inner[i] });
     }
   }
+  return items;
+}
 
-  let changed = false;
+/**
+ * Opens the component (VTODO, VEVENT) with this UID for edits that keep everything else as it was: untouched
+ * lines come back with their original folding, unknown properties and nested components stay where they are.
+ * Null when the object has no such component.
+ */
+export function openBlock(ics: string, component: string, uid: string): OpenBlock | null {
+  const eol = /\r\n|\n|\r/.exec(ics)?.[0] ?? "\r\n";
+  const all = splitLogical(ics);
+  const range = findBlock(all, component, uid);
+  if (!range) return null;
+  const { begin, end } = range;
+  const inner = all.slice(begin + 1, end);
+  const items = itemsOf(inner);
 
   /** New properties go before the first nested component, as RFC 5545 has it. */
   function insertIndex(): number {
@@ -513,7 +526,6 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
     return firstComponent < 0 ? items.length : firstComponent;
   }
 
-  /** Replaces the first line of this property and drops its other lines, or adds it. A null text removes it. */
   function setProp(name: string, text: string | null): void {
     const indexes = items.flatMap((item, index) => (item.kind === "prop" && item.name === name ? [index] : []));
     if (text === null) {
@@ -528,6 +540,40 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
     items[indexes[0]] = fresh;
     for (const index of indexes.slice(1).reverse()) items.splice(index, 1);
   }
+
+  function finish(nowMs: number): string {
+    const stamp = formatUtc(nowMs);
+    const sequence = items.find((item) => item.kind === "prop" && item.name === "SEQUENCE");
+    const previous = sequence && sequence.kind === "prop" ? Number.parseInt(parseContentLine(sequence.line.text)?.value ?? "", 10) : Number.NaN;
+    setProp("LAST-MODIFIED", `LAST-MODIFIED:${stamp}`);
+    setProp("DTSTAMP", `DTSTAMP:${stamp}`);
+    setProp("SEQUENCE", `SEQUENCE:${Number.isFinite(previous) && previous >= 0 ? previous + 1 : 1}`);
+    const body: string[] = [];
+    for (const item of items) {
+      if (item.kind === "prop") body.push(...item.line.raw);
+      else for (const line of item.lines) body.push(...line.raw);
+    }
+    const lines = [...all.slice(0, begin + 1).flatMap((line) => line.raw), ...body, ...all.slice(end).flatMap((line) => line.raw)];
+    return lines.join(eol) + eol;
+  }
+
+  return { lines: inner.map((line) => line.text), setProp, finish };
+}
+
+/**
+ * Edits one VTODO of a calendar object and keeps everything else as it was: untouched lines come back
+ * with their original folding, unknown properties and nested components stay where they are, and a DUE
+ * line (a TZID one too) is only rewritten when the date changes.
+ *
+ * Every real change bumps LAST-MODIFIED, DTSTAMP and SEQUENCE. A patch that changes nothing returns
+ * `changed: false` and the text as it came in, so the caller can skip the write.
+ */
+export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: number): { ics: string; changed: boolean } {
+  const block = openBlock(ics, "VTODO", uid);
+  const current = block ? mapVTodo(block.lines) : null;
+  if (!block || !current) throw new TodoNotFoundError();
+  const setProp = block.setProp;
+  let changed = false;
 
   if (patch.summary !== undefined && patch.summary !== current.summary) {
     setProp("SUMMARY", summaryLine(patch.summary));
@@ -579,20 +625,5 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
     changed = true;
   }
 
-  if (!changed) return { ics, changed: false };
-
-  const stamp = formatUtc(nowMs);
-  const sequence = items.find((item) => item.kind === "prop" && item.name === "SEQUENCE");
-  const previous = sequence && sequence.kind === "prop" ? Number.parseInt(parseContentLine(sequence.line.text)?.value ?? "", 10) : Number.NaN;
-  setProp("LAST-MODIFIED", `LAST-MODIFIED:${stamp}`);
-  setProp("DTSTAMP", `DTSTAMP:${stamp}`);
-  setProp("SEQUENCE", `SEQUENCE:${Number.isFinite(previous) && previous >= 0 ? previous + 1 : 1}`);
-
-  const body: string[] = [];
-  for (const item of items) {
-    if (item.kind === "prop") body.push(...item.line.raw);
-    else for (const line of item.lines) body.push(...line.raw);
-  }
-  const lines = [...all.slice(0, begin + 1).flatMap((line) => line.raw), ...body, ...all.slice(end).flatMap((line) => line.raw)];
-  return { ics: lines.join(eol) + eol, changed: true };
+  return changed ? { ics: block.finish(nowMs), changed: true } : { ics, changed: false };
 }

@@ -8,7 +8,7 @@ import { openDb, type Db } from "../src/db.ts";
 import { createEntryStore } from "../src/log/store.ts";
 import type { Entry, NewEntry } from "../src/log/types.ts";
 import { createSyncService, failInterrupted, type SyncService } from "../src/sync/service.ts";
-import { fakeEnv, LIST_PATHS, PASSWORD, startFakeCalDav, syncEnv, USER, type FakeCalDav } from "./fake-caldav.ts";
+import { fakeEnv, LIST_PATHS, PASSWORD, startFakeCalDav, SYNC_SETTINGS, syncEnv, USER, type FakeCalDav } from "./fake-caldav.ts";
 import { api, signUp, withApp } from "./helpers.ts";
 
 const NOW = Date.parse("2026-11-20T10:00:00Z");
@@ -33,7 +33,7 @@ async function withSync(
     const service = createSyncService({
       db,
       caldav,
-      sync: options.sync ?? { listName: "bujo-test", live: false },
+      sync: options.sync ?? { ...SYNC_SETTINGS },
       client: options.client?.(fake),
       now: () => NOW,
       uuid: () => `uid-${++n}`,
@@ -139,27 +139,23 @@ test("done completes the VTODO, and task again reopens it", async () => {
   });
 });
 
-test("an entry that moves to a note or an event goes back to local and writes nothing", async () => {
+test("an entry that moves to a note goes back to local and writes nothing", async () => {
   await withSync(async (ctx) => {
     const created = make(ctx);
     ctx.service.enqueue(USER_ID, created);
     await ctx.service.idle();
     const before = puts(ctx.fake).length;
-    for (const type of ["note", "event"] as const) {
-      const moved = ctx.entries.update(USER_ID, created.id, { type }, NOW)!;
-      assert.equal(ctx.service.enqueue(USER_ID, moved).sync, "local", type);
-    }
+    const moved = ctx.entries.update(USER_ID, created.id, { type: "note" }, NOW)!;
+    assert.equal(ctx.service.enqueue(USER_ID, moved).sync, "local");
     await ctx.service.idle();
     assert.equal(puts(ctx.fake).length, before);
   });
 });
 
-test("notes and events are never sent", async () => {
+test("notes are never sent", async () => {
   await withSync(async (ctx) => {
-    for (const type of ["note", "event"] as const) {
-      const answered = ctx.service.enqueue(USER_ID, make(ctx, { type, title: `a ${type}` }));
-      assert.equal(answered.sync, "local");
-    }
+    const answered = ctx.service.enqueue(USER_ID, make(ctx, { type: "note", title: "a note" }));
+    assert.equal(answered.sync, "local");
     await ctx.service.idle();
     assert.deepEqual(ctx.fake.requests, []);
   });
@@ -434,7 +430,7 @@ async function withSyncedApp(fn: (ctx: ApiCtx) => Promise<void>, wire = true): P
   const fake = await startFakeCalDav();
   const db = openDb(":memory:");
   const caldav = loadCalDavConfig(syncEnv(fake))!;
-  const service = createSyncService({ db, caldav, sync: { listName: "bujo-test", live: false }, log: () => undefined });
+  const service = createSyncService({ db, caldav, sync: { ...SYNC_SETTINGS }, log: () => undefined });
   try {
     await withApp(
       demoSource(),
@@ -452,17 +448,16 @@ async function withSyncedApp(fn: (ctx: ApiCtx) => Promise<void>, wire = true): P
 
 const post = (ctx: ApiCtx, body: object) => api(ctx.base, "POST", "/api/entries", { body, headers: ctx.headers });
 
-test("API: a task answers pending at once, a note and an event stay local, and the list ends up synced", async () => {
+test("API: a task answers pending at once, a note stays local, and the list ends up synced", async () => {
   await withSyncedApp(async (ctx) => {
     const task = await post(ctx, { date: "2026-11-24", type: "task", title: UMLAUT });
     assert.equal(task.status, 201);
     assert.equal(task.json.entry.sync, "pending");
     assert.equal(task.json.entry.syncError, null);
     assert.equal((await post(ctx, { date: "2026-11-24", type: "note", title: "nur lokal" })).json.entry.sync, "local");
-    assert.equal((await post(ctx, { date: "2026-11-24", type: "event", title: "Termin" })).json.entry.sync, "local");
     await ctx.service.idle();
     const list = await api(ctx.base, "GET", "/api/entries?from=2026-11-24&to=2026-11-24", { headers: ctx.headers });
-    assert.deepEqual(list.json.entries.map((e: Entry) => [e.type, e.sync]), [["task", "synced"], ["note", "local"], ["event", "local"]]);
+    assert.deepEqual(list.json.entries.map((e: Entry) => [e.type, e.sync]), [["task", "synced"], ["note", "local"]]);
     const shown = JSON.stringify(list.json);
     for (const secret of ["remote", "href", "etag", "uid-"]) assert.equal(shown.includes(secret), false, secret);
     assert.equal(ctx.fake.names(BOX).length, 1);

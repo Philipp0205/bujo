@@ -20,6 +20,7 @@ services:
       BUJO_CALDAV_USER: ${BUJO_CALDAV_USER:-}
       BUJO_CALDAV_PASSWORD: ${BUJO_CALDAV_PASSWORD:-}
       BUJO_CALDAV_LISTS: ${BUJO_CALDAV_LISTS:-}
+      BUJO_CALDAV_EVENT_CALENDAR: ${BUJO_CALDAV_EVENT_CALENDAR:-}
     volumes:
       - bujo-data:/data
     depends_on:
