@@ -1,6 +1,6 @@
 /*
- * Where the on-screen keyboard is. The accessory bar is pinned to the bottom of the visual viewport, and the line being
- * typed is scrolled above it. Without a keyboard (desktop) the gap is 0 and the bar sits at the bottom of the screen.
+ * Where the on-screen keyboard is. The edit sheet is pinned to the bottom of the visual viewport, and the card being edited
+ * is scrolled above it. Without a keyboard (desktop) the gap is 0 and the sheet sits at the bottom of the screen.
  */
 (function () {
   'use strict';
@@ -8,8 +8,7 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.inline = L.inline || {};
 
-  var BAR_HEIGHT = 52;
-  var MARGIN = 8;
+  var MARGIN = 12;
 
   /** The height the keyboard takes from the bottom of the layout viewport, 0 when there is none. */
   function keyboardGap() {
@@ -18,18 +17,18 @@
     return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
   }
 
-  /** Pins the bar just above the keyboard. The home-indicator inset only counts when no keyboard covers it. */
-  function place(bar) {
+  /** Pins the sheet just above the keyboard. The home-indicator inset only counts when no keyboard covers it. */
+  function place(sheet) {
     var gap = keyboardGap();
-    bar.style.bottom = gap + 'px';
-    bar.style.setProperty('--bar-safe', gap > 0 ? '0px' : 'var(--ak-safe-bottom, 0px)');
+    sheet.style.bottom = gap + 'px';
+    sheet.style.setProperty('--sheet-safe', gap > 0 ? '0px' : 'var(--ak-safe-bottom, 0px)');
   }
 
-  /** Scrolls the page just enough that the node ends above the bar, so the bar never covers the line being typed. */
-  function reveal(node) {
+  /** Scrolls the page just enough that the node ends above the sheet, so the sheet never covers what is being edited. */
+  function reveal(node, sheet) {
     var vv = window.visualViewport;
-    var bottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - BAR_HEIGHT - MARGIN;
-    var over = node.getBoundingClientRect().bottom - bottom;
+    var floor = (vv ? vv.offsetTop + vv.height : window.innerHeight) - sheet.offsetHeight - MARGIN;
+    var over = node.getBoundingClientRect().bottom - floor;
     if (over > 0) window.scrollBy(0, over);
   }
 

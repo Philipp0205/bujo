@@ -70,7 +70,7 @@ test("delete on a new line only drops it", async ({ page }) => {
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Nie gespeichert");
   await key(page, "remove").click();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(page.locator(".edit-sheet")).toBeHidden();
   await expect(page.locator(".inline-bar")).toBeHidden();
   await expect(page.locator(".paper-row", { hasText: "Nie gespeichert" })).toHaveCount(0);
 });
@@ -110,6 +110,9 @@ test("indent nests an entry under the one above and outdent brings it back", asy
   await expect(page.locator(".paper-edit")).toHaveAttribute("data-indent", "1");
   await expect.poll(async () => (await stored(page, 4)).map((entry) => entry.indent)).toEqual([0, 1]);
   await expect(key(page, "outdent")).toHaveAttribute("aria-disabled", "false");
+  // The child moves into the parent's card at once, behind the open sheet.
+  await expect(group(page, 4).locator(".entry-card")).toHaveCount(1);
+  await expect(group(page, 4).locator(".entry-card .card-child .paper-row", { hasText: "Unten" })).toHaveCount(1);
 
   await page.keyboard.press("Escape");
   await expect(row(page, 4, "Unten")).toHaveAttribute("data-indent", "1");
@@ -126,18 +129,18 @@ test("a #tag and a time typed into a line become pills and leave the title", asy
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Zahnarzt #health ");
   await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt ");
-  await expect(page.locator(".paper-line .meta-text")).toHaveText("health");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["health"]);
   await page.keyboard.type("14h30");
   await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt 14h30");
   await page.keyboard.type(" ");
   await expect(page.locator(".paper-line input")).toHaveValue("Zahnarzt ");
-  await expect(page.locator(".paper-line .meta-text")).toHaveText("health \u00b7 14:30");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["health", "14:30"]);
 
   await page.keyboard.press("Enter");
   const saved = group(page, 0).locator(".paper-row[data-id]", { hasText: "Zahnarzt" });
   await expect(saved).toHaveCount(1);
   await expect(saved.locator(".paper-title")).toHaveText("Zahnarzt");
-  await expect(saved.locator(".meta-text")).toHaveText("health \u00b7 14:30");
+  await expect(saved.locator(".pill")).toHaveText(["health", "14:30"]);
   const entry = (await stored(page, 0)).find((item) => item.title === "Zahnarzt")!;
   expect(entry).toMatchObject({ tag: "health", time: "14:30" });
 });
@@ -150,7 +153,7 @@ test("a tag at the very end is read when the line is saved", async ({ page }) =>
   await page.keyboard.press("Enter");
   const saved = group(page, 0).locator(".paper-row[data-id]", { hasText: "Mira anrufen" });
   await expect(saved.locator(".paper-title")).toHaveText("Mira anrufen");
-  await expect(saved.locator(".meta-text")).toHaveText("work");
+  await expect(saved.locator(".pill")).toHaveText(["work"]);
 });
 
 test("a line that is only a #tag keeps its text", async ({ page }) => {

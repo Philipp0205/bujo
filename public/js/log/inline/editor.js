@@ -1,12 +1,12 @@
 /*
- * The inline editor: the one line of the rapid log that is being typed, and what happens to it (save, drop, next line).
- * Application logic only. The nodes come from row.js and bar.js, the page is drawn by the host (main.js).
- * Needs markup.js, model.js, row.js, pop.js, bar.js, viewport.js, api.js, copy.js.
+ * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
+ * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
+ * Needs markup.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, viewport.js, api.js, copy.js.
  *
  * host: today(), draw() renders the page, upsert(entry) keeps the state in step with a saved entry,
  *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
- *       rowFor(entry) builds a saved row, openSheet(entry) opens the details sheet.
- * The page is always redrawn through paint(), which puts the line being typed back with its draft, caret and focus.
+ *       openSheet(entry) opens the details sheet.
+ * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
  * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter saves and starts the next.
  */
 (function () {
@@ -17,6 +17,7 @@
 
   var model = null;
   var bar = null;
+  var sheet = null;
   var host = null;
   var active = null;
   var muted = false;
@@ -24,14 +25,9 @@
   var pressed = false;
   var blurred = null;
 
-  /** The text input of the active line, or null when no line is drawn. */
+  /** The text input of the active line, or null before the sheet is mounted. */
   function titleInput() {
     return document.querySelector('.paper-edit-input');
-  }
-
-  /** The editing line node (row plus error), or null. */
-  function lineNode() {
-    return document.querySelector('.paper-line');
   }
 
   /** Runs fn with blur handling off: moving or removing the focused input fires a blur that the person did not cause. */
@@ -71,17 +67,34 @@
     bar.show(active, caps());
   }
 
-  /** After any draw: show or hide the bar, and put the draft, the caret and the focus back into the fresh input. */
+  /** The card (or the add row) the sheet must not cover: the card of a saved entry, the end of the day for a new one. */
+  function anchorNode() {
+    if (!active) return null;
+    if (!active.isNew) {
+      var row = document.querySelector('.paper-row[data-id="' + active.id + '"]');
+      return row ? row.closest('.entry-card') : null;
+    }
+    return document.querySelector('.paper-add') || document.querySelector('.paper-day-group[data-date="' + active.home + '"]');
+  }
+
+  /** Scrolls the list so the card being edited ends above the sheet. */
+  function reveal() {
+    var anchor = anchorNode();
+    if (anchor && sheet.element()) L.inline.viewport.reveal(anchor, sheet.element());
+  }
+
+  /** The sheet follows the active line: shown with its draft, caret and focus, or hidden when nothing is being typed. */
   function sync(caret) {
     document.documentElement.classList.toggle('is-editing', !!active);
-    if (!active) { bar.hide(); return; }
+    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); return; }
+    sheet.show();
+    L.inline.row.update(active);
     showBar();
     var input = titleInput();
-    if (!input) return;
-    input.value = active.title;
+    if (input.value !== active.title) input.value = active.title;
     if (!document.activeElement || !document.activeElement.closest('.inline-bar')) focusTitle();
     if (caret) input.setSelectionRange(caret.start, caret.end);
-    L.inline.viewport.reveal(lineNode());
+    reveal();
   }
 
   /** The caret of the title being typed, so a redraw in the middle of a word does not move it. */
@@ -90,21 +103,21 @@
     return input && input === document.activeElement ? { start: input.selectionStart, end: input.selectionEnd } : null;
   }
 
-  /** Redraws the page and puts the line being typed back, focused, without the swap counting as a blur. */
+  /** Redraws the list behind the sheet and puts the sheet in step with the active line. */
   function paint() {
     var caret = caretOf();
     quietly(function () { host.draw(); });
     sync(caret);
   }
 
-  /** Makes a line the active one and draws it focused. Runs inside the tap that asked for it, so the keyboard opens. */
+  /** Makes a line the active one and shows it in the sheet, focused. Runs inside the tap that asked for it, so the keyboard opens. */
   function start(line) {
     active = line;
     quietly(function () { bar.closePop(); });
     paint();
   }
 
-  /** Leaves editing: no active line, bar hidden, page drawn from the state. */
+  /** Leaves editing: no active line, sheet hidden, list drawn from the state. */
   function end() {
     active = null;
     paint();
@@ -136,22 +149,10 @@
     if (input) input.readOnly = on;
   }
 
-  /** A saved new line on its own day: the saved row goes in above, the same input stays and starts the next line. */
-  function continueHere(line, entry) {
-    var node = lineNode();
-    node.before(host.rowFor(entry));
-    active = model.blank(line.home);
-    quietly(function () { bar.closePop(); });
-    titleInput().value = '';
-    L.inline.row.update(active);
-    showBar();
-    L.inline.viewport.reveal(node);
-  }
-
-  /** What follows a good save: end, or the next line (in place when the saved row landed in the same day). */
+  /** What follows a good save: end, or the next line (on the same day when the saved entry landed there). The sheet stays open. */
   function saved(line, entry, next) {
     if (!next) end();
-    else if (line.isNew && entry.date === line.home && lineNode()) continueHere(line, entry);
+    else if (line.isNew && entry.date === line.home) start(model.blank(line.home));
     else start(model.blank(host.today()));
   }
 
@@ -293,7 +294,7 @@
     });
   }
 
-  /** Indent or outdent: saved at once for a saved entry, a draft choice for a new line (sent when the line is saved). */
+  /** Indent or outdent: saved at once for a saved entry (the list behind the sheet redraws), a draft choice for a new line. */
   function nestLine(level) {
     var line = active;
     if (line.isNew) { line.indent = level; L.inline.row.update(line); showBar(); return; }
@@ -301,8 +302,7 @@
       host.upsert(entry);
       line.original = entry;
       line.indent = entry.indent;
-      L.inline.row.update(line);
-      showBar();
+      paint();
     });
   }
 
@@ -400,29 +400,25 @@
     if (inZone(target) && target.tagName !== 'INPUT') event.preventDefault();
   }
 
-  /** Wires the editor to its host: the bar, the key and focus listeners, and the keyboard tracking. */
+  /** Wires the editor to its host: the sheet with its bar, the key and focus listeners, and the keyboard tracking. */
   function init(options) {
     host = options;
     model = L.inline.model;
     bar = L.inline.bar;
-    bar.mount({ toggle: toggle, act: act, details: details });
+    sheet = L.inline.editSheet;
+    sheet.mount(L.inline.row.build(typed), bar.mount({ toggle: toggle, act: act, details: details }));
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('mouseup', function () { window.setTimeout(releaseBlur, 0); }, true);
     L.inline.viewport.follow(function () {
-      bar.place();
-      if (active && lineNode()) L.inline.viewport.reveal(lineNode());
+      sheet.place();
+      if (active) reveal();
     });
   }
 
-  /** Whether a line is being typed. The page leaves its rows alone while this is true. */
-  function isEditing() {
-    return active !== null;
-  }
-
   L.inline.editor = {
-    init: init, paint: paint, addLine: addLine, editEntry: editEntry, settle: settle, typed: typed,
-    isEditing: isEditing, line: function () { return active; }
+    init: init, paint: paint, addLine: addLine, editEntry: editEntry, settle: settle,
+    line: function () { return active; }
   };
 })();

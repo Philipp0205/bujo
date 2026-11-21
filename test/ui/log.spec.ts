@@ -94,12 +94,12 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   expect(await glyph("Küchengarten")).toBe("#g-note");
   expect(await glyph("Vermieter")).toBe("#g-sched");
 
-  // Meta line: the tag, then the time, or "not synced" when a local task has no tag. The dot says local.
+  // Pills under the title: the tag, then the time, or "not synced" when a local task has no tag. The dot says local.
   // A note is never synced, so it shows no label and no dot.
-  await expect(row(page, "Heute Aufgabe").locator(".meta-text")).toHaveText("Haushalt");
-  await expect(row(page, "Mittagessen").locator(".meta-text")).toHaveText("Freizeit \u00b7 13:00");
+  await expect(row(page, "Heute Aufgabe").locator(".pill")).toHaveText(["Haushalt"]);
+  await expect(row(page, "Mittagessen").locator(".pill")).toHaveText(["Freizeit", "13:00"]);
   await expect(row(page, "Küchengarten")).toHaveAttribute("data-sync", "local");
-  await expect(row(page, "Küchengarten").locator(".meta-text")).toHaveText("");
+  await expect(row(page, "Küchengarten").locator(".paper-meta")).toHaveCount(0);
   await expect(row(page, "Küchengarten").locator(".sync-mark")).toHaveCount(0);
   await expect(row(page, "Küchengarten")).not.toContainText("not synced");
   await expect(row(page, "Heute Aufgabe").locator(".sync-mark")).toHaveAttribute("data-sync", "local");
@@ -119,12 +119,12 @@ test("a note shows no sync label and no dot, a task and an event next to it stil
   await expect(row(page, "Aufgabe ohne Tag")).toBeVisible();
 
   for (const title of ["Aufgabe ohne Tag", "Termin ohne Tag"]) {
-    await expect(row(page, title).locator(".meta-text")).toHaveText("not synced");
+    await expect(row(page, title).locator(".pill")).toHaveText(["not synced"]);
     await expect(row(page, title).locator(".sync-mark")).toHaveAttribute("data-sync", "local");
   }
-  await expect(row(page, "Notiz ohne Tag").locator(".meta-text")).toHaveText("");
+  await expect(row(page, "Notiz ohne Tag").locator(".pill")).toHaveCount(0);
   await expect(row(page, "Notiz ohne Tag").locator(".sync-mark")).toHaveCount(0);
-  await expect(row(page, "Notiz mit Tag").locator(".meta-text")).toHaveText("Garten \u00b7 08:15");
+  await expect(row(page, "Notiz mit Tag").locator(".pill")).toHaveText(["Garten", "08:15"]);
   await expect(row(page, "Notiz mit Tag").locator(".sync-mark")).toHaveCount(0);
   await expect(page.locator('.paper-row[data-type="note"]', { hasText: /not synced/i })).toHaveCount(0);
 });
@@ -149,16 +149,18 @@ test("the details sheet of a short note has no sync line, and it follows the cho
   await expect(sheet.locator(".sync-mark")).toHaveCount(0);
 });
 
-test("tapping Add entry opens no sheet: a focused task line with the bar, and the bar sits at the bottom", async ({ page }) => {
+test("tapping Add entry opens no dialog: an edit sheet with a focused task line and the bar at its foot, at the screen bottom", async ({ page }) => {
   await page.goto(app.baseUrl);
   await expect(page.locator(".inline-bar")).toBeHidden();
   await page.locator("[data-action=add-entry]").click();
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  const line = page.locator(".paper-line[data-new=true]");
+  const sheet = page.getByRole("group", { name: "Entry editor" });
+  await expect(sheet).toBeVisible();
+  const line = sheet.locator(".paper-line[data-new=true]");
   await expect(line.locator(".paper-sym use")).toHaveAttribute("href", "#g-task");
   await expect(line.locator("input")).toBeFocused();
-  const bar = page.locator(".inline-bar");
+  const bar = sheet.locator(".inline-bar");
   await expect(bar).toBeVisible();
   const keys = bar.locator(".bar-key:visible");
   expect(await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-key")))).toEqual(
@@ -166,9 +168,10 @@ test("tapping Add entry opens no sheet: a focused task line with the bar, and th
   );
   expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""))).every(Boolean)).toBe(true);
   expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""))).join("")).toBe("");
-  const box = (await bar.boundingBox())!;
+  const box = (await sheet.boundingBox())!;
   expect(Math.round(box.y + box.height)).toBe(844);
-  await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-line`)).toHaveCount(1);
+  const barBox = (await bar.boundingBox())!;
+  expect(Math.round(barBox.y + barBox.height)).toBe(844);
 });
 
 test("the paper is the mock's solid dot grid in the page colour, never white", async ({ page }, testInfo) => {
@@ -185,8 +188,8 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
-test("rows are one 24px line: the title and the pills side by side, a long title ends in an ellipsis", async ({ page }) => {
-  const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb abgeschnitten werden muss ".repeat(2);
+test("each entry is a soft card: the symbol shares the title's row, the pills sit under the title start, a long title wraps", async ({ page }) => {
+  const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb umbrechen muss ".repeat(2);
   await seed(page, [
     { date: day(0), type: "task", title: "Winzig", tag: "Haushalt" },
     { date: day(0), type: "event", title: long, tag: "Arbeit", time: "13:00" },
@@ -194,23 +197,27 @@ test("rows are one 24px line: the title and the pills side by side, a long title
   await page.goto(app.baseUrl);
   await expect(row(page, "Winzig")).toBeVisible();
 
+  const card = page.locator(".entry-card", { has: row(page, "Winzig") });
+  await expect(card).toHaveCSS("border-radius", "18px");
   const short = row(page, "Winzig");
-  expect((await short.boundingBox())!.height).toBe(24);
-  const title = await short.locator(".paper-title").boundingBox();
-  const pills = await short.locator(".paper-meta").boundingBox();
-  expect(Math.abs(title!.y - pills!.y)).toBeLessThan(4);
-  expect(pills!.x).toBeGreaterThan(title!.x + title!.width - 1);
+  const sym = (await short.locator(".paper-sym").boundingBox())!;
+  const title = (await short.locator(".paper-title").boundingBox())!;
+  const pills = (await short.locator(".paper-meta").boundingBox())!;
+  expect(Math.abs(sym.y - title.y)).toBeLessThan(4);
+  expect(title.x).toBeGreaterThan(sym.x + sym.width - 1);
+  expect(pills.y).toBeGreaterThanOrEqual(title.y + title.height);
+  expect(Math.abs(pills.x - title.x)).toBeLessThan(1);
+  await expect(short.locator(".pill")).toHaveText(["Haushalt"]);
 
   const wide = page.locator(".paper-row", { hasText: "Ein sehr langer" });
-  expect((await wide.boundingBox())!.height).toBe(24);
-  await expect(wide.locator(".paper-title")).toHaveCSS("text-overflow", "ellipsis");
-  await expect(wide.locator(".paper-title")).toHaveCSS("white-space", "nowrap");
+  const wideTitle = (await wide.locator(".paper-title").boundingBox())!;
+  expect(wideTitle.height).toBeGreaterThan(30);
+  const clipped = await wide.locator(".paper-title").evaluate((el) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(false);
   const rowBox = (await wide.boundingBox())!;
   const pillBox = (await wide.locator(".paper-meta").boundingBox())!;
   expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
-  await expect(wide.locator(".meta-text")).toHaveText("Arbeit \u00b7 13:00");
-  const clipped = await wide.locator(".paper-title").evaluate((el) => el.scrollWidth > el.clientWidth);
-  expect(clipped).toBe(true);
+  await expect(wide.locator(".pill")).toHaveText(["Arbeit", "13:00"]);
 });
 
 test("a server error keeps the new line in edit mode with its draft and an error", async ({ page }) => {
@@ -253,7 +260,7 @@ test("tap a row to type in its title; type, tag and day change through the bar a
   const input = page.locator(".paper-line input");
   await expect(input).toHaveValue("Kaffeebohnen bestellen");
   await expect(input).toBeFocused();
-  await expect(page.locator(".paper-line .meta-text")).toHaveText("Haushalt");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["Haushalt"]);
 
   await page.locator(".bar-key[data-key=type]").click();
   await page.locator('.inline-pop .pop-type[data-type="done"]').click();
@@ -269,7 +276,7 @@ test("tap a row to type in its title; type, tag and day change through the bar a
 
   const moved = page.locator(`.paper-day-group[data-date="${day(1)}"] .paper-row`, { hasText: "Kaffeebohnen bestellt" });
   await expect(moved).toHaveAttribute("data-type", "done");
-  await expect(moved.locator(".meta-text")).toHaveText("not synced");
+  await expect(moved.locator(".pill")).toHaveText(["not synced"]);
   await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-row`, { hasText: "Kaffeebohnen" })).toHaveCount(0);
   await expect(page.locator(".inline-bar")).toBeHidden();
 });

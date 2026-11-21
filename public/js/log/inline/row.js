@@ -1,6 +1,7 @@
 /*
- * The line being typed, as nodes: a task-style row with a text input, the pills (day, tag, time) and a short error line.
- * Needs ak-dom.js, copy.js, glyph.js, days.js. It builds and patches nodes, it never saves anything.
+ * The content of the edit sheet: the type symbol, the title input, the chips (day, tag, time) and a short error line.
+ * Needs ak-dom.js, copy.js, glyph.js, days.js. It is built once and patched after that, so the input keeps its focus
+ * and the keyboard stays up. It builds and patches nodes, it never saves anything.
  */
 (function () {
   'use strict';
@@ -9,13 +10,13 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.inline = L.inline || {};
 
-  /** The glyph slot of a row, showing the line's type. */
-  function symbol(line) {
-    return h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[line.type] }, L.glyph.typeGlyph(line.type));
+  /** The glyph slot of the sheet, showing the line's type. */
+  function symbol(type) {
+    return h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[type] }, L.glyph.typeGlyph(type));
   }
 
   /** The text input of the line. onType(value, composing) runs on every keystroke so the line always holds the draft. */
-  function titleInput(line, onType) {
+  function titleInput(onType) {
     var input = h('input', {
       class: 'paper-edit-input',
       type: 'text',
@@ -24,42 +25,53 @@
       autocomplete: 'off',
       autocapitalize: 'sentences',
       enterkeyhint: 'enter',
-      'aria-label': L.copy.inline.titleLabel,
-      value: line.title
+      'aria-label': L.copy.inline.titleLabel
     });
     input.addEventListener('input', function (event) { onType(input.value, !!event.isComposing); });
     input.addEventListener('compositionend', function () { onType(input.value, false); });
     return input;
   }
 
-  /** The error line under the input, or null when there is nothing to say. */
+  /** The error line under the chips, or null when there is nothing to say. */
   function errorLine(line) {
     return line.error ? h('p', { class: 'paper-line-error', role: 'alert' }, line.error) : null;
   }
 
-  /** The editable row. It is one 24px line, like a saved row, with the input where the title would be. */
-  function build(line, onType) {
-    var row = h('div', { class: 'paper-row paper-edit', 'data-edit-zone': '', 'data-type': line.type, 'data-id': line.id, 'data-indent': String(line.indent) },
-      symbol(line),
-      h('span', { class: 'paper-body' },
-        titleInput(line, onType),
-        h('span', { class: 'paper-meta' }, h('span', { class: 'meta-text' }, L.days.editPills(line)))));
-    return h('div', { class: 'paper-line', 'data-editing': '', 'data-new': line.isNew ? 'true' : 'false' }, row, errorLine(line));
+  /** The editing line: symbol and input on one baseline, then the chips. Built once for the sheet. */
+  function build(onType) {
+    var row = h('div', { class: 'paper-edit', 'data-type': 'task', 'data-indent': '0' },
+      symbol('task'),
+      h('span', { class: 'paper-body' }, titleInput(onType)));
+    return h('div', { class: 'paper-line', 'data-editing': '', 'data-new': 'true' }, row, h('div', { class: 'sheet-chips' }));
   }
 
-  /** Patches the live row after a bar change or an error: glyph, pills, indent and error, without touching the input. */
-  function update(line) {
-    var node = document.querySelector('.paper-line');
-    if (!node) return;
-    var row = node.querySelector('.paper-edit');
-    row.setAttribute('data-type', line.type);
-    row.setAttribute('data-indent', String(line.indent));
-    row.replaceChild(symbol(line), row.querySelector('.paper-sym'));
-    row.querySelector('.meta-text').textContent = L.days.editPills(line);
+  /** Patches the chips of the line: its day (when moved), tag and time. */
+  function patchChips(node, line) {
+    var chips = node.querySelector('.sheet-chips');
+    chips.replaceChildren.apply(chips, L.days.editPills(line).map(L.glyph.pill));
+  }
+
+  /** Patches the error line: the old one goes, a new one comes when the line has an error. */
+  function patchError(node, line) {
     var old = node.querySelector('.paper-line-error');
     var next = errorLine(line);
     if (old) old.remove();
     if (next) node.appendChild(next);
+  }
+
+  /** Patches the live line after a bar change or an error: glyph, chips, indent and error, without touching the input. */
+  function update(line) {
+    var node = document.querySelector('.paper-line');
+    if (!node) return;
+    var row = node.querySelector('.paper-edit');
+    node.setAttribute('data-new', line.isNew ? 'true' : 'false');
+    row.setAttribute('data-type', line.type);
+    row.setAttribute('data-indent', String(line.indent));
+    if (line.id) row.setAttribute('data-id', line.id);
+    else row.removeAttribute('data-id');
+    row.replaceChild(symbol(line.type), row.querySelector('.paper-sym'));
+    patchChips(node, line);
+    patchError(node, line);
   }
 
   L.inline.row = { build: build, update: update };

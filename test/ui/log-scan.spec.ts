@@ -128,7 +128,7 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   await expect(logRow(page, "Tasche für Stuttgart packen")).toHaveAttribute("data-type", "task");
   const edited = logRow(page, "Library card expires in January");
   await expect(edited).toHaveAttribute("data-type", "task");
-  await expect(edited.locator(".meta-text")).toHaveText("Errands");
+  await expect(edited.locator(".pill")).toHaveText(["Errands"]);
   await expect(logRow(page, "Lunch with Mira")).toHaveCount(0);
   expect(errors).toEqual([]);
 });

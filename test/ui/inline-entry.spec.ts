@@ -47,6 +47,7 @@ async function seedEntry(page: Page, data: Record<string, unknown>): Promise<voi
 const today = (page: Page) => page.locator(`.paper-day-group[data-date="${day(0)}"]`);
 const saved = (page: Page, title: string) => today(page).locator(".paper-row[data-id]", { hasText: title });
 const line = (page: Page) => page.locator(".paper-line input");
+const sheet = (page: Page) => page.locator(".edit-sheet");
 
 test("tap add, type a title, Enter creates a task on today", async ({ page }) => {
   const errors: string[] = [];
@@ -72,7 +73,8 @@ test("the empty space under today's last entry starts a line too", async ({ page
   const area = (await today(page).boundingBox())!;
   await page.touchscreen.tap(area.x + area.width - 12, area.y + area.height - 10);
   await expect(line(page)).toBeFocused();
-  await expect(today(page).locator(".paper-line[data-new=true]")).toHaveCount(1);
+  await expect(sheet(page)).toBeVisible();
+  await expect(page.locator(".paper-line[data-new=true]")).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -110,7 +112,7 @@ test("Backspace on an empty new line removes it and hides the bar, with no entry
   await expect(page.locator(".inline-bar")).toBeVisible();
   await page.keyboard.press("Backspace");
 
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   await expect(page.locator(".paper-row:not([data-id])")).toHaveCount(0);
   await expect(page.locator(".inline-bar")).toBeHidden();
   expect(await stored(page)).toHaveLength(0);
@@ -122,7 +124,7 @@ test("Backspace with text only deletes a character", async ({ page }) => {
   await page.keyboard.type("ab");
   await page.keyboard.press("Backspace");
   await expect(line(page)).toHaveValue("a");
-  await expect(page.locator(".paper-line")).toHaveCount(1);
+  await expect(sheet(page)).toBeVisible();
 });
 
 test("blur saves a non-empty new line and drops an empty one", async ({ page }) => {
@@ -131,13 +133,13 @@ test("blur saves a non-empty new line and drops an empty one", async ({ page }) 
   await page.keyboard.type("Beim Verlassen gespeichert");
   await page.locator("h1").click();
   await expect(saved(page, "Beim Verlassen")).toBeVisible();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   await expect(page.locator(".inline-bar")).toBeHidden();
 
   await page.locator("[data-action=add-entry]").click();
   await expect(line(page)).toBeFocused();
   await page.locator("h1").click();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   await expect(page.locator(".inline-bar")).toBeHidden();
   expect(await stored(page)).toHaveLength(1);
 });
@@ -146,14 +148,14 @@ test("Escape on an empty new line drops it, on a non-empty one it saves it", asy
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.press("Escape");
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   expect(await stored(page)).toHaveLength(0);
 
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Mit Escape gespeichert");
   await page.keyboard.press("Escape");
   await expect(saved(page, "Mit Escape")).toBeVisible();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   expect(await stored(page)).toHaveLength(1);
 });
 
@@ -177,13 +179,13 @@ test("type, tag, day and time set through the bar are saved with the line", asyn
   await page.locator(".bar-key[data-key=time]").click();
   await page.locator('.inline-pop input[name="time"]').fill("09:30");
   await expect(page.locator(".inline-pop")).toHaveCount(0);
-  await expect(page.locator(".paper-line .meta-text")).toHaveText("Gesundheit \u00b7 09:30");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["Gesundheit", "09:30"]);
   await expect(line(page)).toHaveValue("Zahnarzt");
 
   await line(page).press("Enter");
   const created = today(page).locator('.paper-row[data-type="event"]', { hasText: "Zahnarzt" });
   await expect(created).toHaveCount(1);
-  await expect(created.locator(".meta-text")).toHaveText("Gesundheit \u00b7 09:30");
+  await expect(created.locator(".pill")).toHaveText(["Gesundheit", "09:30"]);
   expect((await stored(page))[0]).toMatchObject({ type: "event", tag: "Gesundheit", time: "09:30", date: day(0) });
 });
 
@@ -218,7 +220,7 @@ test("a popover closes on Escape first, then a tap outside closes it and saves t
   // The tap closes the popover, and its blur saves the line like any other blur: the draft is not lost.
   await expect(page.locator(".inline-pop")).toHaveCount(0);
   await expect(saved(page, "Entwurf")).toBeVisible();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   expect(await stored(page)).toHaveLength(1);
 });
 
@@ -235,8 +237,8 @@ test("tapping an existing row lets you change the title inline and save it", asy
   await page.keyboard.press("Enter");
 
   await expect(saved(page, "Neuer Titel")).toBeVisible();
-  await expect(saved(page, "Neuer Titel").locator(".meta-text")).toHaveText("Haushalt");
-  await expect(page.locator(".paper-line")).toHaveCount(1);
+  await expect(saved(page, "Neuer Titel").locator(".pill")).toHaveText(["Haushalt"]);
+  await expect(sheet(page)).toBeVisible();
   await expect(page.locator(".paper-line[data-new=true]")).toHaveCount(1);
   const all = await everything(page);
   expect(all.filter((entry) => entry.title === "Alter Titel")).toHaveLength(0);
@@ -251,7 +253,7 @@ test("an existing entry with its title cleared goes back to the old title and is
   await line(page).fill("");
   await page.keyboard.press("Escape");
 
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   await expect(saved(page, "Bleibt bestehen")).toBeVisible();
   expect(await titles(page)).toContain("Bleibt bestehen");
 
@@ -280,7 +282,7 @@ test("a note with a body still opens the note sheet, not the inline editor", asy
   await page.goto(app.baseUrl);
   await saved(page, "Lange Notiz").click();
   await expect(page.getByTestId("note-sheet")).toBeVisible();
-  await expect(page.locator(".paper-line")).toHaveCount(0);
+  await expect(sheet(page)).toBeHidden();
   await expect(page.locator(".inline-bar")).toBeHidden();
 });
 
@@ -314,16 +316,19 @@ test("the bar has no Details control for a new line", async ({ page }) => {
   await expect(page.locator(".inline-bar [data-action=details]")).toBeHidden();
 });
 
-test("the bar is pinned to the bottom of the visual viewport when a keyboard shrinks it", async ({ page }) => {
+test("the edit sheet is pinned to the bottom of the visual viewport when a keyboard shrinks it", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
-  // Pretend a 300px keyboard: the bar is pinned to the bottom of the shrunken visual viewport.
+  // Pretend a 300px keyboard: the sheet (and the bar at its foot) is pinned to the bottom of the shrunken visual viewport.
   await page.evaluate(() => {
     const fake = Object.assign(new EventTarget(), { height: 544, offsetTop: 0, width: 390 });
     Object.defineProperty(window, "visualViewport", { value: fake, configurable: true });
     (window as unknown as { __fakeVv: EventTarget }).__fakeVv = fake;
   });
-  await page.evaluate(() => (window as unknown as { BujoLog: { inline: { viewport: { place(el: Element): void } } } }).BujoLog.inline.viewport.place(document.querySelector(".inline-bar")!));
+  await page.evaluate(() => (window as unknown as { BujoLog: { inline: { viewport: { place(el: Element): void } } } }).BujoLog.inline.viewport.place(document.querySelector(".edit-sheet")!));
+  const box = (await sheet(page).boundingBox())!;
+  expect(Math.round(box.y + box.height)).toBe(544);
   const bar = (await page.locator(".inline-bar").boundingBox())!;
-  expect(Math.round(bar.y + bar.height)).toBe(544);
+  expect(Math.round(bar.y + bar.height)).toBeLessThanOrEqual(544);
+  expect(bar.y).toBeGreaterThan(box.y);
 });

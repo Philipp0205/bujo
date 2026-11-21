@@ -29,18 +29,18 @@ async function create(page: Page, type: string, title: string): Promise<void> {
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 const dot = (page: Page, title: string) => row(page, title).locator(".sync-mark");
 
-test("a task shows a pending dot, then a synced dot on its own, and a note stays local", async ({ page }) => {
+test("a task is pending, then synced on its own, with no dot for either, and a note stays local", async ({ page }) => {
   app.fake.switches.putDelayMs = 1500;
   await create(page, "task", "Müller anrufen für Übergabe");
   await create(page, "note", "Nur ein Gedanke");
   await page.goto(app.baseUrl);
 
   await expect(row(page, "Müller anrufen")).toHaveAttribute("data-sync", "pending");
-  await expect(dot(page, "Müller anrufen")).toHaveAttribute("title", "Waiting to sync");
+  await expect(dot(page, "Müller anrufen")).toHaveCount(0);
   await expect(row(page, "Nur ein Gedanke")).toHaveAttribute("data-sync", "local");
 
   await expect(row(page, "Müller anrufen")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
-  await expect(dot(page, "Müller anrufen")).toHaveAttribute("title", "Synced");
+  await expect(dot(page, "Müller anrufen")).toHaveCount(0);
   await expect(page.locator('[data-state="error"]')).toHaveCount(0);
 });
 
@@ -49,7 +49,7 @@ test("a failed push shows an error dot, the reason and Retry sync in the sheet, 
   await create(page, "task", "Schlüssel abholen");
   await page.goto(app.baseUrl);
   await expect(row(page, "Schlüssel abholen")).toHaveAttribute("data-sync", "error", { timeout: 10_000 });
-
+  await expect(dot(page, "Schlüssel abholen")).toHaveAttribute("data-sync", "error");
   await openDetails(page, "Schlüssel abholen");
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByTestId("sync-line")).toContainText("Sync failed");
@@ -80,18 +80,18 @@ test("no Retry sync button for a synced entry or a note", async ({ page }) => {
   }
 });
 
-test("an event shows a pending dot, then a synced dot, and a note beside it stays local", async ({ page }) => {
+test("an event is pending, then synced, with no dot for either, and a note beside it stays local", async ({ page }) => {
   app.fake.switches.putDelayMs = 1500;
   await create(page, "event", "Zahnarzt Müller");
   await create(page, "note", "Gedanke zum Termin");
   await page.goto(app.baseUrl);
 
   await expect(row(page, "Zahnarzt Müller")).toHaveAttribute("data-sync", "pending");
-  await expect(dot(page, "Zahnarzt Müller")).toHaveAttribute("title", "Waiting to sync");
+  await expect(dot(page, "Zahnarzt Müller")).toHaveCount(0);
   await expect(row(page, "Gedanke zum Termin")).toHaveAttribute("data-sync", "local");
 
   await expect(row(page, "Zahnarzt Müller")).toHaveAttribute("data-sync", "synced", { timeout: 10_000 });
-  await expect(dot(page, "Zahnarzt Müller")).toHaveAttribute("title", "Synced");
+  await expect(dot(page, "Zahnarzt Müller")).toHaveCount(0);
   await expect(page.locator('[data-state="error"]')).toHaveCount(0);
 });
 
