@@ -8,20 +8,9 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title and the scan button. Settings lives in the tab bar. */
-  function header(onScan) {
-    var copy = L.copy;
-    var scan = h('button', {
-      class: 'ak-icon-btn',
-      type: 'button',
-      'aria-label': copy.scanLabel,
-      title: copy.scanLabel,
-      'data-action': 'scan',
-      onclick: onScan
-    }, L.glyph.use('g-camera', { width: 24, height: 24, viewBox: '0 0 24 24' }));
-    return h('div', { class: 'paper-head' },
-      h('h1', null, copy.title),
-      h('div', { class: 'paper-actions' }, scan));
+  /** The page header: just the italic title. Scan and Settings live in the tab bar. */
+  function header() {
+    return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title));
   }
 
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */

@@ -175,22 +175,6 @@ html.ak-base body {
   color: var(--paper-ink);
 }
 
-.paper-actions {
-  display: flex;
-  align-items: center;
-  flex: none;
-  padding: 36px 4px 16px 0;
-}
-
-.paper-actions .ak-icon-btn {
-  width: 44px;
-  height: 44px;
-  color: var(--paper-ink);
-  text-decoration: none;
-}
-.paper-actions .ak-icon-btn svg { display: block; }
-.paper-actions .ak-icon-btn:disabled { cursor: default; }
-
 /* ----- Ink strokes: the pen outline of a node, drawn by js/log/ink. It sits under the content and never takes a tap. ----- */
 
 .ink-stroke {

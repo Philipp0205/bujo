@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
+import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -30,10 +31,10 @@ function localDay(): string {
 const sheet = (page: Page) => page.getByTestId("note-sheet");
 const screen = (page: Page) => page.getByTestId("scan-screen");
 
-/** Opens the camera screen in free-note mode. */
+/** Opens the camera screen in free-note mode. The camera chooser the tab opens is ignored: the photo goes through an input after. */
 async function openNoteCamera(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   await screen(page).getByRole("button", { name: "Free note" }).click();
 }
 
@@ -46,7 +47,7 @@ async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
 
 test("the Free note toggle works: pressed state and title follow it, and back again", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   const rapid = screen(page).getByRole("button", { name: "Rapid log" });
   const note = screen(page).getByRole("button", { name: "Free note" });
   await expect(screen(page).getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();

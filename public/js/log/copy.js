@@ -9,7 +9,6 @@
 
   L.copy = {
     title: 'Rapid Log',
-    scanLabel: 'Scan a page',
     today: 'Today',
     addEntry: '+ Add entry',
     notSynced: 'not synced',

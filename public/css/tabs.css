@@ -3,6 +3,7 @@
  * paper tokens in paper.css, so the bar follows the OS scheme and a forced theme. The kit takes its colours from
  * --ak-* tokens, so they are set on the bar itself: the glass and the bar colour (ak-native paints the glass), the text and
  * muted colours of the tabs, the hairline on top and the accent of the focus ring. No kit blue is left on the bar.
+ * The bar has four slots: Rapid log and Notes, the raised Scan button in the middle, and Account.
  */
 
 .ak-tabbar {
@@ -13,6 +14,10 @@
   --ak-muted: var(--paper-muted);
   --ak-hairline: var(--paper-dot);
   --ak-accent: var(--paper-ink);
+  display: grid;
+  /* Rapid log and Notes share the left half, Account has the right half, so the Scan column sits in the middle of the screen. */
+  grid-template-columns: 1fr 1fr auto 2fr;
+  align-items: center;
   font-family: var(--font-ui);
 }
 
@@ -20,6 +25,26 @@
   outline: 2px solid var(--paper-muted);
   outline-offset: -6px;
 }
+
+/* Scan is an action, not a page: a raised round ink button with a paper-coloured camera, wider than the other slots. */
+.ak-tabbar .ak-tab[data-tab="scan"] {
+  flex: none;
+  min-width: 88px;
+  color: var(--paper-ink);
+  overflow: visible;
+}
+.ak-tabbar .ak-tab[data-tab="scan"] .ak-tab-icon {
+  box-sizing: border-box;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  padding: 12px;
+  border-radius: 50%;
+  background: var(--paper-ink);
+  color: var(--paper-bg);
+  box-shadow: 0 0 0 5px var(--paper-bg), 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.ak-tabbar .ak-tab[data-tab="scan"]:focus-visible { outline-offset: -2px; }
 
 /* An editor or a sheet takes the whole bottom of the screen, so the bar steps aside while the edit sheet is up. */
 html.is-editing .ak-tabbar { display: none; }

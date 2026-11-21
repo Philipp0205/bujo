@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openDetails, useBujo } from "./harness.ts";
+import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -165,7 +166,7 @@ test("settings opened first sends Back to the log", async ({ page }) => {
 
 test("Back closes the scan camera and stays on the log", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await page.getByRole("button", { name: "Scan a page" }).click();
+  await openScan(page);
   await expect(page.getByTestId("scan-screen")).toBeVisible();
 
   await page.goBack();
