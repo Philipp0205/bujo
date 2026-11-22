@@ -39,7 +39,12 @@
 
 /* The content sits above the card's own outline. */
 .note-thumb,
-.note-title { position: relative; z-index: 1; }
+.note-foot { position: relative; z-index: 1; }
+
+/* The title row: the title takes the width, the not-on-paper page mark sits small and muted at its end. */
+.note-foot { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.note-foot .note-title { flex: 1 1 auto; min-width: 0; }
+.note-foot .paper-off { height: 22px; width: 18px; }
 
 /* The frame of the thumbnail. Its ink is above the photo, so the pen line is never hidden by the picture. */
 .note-thumb {

@@ -67,6 +67,69 @@ const tab = (page: Page, id: string) => bar(page).locator(`[data-tab=${id}]`);
 const grid = (page: Page) => page.getByTestId("note-grid");
 const card = (page: Page, title: string) => grid(page).locator(".note-card", { hasText: title });
 const noteSheet = (page: Page) => page.getByTestId("note-sheet");
+const markOf = (page: Page, title: string) => card(page, title).getByTestId("not-on-paper-mark");
+
+/** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
+function day(offset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Fake notes on chosen days; the ones named in written are marked as on paper. No photo: placeholders only. */
+async function seedDated(page: Page, notes: Array<{ title: string; date: string }>, written: string[] = []): Promise<void> {
+  for (const note of notes) {
+    const created = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: note.date, type: "note", title: note.title, body: "x" } });
+    expect(created.status()).toBe(201);
+    const id = ((await created.json()) as { entry: { id: string } }).entry.id;
+    if (written.includes(note.title)) expect((await page.request.post(`${app.baseUrl}/api/entries/${id}/written`)).status()).toBe(200);
+  }
+}
+
+const DATED = [
+  { title: "Frische Idee", date: day(0) },
+  { title: "Schon notiert", date: day(0) },
+  { title: "Grenze", date: day(-14) },
+  { title: "Zu alt", date: day(-15) },
+  { title: "Spaeter", date: day(3) },
+];
+
+test("a note not on paper wears the dashed page mark; a written one, and one older than 14 days, do not", async ({ page }) => {
+  await seedDated(page, DATED, ["Schon notiert"]);
+  await page.goto(`${app.baseUrl}/notes`);
+  await expect(grid(page).locator(".note-card")).toHaveCount(5);
+  await expect(markOf(page, "Frische Idee")).toHaveCount(1);
+  await expect(markOf(page, "Frische Idee")).toHaveAttribute("aria-label", "Not on paper yet");
+  await expect(markOf(page, "Frische Idee")).toHaveClass(/paper-off/);
+  await expect(markOf(page, "Frische Idee").locator("svg use")).toHaveAttribute("href", "#g-unwritten");
+  await expect(markOf(page, "Grenze")).toHaveCount(1);
+  await expect(markOf(page, "Spaeter")).toHaveCount(1);
+  await expect(markOf(page, "Schon notiert")).toHaveCount(0);
+  await expect(markOf(page, "Zu alt")).toHaveCount(0);
+});
+
+test("the mark is drawn on a cold load of /notes: the icon has a size and the muted paper colour", async ({ page }) => {
+  await seedDated(page, [{ title: "Frische Idee", date: day(0) }]);
+  await page.goto(`${app.baseUrl}/notes`);
+  const mark = markOf(page, "Frische Idee");
+  await expect(mark).toBeVisible();
+  const box = await mark.locator("svg").boundingBox();
+  expect(Math.round(box!.width)).toBe(16);
+  expect(await page.evaluate(() => document.getElementById("g-unwritten") !== null)).toBe(true);
+  const colors = await mark.evaluate((node) => [getComputedStyle(node).color, getComputedStyle(document.documentElement).getPropertyValue("--paper-muted").trim()]);
+  expect(colors[0]).not.toBe("");
+  const probe = await page.evaluate(() => { const el = document.createElement("i"); el.style.color = getComputedStyle(document.documentElement).getPropertyValue("--paper-muted"); document.body.appendChild(el); const c = getComputedStyle(el).color; el.remove(); return c; });
+  expect(colors[0]).toBe(probe);
+});
+
+test("the mark also shows after switching from the log to Notes", async ({ page }) => {
+  await seedDated(page, [{ title: "Frische Idee", date: day(0) }]);
+  await page.goto(app.baseUrl);
+  await tab(page, "notes").click();
+  await expect(markOf(page, "Frische Idee")).toBeVisible();
+  expect(Math.round((await markOf(page, "Frische Idee").locator("svg").boundingBox())!.width)).toBe(16);
+});
 
 test("the log has the bar with Rapid log active, and Notes leads to the notes screen", async ({ page }) => {
   await page.goto(app.baseUrl);

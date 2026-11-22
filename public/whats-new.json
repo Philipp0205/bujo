@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-polish",
+    "date": "2026-11-22",
+    "title": "Clearer rescans, fewer false marks",
+    "bullets": [
+      "The rescan review now says Show 3 unchanged or Hide 3 unchanged, and its last line stays clear of the Apply button.",
+      "Not on paper only counts entries from the last 14 days, so old entries no longer all look unwritten.",
+      "Recent notes that are not on paper yet wear the same small page mark as the log."
+    ]
+  },
+  {
     "id": "2026-11-21-not-on-paper",
     "date": "2026-11-21",
     "title": "See what is not on paper yet",

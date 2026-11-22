@@ -217,7 +217,24 @@
 
 /* ----- The review sheet ----- */
 
-.sheet-scan .ak-sheet-scroll { padding-top: 0; }
+/* The sheet is a column like the "not on paper" list: the rows scroll, the Apply dock sits below them and never covers a row. */
+.sheet-scan {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sheet-scan .ak-sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 0;
+  padding-bottom: 16px;
+}
+.sheet-scan .ak-sheet-dock {
+  flex-shrink: 0;
+  position: relative;
+}
 
 .scan-date {
   position: relative;

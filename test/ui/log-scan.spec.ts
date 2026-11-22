@@ -277,7 +277,7 @@ test("an x line over an open task is an update with before and after, and a repe
   await expect(rows(page)).toHaveCount(3);
 
   // The repeated note is folded away: a count, the row hidden, nothing ticked.
-  await expect(page.getByTestId("scan-unchanged")).toHaveText(/^1 unchanged/);
+  await expect(page.getByTestId("scan-unchanged")).toHaveText(/^Show 1 unchanged/);
   await expect(rows(page).nth(1)).toBeHidden();
   await expect(rows(page).nth(1)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
@@ -287,6 +287,7 @@ test("an x line over an open task is an update with before and after, and a repe
 
   // Opening the note shows the line and ticks nothing.
   await page.getByTestId("scan-unchanged").click();
+  await expect(page.getByTestId("scan-unchanged")).toContainText("Hide 1 unchanged");
   await expect(rows(page).nth(1)).toBeVisible();
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 1 update");
@@ -316,7 +317,7 @@ test("a rescan shows updates and new lines, hides unchanged ones, and applies wi
 
   await expect(review(page).locator('.scan-row[data-status="edited"]')).toHaveCount(2);
   await expect(review(page).locator('.scan-row[data-status="new"]')).toHaveCount(1);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("1 unchanged");
+  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 2 updates");
   const tagged = review(page).locator('.scan-row[data-id="l3"]');
   await expect(tagged.locator('[data-role="was"]')).toContainText("no tag");
@@ -341,7 +342,7 @@ test("a rescan shows updates and new lines, hides unchanged ones, and applies wi
 test("a page that only repeats the log shows just the unchanged count and nothing to apply", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Nur wiederholt" }]);
   await scanPage(page, [headerLine(day(0)), line("•", "Nur wiederholt", 0.9)]);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("1 unchanged");
+  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
   await expect(rows(page).nth(0)).toBeHidden();
   await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Nothing to apply");
@@ -362,7 +363,7 @@ test("a rescan after an app edit does not overwrite the edit", async ({ page }) 
   expect((await page.request.patch(`${app.baseUrl}/api/entries/${made.id}`, { data: { type: "migrated", tags: ["Haushalt"] } })).status()).toBe(200);
 
   await scanPage(page, [headerLine(day(0)), line("•", "Gartentor streichen", 0.9), line("•", "Eier holen", 0.9)]);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("1 unchanged");
+  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
   await expect(review(page).locator('.scan-row[data-status="new"]')).toHaveCount(1);
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -384,7 +385,7 @@ test("a page with no date uses today, and picking another day rechecks the lines
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "false");
   await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
-  await expect(page.getByTestId("scan-unchanged")).toContainText("1 unchanged");
+  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
 
   // Edit the line so it differs from the entry: it becomes an update to that day's entry, not a second row.
   await page.getByTestId("scan-unchanged").click();

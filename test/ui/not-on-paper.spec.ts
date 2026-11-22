@@ -69,7 +69,8 @@ const FAKE: Seed[] = [
   { date: day(0), type: "task", title: "Brot kaufen", tags: ["haushalt"], time: "09:00" },
   { date: day(0), type: "event", title: "Zahnarzt" },
   { date: day(0), type: "task", title: "Schon notiert" },
-  { date: day(-30), type: "task", title: "Alte Aufgabe" },
+  { date: day(-10), type: "task", title: "Letzte Woche" },
+  { date: day(-15), type: "task", title: "Alte Aufgabe" },
   { date: day(2), type: "note", title: "Gedanke" },
 ];
 
@@ -85,10 +86,10 @@ test("a row that is not on paper wears the mark; a row that is does not", async 
 });
 
 test("the header button shows the count, reaching past the log window, and hides at zero", async ({ page }) => {
-  await seed(page, [{ date: day(-30), type: "task", title: "Alte Aufgabe" }]);
+  await seed(page, [{ date: day(-10), type: "task", title: "Letzte Woche" }]);
   await page.goto(app.baseUrl);
   await expect(open(page)).toHaveText("Not on paper 1");
-  await expect(row(page, "Alte Aufgabe")).toHaveCount(0);
+  await expect(row(page, "Letzte Woche")).toHaveCount(0);
 
   await open(page).click();
   await sheet(page).getByRole("button", { name: "Mark as written" }).click();
@@ -101,6 +102,40 @@ test("the header button shows the count, reaching past the log window, and hides
   await expect(open(page)).toBeHidden();
 });
 
+test("an entry older than 14 days is not counted or listed; 14 days back still is", async ({ page }) => {
+  await seed(page, [
+    { date: day(-15), type: "task", title: "Zu alt" },
+    { date: day(-14), type: "task", title: "Gerade noch" },
+  ]);
+  await page.goto(app.baseUrl);
+  await expect(open(page)).toHaveText("Not on paper 1");
+  await open(page).click();
+  await expect(listed(page).locator(".paper-title")).toHaveText(["Gerade noch"]);
+  await expect(sheet(page)).not.toContainText("Zu alt");
+});
+
+test("with only entries older than 14 days the header button is hidden", async ({ page }) => {
+  await seed(page, [{ date: day(-30), type: "task", title: "Uralt" }]);
+  await page.goto(app.baseUrl);
+  await expect(page.locator("#log")).toBeVisible();
+  await expect(open(page)).toHaveCount(0);
+});
+
+test("the row mark follows the same window: old and unwritten shows no mark, recent does", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await expect(page.locator("#log")).toBeVisible();
+  const marks = await page.evaluate(([today, old, edge, future]) => {
+    const L = (window as any).BujoLog;
+    const actions = { open() {}, add() {}, select: { on: () => false, ticked: () => false, toggle() {} } };
+    const entry = (date: string, id: string) => ({ id, date, type: "task", title: id, tags: [], time: null, onPaper: false, sync: "synced", position: 0, createdAt: 0, indent: 0 });
+    const entries = [entry(old, "old"), entry(edge, "edge"), entry(today, "today"), entry(future, "future")];
+    const host = document.createElement("div");
+    L.view.dayList(entries, today, actions).forEach((node: Node) => host.appendChild(node));
+    return Array.from(host.querySelectorAll(".paper-row")).map((rowNode) => [rowNode.getAttribute("data-id"), rowNode.querySelectorAll('[data-testid="not-on-paper-mark"]').length]);
+  }, [day(0), day(-15), day(-14), day(5)]);
+  expect(marks).toEqual([["old", 0], ["edge", 1], ["today", 1], ["future", 1]]);
+});
+
 test("the list groups entries by day, oldest day first, with each entry's pills", async ({ page }) => {
   await seed(page, FAKE, ["Schon notiert"]);
   await page.goto(app.baseUrl);
@@ -108,9 +143,10 @@ test("the list groups entries by day, oldest day first, with each entry's pills"
   await expect(sheet(page)).toBeVisible();
   await expect(page.getByTestId("not-on-paper-sub")).toHaveText("4 entries to write down");
   await expect(sheet(page).getByTestId("not-on-paper-day")).toHaveCount(3);
-  await expect(listed(page).locator(".paper-title")).toHaveText(["Alte Aufgabe", "Brot kaufen", "Zahnarzt", "Gedanke"]);
+  await expect(listed(page).locator(".paper-title")).toHaveText(["Letzte Woche", "Brot kaufen", "Zahnarzt", "Gedanke"]);
   await expect(listed(page).filter({ hasText: "Brot kaufen" }).locator(".pill")).toHaveText(["haushalt", "09:00"]);
   await expect(sheet(page)).not.toContainText("Schon notiert");
+  await expect(sheet(page)).not.toContainText("Alte Aufgabe");
 });
 
 test("Copy all copies the listed entries as paper lines grouped by day", async ({ page }) => {
@@ -120,7 +156,7 @@ test("Copy all copies the listed entries as paper lines grouped by day", async (
   await expect(listed(page)).toHaveCount(4);
   await sheet(page).getByTestId("copy-all").click();
   const text = [
-    header(day(-30)), "\u2022 Alte Aufgabe", "",
+    header(day(-10)), "\u2022 Letzte Woche", "",
     header(day(0)), "\u2022 Brot kaufen #haushalt 09:00", "\u25cb Zahnarzt", "",
     header(day(2)), "\u2013 Gedanke",
   ].join("\n");

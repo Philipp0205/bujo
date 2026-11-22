@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import vm from "node:vm";
 import { openDb, type Db } from "../src/db.ts";
-import { markWritten, onPaper } from "../src/log/paper.ts";
+import { addDays } from "../src/log/date-token.ts";
+import { inPaperWindow, markWritten, onPaper, PAPER_WINDOW_DAYS } from "../src/log/paper.ts";
 import { editedInApp, fieldsOf, sameFields, snapshotFields, snapshotOf } from "../src/log/scan/fields.ts";
 import { createEntryStore } from "../src/log/store.ts";
 import type { NewEntry, ScanSnapshot } from "../src/log/types.ts";
 
 const USER = "user-1";
+const PUBLIC_DIR = path.join(import.meta.dirname, "..", "public");
 const DAY = "2026-11-20";
 
 function setup(): { db: Db; store: ReturnType<typeof createEntryStore> } {
@@ -39,6 +44,36 @@ test("snapshotOf keeps the four fields, the title key and the time of writing; s
   const made = snapshotOf({ type: "event", title: "Käse, kaufen", tags: ["a"], time: null }, 7);
   assert.deepEqual(made, { key: "kaese kaufen", type: "event", title: "Käse, kaufen", tags: ["a"], time: null, at: 7 });
   assert.deepEqual(snapshotFields(made), { type: "event", title: "Käse, kaufen", tags: ["a"], time: null });
+});
+
+test("inPaperWindow: today and 14 days back are in, 15 days back is out, a future day is in", () => {
+  const today = "2026-11-22";
+  assert.equal(PAPER_WINDOW_DAYS, 14);
+  assert.equal(inPaperWindow("2026-11-22", today), true, "today");
+  assert.equal(inPaperWindow("2026-11-08", today), true, "14 days ago, boundary included");
+  assert.equal(inPaperWindow("2026-11-07", today), false, "15 days ago");
+  assert.equal(inPaperWindow("2026-08-01", today), false, "months ago");
+  assert.equal(inPaperWindow("2026-11-23", today), true, "tomorrow");
+  assert.equal(inPaperWindow("2026-12-25", today), true, "a far future day stays a candidate");
+});
+
+test("inPaperWindow: the boundary holds across a month and a year end", () => {
+  assert.equal(inPaperWindow("2025-12-18", "2026-01-01"), true);
+  assert.equal(inPaperWindow("2025-12-17", "2026-01-01"), false);
+});
+
+test("the browser twin of the window (public/js/log/paper/recent.js) uses the same number and the same boundary", () => {
+  const sandbox: any = { window: {} };
+  sandbox.window.BujoLog = { dates: { addDays: (iso: string, n: number) => addDays(iso, n) } };
+  vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, "js", "log", "paper", "recent.js"), "utf8"), sandbox);
+  const recent = sandbox.window.BujoLog.paper.recent;
+  assert.equal(recent.PAPER_WINDOW_DAYS, PAPER_WINDOW_DAYS);
+  for (const date of ["2026-11-22", "2026-11-08", "2026-11-07", "2026-12-25"]) {
+    assert.equal(recent.contains(date, "2026-11-22"), inPaperWindow(date, "2026-11-22"), date);
+  }
+  assert.equal(recent.shows({ onPaper: false, date: "2026-11-08" }, "2026-11-22"), true);
+  assert.equal(recent.shows({ onPaper: false, date: "2026-11-07" }, "2026-11-22"), false, "old and unwritten: no mark");
+  assert.equal(recent.shows({ onPaper: true, date: "2026-11-22" }, "2026-11-22"), false, "written: no mark");
 });
 
 test("onPaper: no snapshot means not on paper, however old the entry is", () => {
