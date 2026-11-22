@@ -129,7 +129,8 @@ test("an @ offers days, a tap puts the day on the line as a pill, and the entry 
   await expect(strip(page)).toBeVisible();
   await expect(labels(page).first()).toHaveText(labelOf(ahead));
   await expect(strip(page).locator(".suggest-hint").first()).toHaveText("Montag");
-  await expect(labels(page).nth(1)).toHaveText(labelOf(1));
+  // When tomorrow is Monday, @mo has only that one day, not a second "tomorrow" row.
+  if (ahead !== 1) await expect(labels(page).nth(1)).toHaveText(labelOf(1));
   await labels(page).first().click();
 
   await expect(line(page)).toHaveValue("Zahnarzt ");
