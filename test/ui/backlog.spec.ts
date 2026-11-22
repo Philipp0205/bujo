@@ -100,8 +100,8 @@ test("light and dark follow the system color scheme through the paper tokens", a
     accent: getComputedStyle(document.documentElement).getPropertyValue("--ak-accent").trim(),
   }));
   if (scheme === "dark") {
-    expect(colors).toEqual({ bg: "rgb(22, 19, 15)", text: "rgb(240, 234, 220)", accent: "#f0eadc" });
+    expect(colors).toEqual({ bg: "rgb(22, 19, 15)", text: "rgb(243, 238, 225)", accent: "#f3eee1" });
   } else {
-    expect(colors).toEqual({ bg: "rgb(244, 239, 228)", text: "rgb(26, 22, 18)", accent: "#1a1612" });
+    expect(colors).toEqual({ bg: "rgb(244, 239, 228)", text: "rgb(23, 19, 15)", accent: "#17130f" });
   }
 });

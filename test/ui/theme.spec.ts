@@ -106,7 +106,7 @@ for (const theme of ["system", "light", "dark"] as const) {
       }
       const root = getComputedStyle(document.documentElement);
       for (const name of ["--ak-accent", "--ak-accent-2", "--ak-accent-strong"]) {
-        if (!["#f0eadc", "#1a1612", "#9a9184", "#6f675c"].includes(root.getPropertyValue(name).trim())) hits.push(`${name} ${root.getPropertyValue(name)}`);
+        if (!["#f3eee1", "#17130f", "#a79e91", "#625a4f"].includes(root.getPropertyValue(name).trim())) hits.push(`${name} ${root.getPropertyValue(name)}`);
       }
       return hits;
     });

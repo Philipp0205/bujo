@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-dots-contrast",
+    "date": "2026-11-22",
+    "title": "Dots that move with the page",
+    "bullets": [
+      "The dotted grid now scrolls with your entries, so the page feels like paper under your pen.",
+      "The dots are quieter, and the words sit on a soft wash, so they no longer show through the letters.",
+      "Ink is a little darker and clearer, including tags, times and done lines, in light and dark."
+    ]
+  },
+  {
     "id": "2026-11-22-future-monthly",
     "date": "2026-11-22",
     "title": "Future and Month views",

@@ -14,30 +14,30 @@
   --hue-clay: #c4a890;
   --hue-brick: #d0948a;
   --hue-ochre: #d4b36a;
-  --hue-mute: #9a9184;
+  --hue-mute: #a79e91;
   --font-hand: Caveat, var(--font-text), cursive;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --hue-sage: #5e6d52;
-    --hue-sky: #4d6473;
-    --hue-leaf: #4f6a40;
-    --hue-clay: #7a5c48;
-    --hue-brick: #8f4e45;
-    --hue-ochre: #a07c3d;
-    --hue-mute: #6f675c;
+    --hue-sage: #4f5e44;
+    --hue-sky: #44596a;
+    --hue-leaf: #46603a;
+    --hue-clay: #6f523f;
+    --hue-brick: #85463d;
+    --hue-ochre: #85631f;
+    --hue-mute: #625a4f;
   }
 }
 
 html[data-ak-scheme="light"] {
-  --hue-sage: #5e6d52;
-  --hue-sky: #4d6473;
-  --hue-leaf: #4f6a40;
-  --hue-clay: #7a5c48;
-  --hue-brick: #8f4e45;
-  --hue-ochre: #a07c3d;
-  --hue-mute: #6f675c;
+  --hue-sage: #4f5e44;
+  --hue-sky: #44596a;
+  --hue-leaf: #46603a;
+  --hue-clay: #6f523f;
+  --hue-brick: #85463d;
+  --hue-ochre: #85631f;
+  --hue-mute: #625a4f;
 }
 
 /* A forced dark must beat the light media block above. */
@@ -48,7 +48,7 @@ html[data-ak-scheme="dark"] {
   --hue-clay: #c4a890;
   --hue-brick: #d0948a;
   --hue-ochre: #d4b36a;
-  --hue-mute: #9a9184;
+  --hue-mute: #a79e91;
 }
 
 [data-hue="sage"] { --hue: var(--hue-sage); }
@@ -66,6 +66,8 @@ html[data-ak-scheme="dark"] {
   display: inline;
   vertical-align: baseline;
   white-space: nowrap;
+  /* A little room before each word, so the wash of a word never covers the last letter of the one before it. */
+  margin-left: 3px;
   color: var(--hue, var(--hue-mute));
   font-family: var(--font-hand);
   font-size: 17px;
@@ -91,7 +93,7 @@ html[data-ak-scheme="dark"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: -4px 0;
+  margin: -4px 0 -4px 3px;
   vertical-align: baseline;
 }
 .paper-meta .sync-mark { width: 10px; height: 10px; vertical-align: 0.05em; }
@@ -100,7 +102,9 @@ html[data-ak-scheme="dark"] {
 /* On the dotted page the dots recede behind the words: a soft paper wash hugs each word, nothing else. */
 .paper-row .paper-meta .pill,
 .paper-row .paper-meta .sync-mark,
-.paper-row .paper-meta .paper-off {
+.paper-row .paper-meta .paper-off,
+.todo-row .paper-meta .pill,
+.todo-row .paper-meta .sync-mark {
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
   box-decoration-break: clone;

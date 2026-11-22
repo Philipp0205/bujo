@@ -19,31 +19,34 @@
 
 :root {
   --paper-bg: #16130f;
-  --paper-ink: #f0eadc;
-  --paper-muted: #9a9184;
-  --paper-dot: #332d26;
+  --paper-ink: #f3eee1;
+  --paper-muted: #a79e91;
+  --paper-dot: #2d2822;
   --paper-margin: rgba(176, 122, 112, 0.28);
-  --paper-today: #c48478;
-  --paper-done: #9a9184;
+  --paper-today: #d08e82;
+  --paper-done: #a0978a;
   --paper-scrim: rgba(10, 8, 6, 0.55);
   --edit-dim: rgba(10, 8, 6, 0.55);
   --ink-sage: #8a9a7c;
   --ink-ochre: #c4a05a;
-  --ink-brick: #c48478;
-  --ink-gray: #8a8378;
-  --paper-btn-bg: #f0eadc;
+  --ink-brick: #d08e82;
+  --ink-gray: #968e82;
+  --paper-btn-bg: #f3eee1;
   --paper-btn-ink: #16130f;
-  --pen: #efe8d6;
+  --pen: #f1ead9;
   --sheet-bg: #241f1a;
   --sheet-shadow: 0 -8px 36px rgba(0, 0, 0, 0.4);
   --grid: 24px;
   --grid-shift: 4px;
-  --paper-wash: 0 0 4px 4px var(--paper-bg);
+  /* The wash is a paper-coloured halo around the words, so the dots recede behind the letters. */
+  --paper-wash: 0 0 4px 6px var(--paper-bg);
+  /* The same wash for bare text (a title, a tab): a paper-coloured glow that hugs the letters and needs no box. */
+  --paper-glow: 0 0 3px var(--paper-bg), 0 0 6px var(--paper-bg), 0 0 10px var(--paper-bg);
   --gutter: 48px;
   --text-col: 60px;
   --font-text: Newsreader, Georgia, "Times New Roman", serif;
   --font-ui: "IBM Plex Sans", system-ui, sans-serif;
-  --paper-dot-image: radial-gradient(circle at center, var(--paper-dot) 1.25px, transparent 1.4px);
+  --paper-dot-image: radial-gradient(circle at center, var(--paper-dot) 1.1px, transparent 1.25px);
   --paper-margin-image: linear-gradient(
     to right,
     transparent calc(var(--gutter) - 0.5px),
@@ -58,21 +61,21 @@
 @media (prefers-color-scheme: light) {
   :root {
     --paper-bg: #f4efe4;
-    --paper-ink: #1a1612;
-    --paper-muted: #6f675c;
-    --paper-dot: #cec2b0;
+    --paper-ink: #17130f;
+    --paper-muted: #625a4f;
+    --paper-dot: #d8cdbb;
     --paper-margin: rgba(140, 90, 82, 0.28);
-    --paper-today: #8f4e45;
-    --paper-done: #7a7368;
+    --paper-today: #85463d;
+    --paper-done: #6b6357;
     --paper-scrim: rgba(26, 22, 18, 0.28);
     --edit-dim: rgba(26, 22, 18, 0.14);
-    --ink-sage: #6f7d62;
-    --ink-ochre: #a07c3d;
-    --ink-brick: #8f4e45;
-    --ink-gray: #8a8176;
-    --paper-btn-bg: #1a1612;
+    --ink-sage: #566645;
+    --ink-ochre: #85631f;
+    --ink-brick: #85463d;
+    --ink-gray: #716a5f;
+    --paper-btn-bg: #17130f;
     --paper-btn-ink: #f4efe4;
-    --pen: #2a2118;
+    --pen: #241c14;
     --sheet-bg: #fbf7f0;
     --sheet-shadow: 0 -8px 36px rgba(26, 22, 18, 0.12);
   }
@@ -80,21 +83,21 @@
 
 html[data-ak-scheme="light"] {
   --paper-bg: #f4efe4;
-  --paper-ink: #1a1612;
-  --paper-muted: #6f675c;
-  --paper-dot: #cec2b0;
+  --paper-ink: #17130f;
+  --paper-muted: #625a4f;
+  --paper-dot: #d8cdbb;
   --paper-margin: rgba(140, 90, 82, 0.28);
-  --paper-today: #8f4e45;
-  --paper-done: #7a7368;
+  --paper-today: #85463d;
+  --paper-done: #6b6357;
   --paper-scrim: rgba(26, 22, 18, 0.28);
   --edit-dim: rgba(26, 22, 18, 0.14);
-  --ink-sage: #6f7d62;
-  --ink-ochre: #a07c3d;
-  --ink-brick: #8f4e45;
-  --ink-gray: #8a8176;
-  --paper-btn-bg: #1a1612;
+  --ink-sage: #566645;
+  --ink-ochre: #85631f;
+  --ink-brick: #85463d;
+  --ink-gray: #716a5f;
+  --paper-btn-bg: #17130f;
   --paper-btn-ink: #f4efe4;
-  --pen: #2a2118;
+  --pen: #241c14;
   --sheet-bg: #fbf7f0;
   --sheet-shadow: 0 -8px 36px rgba(26, 22, 18, 0.12);
 }
@@ -102,21 +105,21 @@ html[data-ak-scheme="light"] {
 /* A forced dark must beat the light media block above. */
 html[data-ak-scheme="dark"] {
   --paper-bg: #16130f;
-  --paper-ink: #f0eadc;
-  --paper-muted: #9a9184;
-  --paper-dot: #332d26;
+  --paper-ink: #f3eee1;
+  --paper-muted: #a79e91;
+  --paper-dot: #2d2822;
   --paper-margin: rgba(176, 122, 112, 0.28);
-  --paper-today: #c48478;
-  --paper-done: #9a9184;
+  --paper-today: #d08e82;
+  --paper-done: #a0978a;
   --paper-scrim: rgba(10, 8, 6, 0.55);
   --edit-dim: rgba(10, 8, 6, 0.55);
   --ink-sage: #8a9a7c;
   --ink-ochre: #c4a05a;
-  --ink-brick: #c48478;
-  --ink-gray: #8a8378;
-  --paper-btn-bg: #f0eadc;
+  --ink-brick: #d08e82;
+  --ink-gray: #968e82;
+  --paper-btn-bg: #f3eee1;
   --paper-btn-ink: #16130f;
-  --pen: #efe8d6;
+  --pen: #f1ead9;
   --sheet-bg: #241f1a;
   --sheet-shadow: 0 -8px 36px rgba(0, 0, 0, 0.4);
 }
@@ -179,6 +182,7 @@ html.ak-base body {
   font-variation-settings: "opsz" 32, "wght" 400;
   font-synthesis: none;
   color: var(--paper-ink);
+  text-shadow: var(--paper-glow);
 }
 
 /* ----- Ink strokes: the pen outline of a node, drawn by js/log/ink. It sits under the content and never takes a tap. ----- */
