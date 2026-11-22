@@ -9,13 +9,14 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.paper = L.paper || {};
 
-  /** The tag and time pills of an entry. The list is about the paper, so the sync words stay out of it. */
+  /** The tag and time words after a title. The list is about the paper, so the sync words stay out of it. */
   function pills(entry) {
     var items = L.days.entryPills(entry).filter(function (item) { return item.kind !== 'local'; });
-    return items.length ? h('span', { class: 'paper-meta' }, items.map(L.glyph.pill)) : null;
+    var words = items.reduce(function (parts, item) { return parts.concat(' ', L.glyph.pill(item)); }, []);
+    return items.length ? h('span', { class: 'paper-meta' }, words) : null;
   }
 
-  /** One entry: its symbol, title and pills, and the button that says it is written down now. */
+  /** One entry: its symbol, title and inked words, and the button that says it is written down now. */
   function row(entry, onWritten) {
     return h('div', { class: 'todo-row', 'data-id': entry.id, 'data-type': entry.type, 'data-testid': 'not-on-paper-row' },
       h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[entry.type] }, L.glyph.typeGlyph(entry.type)),
@@ -70,7 +71,7 @@
     return parts;
   }
 
-  /** The small page mark at the end of a row that is not on paper yet. Not a pill and not in the pill line, so rows keep their layout. */
+  /** The small page mark after a title that is not on paper yet. It sits inside the title's inked words (log view.js), so it flows with them. */
   function rowMark() {
     return h('span', { class: 'paper-off', 'data-testid': 'not-on-paper-mark', role: 'img', 'aria-label': L.copy.paper.mark, title: L.copy.paper.mark },
       L.glyph.use('g-unwritten', { width: 16, height: 16, viewBox: '0 0 16 16' }));

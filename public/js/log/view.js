@@ -19,12 +19,19 @@
     return h('span', { class: 'today', 'data-testid': 'today-mark' }, L.copy.today);
   }
 
-  /** The pills under a title: tag, time, "not synced", then the sync dot (local or failed only). Null when there is nothing to show. */
-  function pills(entry) {
+  /** The inked words after a title: tags, time, "not synced", then the sync dot (local or failed only) and the not-on-paper page mark. Null when there is nothing to show. */
+  function pills(entry, off) {
     var items = L.days.entryPills(entry).map(L.glyph.pill);
     var mark = L.days.showsMark(entry) ? L.glyph.syncMark(entry.sync) : null;
-    if (!items.length && !mark) return null;
-    return h('span', { class: 'paper-meta' }, items, mark);
+    var page = off ? L.paper.view.rowMark() : null;
+    var words = items.concat(mark || [], page || []);
+    if (!words.length) return null;
+    return h('span', { class: 'paper-meta' }, spaced(words));
+  }
+
+  /** A plain space before each word, so the words can wrap onto the next line one by one (margins give no break). */
+  function spaced(words) {
+    return words.reduce(function (parts, word) { return parts.concat(' ', word); }, []);
   }
 
   /** The ink ring in front of a row while selecting: a pen circle, with a tick inside when the entry is ticked. */
@@ -63,15 +70,15 @@
     return h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type));
   }
 
-  /** The part of a row that opens the entry: title and pills in one button, so a keyboard or screen reader reaches it. */
-  function openButton(entry) {
+  /** The part of a row that opens the entry: the title with its inked words after it in one button, so a keyboard or screen reader reaches it. */
+  function openButton(entry, off) {
     return h('button', { class: 'paper-open', type: 'button', 'data-action': 'open-entry' },
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
-        pills(entry)));
+        pills(entry, off)));
   }
 
-  /** One entry as a row: the bullet (a done toggle for tasks), the title and pills that open the edit sheet, and the page mark. A tap anywhere else on the row opens it too, or ticks it while selecting. */
+  /** One entry as a row: the bullet (a done toggle for tasks), the title and inked words that open the edit sheet. A tap anywhere else on the row opens it too, or ticks it while selecting. */
   function entryRow(entry, actions, indent, today) {
     var picking = actions.select.on();
     var ticked = picking && actions.select.ticked(entry);
@@ -88,13 +95,13 @@
     },
       picking ? ring(ticked) : null,
       symbol(entry, actions),
-      openButton(entry),
-      L.paper.recent.shows(entry, today) ? L.paper.view.rowMark() : null);
+      openButton(entry, L.paper.recent.shows(entry, today)));
   }
 
-  /** The quiet "+ Add entry" row under the entries of the page on screen. Its empty space starts a line too. */
+  /** The quiet "+ Add entry" row under the entries of the page on screen. Its empty space starts a line too. The label is a span, so the paper wash hugs the words only. */
   function addRow(onAdd) {
-    return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
+    return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd },
+      h('span', { class: 'paper-add-text' }, L.copy.addEntry));
   }
 
   /** One card: the entry on top, its nested entries inside the same card, each with its own pen outline (drawn by the ink decorator). */

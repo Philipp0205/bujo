@@ -22,7 +22,7 @@
   cursor: pointer;
 }
 
-/* The mark at the end of a row: a dashed page, muted, so it reads as "still to write" and never competes with the title. */
+/* The mark after a title: a dashed page, muted, so it reads as "still to write" and never competes with the title. */
 .paper-off {
   flex: none;
   display: flex;
@@ -71,11 +71,12 @@
   font-synthesis: none;
 }
 
+/* The row is plain ink like the log: the symbol, then the title with its tags and time after it. The text column stays at --text-col. */
 .todo-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 6px 16px 6px 24px;
+  padding: 6px 16px 6px 28px;
 }
 .todo-row .paper-sym { margin-left: 0; }
 .todo-row .paper-title { color: var(--paper-ink); }

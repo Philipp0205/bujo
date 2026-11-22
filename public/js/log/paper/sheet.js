@@ -10,12 +10,11 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.paper = L.paper || {};
 
-  /** Redraws the sheet from its state: the sub line, the rows, the Copy all button, and the pen outlines of the pills. */
+  /** Redraws the sheet from its state: the sub line, the rows and the Copy all button. */
   function paint(parts, state, onWritten) {
     parts.sub.textContent = L.paper.view.subText(state);
     parts.slot.replaceChildren.apply(parts.slot, [].concat(L.paper.view.content(state, onWritten)));
     parts.copy.disabled = state.status !== 'ready' || !state.entries.length;
-    L.ink.decorate.pills(parts.node);
   }
 
   /** Reads the list into the state and draws it. A failed read shows the failure line. */

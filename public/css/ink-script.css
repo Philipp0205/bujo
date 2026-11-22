@@ -1,0 +1,108 @@
+/*
+ * bujo ink script: the tags, the time and the small marks after a row title, written in a pen hand (Caveat) in the colour of a pen.
+ * They flow on the title's own line and wrap with it, so a row needs no box. The pen colours are tokens for each paper (dark is the
+ * default, light is the OS preference, and html[data-ak-scheme] forces one, as in paper.css). A tag keeps one hue for its word
+ * (js/log/tags.js hueOf), time is always ochre. Loaded after log.css and paper-todo.css.
+ */
+
+/* ----- Pen colours ----- */
+
+:root {
+  --hue-sage: #9aab8a;
+  --hue-sky: #8aa3b3;
+  --hue-leaf: #9bb184;
+  --hue-clay: #c4a890;
+  --hue-brick: #d0948a;
+  --hue-ochre: #d4b36a;
+  --hue-mute: #9a9184;
+  --font-hand: Caveat, var(--font-text), cursive;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --hue-sage: #5e6d52;
+    --hue-sky: #4d6473;
+    --hue-leaf: #4f6a40;
+    --hue-clay: #7a5c48;
+    --hue-brick: #8f4e45;
+    --hue-ochre: #a07c3d;
+    --hue-mute: #6f675c;
+  }
+}
+
+html[data-ak-scheme="light"] {
+  --hue-sage: #5e6d52;
+  --hue-sky: #4d6473;
+  --hue-leaf: #4f6a40;
+  --hue-clay: #7a5c48;
+  --hue-brick: #8f4e45;
+  --hue-ochre: #a07c3d;
+  --hue-mute: #6f675c;
+}
+
+/* A forced dark must beat the light media block above. */
+html[data-ak-scheme="dark"] {
+  --hue-sage: #9aab8a;
+  --hue-sky: #8aa3b3;
+  --hue-leaf: #9bb184;
+  --hue-clay: #c4a890;
+  --hue-brick: #d0948a;
+  --hue-ochre: #d4b36a;
+  --hue-mute: #9a9184;
+}
+
+[data-hue="sage"] { --hue: var(--hue-sage); }
+[data-hue="sky"] { --hue: var(--hue-sky); }
+[data-hue="leaf"] { --hue: var(--hue-leaf); }
+[data-hue="clay"] { --hue: var(--hue-clay); }
+[data-hue="brick"] { --hue: var(--hue-brick); }
+[data-hue="ochre"] { --hue: var(--hue-ochre); }
+
+/* ----- The words after a title ----- */
+
+/* The words are inline, so they sit after the title and wrap with it. Each one stays whole (nowrap) and keeps a small gap before it.
+   They are plain inline boxes with line-height 1, so a line that holds them stays one grid unit (24px) tall. */
+.paper-meta .pill {
+  display: inline;
+  vertical-align: baseline;
+  white-space: nowrap;
+  color: var(--hue, var(--hue-mute));
+  font-family: var(--font-hand);
+  font-size: 17px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-synthesis: none;
+}
+.paper-meta .pill-tag { font-size: 18px; }
+.paper-meta .pill-tag::before { content: "#"; }
+/* The quiet states are plain writing, not a pen colour. */
+.paper-meta .pill-local,
+.paper-meta .pill-queued {
+  color: var(--hue-mute);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* The sync dot and the page mark are small marks at the end of the line. */
+.paper-meta .sync-mark,
+.paper-meta .paper-off {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -4px 0;
+  vertical-align: baseline;
+}
+.paper-meta .sync-mark { width: 10px; height: 10px; vertical-align: 0.05em; }
+.paper-meta .paper-off { width: 16px; height: 16px; vertical-align: -3px; }
+
+/* On the dotted page the dots recede behind the words: a soft paper wash hugs each word, nothing else. */
+.paper-row .paper-meta .pill,
+.paper-row .paper-meta .sync-mark,
+.paper-row .paper-meta .paper-off {
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

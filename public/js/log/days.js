@@ -1,6 +1,6 @@
 /*
  * Pure view model of the log: the entries of a day, the cards of a day, and the pills of an entry.
- * No DOM here. Words come from copy.js.
+ * No DOM here. Words come from copy.js, pen hues from tags.js.
  */
 (function () {
   'use strict';
@@ -27,15 +27,15 @@
     return !entry.queued && showsSync(entry.type) && (entry.sync === 'local' || entry.sync === 'error');
   }
 
-  /** One tag pill per tag, in the order they were written. */
+  /** One tag pill per tag, in the order they were written, each with the pen hue of its word. */
   function tagPills(tags) {
-    return (tags || []).map(function (tag) { return { kind: 'tag', text: tag }; });
+    return (tags || []).map(function (tag) { return { kind: 'tag', text: tag, hue: L.tags.hueOf(tag) }; });
   }
 
   /** The pills under a title as { kind, text }: the tags, time, then "waiting to send" for a queued entry, or a quiet "not synced" for a local one without tags (never a note). */
   function entryPills(entry) {
     var pills = tagPills(entry.tags);
-    if (entry.time) pills.push({ kind: 'time', text: entry.time });
+    if (entry.time) pills.push({ kind: 'time', text: entry.time, hue: 'ochre' });
     if (entry.queued) pills.push({ kind: 'queued', text: L.copy.queued, testid: 'waiting-to-send' });
     else if (!pills.some(function (pill) { return pill.kind === 'tag'; }) && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
     return pills;
@@ -46,7 +46,7 @@
     var pills = [];
     if (line.date !== line.home) pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
     pills = pills.concat(tagPills(line.tags));
-    if (line.time) pills.push({ kind: 'time', text: line.time });
+    if (line.time) pills.push({ kind: 'time', text: line.time, hue: 'ochre' });
     return pills;
   }
 

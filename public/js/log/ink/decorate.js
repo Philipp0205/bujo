@@ -1,6 +1,7 @@
 /*
- * The ink decorator: draws the pen outlines of path.js as <svg class="ink-stroke"> inside the nodes that wear them (cards,
- * nested cards, pills, the Today mark, the edit sheet, its handle, rule and chips). Each node keeps a stable seed, so a
+ * The ink decorator: draws the pen outlines of path.js as <svg class="ink-stroke"> inside the nodes that wear them (the Today
+ * underline, the edit sheet, its handle, rule and chips, the Notes cards and the cards of plain pages). The rows of the log
+ * wear none: they are plain ink on the paper. Each node keeps a stable seed, so a
  * redraw (after a re-render or a resize) gives the same wobble. A ResizeObserver per group redraws a node when its size
  * changes. A group is watched again from scratch on each call, so nodes that left the page are never kept alive.
  * Needs path.js. No animation, so prefers-reduced-motion needs nothing.
@@ -14,7 +15,6 @@
   var NS = 'http://www.w3.org/2000/svg';
   var SHAPES = {
     card: { kind: 'rect', radius: 16, scale: 1 },
-    child: { kind: 'rect', radius: 11, scale: 0.85 },
     thumb: { kind: 'rect', radius: 10, scale: 0.7 },
     pill: { kind: 'rect', radius: 0, scale: 0.5 },
     sheet: { kind: 'rect', radius: 22, scale: 1.25, openBottom: true },
@@ -106,17 +106,6 @@
     els.forEach(function (el) { observers[group].observe(el, { box: 'border-box' }); });
   }
 
-  /** The id of the entry a node belongs to: the row inside it, or the row around it. */
-  function entryId(el) {
-    var row = el.matches('.paper-row') ? el : (el.closest('.paper-row, .todo-row') || el.querySelector('.paper-row'));
-    return row ? row.getAttribute('data-id') || 'new' : 'new';
-  }
-
-  /** A seed for a pill: its entry, its kind and its text, so a changed pill is drawn fresh and an unchanged one never moves. */
-  function pillSeed(el) {
-    return 'pill|' + entryId(el) + '|' + el.getAttribute('data-kind') + '|' + el.textContent;
-  }
-
   /** Gives every node of a selector its shape, seeded by seedOf(node). Returns the nodes. */
   function dress(root, selector, shape, seedOf) {
     var els = Array.prototype.slice.call(root.querySelectorAll(selector));
@@ -124,21 +113,10 @@
     return els;
   }
 
-  /** Inks the list: every card, nested card, pill and the Today mark under root. Call after the list is painted. */
+  /** Inks the list: only the Today mark. Rows, nested rows and their tags are plain ink on the paper, with no outline. Call after the list is painted. */
   function list(root) {
-    var els = []
-      .concat(dress(root, '.entry-card', 'card', function (el) { return 'card|' + entryId(el); }))
-      .concat(dress(root, '.card-child', 'child', function (el) { return 'child|' + entryId(el); }))
-      .concat(dress(root, '.pill', 'pill', pillSeed))
-      .concat(dress(root, '.today', 'underline', function () { return 'today'; }));
+    var els = dress(root, '.today', 'underline', function () { return 'today'; });
     watch('list', els);
-    drawAll(els);
-  }
-
-  /** Inks the pills of the "not on paper" sheet under root. Call after its rows are painted. */
-  function pills(root) {
-    var els = dress(root, '.pill', 'pill', pillSeed);
-    watch('pills', els);
     drawAll(els);
   }
 
@@ -190,5 +168,5 @@
     drawAll(cards);
   }
 
-  L.ink.decorate = { list: list, notes: notes, pills: pills, chips: chips, sheet: sheet, screen: screen };
+  L.ink.decorate = { list: list, notes: notes, chips: chips, sheet: sheet, screen: screen };
 })();

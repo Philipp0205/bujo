@@ -37,7 +37,7 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
   justify-content: space-between;
   gap: 8px;
   min-height: 48px;
-  padding: 0 0 0 4px;
+  padding: 0 0 0 38px;
 }
 .page-title { display: flex; align-items: center; flex: 1 1 auto; gap: 8px; min-width: 0; }
 .page-head .paper-day { flex: none; margin: 0; padding: 0; }
@@ -66,6 +66,13 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
 }
 .page-date:disabled { cursor: default; text-decoration: none; }
 .page-head .today { margin-left: 0; }
+
+/* The dots recede behind the date and the Today mark, like behind the words of a row. */
+.page-date,
+.page-head .today {
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
 
 /* The way back to today: a small pen-ringed chip. Its tap area is taller than it looks. */
 .page-today-jump {
@@ -137,19 +144,20 @@ html.ak-base .day-picker :focus-visible { outline: 1px solid var(--paper-muted);
   min-height: 0;
 }
 
-/* The body is wider than the page by the page's own padding, so the pen outline of a card is never clipped at its edge. */
+/* The body is wider than the page by the page's own padding, so nothing is clipped at its edge. The first row starts 16px down, so its
+   words land on the dots of the grid (the header and the date row are three grid units tall together). */
 .page-body {
   flex: 1 1 auto;
   min-height: 0;
   margin: 0 -16px;
-  padding: 0 16px 24px;
+  padding: 16px 16px 24px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
 }
-/* While a line is typed, the page ends high enough that the last card can scroll above the edit sheet. */
+/* While a line is typed, the page ends high enough that the last row can scroll above the edit sheet. */
 html.is-editing .page-body { padding-bottom: 320px; }
 
 /* The edge targets: a narrow strip down each side that turns the page with one tap. They sit in the page margin, over no content. */
@@ -187,9 +195,11 @@ html.is-editing .page-body { padding-bottom: 320px; }
 .picker-layer { position: fixed; inset: 0; z-index: 45; }
 .picker-scrim { position: absolute; inset: 0; background: transparent; }
 
+/* The popover is centred under the date row, whatever the width of the date, and never wider than the screen. */
 .day-picker {
   position: absolute;
-  left: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   box-sizing: border-box;
   width: min(332px, calc(100vw - 32px));
   padding: 6px 8px 10px;

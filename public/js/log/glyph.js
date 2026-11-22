@@ -40,9 +40,9 @@
     return h('span', { class: 'sync-mark', 'data-sync': sync, title: label, role: 'img', 'aria-label': label }, use('g-mark'));
   }
 
-  /** A soft rounded chip for a tag, a time, a day or "not synced". item is { kind, text }. */
+  /** A small mark for a tag, a time, a day or "not synced". item is { kind, text, hue? }. The hue is the pen colour of the inked row. */
   function pill(item) {
-    return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind, 'data-testid': item.testid || null }, item.text);
+    return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind, 'data-hue': item.hue || null, 'data-testid': item.testid || null }, item.text);
   }
 
   L.glyph = { TYPES: TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark, pill: pill };
