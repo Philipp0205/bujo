@@ -201,8 +201,10 @@ test("a new line given another day leaves this page and lands on that day's page
 
   // Today's page does not show it (the next line opens here), and the entry is stored on the other day.
   await expect(saved(page, "Morgen erledigen")).toHaveCount(0);
-  await expect(line(page)).toBeFocused();
   await expect.poll(async () => (await stored(page)).map((entry) => `${entry.date} ${entry.title}`)).toEqual([`${day(1)} Morgen erledigen`]);
+  // The save starts a follow-on blank line. Wait for it so Escape drops that empty line, not the in-flight save (which would keep the sheet open).
+  await expect(line(page)).toHaveValue("");
+  await expect(line(page)).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(sheet(page)).toBeHidden();
