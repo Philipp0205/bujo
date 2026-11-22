@@ -86,13 +86,21 @@
 
   /** The values to send, from the controls. An empty tag list or a blank time clears it on an edit. A field left as shown keeps its tags. */
   function readValues(controls, grid, values) {
-    return {
-      date: controls.date.value,
-      type: grid.value(),
+    var horizon = values.horizon || 'day';
+    var date = controls.date.value;
+    // A new day on a month or future item moves it to the daily log. A month-only event stays a task until it has a day.
+    if (horizon !== 'day' && date && date !== values.date) horizon = 'day';
+    var type = grid.value();
+    if (type === 'event' && horizon !== 'day') type = 'task';
+    var next = {
+      date: date,
+      type: type,
       title: controls.title.value.trim(),
       tags: L.tags.fromField(controls.tag.value, values.tags || []),
       time: controls.time.value || null
     };
+    if (horizon !== (values.horizon || 'day')) next.horizon = horizon;
+    return next;
   }
 
   /** The message to show for values that cannot be sent, or '' when they are fine. */

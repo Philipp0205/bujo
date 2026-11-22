@@ -21,10 +21,10 @@ type Pages = {
   within(range: { from: string; to: string }, date: string): boolean;
 };
 
-/** Loads dates.js and pages/model.js into one sandbox and returns what the pages model adds to window.BujoLog.pages. */
+/** Loads dates.js, days.js and pages/model.js into one sandbox and returns what the pages model adds to window.BujoLog.pages. */
 function loadModel(): Pages {
   const window: Record<string, any> = {};
-  for (const file of [["dates.js"], ["pages", "model.js"]]) {
+  for (const file of [["dates.js"], ["days.js"], ["pages", "model.js"]]) {
     vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, "js", "log", ...file), "utf8"), { window });
   }
   return window.BujoLog.pages.model;
@@ -47,6 +47,18 @@ test("pages: days without entries are left out, and a day with many entries is o
   const pages = loadModel();
   const days = pages.sequence(on("2026-11-18", "2026-11-18", "2026-11-18", "2026-11-22", "2026-11-25"), TODAY);
   same(days, ["2026-11-18", TODAY, "2026-11-25"]);
+});
+
+test("pages: a month-task or future item is no page and no mark, only day entries are", () => {
+  const pages = loadModel();
+  const entries = [
+    { date: "2026-11-18" },
+    { date: "2026-11-30", horizon: "month-task" },
+    { date: "2026-12-31", horizon: "future" },
+    { date: "2026-12-05", horizon: "day" }
+  ];
+  same(pages.sequence(entries, TODAY), ["2026-11-18", TODAY, "2026-12-05"]);
+  same(pages.marksOf(entries), { "2026-11-18": true, "2026-12-05": true });
 });
 
 test("pages: numbers are 1-based, follow the date order, and do not depend on the entry order", () => {

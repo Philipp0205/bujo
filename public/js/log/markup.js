@@ -2,10 +2,11 @@
  * Written tags, dates and times in an entry line: the browser twin of src/log/markup.ts. Keep the two in lockstep
  * (test/log-markup.test.ts runs both over one corpus). Pure: no DOM, no fetch, no strings to show. Needs date-token.js.
  *
- * BujoLog.markup.parse(text, { final, today, dates }) returns { title, tags, date, time }.
+ * BujoLog.markup.parse(text, { final, today, dates }) returns { title, tags, date, month, time }.
  * A token is a whitespace separated word.
  *   "#tag"            adds a tag. Every tag is kept, in the order written; a repeat that differs only in case is dropped.
  *   "@morgen", "@23.11." and the other date words of date-token.js set the day (the last one wins).
+ *   "@dez", "@december" and "@12.2026" set a whole month (YYYY-MM) instead (the last day or month word wins).
  *   "9:00", "14:30", "14h" and "9h30" set the time as HH:MM (the last one wins).
  * All of them are cut out of the title. Anything glued to a word is plain text.
  * With final false (the person is typing) a token at the very end of the text may still be growing, so it is left alone.
@@ -86,24 +87,27 @@
     var final = opts.final === true;
     var today = opts.today || localToday();
     var split = pieces(text);
-    var found = { title: text, tags: [], date: null, time: null };
+    var found = { title: text, tags: [], date: null, month: null, time: null };
     split.list.forEach(function (piece, index) {
       var growing = !final && index === split.list.length - 1 && split.tail === '';
       if (growing) return;
       var tag = tagOf(piece.word);
-      var day = tag === null && opts.dates !== false ? L.dateToken.of(piece.word, today) : null;
-      var clock = tag === null && day === null ? timeOf(piece.word) : null;
-      if (tag === null && day === null && clock === null) return;
+      var dated = tag === null && opts.dates !== false;
+      var day = dated ? L.dateToken.of(piece.word, today) : null;
+      var month = dated && day === null ? L.dateToken.monthOf(piece.word, today) : null;
+      var clock = tag === null && day === null && month === null ? timeOf(piece.word) : null;
+      if (tag === null && day === null && month === null && clock === null) return;
       piece.cut = true;
       if (tag !== null) addTag(found.tags, tag);
-      else if (day !== null) found.date = day;
+      else if (day !== null) { found.date = day; found.month = null; }
+      else if (month !== null) { found.date = null; found.month = month; }
       else found.time = clock;
     });
     var anyCut = split.list.some(function (piece) { return piece.cut; });
-    if (!anyCut) return { title: final ? text.trim() : text, tags: found.tags, date: null, time: null };
+    if (!anyCut) return { title: final ? text.trim() : text, tags: found.tags, date: null, month: null, time: null };
     var title = assemble(split.list, split.tail);
-    if (final && title.trim() === '') return { title: text.trim(), tags: [], date: null, time: null };
-    return { title: final ? title.trim() : title, tags: found.tags, date: found.date, time: found.time };
+    if (final && title.trim() === '') return { title: text.trim(), tags: [], date: null, month: null, time: null };
+    return { title: final ? title.trim() : title, tags: found.tags, date: found.date, month: found.month, time: found.time };
   }
 
   L.markup = { parse: parse };

@@ -19,10 +19,10 @@
   var press = null;
   var swallow = null;
 
-  /** The log row under an event, or null. Only the rows of the cards count, never the line in the edit sheet. */
+  /** The log row of a day under an event, or null. Only the rows of the day cards count: month and future rows do not select, and never the line in the edit sheet. */
   function rowOf(event) {
     var row = event.target.closest && event.target.closest('.paper-row');
-    return row && row.closest('.entry-card, .card-child') ? row : null;
+    return row && row.closest('.entry-card, .card-child') && row.getAttribute('data-horizon') === 'day' ? row : null;
   }
 
   /** Drops the press in progress. */

@@ -43,6 +43,21 @@ test("scheduled: open with DUE;VALUE=DATE of the entry's day", () => {
   assert.equal(lines.filter((line) => line.startsWith("DUE")).length, 1);
 });
 
+test("a month or future task, done or migrated entry has DUE = the last day of its month, a plain daily task has none", () => {
+  for (const horizon of ["month-task", "future"] as const) {
+    for (const type of ["task", "done", "migrated"] as const) {
+      assert.equal(todoShape({ type, title: "t", date: "2026-12-31", horizon }).due, "2026-12-31", `${horizon} ${type}`);
+    }
+  }
+  const due = newTodoFor(todoShape({ type: "task", title: "t", date: "2026-12-31", horizon: "future" }), UID, NOW).split("\r\n");
+  assert.ok(due.includes("DUE;VALUE=DATE:20261231"));
+  for (const type of ["task", "done", "migrated"] as const) {
+    assert.equal(todoShape({ type, title: "t", date: "2026-12-31", horizon: "day" }).due, null, `day ${type}`);
+    assert.equal(todoShape({ type, title: "t", date: "2026-12-31" }).due, null, `no horizon ${type}`);
+  }
+  assert.equal(todoShape({ type: "scheduled", title: "t", date: "2026-12-14", horizon: "day" }).due, "2026-12-14");
+});
+
 test("a new VTODO never has DTSTART, PRIORITY or CATEGORIES, whatever the type", () => {
   for (const type of ["task", "done", "migrated", "scheduled"] as const) {
     const lines = icsOf(type);

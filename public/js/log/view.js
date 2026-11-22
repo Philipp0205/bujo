@@ -9,9 +9,9 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title, and the "Not on paper" button when entries wait to be written down. Scan and Add live in the tab bar. */
-  function header(count, onOpenPaper) {
-    return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title), L.paper.view.control(count, onOpenPaper));
+  /** The page header: the italic title of the view, and the "Not on paper" button when entries wait to be written down. Scan and Add live in the tab bar. */
+  function header(count, onOpenPaper, title) {
+    return h('div', { class: 'paper-head' }, h('h1', null, title || L.copy.title), L.paper.view.control(count, onOpenPaper));
   }
 
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */
@@ -86,6 +86,7 @@
       class: 'paper-row',
       'data-id': entry.id,
       'data-type': entry.type,
+      'data-horizon': entry.horizon || 'day',
       'data-sync': entry.sync,
       'data-queued': entry.queued || null,
       'data-on-paper': entry.onPaper ? 'true' : 'false',
@@ -134,5 +135,7 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, L.copy.retry));
   }
 
-  L.view = { header: header, todayMark: todayMark, dayPage: dayPage, stateNote: stateNote, offlineHint: offlineHint };
+  L.view = {
+    header: header, todayMark: todayMark, dayPage: dayPage, stateNote: stateNote, offlineHint: offlineHint, entryCard: entryCard, addRow: addRow
+  };
 })();

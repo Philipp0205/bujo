@@ -28,3 +28,10 @@ test("done model: event, note, moved and scheduled never toggle, and neither doe
   assert.equal(model.canToggle({ type: "task" }), true);
   assert.equal(model.canToggle({ type: "done" }), true);
 });
+
+test("done model: only a day entry toggles, a month-task or future item never does", () => {
+  const model = loadModel();
+  assert.equal(model.canToggle({ type: "task", horizon: "day" } as { type: string }), true);
+  assert.equal(model.canToggle({ type: "task", horizon: "month-task" } as { type: string }), false);
+  assert.equal(model.canToggle({ type: "done", horizon: "future" } as { type: string }), false);
+});

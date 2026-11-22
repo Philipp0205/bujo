@@ -194,8 +194,10 @@ html.ak-base body {
   color: var(--pen);
 }
 .pill .ink-stroke,
-.today .ink-stroke { color: inherit; }
-.today .ink-stroke { top: auto; bottom: 1px; left: -1px; width: calc(100% + 3px); height: 7px; }
+.today .ink-stroke,
+.view-tab .ink-stroke { color: inherit; }
+.today .ink-stroke,
+.view-tab .ink-stroke { top: auto; bottom: 1px; left: -1px; width: calc(100% + 3px); height: 7px; }
 .ink-handle,
 .ink-rule { top: 0; bottom: auto; height: 8px; }
 .ink-handle { color: var(--paper-muted); }

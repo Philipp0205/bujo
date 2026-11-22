@@ -1,6 +1,13 @@
 export const ENTRY_TYPES = ["task", "note", "event", "done", "migrated", "scheduled"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
+/**
+ * How far ahead an entry looks. A day entry sits on its day. A month-task or future entry sits on the last day of its
+ * month (which is also its DUE) and is listed by that month, not by a day.
+ */
+export const ENTRY_HORIZONS = ["day", "month-task", "future"] as const;
+export type EntryHorizon = (typeof ENTRY_HORIZONS)[number];
+
 export const SYNC_STATES = ["local", "pending", "synced", "error"] as const;
 export type SyncState = (typeof SYNC_STATES)[number];
 
@@ -8,6 +15,8 @@ export type SyncState = (typeof SYNC_STATES)[number];
 export type Entry = {
   id: string;
   date: string;
+  /** "day" for an ordinary entry. For the other two, date is the last day of the month the entry belongs to. */
+  horizon: EntryHorizon;
   time: string | null;
   type: EntryType;
   title: string;
@@ -43,6 +52,8 @@ export type NewEntry = {
   /** A client-made UUID (a device that was offline). The server mints one when it is left out. */
   id?: string;
   date: string;
+  /** Left out means "day". */
+  horizon?: EntryHorizon;
   type: EntryType;
   title: string;
   tags: string[];

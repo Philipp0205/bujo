@@ -1,4 +1,4 @@
-import { dateOf } from "./date-token.ts";
+import { dateOf, monthOf } from "./date-token.ts";
 import { TAG_MAX } from "./validation.ts";
 
 /**
@@ -8,6 +8,7 @@ import { TAG_MAX } from "./validation.ts";
  * A token is a whitespace separated word.
  *   "#tag"            adds a tag. Every tag is kept, in the order written; a repeat that differs only in case is dropped.
  *   "@morgen", "@23.11." and the other date words of src/log/date-token.ts set the day (the last one wins).
+ *   "@dez", "@december" and "@12.2026" set a whole month instead (the last day or month word wins).
  *   "9:00", "14:30", "14h" and "9h30" set the time as HH:MM (the last one wins).
  * All of them are cut out of the title. Anything glued to a word ("#tag,", "foo#bar", "14", "20.11.", "heute") is plain text.
  */
@@ -19,6 +20,8 @@ export type Markup = {
   tags: string[];
   /** The last written day as YYYY-MM-DD, or null when none was found (or dates are off). */
   date: string | null;
+  /** The last written month (a month word like "@dez", or "@12.2026") as YYYY-MM, or null. A later day word clears it, and the other way round. */
+  month: string | null;
   /** The last written time as HH:MM, or null when none was found. */
   time: string | null;
 };
@@ -107,21 +110,24 @@ export function parseMarkup(text: string, options: MarkupOptions = {}): Markup {
   const final = options.final === true;
   const today = options.today ?? localToday();
   const { list, tail } = pieces(text);
-  const found: Markup = { title: text, tags: [], date: null, time: null };
+  const found: Markup = { title: text, tags: [], date: null, month: null, time: null };
   list.forEach((piece, index) => {
     const growing = !final && index === list.length - 1 && tail === "";
     if (growing) return;
     const tag = tagOf(piece.word);
-    const day = tag === null && options.dates !== false ? dateOf(piece.word, today) : null;
-    const clock = tag === null && day === null ? timeOf(piece.word) : null;
-    if (tag === null && day === null && clock === null) return;
+    const dated = tag === null && options.dates !== false;
+    const day = dated ? dateOf(piece.word, today) : null;
+    const month = dated && day === null ? monthOf(piece.word, today) : null;
+    const clock = tag === null && day === null && month === null ? timeOf(piece.word) : null;
+    if (tag === null && day === null && month === null && clock === null) return;
     piece.cut = true;
     if (tag !== null) addTag(found.tags, tag);
-    else if (day !== null) found.date = day;
+    else if (day !== null) Object.assign(found, { date: day, month: null });
+    else if (month !== null) Object.assign(found, { date: null, month });
     else found.time = clock;
   });
   if (!list.some((piece) => piece.cut)) return { ...found, title: final ? text.trim() : text };
   const title = assemble(list, tail);
-  if (final && title.trim() === "") return { title: text.trim(), tags: [], date: null, time: null };
+  if (final && title.trim() === "") return { title: text.trim(), tags: [], date: null, month: null, time: null };
   return { ...found, title: final ? title.trim() : title };
 }

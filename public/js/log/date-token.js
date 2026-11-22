@@ -9,7 +9,11 @@
  *   @mo @di @mi @do @fr @sa @so                         the next such weekday, today included ("@mo." is plain text)
  *   @dd.mm  @dd.mm.  @d.m                               this year, or next year when that day has passed (today has not)
  *   @dd.mm.yyyy                                         that day, which must be a real date with a 4 digit year
- * A day that does not exist ("@31.02.", "@29.02." outside a leap year) is plain text.
+ *   @dezember @dez @december @dec ... @märz @maerz      a whole month (German or English name, short or long): this year,
+ *                                                       or next year when that month has passed (this month has not)
+ *   @mm.yyyy (e.g. @12.2026)                            that month of that year. A bare @12 is not a month: it stays text
+ * A day that does not exist ("@31.02.", "@29.02." outside a leap year) is plain text. "@mo" is Monday, never a month.
+ * BujoLog.dateToken.monthOf(word, today) returns YYYY-MM or null.
  */
 (function () {
   'use strict';
@@ -20,6 +24,7 @@
   var ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
   var NUMERIC = /^@(\d{1,2})\.(\d{1,2})\.?$/;
   var NUMERIC_YEAR = /^@(\d{1,2})\.(\d{1,2})\.(\d{4})$/;
+  var NUMERIC_MONTH = /^@(\d{1,2})\.(\d{4})$/;
 
   /** Days from today for the relative words. */
   var RELATIVE = { 'heute': 0, 'morgen': 1, 'übermorgen': 2, 'uebermorgen': 2 };
@@ -28,6 +33,16 @@
   var WEEKDAY = {
     mo: 1, montag: 1, di: 2, dienstag: 2, mi: 3, mittwoch: 3, do: 4, donnerstag: 4,
     fr: 5, freitag: 5, sa: 6, samstag: 6, sonnabend: 6, so: 0, sonntag: 0
+  };
+
+  /** Month number (1 to 12) for each written name and short name, English and German, lower case. */
+  var MONTH = {
+    january: 1, jan: 1, januar: 1, february: 2, feb: 2, februar: 2,
+    march: 3, mar: 3, maerz: 3, 'märz': 3, maer: 3, april: 4, apr: 4,
+    may: 5, mai: 5, june: 6, jun: 6, juni: 6, july: 7, jul: 7, juli: 7,
+    august: 8, aug: 8, september: 9, sep: 9, sept: 9,
+    october: 10, oct: 10, oktober: 10, okt: 10, november: 11, nov: 11,
+    december: 12, dec: 12, dezember: 12, dez: 12
   };
 
   function has(map, key) { return Object.prototype.hasOwnProperty.call(map, key); }
@@ -79,5 +94,20 @@
     return null;
   }
 
-  L.dateToken = { of: of, addDays: addDays };
+  /** YYYY-MM for a year and a month 1 to 12. */
+  function monthKey(year, month) { return year + '-' + (month < 10 ? '0' : '') + month; }
+
+  /** The month a word writes ("@dez", "@december", "@12.2026") as YYYY-MM, or null when it is not a month word. */
+  function monthOf(word, today) {
+    if (word.charAt(0) !== '@') return null;
+    var year = Number(today.slice(0, 4));
+    var numeric = NUMERIC_MONTH.exec(word);
+    if (numeric) return Number(numeric[1]) >= 1 && Number(numeric[1]) <= 12 ? monthKey(Number(numeric[2]), Number(numeric[1])) : null;
+    var name = word.slice(1).toLowerCase();
+    if (!has(MONTH, name)) return null;
+    var month = MONTH[name];
+    return monthKey(month < Number(today.slice(5, 7)) ? year + 1 : year, month);
+  }
+
+  L.dateToken = { of: of, monthOf: monthOf, addDays: addDays };
 })();

@@ -113,9 +113,10 @@
     return els;
   }
 
-  /** Inks the list: only the Today mark. Rows, nested rows and their tags are plain ink on the paper, with no outline. Call after the list is painted. */
+  /** Inks the list: the Today mark and the view on screen in the switcher. Rows, nested rows and their tags are plain ink on the paper, with no outline. Call after the list is painted. */
   function list(root) {
-    var els = dress(root, '.today', 'underline', function () { return 'today'; });
+    var els = dress(root, '.today', 'underline', function () { return 'today'; })
+      .concat(dress(root, '.view-tab[aria-pressed="true"]', 'underline', function (el) { return 'view|' + el.getAttribute('data-testid'); }));
     watch('list', els);
     drawAll(els);
   }

@@ -6,6 +6,7 @@
  *   kind 'tag'   an existing tag, label "#name", insert "#name" (its own spelling). Tags the line has already are left out.
  *   kind 'new'   "use #typed" for a valid word that is no tag yet, always last
  *   kind 'date'  a day, label "Mo 23.11.", hint "morgen", insert "@23.11." (see dates.js)
+ *   kind 'month' a whole month, label "December", hint "whole month", insert "@dezember" (see dates.js), after the days
  */
 (function () {
   'use strict';
@@ -38,11 +39,15 @@
     return options;
   }
 
-  /** The date suggestions for a query, shaped like the tag ones. */
+  /** The date suggestions for a query: days, then up to two whole months. Months never push a weekday out, since a query that names one has none. */
   function dateOptions(query, today) {
-    return L.suggest.dates.suggest(query, today).map(function (item) {
+    var months = L.suggest.dates.suggestMonths(query, today).slice(0, 2).map(function (item) {
+      return { kind: 'month', label: item.label, hint: item.hint, insert: item.insert, value: item.month };
+    });
+    var days = L.suggest.dates.suggest(query, today).slice(0, LIMIT - months.length).map(function (item) {
       return { kind: 'date', label: item.label, hint: item.hint, insert: item.insert, value: item.iso };
     });
+    return days.concat(months);
   }
 
   /** The options for a token ({ kind: 'tag' | 'date', query }). */

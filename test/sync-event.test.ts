@@ -422,6 +422,7 @@ test("an edit is pushed for an event on time or tag, and for a task only on titl
   assert.equal(touchesMapping({ tags: [] }, { type: "event" }), true);
   assert.equal(touchesMapping({ time: "10:00" }, { type: "task" }), false);
   assert.equal(touchesMapping({ tags: ["x"] }, { type: "task" }), false);
+  assert.equal(touchesMapping({ horizon: "future" }, { type: "task" }), true, "the horizon decides the DUE");
   for (const type of ["task", "event"] as const) {
     for (const patch of [{ title: "t" }, { type: "note" as const }, { date: "2026-12-01" }]) assert.equal(touchesMapping(patch, { type }), true);
   }

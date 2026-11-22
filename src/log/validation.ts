@@ -1,4 +1,5 @@
 import {
+  ENTRY_HORIZONS,
   ENTRY_TYPES,
   type Checked,
   type DateRange,
@@ -6,6 +7,7 @@ import {
   type EntryType,
   type NewEntry,
 } from "./types.ts";
+import { isEntryHorizon } from "./horizon.ts";
 
 export const TITLE_MAX = 200;
 export const TAG_MAX = 40;
@@ -14,7 +16,7 @@ export const TAGS_MAX = 10;
 /** The longest free-note markdown, in characters. */
 export const BODY_MAX = 50_000;
 /** The widest list request, in days from the first to the last day, inclusive. */
-export const RANGE_MAX_DAYS = 92;
+export const RANGE_MAX_DAYS = 200;
 
 const DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_SHAPE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -76,7 +78,7 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(body).find((key) => !allowed.includes(key));
 }
 
-const FIELDS = ["date", "type", "title", "tags", "time", "body"] as const;
+const FIELDS = ["date", "horizon", "type", "title", "tags", "time", "body"] as const;
 const PATCH_FIELDS = [...FIELDS, "indent"] as const;
 const CREATE_FIELDS = [...FIELDS, "id"] as const;
 /** The shape crypto.randomUUID() makes: 8-4-4-4-12 lowercase hex with dashes. */
@@ -121,6 +123,10 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
   if ("type" in body) {
     if (!isEntryType(body.type)) return fail(`type must be one of ${ENTRY_TYPES.join(", ")}`);
     out.type = body.type;
+  }
+  if ("horizon" in body) {
+    if (!isEntryHorizon(body.horizon)) return fail(`horizon must be one of ${ENTRY_HORIZONS.join(", ")}`);
+    out.horizon = body.horizon;
   }
   if ("title" in body) {
     const title = checkText("title", body.title, TITLE_MAX, true);
@@ -167,8 +173,8 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   if ("id" in body && !isEntryId(body.id)) return fail("id must be a UUID like 3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b");
   const fields = checkFields(body);
   if (!fields.ok) return fields;
-  const { date, type, title, tags = [], time = null, body: text = null } = fields.value;
-  const entry: NewEntry = { date: date!, type: type!, title: title!, tags, time, body: text };
+  const { date, horizon = "day", type, title, tags = [], time = null, body: text = null } = fields.value;
+  const entry: NewEntry = { date: date!, horizon, type: type!, title: title!, tags, time, body: text };
   return { ok: true, value: "id" in body ? { id: body.id as string, ...entry } : entry };
 }
 

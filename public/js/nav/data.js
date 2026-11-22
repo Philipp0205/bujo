@@ -16,7 +16,7 @@
 
   var N = window.BujoNav = window.BujoNav || {};
 
-  var KEYS = { log: 'bujo-log-entries', notes: 'bujo-notes', settings: 'bujo-settings' };
+  var KEYS = { log: 'bujo-log-entries', logAhead: 'bujo-log-ahead', notes: 'bujo-notes', settings: 'bujo-settings' };
 
   /** Reads through the cache: stale() for a cached value, then fresh() or fail() for the fetch. Resolves when that is done. */
   function load(key, fetcher, hooks) {

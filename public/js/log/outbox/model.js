@@ -3,7 +3,7 @@
  * No DOM, no fetch, no storage, no words. Needs nothing (newId needs window.crypto when it runs).
  *
  * An item is { key, kind, id, body, indent, at, order, rev }:
- *   kind 'create'  a new entry (body holds its client id and fields, indent is 0 or 1, which a create cannot carry);
+ *   kind 'create'  a new entry (body holds its client id and fields, horizon included, indent is 0 or 1, which a create cannot carry);
  *   kind 'update'  changes to a saved entry (body holds only the changed fields).
  * An edit of an entry whose create is still queued goes into that create, so the server sees one POST. rev counts the changes
  * of an item, so a change made while the item is being sent is not lost.
@@ -97,16 +97,18 @@
     });
   }
 
-  /** The place after the last entry of a day. */
-  function nextPosition(entries, date) {
-    return entries.reduce(function (top, entry) { return entry.date === date ? Math.max(top, entry.position + 1) : top; }, 0);
+  /** The place after the last entry of a group (a day, or a month's month-task or future items). */
+  function nextPosition(entries, date, horizon) {
+    return entries.reduce(function (top, entry) {
+      return entry.date === date && (entry.horizon || 'day') === horizon ? Math.max(top, entry.position + 1) : top;
+    }, 0);
   }
 
   /** The entry a queued create stands for in the log: what the server would have answered, marked as queued. */
   function entryOf(item, position) {
     var body = item.body;
     return {
-      id: item.id, date: body.date, time: body.time || null, type: body.type, title: body.title, tags: (body.tags || []).slice(),
+      id: item.id, date: body.date, horizon: body.horizon || 'day', time: body.time || null, type: body.type, title: body.title, tags: (body.tags || []).slice(),
       body: body.body || null, hasPhoto: false, sync: 'local', syncError: null, position: position, indent: item.indent,
       createdAt: item.at, updatedAt: item.at, onPaper: false, queued: 'create'
     };
@@ -139,7 +141,7 @@
     items.forEach(function (item) {
       if (item.kind !== 'create' || seen[item.id]) return;
       seen[item.id] = true;
-      out.push(entryOf(item, nextPosition(out, item.body.date)));
+      out.push(entryOf(item, nextPosition(out, item.body.date, item.body.horizon || 'day')));
     });
     return out;
   }

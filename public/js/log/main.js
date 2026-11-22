@@ -1,8 +1,10 @@
 /*
- * Boots the daily log: loads the window of days, renders the page of one day, and wires the inline editor and the sheets. Needs every
+ * Boots the log: loads the days, renders the page of the view on screen, and wires the inline editor and the sheets. Needs every
  * other log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here,
- * the Add tab opens the new-entry sheet from here. The log is a notebook: one day per page (js/log/pages), turned by swipe, arrows,
- * the date picker or a ?day= link. state.page is the day on screen, or null to follow today.
+ * the Add tab opens the new-entry sheet from here. The log is a notebook with three views (Future, Month, Daily, js/log/horizon).
+ * Daily is a page per day (js/log/pages), turned by swipe, arrows, the date picker or a ?day= link; state.page is the day on screen,
+ * or null to follow today. Month shows one month (state.month, null follows this month) and Future the next six months. Month and
+ * Future read one span of days, Daily its window around today, so a switch reads again (state.loadedKey says which read is held).
  * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Daily log tab is tapped
  * (the page stays in the document, hidden, while another tab is on screen). The last rows come from AppKit.swr at once.
  * While an entry waits for its push to Nextcloud, the log
@@ -16,12 +18,12 @@
   var root = document.getElementById('log');
   var state = {
     status: 'loading', entries: [], server: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
-    page: null, turn: null, arrival: false
+    page: null, turn: null, arrival: false, view: 'daily', month: null, loadedKey: null
   };
   var booted = false;
   var POLL_MS = 800;
   var pollTimer = null;
-  var BARE = ['paper', 'paper-page', 'page-leaf', 'page-body', 'paper-day-group'];
+  var BARE = ['paper', 'paper-page', 'page-leaf', 'page-body', 'paper-day-group', 'horizon-section'];
 
   /** The things a card or the add row can do. A note with a body opens the note sheet, any other entry opens the edit sheet. select is select mode. */
   var actions = {
@@ -46,15 +48,26 @@
     state.page = date === state.today ? null : date;
   }
 
-  /** The Add tab: a new line on the page on screen. Not while selecting (the select bar owns the page then). */
+  /** The month the Month view shows: the one picked, else this month. */
+  function shownMonth() {
+    return state.month || L.pages.model.monthOf(state.today);
+  }
+
+  /** Where a new line goes: the day of the Daily page, or the month on screen (a month-task or a future item). */
+  function slot() {
+    if (state.view === 'daily') return { date: shownPage().date, horizon: 'day' };
+    return L.horizon.model.slotOf(state.view, shownMonth(), state.today);
+  }
+
+  /** The Add tab: a new line in the view on screen. Not while selecting (the select bar owns the page then). */
   function addEntry() {
     if (!L.select.mode.on()) L.inline.editor.addLine();
   }
 
-  /** The Add tab from another tab: the log opens on today, and the new line goes there. */
+  /** The Add tab from another tab: the Daily log opens on today, the other views stay as they are. The new line goes there. */
   function addFromTab() {
     if (L.select.mode.on()) return;
-    state.page = null;
+    if (state.view === 'daily') state.page = null;
     L.inline.editor.addLine();
   }
 
@@ -76,15 +89,15 @@
     L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload });
   }
 
-  /** What the inline editor needs from the page: the days, a redraw, saved entries and the details sheet. */
+  /** What the inline editor needs from the page: the slot for a new line, the entries, a redraw, saved entries and the details sheet. */
   var host = {
     today: function () { return state.today; },
-    pageDate: function () { return shownPage().date; },
+    slot: slot,
     draw: draw,
     upsert: upsert,
-    replaceDay: replaceDay,
+    replaceGroup: replaceGroup,
     entries: function () { return state.entries; },
-    dayEntries: function (date) { return L.days.dayEntries(state.entries, date); },
+    group: function (horizon, date) { return L.days.groupEntries(state.entries, horizon, date); },
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };
 
@@ -93,9 +106,9 @@
     state.entries = L.outbox.model.merge(state.server, L.outbox.queue.items());
   }
 
-  /** Swaps every entry of one day for the list of that day (after a delete or a move). */
-  function replaceDay(date, entries) {
-    state.server = state.server.filter(function (entry) { return entry.date !== date; }).concat(entries);
+  /** Swaps every entry of one group (a day, or the items of one month) for the list of that group (after a delete or a move). */
+  function replaceGroup(horizon, date, entries) {
+    state.server = state.server.filter(function (entry) { return !(entry.date === date && L.days.horizonOf(entry) === horizon); }).concat(entries);
     rebuild();
     state.status = 'ready';
     state.version += 1;
@@ -118,27 +131,42 @@
     recount();
   }
 
-  /** After a scan is applied or a note saved: show the day it landed on, even when it is outside the usual window. */
+  /** After a scan is applied or a note saved: show the day it landed on in the Daily view, even when it is outside the usual window. */
   function applied(result) {
+    state.view = 'daily';
     state.focus = result.date;
     setPage(result.date);
     reload();
   }
 
-  /** The body of the page for the current status: the cards of the day, with a quiet hint above them while offline. */
+  /** The body of the page for the current status: the cards of the view on screen, with a quiet hint above them while offline. */
   function body(date) {
     if (state.status !== 'ready') return L.view.stateNote(state.status, reload);
-    return [state.offline ? L.view.offlineHint() : null, L.view.dayPage(date, state.entries, actions, state.today)];
+    return [state.offline ? L.view.offlineHint() : null, viewBody(date)];
+  }
+
+  /** The cards of the view: a day, a month or the six months. */
+  function viewBody(date) {
+    var ctx = { entries: state.entries, today: state.today, actions: actions, month: shownMonth() };
+    if (state.view === 'month') return L.horizon.screen.monthBody(ctx);
+    if (state.view === 'future') return L.horizon.screen.futureBody(ctx);
+    return L.view.dayPage(date, state.entries, actions, state.today);
   }
 
   /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
   function top() {
-    return L.select.mode.on() ? L.select.mode.bar() : L.view.header(L.paper.count.get(), openPaperList);
+    if (L.select.mode.on()) return L.select.mode.bar();
+    return L.view.header(L.paper.count.get(), openPaperList, L.copy.horizon.titles[state.view]);
   }
 
   /** True when a page may turn: not while selecting, not while a line is typed, and only once the days are loaded. */
   function canTurn() {
     return state.status === 'ready' && !L.select.mode.on() && !L.inline.editor.line();
+  }
+
+  /** True while selecting or typing: the switcher and the arrows are off then. */
+  function locked() {
+    return L.select.mode.on() || !!L.inline.editor.line();
   }
 
   /** Shows another day of the notebook. direction ('next' or 'prev') only picks the way the leaf slides in. Not while selecting or typing. */
@@ -151,16 +179,32 @@
     render();
   }
 
-  /** The arrow, edge tap or swipe: turns to the page before or after the one on screen. The ends have none. */
+  /** Shows another month of the Month view (this month is stored as null, so the view keeps following today). */
+  function turnToMonth(month, direction) {
+    if (!canTurn() || month === shownMonth()) return;
+    state.month = month === L.pages.model.monthOf(state.today) ? null : month;
+    state.turn = direction;
+    render();
+  }
+
+  /** The arrow, edge tap or swipe: turns to the page or month before or after the one on screen. The ends have none; Future has none. */
   function turnBy(direction) {
+    if (state.view === 'future') return;
+    if (state.view === 'month') {
+      var month = L.horizon.model.shifted(shownMonth(), direction === 'next' ? 1 : -1, state.today);
+      if (month) turnToMonth(month, direction);
+      return;
+    }
     var shown = shownPage();
     var target = L.pages.model.neighbours(shown.days, shown.date)[direction];
     if (target) turnTo(target, direction);
   }
 
-  /** The Today jump: back to the page of today. */
+  /** The Today jump: back to the page of today, or to this month. */
   function turnHome() {
-    turnTo(state.today);
+    if (state.view !== 'month') { turnTo(state.today); return; }
+    var here = L.pages.model.monthOf(state.today);
+    turnToMonth(here, here > shownMonth() ? 'next' : 'prev');
   }
 
   /** A day picked in the calendar: a page of the loaded days turns at once, a day beyond them is read first (the window stretches to it). */
@@ -185,15 +229,36 @@
 
   var nav = { turn: turnBy, pick: openPicker, home: turnHome };
 
-  /** The page of the notebook on screen, with the leaf that slides in after a turn. */
+  /** The view switcher row, off while selecting or typing. */
+  function switcher() {
+    return L.horizon.switcher.build({ view: state.view, locked: locked(), onPick: switchView });
+  }
+
+  /** The page of the notebook on screen: a day, a month or the six months, with the leaf that slides in after a turn. */
   function pageNode(turn) {
+    if (state.view !== 'daily') return horizonNode(turn);
     var shown = shownPage();
     var ready = state.status === 'ready';
     return L.pages.view.page({
       date: shown.date, ready: ready, isToday: shown.date === state.today, number: ready ? L.pages.model.numberOf(shown.days, shown.date) : 0,
       around: ready ? L.pages.model.neighbours(shown.days, shown.date) : { prev: null, next: null },
-      locked: L.select.mode.on() || !!L.inline.editor.line(), turn: turn, body: body(shown.date), nav: nav
+      locked: locked(), turn: turn, body: body(shown.date), nav: nav, view: 'daily', switcher: switcher()
     });
+  }
+
+  /** The page of the Month or Future view: the same shell as a day, with its own head. */
+  function horizonNode(turn) {
+    var month = shownMonth();
+    var ready = state.status === 'ready';
+    var inMonth = state.view === 'month';
+    var around = inMonth && ready
+      ? { prev: L.horizon.model.shifted(month, -1, state.today), next: L.horizon.model.shifted(month, 1, state.today) }
+      : { prev: null, next: null };
+    var ctx = { ready: ready, locked: locked(), turn: turn, body: body(null), nav: nav, view: state.view, switcher: switcher(), around: around, number: 0 };
+    var head = inMonth
+      ? L.horizon.screen.monthHead({ month: month, isThisMonth: month === L.pages.model.monthOf(state.today), locked: ctx.locked, around: around, nav: nav })
+      : L.horizon.screen.futureHead();
+    return L.pages.view.shell(ctx, inMonth ? month : 'future', head);
   }
 
   /** Opens the "not on paper" list. Marking an entry as written reads the log again, so its row mark goes. */
@@ -208,9 +273,10 @@
     L.paper.count.refresh(state.today);
   }
 
-  /** Puts ?day= of the address in step with the page on screen. Not while the page of a link is still being found. */
+  /** Puts the address in step with the view on screen. Not while the page of a link is still being found. */
   function syncAddress() {
-    if (state.status === 'ready' && !state.arrival) L.pages.address.sync(shownPage().date, state.today);
+    if (state.status !== 'ready' || state.arrival) return;
+    L.pages.address.sync({ view: state.view, month: shownMonth(), date: shownPage().date, today: state.today });
   }
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. A redraw keeps the scroll of a long page, a turn starts at the top. */
@@ -244,6 +310,19 @@
     return L.api.list(range.from, range.to);
   }
 
+  /** Reads the span of Month and Future: the first of this month through the end of the sixth month. */
+  function fetchSpan() {
+    state.today = L.dates.todayIso();
+    var range = L.horizon.model.span(state.today);
+    return L.api.list(range.from, range.to);
+  }
+
+  /** What a view reads: its cache key and its fetcher. Month and Future share one span, so a switch between them needs no read. */
+  function sourceOf(view) {
+    var keys = BujoNav.data.KEYS;
+    return view === 'daily' ? { key: keys.log, fetch: fetchWindow } : { key: keys.logAhead, fetch: fetchSpan };
+  }
+
   /** A page asked for by a link that has no entries is not a page: the log shows today instead. True when that changed the page. */
   function settleArrival() {
     if (!state.arrival) return false;
@@ -253,15 +332,16 @@
     return true;
   }
 
-  /** Takes a list that was read while the state was at version `seen`. True when the screen has to change. A list that came from the
+  /** Takes a list that was read while the state was at version `seen`, from the source `key`. True when the screen has to change. A list that came from the
    * server (final) also ends the arrival on a ?day= page. */
-  function accept(entries, seen, final) {
+  function accept(entries, seen, final, key) {
     if (seen !== state.version) return false;
     var shown = L.outbox.model.merge(entries, L.outbox.queue.items());
-    var same = state.status === 'ready' && state.drawnToday === state.today && JSON.stringify(shown) === JSON.stringify(state.entries);
+    var same = state.status === 'ready' && state.drawnToday === state.today && state.loadedKey === key && JSON.stringify(shown) === JSON.stringify(state.entries);
     state.server = entries;
     state.entries = shown;
     state.status = 'ready';
+    state.loadedKey = key;
     var moved = final && settleArrival();
     return !same || moved;
   }
@@ -274,18 +354,20 @@
     render();
   }
 
-  /** Loads the window and draws it. via says where the list comes from: 'plain' is the server alone (after a save, and the pending
+  /** Loads what the view on screen reads and draws it. via says where the list comes from: 'plain' is the server alone (after a save, and the pending
    * poll: a read must not join an older one), 'cache' goes through AppKit.swr, and 'first' also paints the last cached rows at
    * once, so a visit starts with rows instead of a loading note. A failed quiet refresh, or a failure behind rows that are
    * already shown, keeps those rows on screen. A read that fails for lack of a connection says "offline" instead of failing.
+   * The source is taken when the read starts; a view switch in between bumps the version, so that read is dropped and the next one is the new view's.
    */
   function load(quiet, via) {
     var seen = state.version;
-    var take = function (entries) { if (accept(entries, seen, false)) render(); };
+    var source = sourceOf(state.view);
+    var take = function (entries) { if (accept(entries, seen, false, source.key)) render(); };
     var fresh = function (entries) {
       var was = state.offline;
       state.offline = false;
-      if (accept(entries, seen, true) || was) render();
+      if (accept(entries, seen, true, source.key) || was) render();
     };
     var failed = function (error) {
       if (L.outbox.model.isNetworkMiss(error, navigator.onLine)) { showOffline(); return; }
@@ -298,9 +380,22 @@
       watchPending();
       if (seen !== state.version) load(true, 'plain');
     };
-    if (via === 'plain') return BujoNav.data.fresh(BujoNav.data.KEYS.log, fetchWindow).then(fresh, failed).then(done);
+    if (via === 'plain') return BujoNav.data.fresh(source.key, source.fetch).then(fresh, failed).then(done);
     var stale = function (entries) { if (via === 'first' && state.status !== 'ready' && !state.arrival) take(entries); };
-    return BujoNav.data.load(BujoNav.data.KEYS.log, fetchWindow, { stale: stale, fresh: fresh, fail: failed }).then(done);
+    return BujoNav.data.load(source.key, source.fetch, { stale: stale, fresh: fresh, fail: failed }).then(done);
+  }
+
+  /** The switcher: shows another view. The entries on screen belong to the view's own read, so a view whose read is not the one held starts loading. */
+  function switchView(view) {
+    if (view === state.view || locked()) return;
+    L.inline.editor.settle(function () {
+      state.view = view;
+      state.turn = null;
+      state.version += 1;
+      if (state.loadedKey !== sourceOf(view).key) state.status = 'loading';
+      render();
+      if (state.status === 'loading') load(false, 'first').then(recount);
+    });
   }
 
   /** Reads the log again with the loading note. Never used while a line is being typed. */
@@ -328,6 +423,16 @@
     pollTimer = window.setTimeout(refreshQuietly, POLL_MS);
   }
 
+  /** A link with ?view=month (and ?month=) or ?view=future: that view opens first. True when the link asked for one. */
+  function arriveAtView() {
+    var view = L.pages.address.readView();
+    if (view !== 'month' && view !== 'future') return false;
+    state.view = view;
+    var month = L.horizon.model.readMonth(L.pages.address.readMonth(), state.today);
+    state.month = month && month !== L.pages.model.monthOf(state.today) ? month : null;
+    return true;
+  }
+
   /** A link with ?day= (a valid day the log can load): the page opens on that day, and the first read reaches it. Anything else is today. */
   function arriveAtDay() {
     var day = L.pages.model.readDay(L.pages.address.read(), state.today);
@@ -352,7 +457,7 @@
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
     root.addEventListener('click', onPaperTap);
     L.paper.count.init(root, openPaperList);
-    var linked = arriveAtDay();
+    var linked = arriveAtView() || arriveAtDay();
     render();
     L.outbox.queue.load().then(function () { return load(false, 'first'); }).then(recount);
     // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.

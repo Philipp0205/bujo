@@ -106,6 +106,28 @@ test("GET /api/tags lists each tag once with its count and last use, newest firs
   });
 });
 
+test("POST and PATCH take a horizon: month and future items sit on the last day of the month, and a day item shows in the month range with the same id", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const post = (body: object) => api(base, "POST", "/api/entries", { body, headers });
+    const day = await post({ date: "2026-12-15", type: "task", title: "dentist" });
+    assert.equal(day.json.entry.horizon, "day", "a missing horizon means day");
+    const month = await post({ date: "2026-12-03", horizon: "month-task", type: "task", title: "tax return" });
+    const future = await post({ date: "2027-02-10", horizon: "future", type: "event", title: "ski trip", time: "09:00" });
+    assert.deepEqual([month.json.entry.date, month.json.entry.horizon, month.json.entry.position], ["2026-12-31", "month-task", 0]);
+    assert.deepEqual([future.json.entry.date, future.json.entry.horizon, future.json.entry.type], ["2027-02-28", "future", "task"]);
+    assert.equal((await post({ date: "2026-12-03", horizon: "someday", type: "task", title: "x" })).status, 400);
+
+    const listed = await api(base, "GET", "/api/entries?from=2026-12-01&to=2026-12-31", { headers });
+    assert.deepEqual(listed.json.entries.map((e: { id: string }) => e.id), [day.json.entry.id, month.json.entry.id]);
+
+    const moved = await api(base, "PATCH", `/api/entries/${month.json.entry.id}`, { body: { date: "2027-01-05" }, headers });
+    assert.deepEqual([moved.json.entry.date, moved.json.entry.horizon], ["2027-01-31", "month-task"]);
+    const settled = await api(base, "PATCH", `/api/entries/${month.json.entry.id}`, { body: { horizon: "day", date: "2027-01-05" }, headers });
+    assert.deepEqual([settled.json.entry.date, settled.json.entry.horizon], ["2027-01-05", "day"]);
+  });
+});
+
 test("GET lists a date range sorted by date then position", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
@@ -148,12 +170,12 @@ test("GET ?kind=notes lists every free note of any day, newest first, session on
 test("GET refuses a missing, bad, reversed or too wide range", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
-    for (const query of ["", "?from=2026-11-14", "?from=x&to=2026-11-27", "?from=2026-11-27&to=2026-11-14", "?from=2026-01-01&to=2026-04-03"]) {
+    for (const query of ["", "?from=2026-11-14", "?from=x&to=2026-11-27", "?from=2026-11-27&to=2026-11-14", "?from=2026-01-01&to=2026-07-20"]) {
       const result = await api(base, "GET", `/api/entries${query}`, { headers });
       assert.equal(result.status, 400, query);
       assert.equal(typeof result.json.error, "string");
     }
-    assert.equal((await api(base, "GET", "/api/entries?from=2026-01-01&to=2026-04-02", { headers })).status, 200);
+    assert.equal((await api(base, "GET", "/api/entries?from=2026-01-01&to=2026-07-19", { headers })).status, 200);
   });
 });
 
