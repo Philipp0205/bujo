@@ -59,6 +59,7 @@
       'data-id': entry.id,
       'data-type': entry.type,
       'data-sync': entry.sync,
+      'data-queued': entry.queued || null,
       'data-on-paper': entry.onPaper ? 'true' : 'false',
       'data-indent': String(indent),
       'aria-selected': picking ? String(ticked) : null,
@@ -94,6 +95,11 @@
       day.isToday && !actions.select.on() ? addRow(actions.add) : null);
   }
 
+  /** The quiet line above the days while the device is offline. */
+  function offlineHint() {
+    return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, L.copy.offline.hint);
+  }
+
   /** All the days of the window, oldest first. */
   function dayList(entries, today, actions) {
     return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions, today); });
@@ -108,5 +114,5 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, L.copy.retry));
   }
 
-  L.view = { header: header, dayList: dayList, stateNote: stateNote };
+  L.view = { header: header, dayList: dayList, stateNote: stateNote, offlineHint: offlineHint };
 })();

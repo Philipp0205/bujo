@@ -42,7 +42,7 @@
 
   /** A soft rounded chip for a tag, a time, a day or "not synced". item is { kind, text }. */
   function pill(item) {
-    return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind }, item.text);
+    return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind, 'data-testid': item.testid || null }, item.text);
   }
 
   L.glyph = { TYPES: TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark, pill: pill };

@@ -24,6 +24,17 @@
 }
 .paper-state[data-state="error"] { color: var(--paper-today); }
 
+/* The quiet line above the days while the device is offline. */
+.paper-hint {
+  margin: 0 4px 12px;
+  color: var(--paper-muted);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 24px;
+  font-variation-settings: "opsz" 16, "wght" 400;
+  font-synthesis: none;
+}
+
 .paper-link {
   appearance: none;
   -webkit-appearance: none;
@@ -281,6 +292,7 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
 .pill-time { color: var(--ink-ochre); }
 .pill-date { color: var(--paper-ink); }
 .pill-local { color: var(--paper-muted); }
+.pill-queued { color: var(--paper-muted); font-style: italic; }
 
 .paper-add {
   appearance: none;

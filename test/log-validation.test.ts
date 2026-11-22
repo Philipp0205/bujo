@@ -4,6 +4,7 @@ import {
   checkEntryPatch,
   checkNewEntry,
   checkRange,
+  isEntryId,
   isValidDate,
   isValidTime,
   RANGE_MAX_DAYS,
@@ -83,6 +84,21 @@ test("checkNewEntry refuses missing, empty, long, malformed and unknown input", 
   for (const body of refused) assert.equal(checkNewEntry(body).ok, false, JSON.stringify(body));
   assert.equal(checkNewEntry({ ...base, title: "x".repeat(TITLE_MAX) }).ok, true);
   assert.equal(checkNewEntry({ ...base, tags: ["t".repeat(TAG_MAX)] }).ok, true);
+});
+
+test("checkNewEntry allows an id only when it is a lowercase UUID, and keeps it", () => {
+  const base = { date: "2026-11-20", type: "task", title: "x" };
+  const id = "3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b";
+  const good = checkNewEntry({ ...base, id });
+  assert.deepEqual(good, { ok: true, value: { id, date: "2026-11-20", type: "task", title: "x", tags: [], time: null, body: null } });
+  assert.equal("id" in (checkNewEntry(base) as { value: object }).value, false);
+  for (const bad of ["", "abc", id.toUpperCase(), id.replace(/-/g, ""), `${id}0`, " " + id, 7, null, {}]) {
+    const checked = checkNewEntry({ ...base, id: bad });
+    assert.equal(checked.ok, false, JSON.stringify(bad));
+    assert.match(checked.ok ? "" : checked.error, /^id must be a UUID/);
+  }
+  assert.equal(isEntryId(id), true);
+  assert.equal(checkNewEntry({ ...base, id, extra: 1 }).ok, false);
 });
 
 test("the old single tag field is refused with a message that names tags", () => {

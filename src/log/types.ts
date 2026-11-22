@@ -40,6 +40,8 @@ export type SyncChange = { sync: SyncState; error?: string | null; link?: Remote
 
 /** A checked create request. */
 export type NewEntry = {
+  /** A client-made UUID (a device that was offline). The server mints one when it is left out. */
+  id?: string;
   date: string;
   type: EntryType;
   title: string;
@@ -70,7 +72,7 @@ export type ScanEntry = Entry & { scan?: ScanSnapshot | null };
 export type MoveDirection = "up" | "down";
 
 /** A checked edit. Only the keys present are changed. An empty tags list, a null time or a null body clears it. */
-export type EntryPatch = Partial<NewEntry> & {
+export type EntryPatch = Partial<Omit<NewEntry, "id">> & {
   /** 0 or 1. A 1 on the first entry of a day stays 0, there is nothing above to nest under. */
   indent?: number;
 };

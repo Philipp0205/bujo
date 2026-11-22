@@ -12,6 +12,12 @@
     today: 'Today',
     addEntry: '+ Add entry',
     notSynced: 'not synced',
+    queued: 'waiting to send',
+    offline: {
+      hint: 'You\u2019re offline. New entries will be sent when you are back.',
+      dropped: function (title) { return 'Could not send \u201c' + title + '\u201d. The server refused it.'; },
+      droppedChange: 'Could not send a change. The server refused it.'
+    },
     loading: 'Turning the page\u2026',
     loadFailed: 'Could not load the log. Try again.',
     retry: 'Try again',

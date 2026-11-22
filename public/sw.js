@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v30',
+  version: 'v31',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -51,6 +51,11 @@ AppKitSW.setup({
     '/js/log/glyph.js',
     '/js/log/api.js',
     '/js/log/toast.js',
+    '/js/log/outbox/model.js',
+    '/js/log/outbox/store.js',
+    '/js/log/outbox/queue.js',
+    '/js/log/outbox/save.js',
+    '/js/log/outbox/replay.js',
     '/js/log/clipboard.js',
     '/js/log/view.js',
     '/js/log/sheet.js',

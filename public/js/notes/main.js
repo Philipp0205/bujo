@@ -10,14 +10,14 @@
   var L = window.BujoLog;
   var B = window.BujoNotes;
   var root = document.getElementById('notes');
-  var state = { status: 'loading', entries: [] };
+  var state = { status: 'loading', entries: [], offline: false };
   var booted = false;
 
-  /** The grid, an empty note, or the loading and error notes, for the current status. */
+  /** The grid, an empty note, or the loading and error notes, for the current status. A hint sits above the grid while offline. */
   function body() {
     if (state.status !== 'ready') return B.view.stateNote(state.status, reload);
     if (!state.entries.length) return B.view.stateNote('empty');
-    return B.view.groupList(B.model.groups(B.model.cards(state.entries, L.dates.todayIso())), open);
+    return [state.offline ? B.view.offlineHint() : null, B.view.groupList(B.model.groups(B.model.cards(state.entries, L.dates.todayIso())), open)];
   }
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
@@ -32,19 +32,27 @@
     if (entry) L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload });
   }
 
-  /** Takes a list. The grid is only drawn again when it differs from what is on screen. */
+  /** Takes a list. The grid is only drawn again when it differs from what is on screen (or the offline hint has to go). */
   function accept(entries) {
-    var same = state.status === 'ready' && JSON.stringify(entries) === JSON.stringify(state.entries);
+    var same = state.status === 'ready' && !state.offline && JSON.stringify(entries) === JSON.stringify(state.entries);
     state.entries = entries;
     state.status = 'ready';
+    state.offline = false;
     if (!same) draw();
   }
 
-  /** A failed read keeps the grid that is on screen, and shows the error note only when there is none. */
-  function failed() {
-    if (state.status === 'ready') return;
-    state.status = 'error';
+  /** A failed read keeps the grid that is on screen. With no connection it says so quietly instead of failing; else the error note shows when there is no grid. */
+  function failed(error) {
+    var offline = L.outbox.model.isNetworkMiss(error, navigator.onLine);
+    if (offline) state.offline = true;
+    if (state.status === 'ready' && !offline) return;
+    state.status = state.status === 'ready' ? 'ready' : offline ? 'offline' : 'error';
     draw();
+  }
+
+  /** The connection came back: read the notes again quietly. */
+  function onOnline() {
+    if (booted) load(false);
   }
 
   /** Reads the notes through the cache. paintCache draws the last list at once when the screen has no list yet. */
@@ -74,5 +82,6 @@
     return BujoNav.data.warm(BujoNav.data.KEYS.notes, L.api.listNotes);
   }
 
+  window.addEventListener('online', onOnline);
   BujoNav.router.start('notes', { show: show, warm: warm });
 })();

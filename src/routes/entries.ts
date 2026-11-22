@@ -1,9 +1,9 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
 import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
-import { createEntryStore, type EntryStore } from "../log/store.ts";
+import { createEntryStore, EntryIdTaken, type EntryStore } from "../log/store.ts";
 import { checkEntryPatch, checkNewEntry, checkRange } from "../log/validation.ts";
-import type { Checked, Entry } from "../log/types.ts";
+import type { Checked, Entry, NewEntry } from "../log/types.ts";
 import { readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
@@ -28,7 +28,7 @@ function methodNotAllowed(allow: string): never {
  *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet (any other onPaper value is a 400)
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
- *   POST  /api/entries             a new entry, at the end of its day
+ *   POST  /api/entries             a new entry, at the end of its day. An optional client id (a UUID) makes it idempotent: a repeat answers 200 with the stored entry, an id of another user is a 409
  *   PATCH /api/entries/:id         change date, type, title, tags (a list, empty when none), time, indent (0 or 1) or body (the markdown of a free note, null when none)
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
@@ -56,9 +56,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
     const input = valid(checkNewEntry(await readJson(req, { max: ENTRY_BODY_MAX })));
-    const created = store.create(userId, input, accounts.now());
-    sendJson(res, 201, { entry: ctx.sync ? ctx.sync.enqueue(userId, created) : created });
-    return true;
+    return createEntry(ctx, store, userId, input);
   }
 
   const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written)?$/.exec(pathname);
@@ -83,6 +81,27 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   const entry = store.update(userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch, entry) ? ctx.sync.enqueue(userId, entry) : entry });
+  return true;
+}
+
+/**
+ * POST a new entry. A client id the user already has is a replay of an offline save: 200 with the stored entry, nothing
+ * inserted and no second push. An id of another user is a 409. A new entry answers 201 and is pushed after the answer.
+ */
+function createEntry(ctx: RouteContext, store: EntryStore, userId: string, input: NewEntry): boolean {
+  const replay = input.id ? store.get(userId, input.id) : undefined;
+  if (replay) {
+    sendJson(ctx.res, 200, { entry: replay });
+    return true;
+  }
+  let created: Entry;
+  try {
+    created = store.create(userId, input, ctx.accounts.now());
+  } catch (error) {
+    if (error instanceof EntryIdTaken) throw new HttpError(409, "that id is already in use");
+    throw error;
+  }
+  sendJson(ctx.res, 201, { entry: ctx.sync ? ctx.sync.enqueue(userId, created) : created });
   return true;
 }
 
