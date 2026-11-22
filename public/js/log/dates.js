@@ -55,5 +55,20 @@
     return { from: from < first ? first : from, to: to };
   }
 
-  L.dates = { todayIso: todayIso, addDays: addDays, dayHeading: dayHeading, windowAround: windowAround, windowWith: windowWith };
+  /** The first and last day the log can load together with the usual window around today (the stretched window stays within the server's range cap). */
+  function reachable(today) {
+    var usual = windowAround(today);
+    return { from: addDays(usual.to, -(MAX_DAYS - 1)), to: addDays(usual.from, MAX_DAYS - 1) };
+  }
+
+  /** Whether a day can be loaded together with the usual window around today. */
+  function reaches(today, iso) {
+    var range = reachable(today);
+    return iso >= range.from && iso <= range.to;
+  }
+
+  L.dates = {
+    todayIso: todayIso, parseIso: parseIso, addDays: addDays, dayHeading: dayHeading, windowAround: windowAround, windowWith: windowWith,
+    reachable: reachable, reaches: reaches
+  };
 })();

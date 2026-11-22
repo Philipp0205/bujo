@@ -1,5 +1,5 @@
 /*
- * Render functions of the daily log: header, day groups, ink cards. They build nodes and call back, they never fetch.
+ * Render functions of the daily log: header, the entries of a day, ink cards. They build nodes and call back, they never fetch.
  * actions: open(entry), add(), toggleDone(entry), and select { on(), ticked(entry), toggle(entry) } for select mode.
  * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, done/model.js, paper/recent.js and paper/view.js (the row mark and the header button).
  */
@@ -17,13 +17,6 @@
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */
   function todayMark() {
     return h('span', { class: 'today', 'data-testid': 'today-mark' }, L.copy.today);
-  }
-
-  /** The heading of a day, like "Friday 20.11", with the today mark on today. */
-  function dayHeader(day) {
-    return h('h2', { class: 'paper-day', 'data-date': day.date },
-      L.dates.dayHeading(day.date),
-      day.isToday ? todayMark() : null);
   }
 
   /** The pills under a title: tag, time, "not synced", then the sync dot (local or failed only). Null when there is nothing to show. */
@@ -99,7 +92,7 @@
       L.paper.recent.shows(entry, today) ? L.paper.view.rowMark() : null);
   }
 
-  /** The quiet "+ Add entry" row under today's entries. Its empty space starts a line too. */
+  /** The quiet "+ Add entry" row under the entries of the page on screen. Its empty space starts a line too. */
   function addRow(onAdd) {
     return h('button', { class: 'paper-add', type: 'button', 'data-action': 'add-entry', onclick: onAdd }, L.copy.addEntry);
   }
@@ -113,22 +106,16 @@
       }));
   }
 
-  /** A day: its heading, a card per top-level entry, and the add row when it is today (not while selecting). */
-  function dayGroup(day, actions, today) {
-    return h('section', { class: 'paper-day-group', 'data-date': day.date, 'data-today': day.isToday ? 'true' : null },
-      dayHeader(day),
-      L.days.cardsOf(day.entries).map(function (card) { return entryCard(card, actions, today); }),
-      day.isToday && !actions.select.on() ? addRow(actions.add) : null);
+  /** The entries of one day: a card per top-level entry, then the add row (not while selecting). The date heading is on the page's date row. */
+  function dayPage(date, entries, actions, today) {
+    return h('section', { class: 'paper-day-group', 'data-date': date },
+      L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return entryCard(card, actions, today); }),
+      actions.select.on() ? null : addRow(actions.add));
   }
 
   /** The quiet line above the days while the device is offline. */
   function offlineHint() {
     return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, L.copy.offline.hint);
-  }
-
-  /** All the days of the window, oldest first. */
-  function dayList(entries, today, actions) {
-    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions, today); });
   }
 
   /** A quiet line for loading, with a retry button after a failed load. */
@@ -140,5 +127,5 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, L.copy.retry));
   }
 
-  L.view = { header: header, dayList: dayList, stateNote: stateNote, offlineHint: offlineHint };
+  L.view = { header: header, todayMark: todayMark, dayPage: dayPage, stateNote: stateNote, offlineHint: offlineHint };
 })();

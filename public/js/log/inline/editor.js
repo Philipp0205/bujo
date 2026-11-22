@@ -4,7 +4,8 @@
  * Needs markup.js, tags.js, model.js, row.js, type.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
- * host: today(), draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
+ * host: today() the calendar day, pageDate() the day of the page on screen (where a new line goes), draw() renders the page,
+ *       entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
  *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
  *       openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
@@ -179,7 +180,7 @@
 
   /** An empty line is not saved: a new one is dropped, an existing one keeps its saved title. Nothing is sent or deleted. */
   function abandon(line, next) {
-    if (next) start(model.blank(host.today()));
+    if (next) start(model.blank(host.pageDate()));
     else end();
     return { ok: true, entry: line.original };
   }
@@ -209,7 +210,7 @@
   function saved(line, entry, next) {
     if (!next) end();
     else if (line.isNew && entry.date === line.home) start(model.blank(line.home));
-    else start(model.blank(host.today()));
+    else start(model.blank(host.pageDate()));
   }
 
   /** A failed save keeps the line open with its draft and a short error. */
@@ -263,10 +264,10 @@
     commit(false).then(function (result) { if (result.ok) make(); });
   }
 
-  /** The "+ Add entry" tap and the empty space: a new line, or the next one when a line is already being typed. */
+  /** The "+ Add entry" tap and the empty space: a new line on the page being shown, or the next one when a line is already being typed. */
   function addLine() {
-    if (!active) { start(model.blank(host.today())); return; }
-    if (active.saving) { active.saving.then(function (result) { if (result.ok) start(model.blank(host.today())); }); return; }
+    if (!active) { start(model.blank(host.pageDate())); return; }
+    if (active.saving) { active.saving.then(function (result) { if (result.ok) start(model.blank(host.pageDate())); }); return; }
     if (active.isNew && !model.hasTitle(active)) { focusTitle(); return; }
     commit(true);
   }

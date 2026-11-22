@@ -1,5 +1,5 @@
 /*
- * Pure view model of the log: entries grouped by day, the cards of a day, and the pills of an entry.
+ * Pure view model of the log: the entries of a day, the cards of a day, and the pills of an entry.
  * No DOM here. Words come from copy.js.
  */
 (function () {
@@ -15,16 +15,6 @@
   /** The entries of one day, in the order the server keeps them. */
   function dayEntries(entries, date) {
     return entries.filter(function (entry) { return entry.date === date; }).sort(byPosition);
-  }
-
-  /** Days in date order, each with its entries in order. Today is always there, even with no entries. */
-  function groupDays(entries, today) {
-    var dates = {};
-    entries.forEach(function (entry) { dates[entry.date] = true; });
-    dates[today] = true;
-    return Object.keys(dates).sort().map(function (date) {
-      return { date: date, isToday: date === today, entries: dayEntries(entries, date) };
-    });
   }
 
   /** Whether an entry of this type has a sync state to show. Notes never go to CalDAV, so they show none. */
@@ -71,7 +61,7 @@
   }
 
   L.days = {
-    groupDays: groupDays, dayEntries: dayEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
+    dayEntries: dayEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
     entryPills: entryPills, editPills: editPills
   };
 })();

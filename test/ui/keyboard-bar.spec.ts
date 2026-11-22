@@ -37,7 +37,7 @@ const key = (page: Page, name: string) => page.locator(`.inline-bar .bar-key[dat
 
 /** Opens a saved row for typing: tap it, the bar comes up. */
 async function openRow(page: Page, offset: number, title: string): Promise<void> {
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/?day=${day(offset)}`);
   await row(page, offset, title).click();
   await expect(page.locator(".inline-bar")).toBeVisible();
 }

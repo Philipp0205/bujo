@@ -81,25 +81,42 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   await page.goto(app.baseUrl);
   await expect(row(page, "Heute Aufgabe")).toBeVisible();
 
-  // Headers: yesterday, today, tomorrow, in date order. Days outside the window are not shown.
-  await expect(page.locator(".paper-day")).toHaveText([
-    heading(day(-1)),
-    new RegExp(`^${heading(day(0))}\\s*Today$`),
-    heading(day(1)),
-  ]);
+  // One page per day: today opens, with its own heading and rows only. Days outside the window are no pages at all.
+  await expect(page.locator(".paper-day")).toHaveText([new RegExp(`^${heading(day(0))}\\s*Today$`)]);
+  await expect(page.getByTestId("page-folio")).toHaveText("2");
+  await expect(row(page, "Gestern erledigt")).toHaveCount(0);
+  await expect(row(page, "Vermieter")).toHaveCount(0);
+
+  // Yesterday is one page back, tomorrow one forward, and the ends have no more.
+  await page.getByTestId("page-prev").click();
+  await expect(page.locator(".paper-day")).toHaveText([heading(day(-1))]);
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(-1));
+  await expect(page.locator(".paper-row")).toHaveCount(2);
+  await expect(page.getByTestId("page-prev")).toBeDisabled();
+  await page.getByTestId("page-next").click();
+  await page.getByTestId("page-next").click();
+  await expect(page.locator(".paper-day")).toHaveText([heading(day(1))]);
+  await expect(page.getByTestId("page-next")).toBeDisabled();
+  await page.getByTestId("page-prev").click();
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(0));
   await expect(row(page, "Viel zu alt")).toHaveCount(0);
   await expect(row(page, "Viel zu weit weg")).toHaveCount(0);
 
-  // Rows sit under their own day, and each type has its glyph from the sprite.
-  const yesterday = page.locator(`.paper-day-group[data-date="${day(-1)}"]`);
-  await expect(yesterday.locator(".paper-row")).toHaveCount(2);
+  // Each type has its glyph from the sprite.
   const glyph = (title: string) => row(page, title).locator(".paper-sym use").getAttribute("href");
-  expect(await glyph("Gestern erledigt")).toBe("#g-done");
-  expect(await glyph("Gestern verschoben")).toBe("#g-moved");
   expect(await glyph("Heute Aufgabe")).toBe("#g-task");
   expect(await glyph("Mittagessen")).toBe("#g-event");
   expect(await glyph("Küchengarten")).toBe("#g-note");
+  await page.getByTestId("page-next").click();
   expect(await glyph("Vermieter")).toBe("#g-sched");
+  await page.getByTestId("page-prev").click();
+  await page.getByTestId("page-prev").click();
+  expect(await glyph("Gestern erledigt")).toBe("#g-done");
+  expect(await glyph("Gestern verschoben")).toBe("#g-moved");
+  await expect(row(page, "Gestern erledigt")).toHaveAttribute("data-type", "done");
+  await expect(row(page, "Gestern erledigt").locator(".paper-title")).toHaveCSS("text-decoration-line", "line-through");
+  await expect(row(page, "Gestern verschoben")).toHaveCSS("opacity", "0.55");
+  await page.getByTestId("page-next").click();
 
   // Pills under the title: the tag, then the time, or "not synced" when a local task has no tag. The dot says local.
   // A note is never synced, so it shows no label and no dot.
@@ -110,9 +127,6 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   await expect(row(page, "Küchengarten").locator(".sync-mark")).toHaveCount(0);
   await expect(row(page, "Küchengarten")).not.toContainText("not synced");
   await expect(row(page, "Heute Aufgabe").locator(".sync-mark")).toHaveAttribute("data-sync", "local");
-  await expect(row(page, "Gestern erledigt")).toHaveAttribute("data-type", "done");
-  await expect(row(page, "Gestern erledigt").locator(".paper-title")).toHaveCSS("text-decoration-line", "line-through");
-  await expect(row(page, "Gestern verschoben")).toHaveCSS("opacity", "0.55");
 });
 
 test("a note shows no sync label and no dot, a task and an event next to it still do", async ({ page }) => {
@@ -284,11 +298,13 @@ test("tap a row to type in its title; type (marker), tag and day change and save
   await input.fill("Kaffeebohnen bestellt");
   await page.keyboard.press("Escape");
 
+  // The entry now belongs to tomorrow: it leaves today's page, and tomorrow is a page with it.
+  await expect(page.locator(".inline-bar")).toBeHidden();
+  await expect(row(page, "Kaffeebohnen")).toHaveCount(0);
+  await page.getByTestId("page-next").click();
   const moved = page.locator(`.paper-day-group[data-date="${day(1)}"] .paper-row`, { hasText: "Kaffeebohnen bestellt" });
   await expect(moved).toHaveAttribute("data-type", "done");
   await expect(moved.locator(".pill")).toHaveText(["not synced"]);
-  await expect(page.locator(`.paper-day-group[data-date="${day(0)}"] .paper-row`, { hasText: "Kaffeebohnen" })).toHaveCount(0);
-  await expect(page.locator(".inline-bar")).toBeHidden();
 });
 
 test("the details sheet of a saved entry saves its fields, Escape and the scrim close it without saving", async ({ page }) => {

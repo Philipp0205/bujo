@@ -1,0 +1,275 @@
+/*
+ * bujo daily pages: the log is a notebook, one day per page. The log fills the screen above the tab bar, the date row stays put, and
+ * a long day scrolls inside its page (.page-body), so the last row and "+ Add entry" always end above the bar. Also the page turn, the
+ * edge turn targets and the day picker. Everything is ink on paper, in the paper tokens. Loaded after log.css and tabs.css.
+ */
+
+/* ----- The page fills the screen ----- */
+
+#log.paper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+/* An id selector beats the router's own rule for a hidden tab page. */
+#log.paper[hidden] { display: none; }
+html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
+
+.paper-page.daily-page {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 16px;
+  /* A vertical drag scrolls the page body; a horizontal one is a page turn or the swipe-to-done gesture (js/log/pages/turn.js). */
+  touch-action: pan-y;
+}
+
+/* ----- The date row ----- */
+
+.page-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 0 0 4px;
+}
+.page-title { display: flex; align-items: center; flex: 1 1 auto; gap: 8px; min-width: 0; }
+.page-head .paper-day { flex: none; margin: 0; padding: 0; }
+
+/* The date is a button that opens the day picker. It reads as the title of the page, with a faint dotted underline as its hint. */
+.page-date {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: italic 400 19px/26px var(--font-text);
+  font-variation-settings: "opsz" 19, "wght" 450;
+  font-synthesis: none;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 0.75px;
+  text-decoration-color: color-mix(in srgb, var(--paper-ink) 45%, transparent);
+  text-underline-offset: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-date:disabled { cursor: default; text-decoration: none; }
+.page-head .today { margin-left: 0; }
+
+/* The way back to today: a small pen-ringed chip. Its tap area is taller than it looks. */
+.page-today-jump {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  height: 28px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: italic 400 15px/26px var(--font-text);
+  font-variation-settings: "opsz" 15, "wght" 400;
+  font-synthesis: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-today-jump::after { content: ""; position: absolute; inset: -8px -4px; }
+.page-today-jump:disabled { opacity: 0.35; cursor: default; }
+
+/* The arrows around the page number. Room is left to the left of them for a later view switcher. */
+.page-nav { flex: none; display: flex; align-items: center; }
+.page-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-arrow svg { display: block; width: 20px; height: 20px; stroke: currentColor; fill: none; }
+.page-arrow:disabled { opacity: 0.28; cursor: default; }
+
+/* The page number, small and quiet, like the folio at the foot of a notebook page. */
+.page-folio {
+  min-width: 22px;
+  text-align: center;
+  color: var(--paper-muted);
+  font: italic 400 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" 400;
+  font-synthesis: none;
+  font-variant-numeric: lining-nums;
+}
+
+html.ak-base .page-head :focus-visible,
+html.ak-base .day-picker :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
+
+/* ----- The leaf: the scrolling body of the day ----- */
+
+.page-leaf {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The body is wider than the page by the page's own padding, so the pen outline of a card is never clipped at its edge. */
+.page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 -16px;
+  padding: 0 16px 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+/* While a line is typed, the page ends high enough that the last card can scroll above the edit sheet. */
+html.is-editing .page-body { padding-bottom: 320px; }
+
+/* The edge targets: a narrow strip down each side that turns the page with one tap. They sit in the page margin, over no content. */
+.page-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 16px;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-edge-prev { left: -16px; }
+.page-edge-next { right: -16px; }
+
+/* ----- The page turn ----- */
+
+/* The new leaf slides in from the side it comes from, on a soft paper shadow that fades as it settles. */
+@keyframes leaf-in-next {
+  from { transform: translateX(36px); opacity: 0.4; box-shadow: -14px 0 26px rgba(20, 14, 10, 0.26); }
+  to { transform: none; opacity: 1; box-shadow: -14px 0 26px rgba(20, 14, 10, 0); }
+}
+@keyframes leaf-in-prev {
+  from { transform: translateX(-36px); opacity: 0.4; box-shadow: 14px 0 26px rgba(20, 14, 10, 0.26); }
+  to { transform: none; opacity: 1; box-shadow: 14px 0 26px rgba(20, 14, 10, 0); }
+}
+.page-leaf[data-turn="next"] { animation: leaf-in-next 220ms ease-out both; }
+.page-leaf[data-turn="prev"] { animation: leaf-in-prev 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-leaf[data-turn] { animation: none; }
+}
+
+/* ----- The day picker ----- */
+
+.picker-layer { position: fixed; inset: 0; z-index: 45; }
+.picker-scrim { position: absolute; inset: 0; background: transparent; }
+
+.day-picker {
+  position: absolute;
+  left: 16px;
+  box-sizing: border-box;
+  width: min(332px, calc(100vw - 32px));
+  padding: 6px 8px 10px;
+  background: var(--sheet-bg);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
+  color: var(--paper-ink);
+  font-family: var(--font-text);
+}
+
+.picker-head { display: flex; align-items: center; justify-content: space-between; }
+.picker-month {
+  flex: 1;
+  text-align: center;
+  font: italic 400 17px/24px var(--font-text);
+  font-variation-settings: "opsz" 17, "wght" 450;
+  font-synthesis: none;
+}
+.picker-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.picker-arrow svg { display: block; width: 18px; height: 18px; stroke: currentColor; fill: none; }
+.picker-arrow:disabled { opacity: 0.28; cursor: default; }
+
+.picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
+.picker-weekday {
+  padding: 2px 0 6px;
+  text-align: center;
+  color: var(--paper-muted);
+  font: 400 11px/16px var(--font-ui);
+  letter-spacing: 0.02em;
+}
+.picker-blank { height: 40px; }
+
+/* A day: its number, a dot under it when it has entries, a pen ring when it is the page on screen. Days without entries are faded and off. */
+.picker-day {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  justify-self: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 400 17px/36px var(--font-text);
+  font-variant-numeric: lining-nums;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.picker-day:disabled { color: var(--paper-muted); opacity: 0.5; cursor: default; }
+.picker-day[data-today="true"] { color: var(--paper-today); }
+.picker-day[data-marked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.picker-day[data-selected="true"] { box-shadow: inset 0 0 0 1.25px var(--paper-ink); }
+.picker-day[data-selected="true"][data-today="true"] { box-shadow: inset 0 0 0 1.25px var(--paper-today); }

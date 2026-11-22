@@ -28,7 +28,8 @@
     return type === 'task' || type === 'done' ? row : null;
   }
 
-  /** A pointer went down on a swipeable row, away from the screen edge: the swipe may begin. */
+  /** A pointer went down on a swipeable row, away from the screen edge: the swipe may begin. Gesture split: a swipe that begins on a row is this
+   * done gesture, one that begins anywhere else is a page turn (js/log/pages/turn.js). */
   function onDown(event) {
     start = null;
     if (event.pointerType === 'mouse' && event.button !== 0) return;

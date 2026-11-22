@@ -55,6 +55,6 @@ main[hidden],
 /* An editor or a sheet takes the whole bottom of the screen, so the bar steps aside while the edit sheet is up. */
 html.is-editing .ak-tabbar { display: none; }
 
-/* The last row and the settings footer stay clear of the bar. */
-html.has-tabbar:not(.is-editing) .paper-page { padding-bottom: calc(var(--ak-tab) + 24px); }
+/* The last row and the settings footer stay clear of the bar. The daily page keeps clear of it in its own layout (pages.css). */
+html.has-tabbar:not(.is-editing) .paper-page:not(.daily-page) { padding-bottom: calc(var(--ak-tab) + 24px); }
 html.has-tabbar .bj-app { padding-bottom: calc(var(--ak-tab) + 24px); }

@@ -55,9 +55,20 @@ async function setKeyboard(page: Page, gap: number): Promise<void> {
 const log = (page: Page) => page.getByRole("main", { name: "Daily Log" });
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 
+/** The address of the log on the page of a day, n days from today. The log keeps ?day= in its address. */
+function dayUrl(offset: number): string {
+  return `${app.baseUrl}/?day=${day(offset)}`;
+}
+
+/** Opens the log on the page of a day (the day a test seeded). */
+async function openDay(page: Page, offset: number): Promise<void> {
+  await page.goto(dayUrl(offset));
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(offset));
+}
+
 test("Back closes the edit sheet and stays on the log", async ({ page }) => {
   await seed(page, 1, "Eins");
-  await page.goto(app.baseUrl);
+  await openDay(page, 1);
   const tabs = page.getByRole("navigation", { name: "Main" });
   await expect(tabs).toBeVisible();
   await row(page, "Eins").click();
@@ -67,14 +78,14 @@ test("Back closes the edit sheet and stays on the log", async ({ page }) => {
   await page.goBack();
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await expect(tabs).toBeVisible();
-  await expect(page).toHaveURL(`${app.baseUrl}/`);
+  await expect(page).toHaveURL(dayUrl(1));
   await expect(log(page)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Daily Log" })).toBeVisible();
 });
 
 test("Back on the edit sheet saves a changed line like Escape does", async ({ page }) => {
   await seed(page, 2, "Zwei");
-  await page.goto(app.baseUrl);
+  await openDay(page, 2);
   await row(page, "Zwei").click();
   await page.locator(".paper-edit-input").fill("Zwei geaendert");
 
@@ -97,18 +108,18 @@ test("Back drops an empty new line", async ({ page }) => {
 
 test("Back closes the details sheet and stays on the log", async ({ page }) => {
   await seed(page, 3, "Drei");
-  await page.goto(app.baseUrl);
+  await openDay(page, 3);
   await openDetails(page, "Drei");
 
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page).toHaveURL(`${app.baseUrl}/`);
+  await expect(page).toHaveURL(dayUrl(3));
   await expect(log(page)).toBeVisible();
 });
 
 test("Back closes a bar popover first and leaves the sheet open", async ({ page }) => {
   await seed(page, 4, "Vier");
-  await page.goto(app.baseUrl);
+  await openDay(page, 4);
   await row(page, "Vier").click();
   await page.locator(".inline-bar [data-key=tag]").click();
   await expect(page.locator(".inline-pop")).toBeVisible();
@@ -125,7 +136,7 @@ test("Back closes a bar popover first and leaves the sheet open", async ({ page 
 test("closing the sheet inside the app leaves no extra history entry", async ({ page }) => {
   await seed(page, 5, "Fuenf");
   await page.goto(`${app.baseUrl}/settings`);
-  await page.goto(app.baseUrl);
+  await openDay(page, 5);
   await expect(log(page)).toBeVisible();
   await row(page, "Fuenf").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
@@ -181,10 +192,10 @@ async function storedTitles(page: Page, offset: number): Promise<string[]> {
   return ((await stored.json()).entries as Array<{ title: string }>).map((entry) => entry.title);
 }
 
-/** Settings first, then the log, so there is a real page before the log to go back to. */
-async function openLogFromSettings(page: Page, title: string): Promise<void> {
+/** Settings first, then the log on a day, so there is a real page before the log to go back to. */
+async function openLogFromSettings(page: Page, title: string, offset: number): Promise<void> {
   await page.goto(`${app.baseUrl}/settings`);
-  await page.goto(app.baseUrl);
+  await openDay(page, offset);
   await expect(log(page)).toBeVisible();
   await row(page, title).click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
@@ -193,7 +204,7 @@ async function openLogFromSettings(page: Page, title: string): Promise<void> {
 test("Back after the keyboard was up closes the sheet and the keyboard together and saves", async ({ page }) => {
   await seed(page, 6, "Sechs");
   await fakeViewport(page);
-  await openLogFromSettings(page, "Sechs");
+  await openLogFromSettings(page, "Sechs", 6);
   const sheet = page.getByTestId("edit-sheet");
   await setKeyboard(page, 320);
   await expect(page.locator(".inline-bar")).toBeVisible();
@@ -213,7 +224,7 @@ test("Back after the keyboard was up closes the sheet and the keyboard together 
 test("the Android Back that only dismisses the keyboard closes the sheet and saves", async ({ page }) => {
   await seed(page, -1, "Acht");
   await fakeViewport(page);
-  await openLogFromSettings(page, "Acht");
+  await openLogFromSettings(page, "Acht", -1);
   const sheet = page.getByTestId("edit-sheet");
   await setKeyboard(page, 320);
   await expect(sheet).toBeVisible();
@@ -235,7 +246,7 @@ test("the Android Back that only dismisses the keyboard closes the sheet and sav
 test("a keyboard dismissal with a popover open closes the popover first and keeps the sheet", async ({ page }) => {
   await seed(page, -3, "Neun");
   await fakeViewport(page);
-  await page.goto(app.baseUrl);
+  await openDay(page, -3);
   await row(page, "Neun").click();
   await setKeyboard(page, 320);
   await page.locator(".inline-bar [data-key=tag]").click();
@@ -261,7 +272,7 @@ test("the Android keyboard dismissal drops an empty new line", async ({ page }) 
 test("without a keyboard the bar stays, even when the viewport events fire", async ({ page }) => {
   await seed(page, 7, "Sieben");
   await fakeViewport(page);
-  await page.goto(app.baseUrl);
+  await openDay(page, 7);
   await row(page, "Sieben").click();
   await setKeyboard(page, 0);
   await setKeyboard(page, 40);
@@ -273,7 +284,7 @@ test("without a keyboard the bar stays, even when the viewport events fire", asy
 test("a tap on the backdrop still saves and closes the sheet while the keyboard is up", async ({ page }) => {
   await seed(page, -2, "Zehn");
   await fakeViewport(page);
-  await page.goto(app.baseUrl);
+  await openDay(page, -2);
   await row(page, "Zehn").click();
   await setKeyboard(page, 320);
   await page.locator(".paper-edit-input").fill("Zehn geaendert");
