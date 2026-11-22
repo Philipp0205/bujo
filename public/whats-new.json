@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-22-quick-entry",
+    "date": "2026-11-22",
+    "title": "Add an entry in one tap",
+    "bullets": [
+      "Add in the centre of the bar opens a new entry at once, from any tab, with the keyboard ready.",
+      "Scan is now a camera button in the bottom bar, next to Add, and still opens the camera straight away."
+    ]
+  },
+  {
     "id": "2026-11-22-polish",
     "date": "2026-11-22",
     "title": "Clearer rescans, fewer false marks",

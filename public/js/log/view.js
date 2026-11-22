@@ -9,7 +9,7 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title, and the "Not on paper" button when entries wait to be written down. Scan and Settings live in the tab bar. */
+  /** The page header: the italic title, and the "Not on paper" button when entries wait to be written down. Scan and Add live in the tab bar. */
   function header(count, onOpenPaper) {
     return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title), L.paper.view.control(count, onOpenPaper));
   }

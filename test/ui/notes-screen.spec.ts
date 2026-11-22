@@ -133,7 +133,7 @@ test("the mark also shows after switching from the log to Notes", async ({ page 
 
 test("the log has the bar with Rapid log active, and Notes leads to the notes screen", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
 
   await tab(page, "notes").click();
@@ -148,6 +148,7 @@ test("there is no settings link in the log header, and Account opens settings wi
   await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.locator(".paper-head a")).toHaveCount(0);
+  await expect(page.locator("[data-action=scan]")).toHaveCount(0);
 
   await tab(page, "account").click();
   await expect(page).toHaveURL(`${app.baseUrl}/settings`);

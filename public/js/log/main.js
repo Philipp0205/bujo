@@ -1,6 +1,7 @@
 /*
  * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
- * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here.
+ * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here,
+ * the Add tab opens the new-entry sheet from here.
  * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Rapid log tab is tapped
  * (the page stays in the document, hidden, while another tab is on screen). The last rows come from AppKit.swr at once.
  * While an entry waits for its push to Nextcloud, the log
@@ -27,18 +28,22 @@
     select: L.select.mode
   };
 
-  /** Starts the scan flow with the phone camera opening at once, which is what the Scan tab does. */
+  /** The Add tab: a new line in the edit sheet for today. Not while selecting (the select bar owns the page then). */
+  function addEntry() {
+    if (!L.select.mode.on()) L.inline.editor.addLine();
+  }
+
+  /** Starts the scan flow with the phone camera opening at once. Runs inside the tap on the Scan tab, so the chooser may open. */
   function startScan() {
     L.scan.flow.start({ day: state.today, onApplied: applied, autoCapture: true });
   }
 
-  /** Arriving from Notes or Account with ?scan=1: drops the query so a refresh does not reopen the camera, then starts the scan.
-   * Returns true when it started one. */
+  /** Arriving with ?scan=1 (a shared link): drops the query so a refresh does not reopen the camera.
+   * Returns true when the link asked for a scan. */
   function scanFromLink() {
     var params = new URLSearchParams(window.location.search);
     if (!params.has('scan')) return false;
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.hash);
-    startScan();
     return true;
   }
 
@@ -89,7 +94,7 @@
     return L.view.stateNote(state.status, reload);
   }
 
-  /** The top of the page: the select bar while selecting, otherwise the italic title header with the "Not on paper" button. */
+  /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
   function top() {
     return L.select.mode.on() ? L.select.mode.bar() : L.view.header(L.paper.count.get(), openPaperList);
   }
@@ -199,8 +204,9 @@
     L.paper.count.init(root, openPaperList);
     render();
     load(false, 'first').then(recount);
-    // The camera of a scan is not covered by the what's-new sheet: that waits for the next visit.
+    // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.
     if (ctx.scan || scanFromLink()) startScan();
+    else if (ctx.add) addEntry();
     else BujoWhatsNew.boot.showUnseen();
   }
 
@@ -208,6 +214,7 @@
   function show(ctx) {
     if (!booted) return boot(ctx);
     if (ctx.scan) startScan();
+    else if (ctx.add) addEntry();
     load(true, 'cache').then(recount);
   }
 
@@ -216,5 +223,5 @@
     BujoNav.data.warm(BujoNav.data.KEYS.log, fetchWindow);
   }
 
-  BujoNav.router.start('log', { show: show, scan: startScan, warm: warm });
+  BujoNav.router.start('log', { show: show, scan: startScan, add: addEntry, warm: warm });
 })();

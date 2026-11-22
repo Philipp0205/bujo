@@ -118,7 +118,7 @@ Open `/scan` (the Scan link on the backlog). Take a photo of the day page or pic
 
 ### Scanning a rapid-log page
 
-The camera button in the log header opens the scan screen. Take a photo of the page (or pick one), then review one row per line: type, title, tag, and a keep check. Nothing is written until you press Apply, and only kept rows are written.
+The Scan button in the bottom bar (next to Add) opens the scan screen. Take a photo of the page (or pick one), then review one row per line: type, title, tag, and a keep check. Nothing is written until you press Apply, and only kept rows are written.
 
 - A header date line sets the day (`20.11.2026`, `20.11.`, `Friday 20.11`). With none, the day open in the log is used. You can pick another day in the review.
 - Scanning the same page again is a rescan, and the same matcher serves the first scan. Each line is matched 1:1 to an entry of that day (stored scan key, then exact title, then a fuzzy title with a soft type and position hint; two equally good entries bind neither). A line is **new** (no match), **edited** (matched, and type, title, tag or time differ, shown as before and after) or **unchanged** (folded into a count). An entry that no later scan mentions is never flagged or deleted, and an entry you changed in the app since the last scan is not overwritten by an unchanged paper line.

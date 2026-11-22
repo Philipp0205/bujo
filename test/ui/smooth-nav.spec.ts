@@ -45,11 +45,11 @@ async function watchLoadingLine(page: Page): Promise<void> {
   }, LOADING);
 }
 
-test("the tabs swap in place: Notes, Account and back to the log, with the bar kept and Scan never active", async ({ page }) => {
+test("the tabs swap in place: Notes, Account and back to the log, with the bar kept and Add never active", async ({ page }) => {
   const title = await seedNote(page, "Kitchen garden");
   await page.goto(app.baseUrl);
   await expect(heading(page, "Rapid Log")).toBeVisible();
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
   const barNode = await bar(page).elementHandle();
   await markDocument(page);
 
@@ -58,7 +58,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await expect(heading(page, "Notes")).toBeVisible();
   await expect(card(page, title)).toHaveCount(1);
   await expect(tab(page, "notes")).toHaveAttribute("aria-current", "page");
-  await expect(tab(page, "scan")).not.toHaveAttribute("aria-current", "page");
+  await expect(tab(page, "add")).not.toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("main", { name: "Rapid Log" })).toBeHidden();
 
   await tab(page, "account").click();
@@ -72,7 +72,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(heading(page, "Rapid Log")).toBeVisible();
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
 
   // One document the whole time, and one bar that was never replaced.
   expect(await sameDocument(page)).toBe(true);
@@ -80,19 +80,23 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   expect(await barNode!.evaluate((node) => node.isConnected)).toBe(true);
 });
 
-test("Scan from Notes goes to the log in place and starts the camera, and a reload does not reopen it", async ({ page }) => {
+test("Add from Notes goes to the log in place, opens the edit sheet with the title focused, and a reload leaves no sheet open", async ({ page }) => {
   await page.goto(`${app.baseUrl}/notes`);
   await markDocument(page);
-  await tab(page, "scan").click();
-  await expect(page.getByTestId("scan-screen")).toBeVisible();
+  // The log is added in the background once the page is quiet; Add is tapped when it is there.
+  await page.waitForFunction(() => !!document.querySelector("#log") && !!document.querySelector('script[src="/js/log/main.js"]'));
+  await page.waitForTimeout(500);
+  await tab(page, "add").click();
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Entry title" })).toBeFocused();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(heading(page, "Rapid Log")).toBeVisible();
-  await expect(tab(page, "scan")).not.toHaveAttribute("aria-current", "page");
+  await expect(page.locator(".ak-tabbar [data-tab=add]")).not.toHaveAttribute("aria-current", "page");
   expect(await sameDocument(page)).toBe(true);
 
   await page.reload();
   await expect(heading(page, "Rapid Log")).toBeVisible();
-  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  await expect(page.getByTestId("edit-sheet")).toBeHidden();
 });
 
 test("Back from Notes lands on the log and stays in the app, in the same document", async ({ page }) => {

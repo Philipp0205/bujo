@@ -11,6 +11,7 @@
     tabs: {
       log: 'Rapid log',
       notes: 'Notes',
+      add: 'Add',
       scan: 'Scan',
       account: 'Account'
     }

@@ -9,9 +9,9 @@
  * The overlay Back (nav/overlays.js, ak-nav.js) is not touched: its entries keep the page's address, so they change no tab.
  * A tab that cannot be shown here (its files fail to load, the session is gone) falls back to the old full navigation.
  *
- * A tab page's boot calls start(id, view) once. view = { show(ctx), scan(), warm() }: show runs each time the tab comes to the
- * front (ctx.scan asks the log to start a scan), scan is the Scan tab on that page, warm reads the tab's data into the cache while
- * another tab is on screen. The page that was loaded cold also gets the one-time setup here (theme colour, service worker, the
+ * A tab page's boot calls start(id, view) once. view = { show(ctx), scan(), add(), warm() }: show runs each time the tab comes to the
+ * front (ctx.scan asks the log to start a scan, ctx.add to open a new entry), scan and add are what a scan link and the Add tab
+ * do on that page, warm gets the tab ready (data in the cache, the editor set up) while another tab is on screen. The page that was loaded cold also gets the one-time setup here (theme colour, service worker, the
  * bar) and its first show. Needs nav/pages.js, nav/tabs.js, ak-tabbar.js. Nothing here knows what a tab looks like.
  */
 (function () {
@@ -24,6 +24,7 @@
   var HOSTS = { log: '#log', notes: '#notes', account: '#app' };
   var BACK_WAIT_MS = 400;
   var WARM_DELAY_MS = 400;
+  var HOLD_FOCUS_MS = 4000;
 
   var views = {};
   var titles = {};
@@ -102,7 +103,8 @@
     if (current === 'log' && to !== 'log') {
       tabs.remember(true);
       window.history.pushState(null, '', tabs.PATHS[to]);
-    } else if (to === 'log' && ctx.scan) {
+    } else if (to === 'log' && (ctx.scan || ctx.add)) {
+      // A scan or an add must show the log in this very turn (the tap's keyboard or camera), so no step back in history.
       window.history.pushState(null, '', tabs.PATHS.log);
     } else if (to === 'log' && tabs.logIsBefore()) {
       return backToLog();
@@ -124,11 +126,31 @@
     });
   }
 
-  /** The Scan tab: the page's own scan when it has one, else the log, which starts it. */
+  /** A scan request (the Scan tab, a ?scan=1 link, or code): the page's own scan when it has one, else the log, which starts it. */
   function scan() {
     var view = views[current];
     if (view && view.scan) view.scan();
     else go('log', { scan: true });
+  }
+
+  /** Moves the focus into a hidden field inside the tap, so the soft keyboard can open while the log is still loading. The editor takes the focus on. */
+  function holdFocus() {
+    var field = document.createElement('textarea');
+    field.setAttribute('aria-hidden', 'true');
+    field.tabIndex = -1;
+    Object.assign(field.style, { position: 'fixed', top: '0', left: '0', width: '1px', height: '1px', opacity: '0', fontSize: '16px' });
+    document.body.appendChild(field);
+    field.focus({ preventScroll: true });
+    window.setTimeout(function () { field.remove(); }, HOLD_FOCUS_MS);
+  }
+
+  /** The Add tab: the page's own new entry when it has one, else the log, which opens it. With the log in the document this runs
+   * in the tap itself (go is synchronous then), which is what lets the keyboard open. */
+  function add() {
+    var view = views[current];
+    if (view && view.add) { view.add(); return; }
+    if (!isReady('log')) holdFocus();
+    go('log', { add: true });
   }
 
   /** A step in history: shows the tab of the new address. Overlay entries and the first-entry stub are not tabs. */
@@ -192,5 +214,5 @@
     if (current === null) coldStart(id);
   }
 
-  N.router = { start: start, go: go, scan: scan, leaveStub: leaveStub };
+  N.router = { start: start, go: go, scan: scan, add: add, leaveStub: leaveStub };
 })();
