@@ -1,5 +1,5 @@
 /*
- * The four tab icons (the camera of Scan included) as inline SVG nodes, drawn with the same fine pen line as the paper glyphs.
+ * The four tab icons (the plus of Add included) as inline SVG nodes, drawn with the same fine pen line as the paper glyphs.
  * They are built here, not taken from the sprite of the rapid log, so every page that shows the bar (the log, Notes, Settings)
  * has them. The kit adds ak-tab-icon.
  */
@@ -21,10 +21,8 @@
       ['path', { d: 'M7 3.75h7.2L19 8.55V19a1.25 1.25 0 0 1-1.25 1.25H7A1.25 1.25 0 0 1 5.75 19V5A1.25 1.25 0 0 1 7 3.75z' }],
       ['path', { d: 'M14 3.9v4.7h4.7M9 13h6M9 16.5h4' }]
     ],
-    scan: [
-      ['rect', { x: 3.25, y: 7.75, width: 17.5, height: 12, rx: 3.25 }],
-      ['circle', { cx: 12, cy: 13.75, r: 3.35 }],
-      ['path', { d: 'M9 7.75V6.4c0-.5.4-.9.9-.9h4.2c.5 0 .9.4.9.9v1.35' }]
+    add: [
+      ['path', { d: 'M12 5.5v13M5.5 12h13' }]
     ],
     account: [
       ['circle', { cx: 12, cy: 8.5, r: 3.25 }],

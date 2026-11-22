@@ -175,6 +175,22 @@ html.ak-base body {
   color: var(--paper-ink);
 }
 
+/* The right side of the header: the "Not on paper" button (when there is one) and the camera, level with the title. */
+.paper-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 34px 4px 18px 0;
+}
+
+.paper-actions .ak-icon-btn {
+  width: 44px;
+  height: 44px;
+  color: var(--paper-ink);
+  text-decoration: none;
+}
+.paper-actions .ak-icon-btn svg { display: block; }
+
 /* ----- Ink strokes: the pen outline of a node, drawn by js/log/ink. It sits under the content and never takes a tap. ----- */
 
 .ink-stroke {

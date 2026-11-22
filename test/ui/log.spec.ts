@@ -42,7 +42,7 @@ test("without a session the rapid log sends you to sign in", async ({ browser })
   await context.close();
 });
 
-test("an empty log shows today with its mark and the add row, the tab bar and no settings link, and no error", async ({ page }) => {
+test("an empty log shows today with its mark and the add row, the header camera and tab bar, and no settings link, and no error", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto(app.baseUrl);
@@ -54,15 +54,15 @@ test("an empty log shows today with its mark and the add row, the tab bar and no
   await expect(page.locator("[data-testid=today-mark]")).toHaveCount(1);
   await expect(page.locator("[data-action=add-entry]")).toHaveText("+ Add entry");
 
-  await expect(page.getByRole("button", { name: "Scan a page" })).toHaveCount(0);
-  await expect(page.locator(".paper-head [data-action=scan]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Scan a page" })).toBeVisible();
+  await expect(page.locator(".paper-head [data-action=scan]")).toHaveCount(1);
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
   const tabs = page.getByRole("navigation", { name: "Main" });
-  await expect(tabs.locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
-  await expect(tabs.getByRole("button", { name: "Scan" })).toBeEnabled();
+  await expect(tabs.locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Account"]);
+  await expect(tabs.getByRole("button", { name: "Add" })).toBeEnabled();
   await expect(tabs.locator("[data-tab=log]")).toHaveAttribute("aria-current", "page");
-  await expect(tabs.locator("[data-tab=scan]")).not.toHaveAttribute("aria-current", "page");
+  await expect(tabs.locator("[data-tab=add]")).not.toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
 

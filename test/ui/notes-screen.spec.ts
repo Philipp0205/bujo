@@ -133,7 +133,7 @@ test("the mark also shows after switching from the log to Notes", async ({ page 
 
 test("the log has the bar with Rapid log active, and Notes leads to the notes screen", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Account"]);
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
 
   await tab(page, "notes").click();

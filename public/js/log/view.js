@@ -1,7 +1,8 @@
 /*
  * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
  * actions: open(entry), add(), and select { on(), ticked(entry), toggle(entry) } for select mode.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, paper/recent.js and paper/view.js (the row mark and the header button).
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, paper/recent.js and paper/view.js (the row mark and the header button). The header's camera
+ * uses the g-camera symbol of the page's sprite.
  */
 (function () {
   'use strict';
@@ -9,9 +10,23 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The page header: the italic title, and the "Not on paper" button when entries wait to be written down. Scan and Settings live in the tab bar. */
-  function header(count, onOpenPaper) {
-    return h('div', { class: 'paper-head' }, h('h1', null, L.copy.title), L.paper.view.control(count, onOpenPaper));
+  /** The camera button of the header: starts a scan, with the camera opening inside this tap. */
+  function scanButton(onScan) {
+    return h('button', {
+      class: 'ak-icon-btn',
+      type: 'button',
+      'aria-label': L.copy.scanLabel,
+      title: L.copy.scanLabel,
+      'data-action': 'scan',
+      onclick: onScan
+    }, L.glyph.use('g-camera', { width: 24, height: 24, viewBox: '0 0 24 24' }));
+  }
+
+  /** The page header: the italic title, and on the right the "Not on paper" button (only when entries wait) and the scan camera. */
+  function header(count, onOpenPaper, onScan) {
+    return h('div', { class: 'paper-head' },
+      h('h1', null, L.copy.title),
+      h('div', { class: 'paper-actions' }, L.paper.view.control(count, onOpenPaper), scanButton(onScan)));
   }
 
   /** The "Today" mark next to the date of today. Its pen underline is drawn by the ink decorator. */

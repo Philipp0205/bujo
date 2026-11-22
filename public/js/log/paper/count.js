@@ -14,19 +14,19 @@
   var root = null;
   var onOpen = null;
 
-  /** The header on screen, if any (the select bar replaces it while selecting, and then there is nothing to patch). */
+  /** The right side of the header on screen, if any (the select bar replaces the header while selecting, and then there is nothing to patch). */
   function head() {
-    return root ? root.querySelector('.paper-head') : null;
+    return root ? root.querySelector('.paper-head .paper-actions') : null;
   }
 
-  /** Puts the number on the header: adds the button at the first entry, updates it, removes it at zero. */
+  /** Puts the number on the header: adds the button at the first entry (left of the camera), updates it, removes it at zero. */
   function show(count) {
     var bar = head();
     if (!bar) return;
     var node = bar.querySelector('[data-testid="not-on-paper-open"]');
     if (node && count) L.paper.view.setCount(node, count);
     else if (node) node.remove();
-    else if (count) bar.appendChild(L.paper.view.control(count, onOpen));
+    else if (count) bar.insertBefore(L.paper.view.control(count, onOpen), bar.firstChild);
   }
 
   /** Keeps a number and shows it on the header. */
