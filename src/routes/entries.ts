@@ -1,4 +1,5 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
+import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
 import { createEntryStore, type EntryStore } from "../log/store.ts";
 import { checkEntryPatch, checkNewEntry, checkRange } from "../log/validation.ts";
@@ -24,6 +25,7 @@ function methodNotAllowed(allow: string): never {
 /**
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
+ *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet (any other onPaper value is a 400)
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day
@@ -31,6 +33,7 @@ function methodNotAllowed(allow: string): never {
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
+ *   POST  /api/entries/:id/written mark the entry as written on paper (stamps its current fields, not an edit), answers { entry } with onPaper true
  *   GET   /api/entries/:id/photo   the scan photo of a free note (JPEG), 404 when it has none
  *   POST  /api/entries/:id/photo   store the scan photo of a note (a JPEG as the raw body), replacing an earlier one
  * A task entry answers with sync "pending" and is pushed to Nextcloud after the answer is sent.
@@ -47,7 +50,8 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     if (isRead(method)) {
       if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
-      sendJson(res, 200, { entries: store.list(userId, range) });
+      const entries = store.list(userId, range);
+      sendJson(res, 200, { entries: onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter((entry) => !entry.onPaper) : entries });
       return true;
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
@@ -57,11 +61,12 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return true;
   }
 
-  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move)?$/.exec(pathname);
+  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
   const id = decodeId(match[1]);
   if (match[2] === "/photo") return handlePhoto(ctx, userId, id);
   if (match[2] === "/move") return handleMove(ctx, store, userId, id);
+  if (match[2] === "/written") return handleWritten(ctx, store, userId, id);
   if (match[2]) {
     if (method !== "POST") methodNotAllowed("POST");
     sendJson(res, 200, { entry: retrySync(ctx, store, userId, id) });
@@ -107,6 +112,21 @@ async function handleMove(ctx: RouteContext, store: EntryStore, userId: string, 
   return true;
 }
 
+/** ?onPaper=0 asks for the entries not on paper yet. Absent means all; any other value is a 400. */
+function onPaperFilter(value: string | null): boolean {
+  if (value === null) return false;
+  if (value !== "0") throw new HttpError(400, "onPaper must be 0");
+  return true;
+}
+
+/** POST marks the entry as written on paper: stamps its current fields as the paper state. Not an edit, no push. */
+async function handleWritten(ctx: RouteContext, store: EntryStore, userId: string, id: string): Promise<boolean> {
+  if (ctx.method !== "POST") methodNotAllowed("POST");
+  const entry = markWritten(store, userId, id, ctx.accounts.now());
+  if (!entry) throw new HttpError(404, "unknown entry");
+  sendJson(ctx.res, 200, { entry });
+  return true;
+}
 
 /** Pushes an entry again. Only an entry in the error state can be retried. */
 function retrySync(ctx: RouteContext, store: EntryStore, userId: string, id: string): Entry {

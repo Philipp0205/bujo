@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-21-not-on-paper",
+    "date": "2026-11-21",
+    "title": "See what is not on paper yet",
+    "bullets": [
+      "Entries you made in the app carry a small page mark until you have written them in your journal.",
+      "Open Not on paper at the top of the log to copy them all, or mark each one as written."
+    ]
+  },
+  {
     "id": "2026-11-21-smooth-nav",
     "date": "2026-11-21",
     "title": "Tabs that switch at once",

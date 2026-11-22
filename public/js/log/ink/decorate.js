@@ -108,7 +108,7 @@
 
   /** The id of the entry a node belongs to: the row inside it, or the row around it. */
   function entryId(el) {
-    var row = el.matches('.paper-row') ? el : (el.closest('.paper-row') || el.querySelector('.paper-row'));
+    var row = el.matches('.paper-row') ? el : (el.closest('.paper-row, .todo-row') || el.querySelector('.paper-row'));
     return row ? row.getAttribute('data-id') || 'new' : 'new';
   }
 
@@ -132,6 +132,13 @@
       .concat(dress(root, '.pill', 'pill', pillSeed))
       .concat(dress(root, '.today', 'underline', function () { return 'today'; }));
     watch('list', els);
+    drawAll(els);
+  }
+
+  /** Inks the pills of the "not on paper" sheet under root. Call after its rows are painted. */
+  function pills(root) {
+    var els = dress(root, '.pill', 'pill', pillSeed);
+    watch('pills', els);
     drawAll(els);
   }
 
@@ -183,5 +190,5 @@
     drawAll(cards);
   }
 
-  L.ink.decorate = { list: list, notes: notes, chips: chips, sheet: sheet, screen: screen };
+  L.ink.decorate = { list: list, notes: notes, pills: pills, chips: chips, sheet: sheet, screen: screen };
 })();

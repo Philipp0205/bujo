@@ -1,22 +1,8 @@
 import { matchKey } from "../../scan/match.ts";
-import type { ScanEntry, ScanSnapshot } from "../types.ts";
+import type { ScanEntry } from "../types.ts";
 import { alignLines } from "./align.ts";
+import { editedInApp, fieldsOf, norm, snapshotFields, tagKeys } from "./fields.ts";
 import type { Fields, Line, Resolution } from "./types.ts";
-
-const norm = (text: string | null | undefined): string => (text ?? "").trim().toLowerCase();
-
-/** The tags as a sorted list of lowercase keys, so two lists compare as sets (order and case do not matter). */
-const tagKeys = (tags: readonly string[]): string => [...new Set(tags.map(norm))].sort().join("\n");
-
-/** The fields of an entry as the scan compares them. */
-function fieldsOf(entry: ScanEntry): Fields {
-  return { type: entry.type, title: entry.title, tags: entry.tags, time: entry.time };
-}
-
-/** True when every field is the same (a title up to case, spacing, punctuation and umlaut spelling; tags as a set). */
-function sameFields(a: Fields, b: Fields): boolean {
-  return a.type === b.type && matchKey(a.title) === matchKey(b.title) && tagKeys(a.tags) === tagKeys(b.tags) && a.time === b.time;
-}
 
 /** True when the paper agrees with a base: tags or a time the paper does not write are not a difference. */
 function agrees(paper: Fields, base: Fields): boolean {
@@ -24,8 +10,6 @@ function agrees(paper: Fields, base: Fields): boolean {
   const timeOk = !paper.time || paper.time === base.time;
   return paper.type === base.type && matchKey(paper.title) === matchKey(base.title) && tagOk && timeOk;
 }
-
-const snapshotFields = (snap: ScanSnapshot): Fields => ({ type: snap.type, title: snap.title, tags: snap.tags, time: snap.time });
 
 /** The paper line as fields. No tags or an empty time means the paper says none. */
 function paperFields(line: Line): Fields {
@@ -46,11 +30,6 @@ function proposal(paper: Fields, current: Fields): Fields {
 }
 
 const NEW: Resolution = { status: "new", target: null, before: null, after: null, contested: false, protectedEdit: false };
-
-/** True when the person changed the entry in the app after the last scan wrote it. */
-function editedInApp(entry: ScanEntry, snap: ScanSnapshot | null | undefined): snap is ScanSnapshot {
-  return !!snap && entry.updatedAt > snap.at && !sameFields(fieldsOf(entry), snapshotFields(snap));
-}
 
 /** What a line bound to an entry means: unchanged, an app edit to leave alone, or an edit to propose. */
 function classify(line: Line, entry: ScanEntry): Resolution {

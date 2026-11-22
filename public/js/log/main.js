@@ -62,6 +62,7 @@
     state.entries = state.entries.filter(function (entry) { return entry.date !== date; }).concat(entries);
     state.status = 'ready';
     state.version += 1;
+    recount();
   }
 
   /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end.
@@ -73,6 +74,7 @@
     state.status = 'ready';
     state.version += 1;
     watchPending();
+    recount();
   }
 
   /** After a scan is applied or a note saved: show the day it landed on, even when it is outside the usual window. */
@@ -87,9 +89,21 @@
     return L.view.stateNote(state.status, reload);
   }
 
-  /** The top of the page: the select bar while selecting, otherwise the italic title header. */
+  /** The top of the page: the select bar while selecting, otherwise the italic title header with the "Not on paper" button. */
   function top() {
-    return L.select.mode.on() ? L.select.mode.bar() : L.view.header();
+    return L.select.mode.on() ? L.select.mode.bar() : L.view.header(L.paper.count.get(), openPaperList);
+  }
+
+  /** Opens the "not on paper" list. Marking an entry as written reads the log again, so its row mark goes. */
+  function openPaperList() {
+    L.inline.editor.settle(function () {
+      L.paper.sheet.open({ today: state.today, onCount: L.paper.count.set, onChanged: function () { load(true, 'plain'); } });
+    });
+  }
+
+  /** Reads the number of entries not on paper again, after the log changed. */
+  function recount() {
+    L.paper.count.refresh(state.today);
   }
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
@@ -154,7 +168,7 @@
   function reload() {
     state.status = 'loading';
     render();
-    return load(false, 'plain');
+    return load(false, 'plain').then(recount);
   }
 
   /** True while some entry still waits for its push to Nextcloud. */
@@ -182,8 +196,9 @@
     L.inline.editor.init(host);
     L.select.mode.init({ host: host, root: root });
     root.addEventListener('click', onPaperTap);
+    L.paper.count.init(root, openPaperList);
     render();
-    load(false, 'first');
+    load(false, 'first').then(recount);
     // The camera of a scan is not covered by the what's-new sheet: that waits for the next visit.
     if (ctx.scan || scanFromLink()) startScan();
     else BujoWhatsNew.boot.showUnseen();
@@ -193,7 +208,7 @@
   function show(ctx) {
     if (!booted) return boot(ctx);
     if (ctx.scan) startScan();
-    load(true, 'cache');
+    load(true, 'cache').then(recount);
   }
 
   /** Reads the rows into the cache while another tab is on screen, so the first switch here can paint them at once. */

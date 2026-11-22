@@ -25,6 +25,11 @@ export type Entry = {
   indent: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * False when the entry exists in the app but is not written on paper yet: no scan has been applied to it, or the person
+   * changed type, title, tags or time since. Derived from the scan provenance, which itself never reaches the API.
+   */
+  onPaper: boolean;
 };
 
 /** Where an entry lives on the sync target. Kept in the database only, never sent to the browser. */
