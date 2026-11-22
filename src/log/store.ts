@@ -29,6 +29,14 @@ type Row = {
 
 type LinkRow = { remote_href: string | null; remote_uid: string | null; remote_etag: string | null };
 
+/** A client-made entry id that another user already holds. The message is safe to show. */
+export class EntryIdTaken extends Error {
+  constructor() {
+    super("that id is taken");
+    this.name = "EntryIdTaken";
+  }
+}
+
 export type EntryStore = {
   /** Entries from one day to another, both included, by date then position. */
   list(userId: string, range: DateRange): Entry[];
@@ -44,7 +52,10 @@ export type EntryStore = {
   get(userId: string, id: string): Entry | undefined;
   /** The tags in use, with how many entries carry each and when one last changed. Newest use first, then by name. */
   listTags(userId: string): TagUse[];
-  /** A new entry goes to the end of its day, with sync "local". */
+  /**
+   * A new entry goes to the end of its day, with sync "local". With input.id the client picked the id (an offline device):
+   * a repeat of an id the user already has answers the stored entry and changes nothing. An id of another user throws EntryIdTaken.
+   */
   create(userId: string, input: NewEntry, now: number): Entry;
   /**
    * Changes the fields given. Moving to another day puts the entry at the end of that day, not nested.
@@ -150,6 +161,12 @@ export function createEntryStore(db: Db): EntryStore {
     return row.top === null ? 0 : Number(row.top) + 1;
   }
 
+  /** The user an entry id belongs to, or undefined when no entry has it. Ids are unique across users. */
+  function owner(id: string): string | undefined {
+    const row = db.prepare("SELECT user_id FROM entries WHERE id = ?").get(id) as { user_id: string } | undefined;
+    return row?.user_id;
+  }
+
   function get(userId: string, id: string): Entry | undefined {
     const row = db.prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND id = ?`).get(userId, id) as Row | undefined;
     return row ? toEntry(row) : undefined;
@@ -223,7 +240,10 @@ export function createEntryStore(db: Db): EntryStore {
     },
 
     create(userId, input, now) {
-      const id = crypto.randomUUID();
+      const id = input.id ?? crypto.randomUUID();
+      const existing = input.id ? owner(id) : undefined;
+      if (existing === userId) return get(userId, id)!;
+      if (existing !== undefined) throw new EntryIdTaken();
       inTransaction(db, () => {
         db.prepare(
           "INSERT INTO entries (id, user_id, date, time, type, title, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

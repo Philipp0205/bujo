@@ -52,7 +52,7 @@
   /** What the bar keys may do for the active line. A key is off when there is no neighbour or when the day is being changed. Copy needs a title. */
   function caps() {
     if (!active) return { copy: false, up: false, down: false, indent: false, outdent: false };
-    var saved = !active.isNew && active.date === active.original.date;
+    var saved = !active.isNew && active.date === active.original.date && active.original.queued !== 'create';
     var day = host.dayEntries(active.isNew ? active.date : active.original.date);
     var at = day.findIndex(function (entry) { return entry.id === active.id; });
     var nested = active.indent === 1;
@@ -60,7 +60,7 @@
       copy: model.hasTitle(active),
       up: saved && at > 0,
       down: saved && at >= 0 && at < day.length - 1,
-      indent: !nested && (active.isNew ? day.length > 0 : saved && at > 0),
+      indent: !nested && (active.isNew ? day.length > 0 : at > 0 && active.date === active.original.date),
       outdent: nested
     };
   }
@@ -178,12 +178,14 @@
     return error && error.status && error.message ? error.message : L.copy.errors.lineFailed;
   }
 
-  /** Sends a line: POST for a new one (then its indent, which a create does not take), PATCH with only the changes for an existing one. */
+  /**
+   * Sends a line through the outbox: a new one gets its client id once (a retry reuses it, so the server never makes two), an
+   * existing one sends only the changes. Offline, or after a network miss, the line is queued and shows as waiting to send.
+   */
   function send(line, body) {
-    if (!line.isNew) return L.api.update(line.id, body);
-    return L.api.create(body).then(function (entry) {
-      return line.indent === 1 ? L.api.update(entry.id, { indent: 1 }) : entry;
-    });
+    if (!line.isNew) return L.outbox.save.update(line.original, body);
+    line.clientId = line.clientId || L.outbox.model.newId();
+    return L.outbox.save.create(Object.assign({ id: line.clientId }, body), line.indent);
   }
 
   /** Locks the title while a save is in flight, without closing the keyboard. */
@@ -359,10 +361,17 @@
     });
   }
 
-  /** Delete: a new line is just dropped, a saved one is removed from the log (never from Nextcloud). */
+  /** Delete: a new line is just dropped, a saved one is removed from the log (never from Nextcloud). A queued new entry only leaves the queue. */
   function removeLine() {
     var line = active;
     if (line.isNew) { end(); return; }
+    if (line.original.queued === 'create') {
+      L.outbox.save.discard(line.id).then(function () {
+        host.replaceDay(line.original.date, host.dayEntries(line.original.date).filter(function (entry) { return entry.id !== line.id; }));
+        end();
+      });
+      return;
+    }
     request(function () { return L.api.remove(line.id); }, function (entries) {
       host.replaceDay(line.original.date, entries);
       end();
@@ -382,7 +391,7 @@
   function nestLine(level) {
     var line = active;
     if (line.isNew) { line.indent = level; L.inline.row.update(line); showBar(); return; }
-    request(function () { return L.api.update(line.id, { indent: level }); }, function (entry) {
+    request(function () { return L.outbox.save.update(line.original, { indent: level }); }, function (entry) {
       host.upsert(entry);
       line.original = entry;
       line.indent = entry.indent;

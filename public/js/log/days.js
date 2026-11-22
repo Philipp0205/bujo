@@ -32,9 +32,9 @@
     return type !== 'note';
   }
 
-  /** Whether the sync dot shows: only for an entry that is not synced or failed. Notes never show one. */
+  /** Whether the sync dot shows: only for an entry that is not synced or failed. Not for a queued one (its pill says so) and never a note. */
   function showsMark(entry) {
-    return showsSync(entry.type) && (entry.sync === 'local' || entry.sync === 'error');
+    return !entry.queued && showsSync(entry.type) && (entry.sync === 'local' || entry.sync === 'error');
   }
 
   /** One tag pill per tag, in the order they were written. */
@@ -42,11 +42,12 @@
     return (tags || []).map(function (tag) { return { kind: 'tag', text: tag }; });
   }
 
-  /** The pills under a title as { kind, text }: the tags, time, then a quiet "not synced" for a local entry without tags (never a note). */
+  /** The pills under a title as { kind, text }: the tags, time, then "waiting to send" for a queued entry, or a quiet "not synced" for a local one without tags (never a note). */
   function entryPills(entry) {
     var pills = tagPills(entry.tags);
     if (entry.time) pills.push({ kind: 'time', text: entry.time });
-    if (!pills.some(function (pill) { return pill.kind === 'tag'; }) && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
+    if (entry.queued) pills.push({ kind: 'queued', text: L.copy.queued, testid: 'waiting-to-send' });
+    else if (!pills.some(function (pill) { return pill.kind === 'tag'; }) && entry.sync === 'local' && showsSync(entry.type)) pills.push({ kind: 'local', text: L.copy.notSynced });
     return pills;
   }
 

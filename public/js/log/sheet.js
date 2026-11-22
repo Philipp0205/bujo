@@ -164,7 +164,7 @@
       showError(message);
       if (message || save.disabled) return;
       busy(true);
-      L.api.update(entry.id, next).then(function (saved) {
+      L.outbox.save.update(entry, next).then(function (saved) {
         sheet.close();
         options.onSaved(saved);
       }, function (error) {

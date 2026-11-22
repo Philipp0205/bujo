@@ -48,15 +48,20 @@
     return groups.map(function (group) { return grid(group.cards, onOpen); });
   }
 
-  /** A quiet line for loading, for an empty list, and for a failed load with a retry button. */
+  /** A quiet line for loading, for an empty list, for no connection and no cached list, and for a failed load with a retry button. */
   function stateNote(kind, onRetry) {
     var copy = B.copy;
-    var text = kind === 'error' ? copy.loadFailed : kind === 'empty' ? copy.empty : copy.loading;
-    var note = h('p', { class: 'paper-state', 'data-state': kind, role: kind === 'error' ? 'alert' : 'status' }, text);
+    var texts = { error: copy.loadFailed, empty: copy.empty, offline: copy.offlineEmpty };
+    var note = h('p', { class: 'paper-state', 'data-state': kind, role: kind === 'error' ? 'alert' : 'status' }, texts[kind] || copy.loading);
     if (kind !== 'error') return note;
     return h('div', null, note,
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'retry', onclick: onRetry }, copy.retry));
   }
 
-  B.view = { header: header, groupList: groupList, stateNote: stateNote };
+  /** The quiet line above the grid while the device is offline (the notes shown are the last ones read). */
+  function offlineHint() {
+    return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, B.copy.offlineHint);
+  }
+
+  B.view = { header: header, groupList: groupList, stateNote: stateNote, offlineHint: offlineHint };
 })();

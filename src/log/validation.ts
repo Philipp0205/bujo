@@ -78,6 +78,14 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
 
 const FIELDS = ["date", "type", "title", "tags", "time", "body"] as const;
 const PATCH_FIELDS = [...FIELDS, "indent"] as const;
+const CREATE_FIELDS = [...FIELDS, "id"] as const;
+/** The shape crypto.randomUUID() makes: 8-4-4-4-12 lowercase hex with dashes. */
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** True for a UUID written the way crypto.randomUUID() writes it. */
+export function isEntryId(value: unknown): value is string {
+  return typeof value === "string" && UUID_SHAPE.test(value);
+}
 
 /** Checks a list of tags: each one line, trimmed, within TAG_MAX; repeats (ignoring case) dropped; at most TAGS_MAX. */
 function checkTags(value: unknown): Checked<string[]> {
@@ -149,17 +157,19 @@ function badField(body: Record<string, unknown>, allowed: readonly string[]): st
   return extra === "tag" ? "tag is gone: send tags, a list of text" : `unknown field: ${extra}`;
 }
 
-/** Checks a create body: date, type and title are required, tags and time are optional. */
+/** Checks a create body: date, type and title are required, tags, time and a client-made id (a UUID) are optional. */
 export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> {
-  const bad = badField(body, FIELDS);
+  const bad = badField(body, CREATE_FIELDS);
   if (bad) return fail(bad);
   for (const key of ["date", "type", "title"] as const) {
     if (!(key in body)) return fail(`${key} is required`);
   }
+  if ("id" in body && !isEntryId(body.id)) return fail("id must be a UUID like 3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b");
   const fields = checkFields(body);
   if (!fields.ok) return fields;
   const { date, type, title, tags = [], time = null, body: text = null } = fields.value;
-  return { ok: true, value: { date: date!, type: type!, title: title!, tags, time, body: text } };
+  const entry: NewEntry = { date: date!, type: type!, title: title!, tags, time, body: text };
+  return { ok: true, value: "id" in body ? { id: body.id as string, ...entry } : entry };
 }
 
 /** Checks an edit body: any of the fields (and indent, which a create cannot set), at least one. Clients cannot set sync. */

@@ -58,9 +58,9 @@
     });
   }
 
-  /** Updates the bar for a line: Details only shows for a saved entry, Copy only once there is a title, and the keys that cannot act are greyed. */
+  /** Updates the bar for a line: Details only shows for an entry the server has (not a new line, not one still waiting to be sent), Copy only once there is a title, and the keys that cannot act are greyed. */
   function show(line, caps) {
-    keys.details.hidden = line.isNew;
+    keys.details.hidden = line.isNew || (line.original && line.original.queued === 'create');
     keys.copy.hidden = !caps.copy;
     setCaps(caps);
   }

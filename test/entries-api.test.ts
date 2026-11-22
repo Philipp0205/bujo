@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { demoSource } from "../src/caldav/source.ts";
+import { createEntryStore } from "../src/log/store.ts";
 import { api, makeToken, signUp, withApp } from "./helpers.ts";
 
 const NEW = { date: "2026-11-20", type: "task", title: "Tasche für Stuttgart packen" };
+const CLIENT_ID = "3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b";
 
 test("/api/entries needs a browser session", async () => {
   await withApp(demoSource(), async ({ base }) => {
@@ -35,6 +37,53 @@ test("POST creates an entry with sync local, at the end of its day", async () =>
     assert.equal(second.json.entry.time, "13:00");
     assert.deepEqual(second.json.entry.tags, []);
     assert.equal(first.json.entry.userId, undefined);
+  });
+});
+
+test("POST with a client id twice stores one entry with that id, and the repeat is a 200 no-op", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const body = { ...NEW, id: CLIENT_ID, title: "offline entry" };
+    const first = await api(base, "POST", "/api/entries", { body, headers });
+    assert.equal(first.status, 201);
+    assert.equal(first.json.entry.id, CLIENT_ID);
+    const again = await api(base, "POST", "/api/entries", { body: { ...body, title: "changed on replay" }, headers });
+    assert.equal(again.status, 200);
+    assert.equal(again.json.entry.id, CLIENT_ID);
+    assert.equal(again.json.entry.title, "offline entry");
+    const listed = await api(base, "GET", "/api/entries?from=2026-11-14&to=2026-11-27", { headers });
+    assert.deepEqual(listed.json.entries.map((e: { id: string }) => e.id), [CLIENT_ID]);
+  });
+});
+
+test("POST with a bad id is a 400, a missing id still gets a server id, PATCH refuses an id", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    for (const id of ["nope", CLIENT_ID.toUpperCase(), 5, null]) {
+      const bad = await api(base, "POST", "/api/entries", { body: { ...NEW, id }, headers });
+      assert.equal(bad.status, 400, JSON.stringify(id));
+      assert.match(bad.json.error, /^id must be a UUID/);
+    }
+    const minted = await api(base, "POST", "/api/entries", { body: NEW, headers });
+    assert.equal(minted.status, 201);
+    assert.match(minted.json.entry.id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    assert.equal((await api(base, "PATCH", `/api/entries/${minted.json.entry.id}`, { body: { id: CLIENT_ID }, headers })).status, 400);
+  });
+});
+
+test("POST with an id that another user holds is a 409 and leaves that entry as it was", async () => {
+  await withApp(demoSource(), async ({ base, db }) => {
+    const { headers } = await signUp(base);
+    // The schema allows one account (a trigger), so a second owner needs the trigger out of this throwaway database.
+    db.exec("DROP TRIGGER users_single_user");
+    db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run("user-2", "Other", "hash-2", 1);
+    const theirs = createEntryStore(db).create("user-2", { id: CLIENT_ID, date: "2026-11-20", type: "task", title: "theirs", tags: [], time: null }, 5);
+    const clash = await api(base, "POST", "/api/entries", { body: { ...NEW, id: CLIENT_ID }, headers });
+    assert.equal(clash.status, 409);
+    assert.equal(clash.json.error, "that id is already in use");
+    assert.deepEqual(createEntryStore(db).get("user-2", CLIENT_ID), theirs);
+    const listed = await api(base, "GET", "/api/entries?from=2026-11-14&to=2026-11-27", { headers });
+    assert.deepEqual(listed.json.entries, []);
   });
 });
 

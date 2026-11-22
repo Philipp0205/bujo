@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { openDb, type Db } from "../src/db.ts";
-import { createEntryStore } from "../src/log/store.ts";
+import { createEntryStore, EntryIdTaken } from "../src/log/store.ts";
 import type { NewEntry } from "../src/log/types.ts";
 
 const USER = "user-1";
@@ -30,6 +30,28 @@ test("create stores the entry with sync local and puts it at the end of its day"
   assert.deepEqual(first.tags, []);
   assert.deepEqual({ created: first.createdAt, updated: first.updatedAt }, { created: 100, updated: 100 });
   assert.match(first.id, /^[0-9a-f-]{36}$/);
+});
+
+const CLIENT_ID = "3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b";
+
+test("create with a client id keeps it, and a replay by the same user changes nothing and adds no row", () => {
+  const { store } = setup();
+  const first = store.create(USER, entry({ id: CLIENT_ID, title: "offline" }), 100);
+  assert.equal(first.id, CLIENT_ID);
+  const again = store.create(USER, entry({ id: CLIENT_ID, title: "changed", date: "2026-11-21" }), 900);
+  assert.deepEqual(again, first);
+  assert.equal(store.list(USER, { from: "2026-11-01", to: "2026-11-30" }).length, 1);
+});
+
+test("create with an id that another user holds throws and leaves that entry alone", () => {
+  const { db, store } = setup();
+  // The schema allows one account (a trigger), so a second owner needs the trigger out of this throwaway database.
+  db.exec("DROP TRIGGER users_single_user");
+  db.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run("user-2", "Other", "hash-2", 1);
+  const theirs = store.create("user-2", entry({ id: CLIENT_ID, title: "theirs" }), 100);
+  assert.throws(() => store.create(USER, entry({ id: CLIENT_ID, title: "mine" }), 200), EntryIdTaken);
+  assert.deepEqual(store.get("user-2", CLIENT_ID), theirs);
+  assert.equal(store.get(USER, CLIENT_ID), undefined);
 });
 
 test("list returns a date range sorted by date then position", () => {

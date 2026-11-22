@@ -13,7 +13,7 @@
 
   var L = window.BujoLog = window.BujoLog || {};
   var root = document.getElementById('log');
-  var state = { status: 'loading', entries: [], today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null };
+  var state = { status: 'loading', entries: [], server: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null };
   var booted = false;
   var POLL_MS = 800;
   var pollTimer = null;
@@ -62,20 +62,30 @@
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };
 
-  /** Swaps every entry of one day for the server's list of that day (after a delete or a move). */
+  /** The log the person sees: the server's list with the queued entries and changes laid over it. */
+  function rebuild() {
+    state.entries = L.outbox.model.merge(state.server, L.outbox.queue.items());
+  }
+
+  /** Swaps every entry of one day for the list of that day (after a delete or a move). */
   function replaceDay(date, entries) {
-    state.entries = state.entries.filter(function (entry) { return entry.date !== date; }).concat(entries);
+    state.server = state.server.filter(function (entry) { return entry.date !== date; }).concat(entries);
+    rebuild();
     state.status = 'ready';
     state.version += 1;
     recount();
   }
 
-  /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end.
+  /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end. An entry that is
+   * still queued (a new one, or one with queued changes) is not the server's, so it stays out of the server list: the merge shows it.
    * The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */
   function upsert(entry) {
-    var at = state.entries.findIndex(function (item) { return item.id === entry.id; });
-    if (at >= 0) state.entries[at] = entry;
-    else state.entries.push(entry);
+    if (!entry.queued) {
+      var at = state.server.findIndex(function (item) { return item.id === entry.id; });
+      if (at >= 0) state.server[at] = entry;
+      else state.server.push(entry);
+    }
+    rebuild();
     state.status = 'ready';
     state.version += 1;
     watchPending();
@@ -88,10 +98,10 @@
     reload();
   }
 
-  /** The body under the header for the current status. */
+  /** The body under the header for the current status: the days, with a quiet hint above them while offline. */
   function body() {
-    if (state.status === 'ready') return L.view.dayList(state.entries, state.today, actions);
-    return L.view.stateNote(state.status, reload);
+    if (state.status !== 'ready') return L.view.stateNote(state.status, reload);
+    return [state.offline ? L.view.offlineHint() : null, L.view.dayList(state.entries, state.today, actions)];
   }
 
   /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
@@ -140,22 +150,36 @@
   /** Takes a list that was read while the state was at version `seen`. True when the screen has to change. */
   function accept(entries, seen) {
     if (seen !== state.version) return false;
-    var same = state.status === 'ready' && state.drawnToday === state.today && JSON.stringify(entries) === JSON.stringify(state.entries);
-    state.entries = entries;
+    var shown = L.outbox.model.merge(entries, L.outbox.queue.items());
+    var same = state.status === 'ready' && state.drawnToday === state.today && JSON.stringify(shown) === JSON.stringify(state.entries);
+    state.server = entries;
+    state.entries = shown;
     state.status = 'ready';
     return !same;
   }
 
-  /**
-   * Loads the window and draws it. via says where the list comes from: 'plain' is the server alone (after a save, and the pending
+  /** A read that failed because the device is offline: the rows stay (or the queued entries stand alone), with the offline hint. */
+  function showOffline() {
+    state.offline = true;
+    if (state.status !== 'ready') { state.status = 'ready'; rebuild(); }
+    render();
+  }
+
+  /** Loads the window and draws it. via says where the list comes from: 'plain' is the server alone (after a save, and the pending
    * poll: a read must not join an older one), 'cache' goes through AppKit.swr, and 'first' also paints the last cached rows at
    * once, so a visit starts with rows instead of a loading note. A failed quiet refresh, or a failure behind rows that are
-   * already shown, keeps those rows on screen.
+   * already shown, keeps those rows on screen. A read that fails for lack of a connection says "offline" instead of failing.
    */
   function load(quiet, via) {
     var seen = state.version;
     var take = function (entries) { if (accept(entries, seen)) render(); };
-    var failed = function () {
+    var fresh = function (entries) {
+      var was = state.offline;
+      state.offline = false;
+      if (accept(entries, seen) || was) render();
+    };
+    var failed = function (error) {
+      if (L.outbox.model.isNetworkMiss(error, navigator.onLine)) { showOffline(); return; }
       if (quiet || state.status === 'ready') return;
       state.status = 'error';
       render();
@@ -164,9 +188,9 @@
       watchPending();
       if (seen !== state.version) load(true, 'plain');
     };
-    if (via === 'plain') return BujoNav.data.fresh(BujoNav.data.KEYS.log, fetchWindow).then(take, failed).then(done);
+    if (via === 'plain') return BujoNav.data.fresh(BujoNav.data.KEYS.log, fetchWindow).then(fresh, failed).then(done);
     var stale = function (entries) { if (via === 'first' && state.status !== 'ready') take(entries); };
-    return BujoNav.data.load(BujoNav.data.KEYS.log, fetchWindow, { stale: stale, fresh: take, fail: failed }).then(done);
+    return BujoNav.data.load(BujoNav.data.KEYS.log, fetchWindow, { stale: stale, fresh: fresh, fail: failed }).then(done);
   }
 
   /** Reads the log again with the loading note. Never used while a line is being typed. */
@@ -203,7 +227,7 @@
     root.addEventListener('click', onPaperTap);
     L.paper.count.init(root, openPaperList);
     render();
-    load(false, 'first').then(recount);
+    L.outbox.queue.load().then(function () { return load(false, 'first'); }).then(recount);
     // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.
     if (ctx.scan || scanFromLink()) startScan();
     else if (ctx.add) addEntry();
@@ -213,6 +237,7 @@
   /** The router shows the log (the first time, or again from another tab): boots once, then reads the rows again quietly. */
   function show(ctx) {
     if (!booted) return boot(ctx);
+    L.outbox.replay.flush();
     if (ctx.scan) startScan();
     else if (ctx.add) addEntry();
     load(true, 'cache').then(recount);
@@ -223,5 +248,43 @@
     BujoNav.data.warm(BujoNav.data.KEYS.log, fetchWindow);
   }
 
+  /** The queue sent an entry: the page takes the saved entry in place of the queued one. */
+  function onSent(entry) {
+    if (!booted) return;
+    upsert(entry);
+    render();
+  }
+
+  /** The server refused a queued item for good: it is gone from the queue, so the page shows the log without it and says so. */
+  function onDropped(item) {
+    if (booted) { rebuild(); render(); }
+    L.toast.show(item.kind === 'create' ? L.copy.offline.dropped(item.body.title) : L.copy.offline.droppedChange, 'fail');
+  }
+
+  /** A flush that sent something: read the log again quietly, so every sync dot and the count are the server's own. */
+  function onFlushed() {
+    if (booted) load(true, 'plain').then(recount);
+  }
+
+  /** The device lost its connection: say so above the days (the rows stay). */
+  function onOffline() {
+    state.offline = true;
+    if (booted && state.status === 'ready') render();
+  }
+
+  /** The device is back: read the log again quietly, which also takes the offline hint away. The queue sends itself. */
+  function onOnline() {
+    if (booted) load(true, 'plain').then(recount);
+  }
+
+  /** Starts the outbox at script load, so entries queued earlier are sent even while another tab is on screen. */
+  function startOutbox() {
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    state.offline = navigator.onLine === false;
+    L.outbox.replay.init({ sent: onSent, dropped: onDropped, finished: onFlushed });
+  }
+
+  startOutbox();
   BujoNav.router.start('log', { show: show, scan: startScan, add: addEntry, warm: warm });
 })();

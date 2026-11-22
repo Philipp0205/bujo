@@ -248,14 +248,17 @@ test("a server error keeps the new line in edit mode with its draft and an error
   await expect(page.locator('.paper-row[data-id]', { hasText: "Zu lang" })).toHaveCount(0);
 });
 
-test("a failing request with no server message shows the safe copy line", async ({ page }) => {
+test("a request that never reaches the server queues the line instead of failing it", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.route("**/api/entries", (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Offline Zeile");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".paper-line .paper-line-error")).toHaveText("Could not save this line. Try again.");
-  await expect(page.locator(".paper-line .paper-edit-input")).toHaveValue("Offline Zeile");
+  // A network miss is not an error to show: the entry waits on the phone, marked, and the line moves on.
+  const queued = page.locator(".paper-row", { hasText: "Offline Zeile" });
+  await expect(queued).toHaveAttribute("data-queued", "create");
+  await expect(queued.getByTestId("waiting-to-send")).toHaveText("waiting to send");
+  await expect(page.locator(".paper-line .paper-line-error")).toHaveCount(0);
 });
 
 test("tap a row to type in its title; type, tag and day change through the bar and save", async ({ page }) => {

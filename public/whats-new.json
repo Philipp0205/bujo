@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-22-offline",
+    "date": "2026-11-22",
+    "title": "Write entries without a connection",
+    "bullets": [
+      "New entries made offline wait on your phone, marked waiting to send, and go out by themselves when you are back online.",
+      "The log and Notes keep showing your last rows with a quiet offline note instead of an error."
+    ]
+  },
+  {
     "id": "2026-11-22-quick-entry",
     "date": "2026-11-22",
     "title": "Add an entry in one tap",
