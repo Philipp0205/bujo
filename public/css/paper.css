@@ -16,7 +16,7 @@
   --paper-bg: #16130f;
   --paper-ink: #f0eadc;
   --paper-muted: #9a9184;
-  --paper-dot: #3a342c;
+  --paper-dot: #332d26;
   --paper-margin: rgba(176, 122, 112, 0.28);
   --paper-today: #c48478;
   --paper-done: #9a9184;
@@ -33,6 +33,7 @@
   --sheet-shadow: 0 -8px 36px rgba(0, 0, 0, 0.4);
   --grid: 24px;
   --grid-shift: 4px;
+  --paper-wash: 0 0 4px 4px var(--paper-bg);
   --gutter: 48px;
   --text-col: 60px;
   --font-text: Newsreader, Georgia, "Times New Roman", serif;
@@ -54,7 +55,7 @@
     --paper-bg: #f4efe4;
     --paper-ink: #1a1612;
     --paper-muted: #6f675c;
-    --paper-dot: #c4b6a2;
+    --paper-dot: #cec2b0;
     --paper-margin: rgba(140, 90, 82, 0.28);
     --paper-today: #8f4e45;
     --paper-done: #7a7368;
@@ -76,7 +77,7 @@ html[data-ak-scheme="light"] {
   --paper-bg: #f4efe4;
   --paper-ink: #1a1612;
   --paper-muted: #6f675c;
-  --paper-dot: #c4b6a2;
+  --paper-dot: #cec2b0;
   --paper-margin: rgba(140, 90, 82, 0.28);
   --paper-today: #8f4e45;
   --paper-done: #7a7368;
@@ -98,7 +99,7 @@ html[data-ak-scheme="dark"] {
   --paper-bg: #16130f;
   --paper-ink: #f0eadc;
   --paper-muted: #9a9184;
-  --paper-dot: #3a342c;
+  --paper-dot: #332d26;
   --paper-margin: rgba(176, 122, 112, 0.28);
   --paper-today: #c48478;
   --paper-done: #9a9184;

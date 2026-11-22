@@ -1,0 +1,30 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import vm from "node:vm";
+
+const PUBLIC_DIR = path.join(import.meta.dirname, "..", "public");
+
+/** Loads public/js/log/done/model.js into a sandbox and returns what it adds to window.BujoLog.done. */
+function loadModel(): { next(type: string): string | null; canToggle(entry: { type: string }): boolean } {
+  const window: Record<string, any> = {};
+  vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, "js", "log", "done", "model.js"), "utf8"), { window });
+  return window.BujoLog.done.model;
+}
+
+test("done model: a task becomes done and a done entry becomes a task", () => {
+  const model = loadModel();
+  assert.equal(model.next("task"), "done");
+  assert.equal(model.next("done"), "task");
+});
+
+test("done model: event, note, moved and scheduled never toggle, and neither does an unknown type", () => {
+  const model = loadModel();
+  for (const type of ["event", "note", "moved", "scheduled", "toString", "constructor", ""]) {
+    assert.equal(model.next(type), null, type);
+    assert.equal(model.canToggle({ type }), false, type);
+  }
+  assert.equal(model.canToggle({ type: "task" }), true);
+  assert.equal(model.canToggle({ type: "done" }), true);
+});

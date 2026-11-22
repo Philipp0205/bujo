@@ -59,7 +59,7 @@ const bar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 
 test("the header of the log has no camera and no settings icon, and the bar has Scan right of the raised, centred Add, neither ever the current page", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
   await expect(page.locator("[data-action=scan]")).toHaveCount(0);
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.locator(".paper-head").getByText("Scan a page")).toHaveCount(0);
@@ -128,7 +128,7 @@ test("tapping the Scan tab opens the file chooser in the same tap, from Notes an
   expect(await chooser.element().getAttribute("id")).toBe("scan-file");
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(addTab(page)).not.toHaveAttribute("aria-current", "page");
@@ -145,11 +145,11 @@ test("the /?scan=1 link still opens the scan screen on the log, drops the query,
   await expect(page.getByTestId("scan-screen")).toHaveCount(1);
   await expect(page.getByTestId("scan-screen")).toBeVisible();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(addTab(page)).not.toHaveAttribute("aria-current", "page");
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(page.getByTestId("scan-screen")).toHaveCount(0);
 });
 
@@ -159,7 +159,7 @@ test("a programmatic router.scan() from Notes still goes to the log and opens th
   await page.evaluate(() => (window as unknown as { BujoNav: { router: { scan(): void } } }).BujoNav.router.scan());
   await expect(page.getByTestId("scan-screen")).toBeVisible();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
 test("while a page is read the progress state shows the photo, the step and a ticking time, then the review follows", async ({ page }) => {
@@ -211,7 +211,7 @@ test("closing during the read ignores the late answer: no review opens", async (
   await page.waitForTimeout(2200);
   await expect(page.getByTestId("scan-review")).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
 test("a failed read leaves the progress state and shows the trouble on the camera screen", async ({ page }) => {
@@ -230,13 +230,13 @@ test("the camera screen has the title, frame, toggle, shutter, and close", async
   await openScan(page);
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the rapid log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
   await expect(screen.locator(".scan-frame")).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-file")).toHaveAttribute("accept", "image/*");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
-  await expect(screen.getByRole("button", { name: "Rapid log" })).toHaveAttribute("aria-pressed", "true");
+  await expect(screen.getByRole("button", { name: "Daily log" })).toHaveAttribute("aria-pressed", "true");
   const note = screen.getByRole("button", { name: "Free note" });
   await expect(note).not.toHaveAttribute("aria-disabled");
   await expect(note).toHaveAttribute("aria-pressed", "false");

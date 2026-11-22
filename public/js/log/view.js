@@ -1,7 +1,7 @@
 /*
- * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
- * actions: open(entry), add(), and select { on(), ticked(entry), toggle(entry) } for select mode.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, paper/recent.js and paper/view.js (the row mark and the header button).
+ * Render functions of the daily log: header, day groups, ink cards. They build nodes and call back, they never fetch.
+ * actions: open(entry), add(), toggleDone(entry), and select { on(), ticked(entry), toggle(entry) } for select mode.
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, done/model.js, paper/recent.js and paper/view.js (the row mark and the header button).
  */
 (function () {
   'use strict';
@@ -49,13 +49,41 @@
     };
   }
 
-  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet, or ticks while selecting. The page mark shows for a recent entry that is not on paper. */
+  /** The bullet of a task or done row: a tap flips it done or not done. While selecting it is just part of the row (the tap bubbles up and ticks). */
+  function toggleButton(entry, actions) {
+    return h('button', {
+      class: 'paper-sym paper-sym-btn',
+      type: 'button',
+      'data-testid': 'toggle-done',
+      'aria-label': L.copy.done.toggle[entry.type],
+      onclick: function (event) {
+        if (actions.select.on()) return;
+        event.stopPropagation();
+        actions.toggleDone(entry);
+      }
+    }, L.glyph.typeGlyph(entry.type));
+  }
+
+  /** The symbol column: a done toggle for a task or done entry, a plain labelled glyph for every other type. */
+  function symbol(entry, actions) {
+    if (L.done.model.canToggle(entry)) return toggleButton(entry, actions);
+    return h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type));
+  }
+
+  /** The part of a row that opens the entry: title and pills in one button, so a keyboard or screen reader reaches it. */
+  function openButton(entry) {
+    return h('button', { class: 'paper-open', type: 'button', 'data-action': 'open-entry' },
+      h('span', { class: 'paper-body' },
+        h('span', { class: 'paper-title' }, entry.title),
+        pills(entry)));
+  }
+
+  /** One entry as a row: the bullet (a done toggle for tasks), the title and pills that open the edit sheet, and the page mark. A tap anywhere else on the row opens it too, or ticks it while selecting. */
   function entryRow(entry, actions, indent, today) {
     var picking = actions.select.on();
     var ticked = picking && actions.select.ticked(entry);
-    return h('button', {
+    return h('div', {
       class: 'paper-row',
-      type: 'button',
       'data-id': entry.id,
       'data-type': entry.type,
       'data-sync': entry.sync,
@@ -66,10 +94,8 @@
       onclick: tapOf(entry, actions)
     },
       picking ? ring(ticked) : null,
-      h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type)),
-      h('span', { class: 'paper-body' },
-        h('span', { class: 'paper-title' }, entry.title),
-        pills(entry)),
+      symbol(entry, actions),
+      openButton(entry),
       L.paper.recent.shows(entry, today) ? L.paper.view.rowMark() : null);
   }
 

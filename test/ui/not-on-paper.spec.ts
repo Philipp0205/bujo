@@ -207,3 +207,18 @@ test("Back closes the list and stays in the app", async ({ page }) => {
   await expect(sheet(page)).toHaveCount(0);
   await expect(page.locator("#log")).toBeVisible();
 });
+
+test("a done entry is not counted, listed or marked; the same task is", async ({ page }) => {
+  await seed(page, [
+    { date: day(0), type: "done", title: "Schon erledigt" },
+    { date: day(0), type: "task", title: "Noch offen" },
+  ]);
+  await page.goto(app.baseUrl);
+  await expect(open(page)).toHaveText("Not on paper 1");
+  await expect(row(page, "Schon erledigt")).toBeVisible();
+  await expect(mark(page, "Schon erledigt")).toHaveCount(0);
+  await expect(mark(page, "Noch offen")).toHaveCount(1);
+  await open(page).click();
+  await expect(listed(page).locator(".paper-title")).toHaveText(["Noch offen"]);
+  await expect(sheet(page)).not.toContainText("Schon erledigt");
+});

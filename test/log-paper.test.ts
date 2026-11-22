@@ -74,6 +74,8 @@ test("the browser twin of the window (public/js/log/paper/recent.js) uses the sa
   assert.equal(recent.shows({ onPaper: false, date: "2026-11-08" }, "2026-11-22"), true);
   assert.equal(recent.shows({ onPaper: false, date: "2026-11-07" }, "2026-11-22"), false, "old and unwritten: no mark");
   assert.equal(recent.shows({ onPaper: true, date: "2026-11-22" }, "2026-11-22"), false, "written: no mark");
+  assert.equal(recent.shows({ onPaper: false, type: "done", date: "2026-11-22" }, "2026-11-22"), false, "done: no mark, even unwritten and in the window");
+  assert.equal(recent.shows({ onPaper: false, type: "task", date: "2026-11-22" }, "2026-11-22"), true, "a task in the same window still gets it");
 });
 
 test("onPaper: no snapshot means not on paper, however old the entry is", () => {

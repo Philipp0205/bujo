@@ -34,7 +34,7 @@ async function seed(page: Page, entries: Seed[]): Promise<void> {
 
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 
-test("without a session the rapid log sends you to sign in", async ({ browser }) => {
+test("without a session the daily log sends you to sign in", async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(app.baseUrl);
@@ -47,7 +47,7 @@ test("an empty log shows today with its mark and the add row, the tab bar with S
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.goto(app.baseUrl);
 
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   const today = page.locator(`.paper-day[data-date="${day(0)}"]`);
   await expect(today).toContainText(heading(day(0)));
   await expect(today.locator("[data-testid=today-mark]")).toHaveText("Today");
@@ -58,7 +58,7 @@ test("an empty log shows today with its mark and the add row, the tab bar with S
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
   const tabs = page.getByRole("navigation", { name: "Main" });
-  await expect(tabs.locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(tabs.locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
   await expect(tabs.getByRole("button", { name: "Add" })).toBeEnabled();
   await expect(tabs.getByRole("button", { name: "Scan" })).toBeEnabled();
   await expect(tabs.locator("[data-tab=log]")).toHaveAttribute("aria-current", "page");

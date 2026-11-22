@@ -131,9 +131,9 @@ test("the mark also shows after switching from the log to Notes", async ({ page 
   expect(Math.round((await markOf(page, "Frische Idee").locator("svg").boundingBox())!.width)).toBe(16);
 });
 
-test("the log has the bar with Rapid log active, and Notes leads to the notes screen", async ({ page }) => {
+test("the log has the bar with Daily log active, and Notes leads to the notes screen", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
 
   await tab(page, "notes").click();
@@ -145,7 +145,7 @@ test("the log has the bar with Rapid log active, and Notes leads to the notes sc
 
 test("there is no settings link in the log header, and Account opens settings with Account active", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.locator(".paper-head a")).toHaveCount(0);
   await expect(page.locator("[data-action=scan]")).toHaveCount(0);
@@ -196,7 +196,7 @@ test("Back from the notes screen returns to the log", async ({ page }) => {
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
 test("with a note sheet open, the first Back closes the sheet and stays on Notes, the second returns to the log", async ({ page }) => {
@@ -213,7 +213,7 @@ test("with a note sheet open, the first Back closes the sheet and stays on Notes
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
 test("notes opened first sends Back to the log", async ({ page }) => {
@@ -228,7 +228,7 @@ test("notes opened first sends Back to the log", async ({ page }) => {
 
   await first.goBack();
   await expect(first).toHaveURL(`${app.baseUrl}/`);
-  await expect(first.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(first.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
 test("switching between Notes and Account does not stack pages: Back from Account lands on the log", async ({ page }) => {

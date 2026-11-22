@@ -1,8 +1,8 @@
 /*
- * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
+ * Boots the daily log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
  * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here,
  * the Add tab opens the new-entry sheet from here.
- * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Rapid log tab is tapped
+ * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Daily log tab is tapped
  * (the page stays in the document, hidden, while another tab is on screen). The last rows come from AppKit.swr at once.
  * While an entry waits for its push to Nextcloud, the log
  * reads its own API again every so often (never Nextcloud) and stops when nothing is pending. It also asks the
@@ -25,6 +25,7 @@
       else L.inline.editor.editEntry(entry);
     },
     add: function () { L.inline.editor.addLine(); },
+    toggleDone: function (entry) { L.done.toggle.toggle(entry.id); },
     select: L.select.mode
   };
 
@@ -224,6 +225,11 @@
     AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
     L.inline.editor.init(host);
     L.select.mode.init({ host: host, root: root });
+    L.done.toggle.init({
+      root: root,
+      select: L.select.mode,
+      host: { entries: host.entries, today: host.today, upsert: upsert, paint: render }
+    });
     root.addEventListener('click', onPaperTap);
     L.paper.count.init(root, openPaperList);
     render();

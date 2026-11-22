@@ -21,9 +21,9 @@
     return date >= first(today);
   }
 
-  /** Whether an entry or note gets the "not on paper" mark: it is not on paper and its day is in the window. */
+  /** Whether an entry or note gets the "not on paper" mark: it is not on paper, not done (an x needs no copy), and its day is in the window. */
   function shows(entry, today) {
-    return !entry.onPaper && contains(entry.date, today);
+    return !entry.onPaper && entry.type !== 'done' && contains(entry.date, today);
   }
 
   L.paper.recent = { PAPER_WINDOW_DAYS: PAPER_WINDOW_DAYS, first: first, contains: contains, shows: shows };

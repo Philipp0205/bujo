@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-offline" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-page-feedback" } });
 });
 
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
@@ -19,7 +19,7 @@ const waiting = (page: Page) => page.getByTestId("waiting-to-send");
  * tests, so the page cannot be reloaded offline here (the real app also opens from the service worker cache). */
 async function openLog(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await page.waitForFunction(() => !!document.querySelector(".paper-add"));
 }
 
@@ -72,7 +72,7 @@ test("a queued entry survives a reload and is sent after it", async ({ page }) =
   // A full goto, not page.reload(): an aborted POST from the boot flush can make reload() fail
   // with net::ERR_ABORTED while it waits for "load". The queue is in IndexedDB either way.
   await page.goto(app.baseUrl, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(row(page, "Kept on the phone").getByTestId("waiting-to-send")).toBeVisible();
 
   await page.unroute("**/api/entries");

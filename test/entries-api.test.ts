@@ -261,7 +261,7 @@ test("PATCH indent nests an entry under the one above and clears itself for the 
   });
 });
 
-test("the rapid log and the page routes: / and /backlog both need a session", async () => {
+test("the daily log and the page routes: / and /backlog both need a session", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
     assert.equal((await api(base, "GET", "/backlog")).response.headers.get("location"), "/signin");
@@ -269,6 +269,6 @@ test("the rapid log and the page routes: / and /backlog both need a session", as
     assert.equal(page.status, 200);
     assert.match(await page.text(), /backlog\.js/);
     const home = await fetch(`${base}/`, { headers });
-    assert.match(await home.text(), /Rapid Log|js\/log/);
+    assert.match(await home.text(), /Daily Log|js\/log/);
   });
 });

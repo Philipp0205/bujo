@@ -87,6 +87,28 @@ test("GET ?onPaper=0 lists only the entries not on paper in the range; other val
   });
 });
 
+test("GET ?onPaper=0 leaves out done entries (the x needs no copy onto paper); a plain GET still lists them", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const make = async (title: string, type: string) => (await api(base, "POST", "/api/entries", { body: { ...NEW, title, type }, headers })).json.entry.id;
+    await make("offen", "task");
+    const finished = await make("erledigt", "done");
+    const range = `from=${DAY}&to=${DAY}`;
+
+    const open = await api(base, "GET", `/api/entries?${range}&onPaper=0`, { headers });
+    assert.deepEqual(open.json.entries.map((e: any) => e.title), ["offen"]);
+    const all = await api(base, "GET", `/api/entries?${range}`, { headers });
+    assert.deepEqual(all.json.entries.map((e: any) => [e.title, e.type, e.onPaper]), [["offen", "task", false], ["erledigt", "done", false]], "a done entry keeps onPaper false in a normal list");
+
+    await api(base, "PATCH", `/api/entries/${finished}`, { body: { type: "task" }, headers });
+    const back = await api(base, "GET", `/api/entries?${range}&onPaper=0`, { headers });
+    assert.deepEqual(back.json.entries.map((e: any) => e.title), ["offen", "erledigt"], "undone: a candidate again");
+    await api(base, "PATCH", `/api/entries/${finished}`, { body: { type: "done" }, headers });
+    assert.deepEqual((await api(base, "GET", `/api/entries?${range}&onPaper=0`, { headers })).json.entries.map((e: any) => e.title), ["offen"]);
+    assert.equal((await api(base, "GET", `/api/entries?${range}&onPaper=1`, { headers })).status, 400);
+  });
+});
+
 test("GET ?onPaper=0 still lists old unwritten rows when the range reaches them: the 14 day window is the client's, the API contract is unchanged", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);
