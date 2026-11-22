@@ -46,11 +46,11 @@ test("the bar is one row of icon keys: no words on the keys, a name for each", a
   await seed(page, 1, ["Eins"]);
   await openRow(page, 1, "Eins");
   const keys = page.locator(".inline-bar .bar-key");
-  await expect(keys).toHaveCount(11);
+  await expect(keys).toHaveCount(10);
   const texts = await keys.evaluateAll((nodes) => nodes.map((node) => (node.textContent ?? "").trim()));
   expect(texts.every((text) => text === "")).toBe(true);
   const names = await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")));
-  expect(names).toEqual(["Entry type", "Tag", "Date", "Time", "Copy entry", "Delete entry", "Move up", "Move down", "Indent", "Indent back", "Details"]);
+  expect(names).toEqual(["Tag", "Date", "Time", "Copy entry", "Delete entry", "Move up", "Move down", "Indent", "Indent back", "Details"]);
   await expect(keys.locator("svg").first()).toBeVisible();
 });
 

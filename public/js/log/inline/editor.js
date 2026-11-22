@@ -1,7 +1,7 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
- * Needs markup.js, tags.js, model.js, row.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
+ * Needs markup.js, tags.js, model.js, row.js, type.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
  * host: today(), draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
@@ -87,10 +87,21 @@
     return commit(false);
   }
 
+  /** True while any popover is open: a bar popover or the type chooser. They share the Escape, Back and outside-tap rules. */
+  function popOpen() {
+    return bar.popOpen() || L.inline.type.isOpen();
+  }
+
+  /** Closes the bar popover and the type chooser, whichever is open. Never touches the focus. */
+  function dropPops() {
+    bar.closePop();
+    L.inline.type.close();
+  }
+
   /** The Android Back that only dismissed the keyboard fires no popstate, so it ends the edit here. An open popover closes first instead. */
   function onKeyboardDismissed() {
-    if (bar.popOpen()) {
-      quietly(function () { bar.closePop(); });
+    if (popOpen()) {
+      quietly(dropPops);
       syncLayers();
       return;
     }
@@ -124,7 +135,7 @@
   /** The sheet follows the active line: shown with its draft, caret and focus, or hidden when nothing is being typed. */
   function sync(caret) {
     document.documentElement.classList.toggle('is-editing', !!active);
-    if (!active) { quietly(function () { bar.closePop(); sheet.hide(); }); L.inline.complete.hide(); syncLayers(); return; }
+    if (!active) { quietly(function () { dropPops(); sheet.hide(); }); L.inline.complete.hide(); syncLayers(); return; }
     sheet.show();
     L.inline.row.update(active);
     showBar();
@@ -156,7 +167,7 @@
     L.inline.keyboard.reset();
     L.inline.complete.hide();
     L.suggest.pool.refresh();
-    quietly(function () { bar.closePop(); });
+    quietly(dropPops);
     paint();
   }
 
@@ -290,7 +301,7 @@
   /** Shows the suggestions for the word at the caret, or hides them (no line, a popover open, an IME composing). */
   function refreshStrip(composing) {
     var input = titleInput();
-    var live = active && !bar.popOpen() && input === document.activeElement;
+    var live = active && !popOpen() && input === document.activeElement;
     if (live) L.inline.complete.update(active, input, composing);
     else L.inline.complete.hide();
   }
@@ -335,9 +346,9 @@
     input.setSelectionRange(Math.min(next.caret, input.value.length), Math.min(next.caret, input.value.length));
   }
 
-  /** Closes the bar popover and gives the focus back to the title. */
+  /** Closes the bar popover or the type chooser and gives the focus back to the title. */
   function closePop() {
-    quietly(function () { bar.closePop(); });
+    quietly(dropPops);
     syncLayers();
     focusTitle();
   }
@@ -438,7 +449,7 @@
     L.inline.row.update(active);
   }
 
-  /** The callbacks the popovers use. Each updates the line and the pills. A chosen day, time or type closes the popover. */
+  /** The callbacks the popovers use. Each updates the line and the pills. A chosen day or time closes the popover. */
   function choices() {
     function set(key, value, close) {
       active[key] = value;
@@ -447,7 +458,6 @@
       if (close) closePop();
     }
     return {
-      type: function (type) { set('type', type, true); },
       tagPool: tagPool,
       tagToggle: toggleTag,
       tagAdd: function (text) { if (!L.tags.has(active.tags, text)) toggleTag(L.tags.spell(text, tagPool())); },
@@ -467,9 +477,30 @@
     if (!active) return;
     if (bar.popKind() === kind) { closePop(); return; }
     L.inline.complete.hide();
+    quietly(L.inline.type.close);
     bar.openPop(kind, active, choices());
     syncLayers();
     if (kind === 'tag') bar.popInput().focus();
+  }
+
+  /** A type was picked in the chooser: it goes on the line (the date stays as it is) and the chooser closes. */
+  function pickType(type) {
+    if (!active) return;
+    active.type = type;
+    L.inline.row.update(active);
+    showBar();
+    closePop();
+  }
+
+  /** A tap on the type marker: opens the chooser, or closes it when it is open. The title keeps the focus, so the keyboard stays up. */
+  function toggleMarker() {
+    if (!active) return;
+    if (L.inline.type.isOpen()) { closePop(); return; }
+    L.inline.complete.hide();
+    quietly(bar.closePop);
+    L.inline.type.open(active.type, pickType);
+    syncLayers();
+    focusTitle();
   }
 
   /** Enter saves a non-empty line and starts the next. Backspace on an empty new line removes it. */
@@ -489,7 +520,7 @@
   function onKeyDown(event) {
     if (!active || event.isComposing) return;
     if (event.key === 'Escape') {
-      if (bar.popOpen()) closePop();
+      if (popOpen()) closePop();
       else commit(false);
     } else if (event.target === titleInput()) {
       onTitleKey(event);
@@ -525,12 +556,17 @@
     return node.tagName === 'INPUT' || node.tagName === 'TEXTAREA';
   }
 
+  /** True for a press on a popover or on what opens one (a bar key, the type marker): it handles itself, so it must not close the popover first. */
+  function onPopSurface(target) {
+    return !!target.closest('.inline-pop, .inline-bar, .type-chooser, .type-marker');
+  }
+
   /** A press inside the editing zone must not move focus off the title. A press outside an open popover only closes it. */
   function onMouseDown(event) {
     if (!active) return;
     pressed = true;
     var target = event.target;
-    if (bar.popOpen() && !target.closest('.inline-pop, .inline-bar')) closePop();
+    if (popOpen() && !onPopSurface(target)) closePop();
     if (inZone(target) && !isTextField(target)) event.preventDefault();
   }
 
@@ -552,7 +588,7 @@
     var strip = L.inline.complete.init({
       entries: host.entries, today: host.today, picked: picked, shifted: function () { sheet.layout(); reveal(); }
     });
-    var line = L.inline.row.build(typed);
+    var line = L.inline.row.build(typed, toggleMarker);
     watchCaret(line.querySelector('.paper-edit-input'));
     sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details }));
     L.suggest.pool.refresh();
@@ -562,7 +598,7 @@
     document.addEventListener('mouseup', function () { window.setTimeout(releaseBlur, 0); }, true);
     L.inline.layers.init({
       editing: function () { return !!active; },
-      popOpen: bar.popOpen,
+      popOpen: popOpen,
       commit: closeWithKeyboard,
       closePop: closePop
     });

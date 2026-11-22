@@ -43,8 +43,9 @@
       titleLabel: 'Entry title',
       sheetLabel: 'Entry editor',
       barLabel: 'Entry options',
+      typeMarker: function (label) { return 'Entry type: ' + label; },
+      typeChooser: 'Choose an entry type',
       keys: {
-        type: 'Entry type',
         tag: 'Tag',
         date: 'Date',
         time: 'Time',
@@ -56,7 +57,7 @@
         outdent: 'Indent back',
         details: 'Details'
       },
-      popLabels: { type: 'Choose a type', tag: 'Tags', date: 'Day', time: 'Time (optional)' },
+      popLabels: { tag: 'Tags', date: 'Day', time: 'Time (optional)' },
       clear: 'Clear',
       tagSearch: 'Find or add a tag',
       tagSearchLabel: 'Search tags',

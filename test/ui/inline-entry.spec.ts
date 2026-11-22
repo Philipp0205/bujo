@@ -159,17 +159,17 @@ test("Escape on an empty new line drops it, on a non-empty one it saves it", asy
   expect(await stored(page)).toHaveLength(1);
 });
 
-test("type, tag, day and time set through the bar are saved with the line", async ({ page }) => {
+test("type set through the marker, tag, day and time through the bar are saved with the line", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Zahnarzt");
 
-  await page.locator(".bar-key[data-key=type]").click();
-  await expect(page.locator(".inline-pop .pop-type")).toHaveCount(6);
+  await page.getByTestId("type-marker").click();
+  await expect(page.locator(".type-chooser .type-option")).toHaveCount(6);
   await expect(line(page)).toHaveValue("Zahnarzt");
-  await page.locator('.inline-pop .pop-type[data-type="event"]').click();
-  await expect(page.locator(".inline-pop")).toHaveCount(0);
-  await expect(page.locator(".paper-line .paper-sym use")).toHaveAttribute("href", "#g-event");
+  await page.locator('.type-chooser .type-option[data-type="event"]').click();
+  await expect(page.getByTestId("type-chooser")).toHaveCount(0);
+  await expect(page.locator(".paper-line .type-marker use")).toHaveAttribute("href", "#g-event");
 
   await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("Gesundheit");
@@ -204,23 +204,24 @@ test("a new line given another day lands in that day's group after saving", asyn
   await expect(line(page)).toBeFocused();
 });
 
-test("a popover closes on Escape first, then a tap outside closes it and saves the draft", async ({ page }) => {
+test("the type chooser closes on Escape first, then a tap outside closes it and saves the draft", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Entwurf");
 
-  await page.locator(".bar-key[data-key=type]").click();
-  await expect(page.locator(".inline-pop")).toBeVisible();
+  await page.getByTestId("type-marker").click();
+  await expect(page.getByTestId("type-chooser")).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.locator(".inline-pop")).toHaveCount(0);
+  await expect(page.getByTestId("type-chooser")).toHaveCount(0);
   await expect(line(page)).toHaveValue("Entwurf");
+  await expect(line(page)).toBeFocused();
   expect(await stored(page)).toHaveLength(0);
 
-  await page.locator(".bar-key[data-key=type]").click();
-  await expect(page.locator(".inline-pop")).toBeVisible();
+  await page.getByTestId("type-marker").click();
+  await expect(page.getByTestId("type-chooser")).toBeVisible();
   await page.locator(".paper-head h1").click();
-  // The tap closes the popover, and its blur saves the line like any other blur: the draft is not lost.
-  await expect(page.locator(".inline-pop")).toHaveCount(0);
+  // The tap closes the chooser, and its blur saves the line like any other blur: the draft is not lost.
+  await expect(page.getByTestId("type-chooser")).toHaveCount(0);
   await expect(saved(page, "Entwurf")).toBeVisible();
   await expect(sheet(page)).toBeHidden();
   expect(await stored(page)).toHaveLength(1);

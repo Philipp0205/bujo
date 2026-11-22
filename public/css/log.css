@@ -422,17 +422,109 @@ html.is-editing .paper-page { padding-bottom: 320px; }
 .paper-edit {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   cursor: text;
 }
 .paper-edit .paper-body { display: flex; align-items: flex-start; }
-.paper-edit .paper-sym { height: 32px; }
+
+/* The type marker: the glyph in a small ink-ringed chip with a caret, so it reads as a control. Its 44px hit area grows to the left,
+   up and down, and stops at the chip's right edge, so it never covers the title. The list's done toggle (.paper-sym-btn) is not touched. */
+.type-marker {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  display: block;
+  width: 38px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.type-marker::after { content: ""; position: absolute; inset: -6px 0 -6px -12px; }
+.type-marker-chip {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 38%, transparent);
+  border-radius: 10px;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.type-marker svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.type-marker-caret {
+  display: block;
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.5px solid var(--paper-muted);
+  border-bottom: 1.5px solid var(--paper-muted);
+  transform: rotate(45deg);
+}
+.type-marker:active .type-marker-chip,
+.type-marker[aria-expanded="true"] .type-marker-chip {
+  border-color: var(--paper-ink);
+  background: color-mix(in srgb, var(--paper-ink) 10%, transparent);
+}
+.type-marker[aria-expanded="true"] .type-marker-caret { margin-top: 3px; transform: rotate(-135deg); }
+html.ak-base .type-marker:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .type-marker-chip { transition: none; } }
+
+/* The chooser: a compact paper card above the sheet, three columns of glyph and label. It sits over the list, never over the line or the bar. */
+.edit-sheet > .type-chooser {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% + 8px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: min(366px, calc(100% - 24px));
+  padding: 6px;
+  background: var(--paper-bg);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
+}
+.type-option {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 16px/20px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.type-option svg { display: block; flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.type-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-option[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
+html.ak-base .type-chooser :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
 
 .sheet-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 6px 0 0 36px;
+  margin: 6px 0 0 44px;
 }
 .sheet-chips:empty { display: none; }
 .sheet-chips .pill-tag::before { content: "#"; }
@@ -475,10 +567,10 @@ html.ak-base .inline-bar .pop-input:focus-visible { outline: none; }
 html.ak-base .paper-edit-input { font-size: 22px; }
 html.ak-base .pop-input { font-size: 17px; }
 .paper-edit[data-type="done"] .paper-edit-input { color: var(--paper-done); text-decoration: line-through; }
-.paper-edit[data-type="done"] .paper-sym { color: var(--paper-done); }
+.paper-edit[data-type="done"] .type-marker { color: var(--paper-done); }
 
 .paper-line-error {
-  margin: 6px 0 0 36px;
+  margin: 6px 0 0 44px;
   padding: 0;
   color: var(--paper-today);
   font: italic 14px/20px var(--font-text);
@@ -552,26 +644,6 @@ html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted);
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
 }
-
-.pop-types { display: flex; gap: 6px; }
-
-.pop-type {
-  appearance: none;
-  -webkit-appearance: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--paper-ink) 18%, transparent);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--paper-ink);
-  cursor: pointer;
-}
-.pop-type svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
-.pop-type[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
 
 .pop-row { display: flex; align-items: center; gap: 12px; }
 
