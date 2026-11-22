@@ -25,7 +25,7 @@ function methodNotAllowed(allow: string): never {
 /**
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
- *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet (any other onPaper value is a 400)
+ *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet, never a done one (any other onPaper value is a 400)
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day. An optional client id (a UUID) makes it idempotent: a repeat answers 200 with the stored entry, an id of another user is a 409
@@ -51,7 +51,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
       if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
       const entries = store.list(userId, range);
-      sendJson(res, 200, { entries: onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter((entry) => !entry.onPaper) : entries });
+      sendJson(res, 200, { entries: onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter(isNotOnPaperCandidate) : entries });
       return true;
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
@@ -136,6 +136,11 @@ function onPaperFilter(value: string | null): boolean {
   if (value === null) return false;
   if (value !== "0") throw new HttpError(400, "onPaper must be 0");
   return true;
+}
+
+/** An entry the "not on paper" list asks about: not on paper yet, and not done (a done x needs no copy onto paper). */
+function isNotOnPaperCandidate(entry: Entry): boolean {
+  return !entry.onPaper && entry.type !== "done";
 }
 
 /** POST marks the entry as written on paper: stamps its current fields as the paper state. Not an edit, no push. */

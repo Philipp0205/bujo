@@ -10,10 +10,10 @@
   L.copy.scan = {
     camera: {
       close: 'Close',
-      title: 'Align the rapid log page',
+      title: 'Align the daily log page',
       titleNote: 'Align the note page',
       modes: 'What to scan',
-      rapid: 'Rapid log',
+      rapid: 'Daily log',
       note: 'Free note',
       shutter: 'Take a photo',
       gallery: 'Choose from gallery'

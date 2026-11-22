@@ -1,5 +1,5 @@
 /*
- * Rapid log copy: every string the person reads, in one place. Plain JS, no build step.
+ * Daily log copy: every string the person reads, in one place. Plain JS, no build step.
  * Logic files take their words from here.
  */
 (function () {
@@ -8,11 +8,15 @@
   var L = window.BujoLog = window.BujoLog || {};
 
   L.copy = {
-    title: 'Rapid Log',
+    title: 'Daily Log',
     today: 'Today',
     addEntry: '+ Add entry',
     notSynced: 'not synced',
     queued: 'waiting to send',
+    done: {
+      /** The accessible name of the bullet button, by the entry's current type: what a tap on it does. */
+      toggle: { task: 'Mark as done', done: 'Mark as not done' }
+    },
     offline: {
       hint: 'You\u2019re offline. New entries will be sent when you are back.',
       dropped: function (title) { return 'Could not send \u201c' + title + '\u201d. The server refused it.'; },

@@ -52,7 +52,7 @@ async function setKeyboard(page: Page, gap: number): Promise<void> {
   await page.evaluate((px) => (window as unknown as { __setViewportHeight: (h: number) => void }).__setViewportHeight(window.innerHeight - px), gap);
 }
 
-const log = (page: Page) => page.getByRole("main", { name: "Rapid Log" });
+const log = (page: Page) => page.getByRole("main", { name: "Daily Log" });
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 
 test("Back closes the edit sheet and stays on the log", async ({ page }) => {
@@ -69,7 +69,7 @@ test("Back closes the edit sheet and stays on the log", async ({ page }) => {
   await expect(tabs).toBeVisible();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(log(page)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Rapid Log" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log" })).toBeVisible();
 });
 
 test("Back on the edit sheet saves a changed line like Escape does", async ({ page }) => {
@@ -278,7 +278,7 @@ test("a tap on the backdrop still saves and closes the sheet while the keyboard 
   await setKeyboard(page, 320);
   await page.locator(".paper-edit-input").fill("Zehn geaendert");
 
-  await page.getByRole("heading", { name: "Rapid Log" }).click();
+  await page.getByRole("heading", { name: "Daily Log" }).click();
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   expect(await storedTitles(page, -2)).toEqual(["Zehn geaendert"]);
 });

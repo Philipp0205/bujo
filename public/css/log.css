@@ -101,8 +101,6 @@
 .card-child:first-of-type { margin-top: 4px; }
 
 .paper-row {
-  appearance: none;
-  -webkit-appearance: none;
   position: relative;
   z-index: 1;
   box-sizing: border-box;
@@ -120,10 +118,31 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* A vertical drag scrolls the log; a horizontal one reaches the swipe-to-done gesture (js/log/done/swipe.js). */
+  touch-action: pan-y;
   /* A long press selects the entry, so the browser's own text selection and callout stay out of it. */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* The title and pills of a row are one button that opens the entry; it looks like plain text. */
+.paper-open {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ----- Select mode ----- */
@@ -237,6 +256,34 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   fill: none;
 }
 
+/* The bullet of a task or done row is the one-tap done toggle. Its hit area reaches past the glyph to a 44px target, never into the title. */
+.paper-sym-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.paper-sym-btn::after { content: ""; position: absolute; inset: -9px -4px -9px -14px; }
+html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
+
+/* The ink of a flip: the glyph and the title settle in like a pen stroke drying (a short fade and nudge, in the paper colours). */
+@keyframes ink-settle {
+  from { opacity: 0.2; transform: translateX(-3px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+.paper-sym.is-inking,
+.paper-title.is-inking { animation: ink-settle 240ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .paper-sym.is-inking,
+  .paper-title.is-inking { animation: none; }
+}
+
 .paper-body {
   flex: 1;
   display: block;
@@ -252,6 +299,21 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 18, "wght" 400;
   font-synthesis: none;
+}
+
+/* The dot grid recedes behind the words of a card: a soft paper-coloured wash hugs the title text and the pills, nothing else.
+   Each is a block shrunk to its text, so the layout is the same as without the wash; the margins, the gutter and the card outline keep their dots. */
+.paper-row .paper-title {
+  width: fit-content;
+  max-width: 100%;
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+.paper-row .paper-meta {
+  width: fit-content;
+  max-width: 100%;
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
 }
 
 .paper-row[data-type="done"] .paper-title {

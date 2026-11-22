@@ -48,8 +48,8 @@ async function watchLoadingLine(page: Page): Promise<void> {
 test("the tabs swap in place: Notes, Account and back to the log, with the bar kept and Add never active", async ({ page }) => {
   const title = await seedNote(page, "Kitchen garden");
   await page.goto(app.baseUrl);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(heading(page, "Daily Log")).toBeVisible();
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
   const barNode = await bar(page).elementHandle();
   await markDocument(page);
 
@@ -59,7 +59,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await expect(card(page, title)).toHaveCount(1);
   await expect(tab(page, "notes")).toHaveAttribute("aria-current", "page");
   await expect(tab(page, "add")).not.toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("main", { name: "Rapid Log" })).toBeHidden();
+  await expect(page.getByRole("main", { name: "Daily Log" })).toBeHidden();
 
   await tab(page, "account").click();
   await expect(page).toHaveURL(`${app.baseUrl}/settings`);
@@ -70,9 +70,9 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
 
   await tab(page, "log").click();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
 
   // One document the whole time, and one bar that was never replaced.
   expect(await sameDocument(page)).toBe(true);
@@ -90,12 +90,12 @@ test("Add from Notes goes to the log in place, opens the edit sheet with the tit
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Entry title" })).toBeFocused();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
   await expect(page.locator(".ak-tabbar [data-tab=add]")).not.toHaveAttribute("aria-current", "page");
   expect(await sameDocument(page)).toBe(true);
 
   await page.reload();
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
 });
 
@@ -107,7 +107,7 @@ test("Back from Notes lands on the log and stays in the app, in the same documen
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
   expect(await sameDocument(page)).toBe(true);
 });
@@ -120,7 +120,7 @@ test("Notes and Account replace each other: Back from Account lands on the log, 
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
 
   await page.goForward();
   await expect(page).toHaveURL(`${app.baseUrl}/settings`);
@@ -143,7 +143,7 @@ test("an open note sheet closes on the first Back and Notes stays, the second Ba
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
   expect(await sameDocument(page)).toBe(true);
 });
 
@@ -161,7 +161,7 @@ test("an open what's new sheet in Account closes on the first Back, the second B
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
 });
 
 /** Opens a page as the first entry of a new window (a popup has nothing before it), like the installed app started on it. */
@@ -189,7 +189,7 @@ for (const [path, name] of [["/settings", "Settings"], ["/notes", "Notes"]] as c
 
     await first.goBack();
     await expect(first).toHaveURL(`${app.baseUrl}/`);
-    await expect(heading(first, "Rapid Log")).toBeVisible();
+    await expect(heading(first, "Daily Log")).toBeVisible();
     await expect(tab(first, "log")).toHaveAttribute("aria-current", "page");
     expect(await sameDocument(first)).toBe(true);
   });
@@ -201,7 +201,7 @@ test("a warm switch to Notes shows the grid and never the loading line", async (
   await tab(page, "notes").click();
   await expect(card(page, title)).toHaveCount(1);
   await tab(page, "log").click();
-  await expect(heading(page, "Rapid Log")).toBeVisible();
+  await expect(heading(page, "Daily Log")).toBeVisible();
 
   await watchLoadingLine(page);
   await tab(page, "notes").click();

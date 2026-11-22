@@ -9,7 +9,7 @@
   N.copy = {
     barLabel: 'Main',
     tabs: {
-      log: 'Rapid log',
+      log: 'Daily log',
       notes: 'Notes',
       add: 'Add',
       scan: 'Scan',

@@ -9,12 +9,12 @@ test.beforeEach(async ({ page }) => {
   // The install banner would sit over the page, so it is dismissed for the session before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   // The account keeps the seen id between tests, so each one starts with the newest entry seen and no what's new sheet over the log.
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-offline" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-page-feedback" } });
 });
 
 const sheet = (page: Page) => page.getByTestId("edit-sheet");
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
-const heading = (page: Page) => page.getByRole("heading", { name: "Rapid Log", level: 1 });
+const heading = (page: Page) => page.getByRole("heading", { name: "Daily Log", level: 1 });
 
 /** Waits until the log is in the document (the router adds it in the background), so Add can swap to it in the same turn. */
 async function logIsWarm(page: Page): Promise<void> {

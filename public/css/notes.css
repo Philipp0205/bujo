@@ -43,8 +43,8 @@
 
 /* The title row: the title takes the width, the not-on-paper page mark sits small and muted at its end. */
 .note-foot { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
-.note-foot .note-title { flex: 1 1 auto; min-width: 0; }
-.note-foot .paper-off { height: 22px; width: 18px; }
+.note-foot .note-title { flex: 0 1 auto; min-width: 0; }
+.note-foot .paper-off { height: 22px; width: 18px; margin-left: auto; }
 
 /* The frame of the thumbnail. Its ink is above the photo, so the pen line is never hidden by the picture. */
 .note-thumb {
@@ -89,4 +89,7 @@
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 17, "wght" 400;
   font-synthesis: none;
+  /* The dots recede behind the title, like the words of a log card. */
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
 }

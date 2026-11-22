@@ -28,7 +28,7 @@ test("first run: sign up, save the recovery code, sign out, sign in again with i
 
   await page.locator("[data-action=code-saved]").click();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
-  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
 
   // Sign out from settings.

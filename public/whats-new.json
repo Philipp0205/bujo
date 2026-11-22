@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-page-feedback",
+    "date": "2026-11-22",
+    "title": "Tap to tick, and a calmer page",
+    "bullets": [
+      "Tap the bullet of a task to mark it done, or swipe a row to the right. It works offline too.",
+      "The dot grid is quieter behind your words, and done entries no longer count as not on paper.",
+      "Rapid log is now called Daily log."
+    ]
+  },
+  {
     "id": "2026-11-22-offline",
     "date": "2026-11-22",
     "title": "Write entries without a connection",
