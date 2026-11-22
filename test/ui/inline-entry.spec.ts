@@ -191,7 +191,7 @@ test("type set through the marker, tag, day and time through the bar are saved w
   expect((await stored(page))[0]).toMatchObject({ type: "event", tags: ["Gesundheit"], time: "09:30", date: day(0) });
 });
 
-test("a new line given another day lands in that day's group after saving", async ({ page }) => {
+test("a new line given another day leaves this page and lands on that day's page after saving", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Morgen erledigen");
@@ -199,9 +199,18 @@ test("a new line given another day lands in that day's group after saving", asyn
   await page.locator('.inline-pop input[name="date"]').fill(day(1));
   await page.keyboard.press("Enter");
 
-  await expect(page.locator(`.paper-day-group[data-date="${day(1)}"] .paper-row`, { hasText: "Morgen erledigen" })).toBeVisible();
+  // Today's page does not show it (the next line opens here), and the entry is stored on the other day.
   await expect(saved(page, "Morgen erledigen")).toHaveCount(0);
   await expect(line(page)).toBeFocused();
+  await expect.poll(async () => (await stored(page)).map((entry) => `${entry.date} ${entry.title}`)).toEqual([`${day(1)} Morgen erledigen`]);
+
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toBeHidden();
+  // Tomorrow now has an entry, so it is a page: the next arrow turns to it.
+  await expect(page.getByTestId("page-next")).toBeEnabled();
+  await page.getByTestId("page-next").click();
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(1));
+  await expect(page.locator(`.paper-day-group[data-date="${day(1)}"] .paper-row`, { hasText: "Morgen erledigen" })).toBeVisible();
 });
 
 test("the type chooser closes on Escape first, then a tap outside closes it and saves the draft", async ({ page }) => {

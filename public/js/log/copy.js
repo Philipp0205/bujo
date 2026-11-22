@@ -22,6 +22,22 @@
       dropped: function (title) { return 'Could not send \u201c' + title + '\u201d. The server refused it.'; },
       droppedChange: 'Could not send a change. The server refused it.'
     },
+    pages: {
+      prev: 'Previous page',
+      next: 'Next page',
+      folio: function (number) { return 'Page ' + number; },
+      pickDay: 'Choose a day',
+      toToday: 'Today',
+      toTodayLabel: 'Back to today',
+      picker: {
+        label: 'Choose a day',
+        prevMonth: 'Previous month',
+        nextMonth: 'Next month',
+        months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+        weekdays: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+        hasEntries: 'has entries'
+      }
+    },
     loading: 'Turning the page\u2026',
     loadFailed: 'Could not load the log. Try again.',
     retry: 'Try again',

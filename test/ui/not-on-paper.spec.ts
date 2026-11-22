@@ -130,7 +130,8 @@ test("the row mark follows the same window: old and unwritten shows no mark, rec
     const entry = (date: string, id: string) => ({ id, date, type: "task", title: id, tags: [], time: null, onPaper: false, sync: "synced", position: 0, createdAt: 0, indent: 0 });
     const entries = [entry(old, "old"), entry(edge, "edge"), entry(today, "today"), entry(future, "future")];
     const host = document.createElement("div");
-    L.view.dayList(entries, today, actions).forEach((node: Node) => host.appendChild(node));
+    // One page per day: each day is drawn on its own, like the log does.
+    entries.forEach((item) => host.appendChild(L.view.dayPage(item.date, entries, actions, today)));
     return Array.from(host.querySelectorAll(".paper-row")).map((rowNode) => [rowNode.getAttribute("data-id"), rowNode.querySelectorAll('[data-testid="not-on-paper-mark"]').length]);
   }, [day(0), day(-15), day(-14), day(5)]);
   expect(marks).toEqual([["old", 0], ["edge", 1], ["today", 1], ["future", 1]]);

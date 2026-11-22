@@ -35,13 +35,6 @@ function day(offset: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** The German weekday and dd.mm. of a day, as the copied header writes it. */
-function header(iso: string): string {
-  const [year, month, dayOfMonth] = iso.split("-").map(Number);
-  const names = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-  return `${names[new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay()]} ${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
-}
-
 type Seed = { date: string; type: string; title: string; tags?: string[]; time?: string };
 
 /** Fake entries through the API with the page's session. Never a real list. Returns them in order. */
@@ -59,6 +52,17 @@ const row = (page: Page, title: string) => page.locator(".paper-row", { hasText:
 const copied = (page: Page) => page.evaluate(() => window.__copied);
 const bar = (page: Page) => page.getByTestId("select-bar");
 
+/** The address of the log on the page of a day, n days from today. */
+function dayUrl(offset: number): string {
+  return `${app.baseUrl}/?day=${day(offset)}`;
+}
+
+/** Opens the log on the page of a day (the day a test seeded). */
+async function openDay(page: Page, offset: number): Promise<void> {
+  await page.goto(dayUrl(offset));
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(offset));
+}
+
 /** A long press with the mouse: scroll the row to the middle (clear of the tab bar), press, hold past the hold time, release. */
 async function hold(page: Page, title: string): Promise<void> {
   await row(page, title).evaluate((node) => node.scrollIntoView({ block: "center" }));
@@ -71,7 +75,7 @@ async function hold(page: Page, title: string): Promise<void> {
 
 test("the copy key copies the open entry as one paper line and keeps the sheet open", async ({ page }) => {
   await seed(page, [{ date: day(1), type: "task", title: "Milch kaufen", tags: ["haushalt", "Küche"], time: "09:00" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, 1);
   await row(page, "Milch kaufen").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
 
@@ -97,7 +101,7 @@ test("the copy key is hidden for a new line without a title and shows once there
 
 test("a failed single copy says so in a toast", async ({ page }) => {
   await seed(page, [{ date: day(2), type: "note", title: "Nicht kopierbar" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, 2);
   await row(page, "Nicht kopierbar").click();
   // Both the clipboard and the textarea fallback must fail.
   await page.evaluate(() => {
@@ -112,7 +116,7 @@ test("a failed single copy says so in a toast", async ({ page }) => {
 
 test("a short tap on a row still opens the edit sheet", async ({ page }) => {
   await seed(page, [{ date: day(3), type: "task", title: "Nur antippen" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, 3);
   await row(page, "Nur antippen").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
   await expect(bar(page)).toHaveCount(0);
@@ -120,7 +124,7 @@ test("a short tap on a row still opens the edit sheet", async ({ page }) => {
 
 test("a long press on a card starts select mode with that entry selected and no edit sheet", async ({ page }) => {
   await seed(page, [{ date: day(-1), type: "task", title: "Gehalten" }, { date: day(-1), type: "task", title: "Daneben" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -1);
   await hold(page, "Gehalten");
 
   await expect(bar(page)).toBeVisible();
@@ -137,7 +141,7 @@ test("a long press on a card starts select mode with that entry selected and no 
 
 test("a press that moves too far is not a long press", async ({ page }) => {
   await seed(page, [{ date: day(-2), type: "task", title: "Verwischt" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -2);
   const box = (await row(page, "Verwischt").boundingBox())!;
   await page.mouse.move(box.x + 40, box.y + box.height / 2);
   await page.mouse.down();
@@ -149,7 +153,7 @@ test("a press that moves too far is not a long press", async ({ page }) => {
 
 test("a touch long press selects too", async ({ page }) => {
   await seed(page, [{ date: day(-3), type: "task", title: "Mit dem Finger" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -3);
   const target = row(page, "Mit dem Finger");
   await target.evaluate((node) => {
     const rect = node.getBoundingClientRect();
@@ -161,25 +165,25 @@ test("a touch long press selects too", async ({ page }) => {
   await expect(page.getByTestId("select-count")).toHaveText("1 selected");
 });
 
-test("select several across two days, Copy writes the grouped text, shows the count and ends select mode", async ({ page }) => {
+// A page is one day, and pages do not turn while selecting, so a selection stays on one day (no day header is written then). The several-day text is covered by log-clip.test.ts.
+test("select several on a day, Copy writes the paper text, shows the count and ends select mode", async ({ page }) => {
   await seed(page, [
     { date: day(4), type: "task", title: "Brot backen", tags: ["haushalt"], time: "09:00" },
     { date: day(4), type: "done", title: "Pflanzen giessen" },
     { date: day(4), type: "note", title: "Nicht dabei" },
     { date: day(5), type: "event", title: "Lunch mit Mira", tags: ["work"], time: "12:30" },
   ]);
-  await page.goto(app.baseUrl);
-  await hold(page, "Lunch mit Mira");
+  await openDay(page, 4);
+  await hold(page, "Brot backen");
   await row(page, "Pflanzen giessen").click();
-  await row(page, "Brot backen").click();
-  await expect(page.getByTestId("select-count")).toHaveText("3 selected");
-  await expect(page.locator(".paper-row[aria-selected=true]")).toHaveCount(3);
+  await expect(page.getByTestId("select-count")).toHaveText("2 selected");
+  await expect(page.locator(".paper-row[aria-selected=true]")).toHaveCount(2);
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
 
   await page.locator("[data-action=select-copy]").click();
-  const text = `${header(day(4))}\n\u2022 Brot backen #haushalt 09:00\nx Pflanzen giessen\n\n${header(day(5))}\n\u25cb Lunch mit Mira #work 12:30`;
+  const text = "\u2022 Brot backen #haushalt 09:00\nx Pflanzen giessen";
   expect(await copied(page)).toEqual([text]);
-  await expect(page.getByTestId("copied-toast")).toHaveText("Copied 3");
+  await expect(page.getByTestId("copied-toast")).toHaveText("Copied 2");
   await expect(bar(page)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(page.locator(".paper-row[aria-selected]")).toHaveCount(0);
@@ -187,7 +191,7 @@ test("select several across two days, Copy writes the grouped text, shows the co
 
 test("a tap on a selected row unticks it, and Copy is off at zero", async ({ page }) => {
   await seed(page, [{ date: day(6), type: "task", title: "Einzig" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, 6);
   await hold(page, "Einzig");
   await page.waitForTimeout(400);
   await row(page, "Einzig").click();
@@ -203,7 +207,7 @@ test("a parent does not select its children, nor a child its parent", async ({ p
   ]);
   expect((await page.request.patch(`${app.baseUrl}/api/entries/${child.id}`, { data: { indent: 1 } })).status()).toBe(200);
   expect(parent.id).toBeTruthy();
-  await page.goto(app.baseUrl);
+  await openDay(page, -4);
   await hold(page, "Eltern");
   await expect(row(page, "Kind")).toHaveAttribute("aria-selected", "false");
   await row(page, "Kind").click();
@@ -216,13 +220,13 @@ test("a parent does not select its children, nor a child its parent", async ({ p
 
 test("Back while selecting leaves select mode, stays on the log and copies nothing", async ({ page }) => {
   await seed(page, [{ date: day(-5), type: "task", title: "Zurueck" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -5);
   await hold(page, "Zurueck");
   await expect(bar(page)).toBeVisible();
 
   await page.goBack();
   await expect(bar(page)).toHaveCount(0);
-  await expect(page).toHaveURL(`${app.baseUrl}/`);
+  await expect(page).toHaveURL(dayUrl(-5));
   await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(page.locator(".paper-row[aria-selected]")).toHaveCount(0);
   expect(await copied(page)).toEqual([]);
@@ -230,7 +234,7 @@ test("Back while selecting leaves select mode, stays on the log and copies nothi
 
 test("Cancel leaves select mode, clears the selection and restores the header", async ({ page }) => {
   await seed(page, [{ date: day(7), type: "task", title: "Abbrechen" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, 7);
   await hold(page, "Abbrechen");
   await page.locator("[data-action=select-cancel]").click();
 
@@ -245,7 +249,7 @@ test("Cancel leaves select mode, clears the selection and restores the header", 
 
 test("a failed Copy keeps select mode and shows the failure toast", async ({ page }) => {
   await seed(page, [{ date: day(-6), type: "task", title: "Klappt nicht" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -6);
   await hold(page, "Klappt nicht");
   await page.evaluate(() => {
     window.__copyFails = true;
@@ -269,15 +273,19 @@ test("Select day ticks every entry of the day of the last one toggled, nested on
   await hold(page, "Heute eins");
   await page.locator("[data-action=select-day]").click();
 
-  await expect(page.getByTestId("select-count")).toHaveText("3 selected");
+  // Every entry of today's page is ticked (the next day is another page, so it is out of reach). Rows left by earlier tests of the file may sit on today too.
+  const rows = await page.locator(".paper-row").count();
+  expect(rows).toBeGreaterThanOrEqual(3);
+  await expect(page.getByTestId("select-count")).toHaveText(`${rows} selected`);
+  await expect(page.locator(".paper-row[aria-selected=true]")).toHaveCount(rows);
   await expect(row(page, "Heute zwei")).toHaveAttribute("aria-selected", "true");
   await expect(row(page, "Heute drei")).toHaveAttribute("aria-selected", "true");
-  await expect(row(page, "Morgen eins")).toHaveAttribute("aria-selected", "false");
+  await expect(row(page, "Morgen eins")).toHaveCount(0);
 });
 
 test("starting select mode closes an open edit sheet first", async ({ page }) => {
   await seed(page, [{ date: day(-7 + 1), type: "task", title: "Offen" }, { date: day(-7 + 1), type: "task", title: "Dran" }]);
-  await page.goto(app.baseUrl);
+  await openDay(page, -6);
   await row(page, "Offen").click();
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
   await hold(page, "Dran");
@@ -285,5 +293,5 @@ test("starting select mode closes an open edit sheet first", async ({ page }) =>
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await page.goBack();
   await expect(bar(page)).toHaveCount(0);
-  await expect(page).toHaveURL(`${app.baseUrl}/`);
+  await expect(page).toHaveURL(dayUrl(-6));
 });

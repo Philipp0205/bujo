@@ -52,8 +52,6 @@
   cursor: pointer;
 }
 
-.paper-day-group + .paper-day-group { margin-top: 8px; }
-
 .paper-day {
   display: flex;
   align-items: baseline;
@@ -413,8 +411,8 @@ html.is-editing::after {
   margin: 10px auto 0;
 }
 
-/* While a line is typed, the page ends high enough that the last card can scroll above the sheet. */
-html.is-editing .paper-page { padding-bottom: 320px; }
+/* While a line is typed, the page ends high enough that the last card can scroll above the sheet. The daily page scrolls inside (pages.css). */
+html.is-editing .paper-page:not(.daily-page) { padding-bottom: 320px; }
 
 /* ----- The line being typed ----- */
 

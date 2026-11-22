@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-type-marker" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-daily-pages" } });
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
@@ -147,7 +147,7 @@ test("Back closes the chooser first, then the sheet", async ({ page }) => {
 test("an existing entry changes type from the marker and keeps its date, also scheduled", async ({ page }) => {
   const created = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day(2), type: "task", title: "Marker Termin" } });
   expect(created.status()).toBe(201);
-  await page.goto(app.baseUrl);
+  await page.goto(`${app.baseUrl}/?day=${day(2)}`);
   await row(page, "Marker Termin").click();
   await expect(marker(page)).toHaveAccessibleName("Entry type: Task");
 

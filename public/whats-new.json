@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-daily-pages",
+    "date": "2026-11-22",
+    "title": "One day per page",
+    "bullets": [
+      "The Daily Log is now a notebook: each day is its own page. Swipe, tap the arrows or the page edges to turn it.",
+      "Tap the date to pick a day from a small calendar. Days with entries are marked.",
+      "On any other day, tap Today to jump back to the current page."
+    ]
+  },
+  {
     "id": "2026-11-22-type-marker",
     "date": "2026-11-22",
     "title": "Pick the type from the marker",
