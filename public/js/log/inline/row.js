@@ -1,6 +1,6 @@
 /*
- * The content of the edit sheet: the type symbol, the title field (a wrapping textarea), the chips (day, tag, time) and a short error line.
- * Needs ak-dom.js, copy.js, glyph.js, days.js. It is built once and patched after that, so the input keeps its focus
+ * The content of the edit sheet: the type marker, the title field (a wrapping textarea), the chips (day, tag, time) and a short error line.
+ * Needs ak-dom.js, copy.js, glyph.js, days.js, type.js. It is built once and patched after that, so the input keeps its focus
  * and the keyboard stays up. It builds and patches nodes, it never saves anything.
  */
 (function () {
@@ -9,11 +9,6 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
   L.inline = L.inline || {};
-
-  /** The glyph slot of the sheet, showing the line's type. */
-  function symbol(type) {
-    return h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[type] }, L.glyph.typeGlyph(type));
-  }
 
   /** Makes the field as tall as its wrapped text, up to the CSS max-height, and scrolls inside it only past that. */
   function grow(input) {
@@ -65,10 +60,10 @@
     return line.error ? h('p', { class: 'paper-line-error', role: 'alert' }, line.error) : null;
   }
 
-  /** The editing line: symbol and input on one baseline, then the chips. Built once for the sheet. */
-  function build(onType) {
+  /** The editing line: the type marker and the input on one baseline, then the chips. Built once for the sheet. onMarker runs on a tap on the marker. */
+  function build(onType, onMarker) {
     var row = h('div', { class: 'paper-edit', 'data-type': 'task', 'data-indent': '0' },
-      symbol('task'),
+      L.inline.type.build('task', onMarker),
       h('span', { class: 'paper-body' }, titleInput(onType)));
     return h('div', { class: 'paper-line', 'data-editing': '', 'data-new': 'true' }, row, h('div', { class: 'sheet-chips' }));
   }
@@ -98,7 +93,7 @@
     row.setAttribute('data-indent', String(line.indent));
     if (line.id) row.setAttribute('data-id', line.id);
     else row.removeAttribute('data-id');
-    row.replaceChild(symbol(line.type), row.querySelector('.paper-sym'));
+    L.inline.type.patch(line.type);
     patchChips(node, line);
     patchError(node, line);
   }

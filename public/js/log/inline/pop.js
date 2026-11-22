@@ -1,6 +1,6 @@
 /*
- * The small popovers of the accessory bar: Type, Tags, Date and Time. They build nodes and call back, nothing else.
- * Needs ak-dom.js, copy.js, glyph.js, tags.js and suggest/fuzzy.js. cb has type(t), tagPool(), tagToggle(tag), tagAdd(text), tagClear(),
+ * The small popovers of the accessory bar: Tags, Date and Time. They build nodes and call back, nothing else.
+ * Needs ak-dom.js, copy.js, glyph.js, tags.js and suggest/fuzzy.js. cb has tagPool(), tagToggle(tag), tagAdd(text), tagClear(),
  * date(iso), time(hhmm or ''), close().
  */
 (function () {
@@ -9,22 +9,6 @@
   var h = AppKit.h;
   var L = window.BujoLog = window.BujoLog || {};
   L.inline = L.inline || {};
-
-  /** The six glyphs as buttons. The chosen one is pressed. */
-  function typePop(line, cb) {
-    return h('div', { class: 'pop-types', role: 'group', 'aria-label': L.copy.inline.popLabels.type },
-      L.glyph.TYPES.map(function (type) {
-        return h('button', {
-          class: 'pop-type',
-          type: 'button',
-          'data-type': type,
-          'aria-label': L.copy.typeLabels[type],
-          title: L.copy.typeLabels[type],
-          'aria-pressed': type === line.type ? 'true' : 'false',
-          onclick: function () { cb.type(type); }
-        }, L.glyph.typeGlyph(type));
-      }));
-  }
 
   /** A "Clear" button that empties an input and reports the empty value. */
   function clearButton(input, report) {
@@ -132,9 +116,9 @@
     return h('div', { class: 'pop-row' }, input, clearButton(input, cb.time));
   }
 
-  var BUILDERS = { type: typePop, tag: tagPop, date: datePop, time: timePop };
+  var BUILDERS = { tag: tagPop, date: datePop, time: timePop };
 
-  /** The popover node for one of the four keys. */
+  /** The popover node for one of the three keys. */
   function build(kind, line, cb) {
     return h('div', { class: 'inline-pop', 'data-pop': kind }, BUILDERS[kind](line, cb));
   }

@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-type-marker",
+    "date": "2026-11-22",
+    "title": "Pick the type from the marker",
+    "bullets": [
+      "While you write an entry, tap the marker at the start of the line to choose its type: task, done, moved, scheduled, event or note.",
+      "The marker now looks tappable, and the Type key is gone from the bar above the keyboard.",
+      "It works offline too: the entry waits to send with the type you picked."
+    ]
+  },
+  {
     "id": "2026-11-22-page-feedback",
     "date": "2026-11-22",
     "title": "Tap to tick, and a calmer page",

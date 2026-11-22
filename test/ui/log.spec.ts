@@ -165,13 +165,13 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
   const sheet = page.getByRole("group", { name: "Entry editor" });
   await expect(sheet).toBeVisible();
   const line = sheet.locator(".paper-line[data-new=true]");
-  await expect(line.locator(".paper-sym use")).toHaveAttribute("href", "#g-task");
+  await expect(line.locator(".type-marker use")).toHaveAttribute("href", "#g-task");
   await expect(line.locator(".paper-edit-input")).toBeFocused();
   const bar = sheet.locator(".inline-bar");
   await expect(bar).toBeVisible();
   const keys = bar.locator(".bar-key:visible");
   expect(await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-key")))).toEqual(
-    ["type", "tag", "date", "time", "remove", "up", "down", "indent", "outdent"],
+    ["tag", "date", "time", "remove", "up", "down", "indent", "outdent"],
   );
   expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""))).every(Boolean)).toBe(true);
   expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""))).join("")).toBe("");
@@ -261,7 +261,7 @@ test("a request that never reaches the server queues the line instead of failing
   await expect(page.locator(".paper-line .paper-line-error")).toHaveCount(0);
 });
 
-test("tap a row to type in its title; type, tag and day change through the bar and save", async ({ page }) => {
+test("tap a row to type in its title; type (marker), tag and day change and save", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Kaffeebohnen bestellen", tags: ["Haushalt"] }]);
   await page.goto(app.baseUrl);
   await row(page, "Kaffeebohnen").click();
@@ -272,8 +272,8 @@ test("tap a row to type in its title; type, tag and day change through the bar a
   await expect(input).toBeFocused();
   await expect(page.locator(".sheet-chips .pill")).toHaveText(["Haushalt"]);
 
-  await page.locator(".bar-key[data-key=type]").click();
-  await page.locator('.inline-pop .pop-type[data-type="done"]').click();
+  await page.getByTestId("type-marker").click();
+  await page.locator('[data-testid=type-chooser] .type-option[data-type="done"]').click();
   await page.locator(".bar-key[data-key=tag]").click();
   await page.locator(".inline-pop .pop-clear").click();
   await page.keyboard.press("Escape");

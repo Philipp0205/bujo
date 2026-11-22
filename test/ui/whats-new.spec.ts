@@ -4,7 +4,7 @@ import { useBujo } from "./harness.ts";
 const app = useBujo();
 
 /** The catalog ids in public/whats-new.json, newest first. */
-const NEWEST = "2026-11-22-page-feedback";
+const NEWEST = "2026-11-22-type-marker";
 const OLDEST = "2026-11-21-scan-gallery";
 const SEEN_API = "/api/whats-new/seen";
 
@@ -56,10 +56,11 @@ test("unseen entries show once in a sheet, and not again after close, on reload 
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "unseen");
-  // Twenty-two entries are newer than the oldest one. The oldest is not shown again.
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(22);
+  // Twenty-three entries are newer than the oldest one. The oldest is not shown again.
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(23);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toHaveCount(0);
   await expect(sheet.locator(`[data-entry-id="${NEWEST}"] .wn-date`)).toHaveText("22 Nov 2026");
+  await expect(sheet).toContainText("Pick the type from the marker");
   await expect(sheet).toContainText("Tap to tick, and a calmer page");
   await expect(sheet).toContainText("Write entries without a connection");
   await expect(sheet).toContainText("Add an entry in one tap");
@@ -105,7 +106,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "all");
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(23);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(24);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toBeVisible();
 
   await closeAndWaitForStore(page);
@@ -114,7 +115,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
 
   // Everything is seen now and the list can still be opened again.
   await page.locator("[data-action=open-whats-new]").click();
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(23);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(24);
 });
 
 test("entry text is shown as text, never as markup", async ({ page }) => {
