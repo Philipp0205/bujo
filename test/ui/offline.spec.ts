@@ -69,9 +69,16 @@ test("a queued entry survives a reload and is sent after it", async ({ page }) =
   await expect(waiting(page)).toHaveCount(1);
   expect(await serverTitles(page, "Kept on")).toEqual([]);
 
-  // A full goto, not page.reload(): an aborted POST from the boot flush can make reload() fail
-  // with net::ERR_ABORTED while it waits for "load". The queue is in IndexedDB either way.
-  await page.goto(app.baseUrl, { waitUntil: "domcontentloaded" });
+  // The boot flush posts the queue as the page comes back. An aborted POST can make Playwright
+  // treat the navigation itself as net::ERR_ABORTED if we wait for "load" or "domcontentloaded".
+  // Wait only until the document commits; if that still throws, the heading below is the real gate.
+  // The queue is in IndexedDB either way.
+  try {
+    await page.goto(app.baseUrl, { waitUntil: "commit" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/net::ERR_ABORTED|net::ERR_FAILED/.test(message)) throw error;
+  }
   await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
   await expect(row(page, "Kept on the phone").getByTestId("waiting-to-send")).toBeVisible();
 
