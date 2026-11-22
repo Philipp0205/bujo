@@ -1,7 +1,7 @@
 /*
- * The count behind the "Not on paper" header button: how many entries of the last weeks and the coming days are not on paper.
+ * The count behind the "Not on paper" header button: how many entries of the last two weeks and the coming days are not on paper.
  * It reads the server's own list (never Nextcloud), keeps the number, and updates the button in place, so the log needs no redraw.
- * Needs api.js, paper/model.js and paper/view.js.
+ * Needs api.js, paper/recent.js, paper/model.js and paper/view.js.
  */
 (function () {
   'use strict';

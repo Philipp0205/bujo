@@ -87,6 +87,19 @@ test("GET ?onPaper=0 lists only the entries not on paper in the range; other val
   });
 });
 
+test("GET ?onPaper=0 still lists old unwritten rows when the range reaches them: the 14 day window is the client's, the API contract is unchanged", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    for (const [title, date] of [["uralt", "2026-09-01"], ["frisch", "2026-11-20"]]) {
+      await api(base, "POST", "/api/entries", { body: { ...NEW, title, date }, headers });
+    }
+    const wide = await api(base, "GET", "/api/entries?from=2026-09-01&to=2026-11-30&onPaper=0", { headers });
+    assert.deepEqual(wide.json.entries.map((e: any) => e.title), ["uralt", "frisch"]);
+    const narrow = await api(base, "GET", "/api/entries?from=2026-11-08&to=2026-11-30&onPaper=0", { headers });
+    assert.deepEqual(narrow.json.entries.map((e: any) => e.title), ["frisch"]);
+  });
+});
+
 test("a scan that matches an app-created entry leaves it on paper, and a later app edit takes it off again", async () => {
   const ocr = await startFakeOcr([]);
   try {

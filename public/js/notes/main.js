@@ -17,7 +17,7 @@
   function body() {
     if (state.status !== 'ready') return B.view.stateNote(state.status, reload);
     if (!state.entries.length) return B.view.stateNote('empty');
-    return B.view.groupList(B.model.groups(B.model.cards(state.entries)), open);
+    return B.view.groupList(B.model.groups(B.model.cards(state.entries, L.dates.todayIso())), open);
   }
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */

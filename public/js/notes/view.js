@@ -1,6 +1,6 @@
 /*
  * Notes render functions: the header, the two-column grid of ink cards and the quiet states. They build nodes and call back,
- * they never fetch. Needs ak-dom.js, notes/copy.js, log/api.js (photo address) and log/glyph.js.
+ * they never fetch. Needs ak-dom.js, notes/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
  */
 (function () {
   'use strict';
@@ -28,12 +28,14 @@
     return img;
   }
 
-  /** One card: the thumbnail (photo or placeholder) with a pen frame, and the title under it. Opens the note sheet. */
+  /** One card: the thumbnail (photo or placeholder) with a pen frame, and the title under it, with the page mark of a note not on paper. Opens the note sheet. */
   function card(item, onOpen) {
     return h('li', { class: 'note-item' },
       h('button', { class: 'note-card', type: 'button', 'data-id': item.id, 'aria-label': B.copy.openLabel + ': ' + item.title, onclick: function () { onOpen(item.id); } },
         h('span', { class: 'note-thumb' }, item.hasPhoto ? photo(item) : placeholder()),
-        h('span', { class: 'note-title' }, item.title)));
+        h('span', { class: 'note-foot' },
+          h('span', { class: 'note-title' }, item.title),
+          item.unwritten ? L.paper.view.rowMark() : null)));
   }
 
   /** The grid of one group. */

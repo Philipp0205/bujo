@@ -1,7 +1,7 @@
 /*
  * Render functions of the rapid log: header, day groups, ink cards. They build nodes and call back, they never fetch.
  * actions: open(entry), add(), and select { on(), ticked(entry), toggle(entry) } for select mode.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js and paper/view.js (the row mark and the header button).
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, paper/recent.js and paper/view.js (the row mark and the header button).
  */
 (function () {
   'use strict';
@@ -49,8 +49,8 @@
     };
   }
 
-  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet, or ticks while selecting. */
-  function entryRow(entry, actions, indent) {
+  /** One entry as a tappable row: the symbol in its own column, the title, and the pills under the title. Opens the edit sheet, or ticks while selecting. The page mark shows for a recent entry that is not on paper. */
+  function entryRow(entry, actions, indent, today) {
     var picking = actions.select.on();
     var ticked = picking && actions.select.ticked(entry);
     return h('button', {
@@ -69,7 +69,7 @@
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
         pills(entry)),
-      entry.onPaper ? null : L.paper.view.rowMark());
+      L.paper.recent.shows(entry, today) ? L.paper.view.rowMark() : null);
   }
 
   /** The quiet "+ Add entry" row under today's entries. Its empty space starts a line too. */
@@ -78,25 +78,25 @@
   }
 
   /** One card: the entry on top, its nested entries inside the same card, each with its own pen outline (drawn by the ink decorator). */
-  function entryCard(card, actions) {
+  function entryCard(card, actions, today) {
     return h('article', { class: 'entry-card' },
-      entryRow(card.entry, actions, 0),
+      entryRow(card.entry, actions, 0, today),
       card.children.map(function (child) {
-        return h('div', { class: 'card-child' }, entryRow(child, actions, 1));
+        return h('div', { class: 'card-child' }, entryRow(child, actions, 1, today));
       }));
   }
 
   /** A day: its heading, a card per top-level entry, and the add row when it is today (not while selecting). */
-  function dayGroup(day, actions) {
+  function dayGroup(day, actions, today) {
     return h('section', { class: 'paper-day-group', 'data-date': day.date, 'data-today': day.isToday ? 'true' : null },
       dayHeader(day),
-      L.days.cardsOf(day.entries).map(function (card) { return entryCard(card, actions); }),
+      L.days.cardsOf(day.entries).map(function (card) { return entryCard(card, actions, today); }),
       day.isToday && !actions.select.on() ? addRow(actions.add) : null);
   }
 
   /** All the days of the window, oldest first. */
   function dayList(entries, today, actions) {
-    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions); });
+    return L.days.groupDays(entries, today).map(function (day) { return dayGroup(day, actions, today); });
   }
 
   /** A quiet line for loading, with a retry button after a failed load. */

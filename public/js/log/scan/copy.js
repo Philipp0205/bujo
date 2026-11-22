@@ -62,7 +62,7 @@
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
       unchanged: function (count, open) {
-        return count + ' unchanged' + (open ? ', hide' : '');
+        return (open ? 'Hide ' : 'Show ') + count + ' unchanged';
       },
       /** The subtitle and the button say what will be written: new entries and updates, never the unchanged lines. */
       writes: function (counts) {
