@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-future-monthly",
+    "date": "2026-11-22",
+    "title": "Future and Month views",
+    "bullets": [
+      "A switcher above the date now flips the log between Future, Month and Daily. Daily is still where it opens.",
+      "The Future Log looks six months ahead. The Month view lists the days of one month that have entries, plus tasks for the month itself.",
+      "Write @december, @dez or @12.2027 in an entry to file it under a whole month instead of a day."
+    ]
+  },
+  {
     "id": "2026-11-22-borderless-ink",
     "date": "2026-11-22",
     "title": "A page that reads like handwriting",

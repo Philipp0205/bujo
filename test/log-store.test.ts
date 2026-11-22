@@ -288,3 +288,90 @@ test("the table refuses a type or sync state it does not know", () => {
   assert.throws(() => insert("task", "maybe"));
   assert.doesNotThrow(() => insert("migrated", "error"));
 });
+
+const DEC = { from: "2026-12-01", to: "2026-12-31" };
+
+test("a month-task and a future item hang on the last day of their month, with their own position per group", () => {
+  const { store } = setup();
+  const day = store.create(USER, entry({ date: "2026-12-31", title: "new year's eve" }), 1);
+  const month = store.create(USER, entry({ date: "2026-12-05", horizon: "month-task", title: "tax return" }), 2);
+  const future = store.create(USER, entry({ date: "2026-12-10", horizon: "future", title: "gift ideas" }), 3);
+  const second = store.create(USER, entry({ date: "2026-12-31", horizon: "month-task", title: "call bank" }), 4);
+  assert.deepEqual([month.date, month.horizon, month.position], ["2026-12-31", "month-task", 0]);
+  assert.deepEqual([future.date, future.horizon, future.position], ["2026-12-31", "future", 0]);
+  assert.equal(second.position, 1, "the second month-task follows the first");
+  assert.equal(day.position, 0, "the day entry of the last day keeps its own order");
+  assert.equal(entry().horizon, undefined);
+  assert.equal(store.create(USER, entry({ title: "plain" }), 5).horizon, "day", "a missing horizon means day");
+});
+
+test("a month-only event is stored as a task", () => {
+  const { store } = setup();
+  const made = store.create(USER, entry({ date: "2026-12-05", horizon: "month-task", type: "event", title: "party", time: "20:00" }), 1);
+  assert.equal(made.type, "task");
+  assert.equal(store.update(USER, made.id, { type: "event" }, 2)!.type, "task", "still no event without a day");
+});
+
+test("list gives a dated day entry and the month items of the same month together, one id each", () => {
+  const { store } = setup();
+  const day = store.create(USER, entry({ date: "2026-12-15", title: "dentist" }), 1);
+  const month = store.create(USER, entry({ date: "2026-12-01", horizon: "month-task", title: "tax" }), 2);
+  const list = store.list(USER, DEC);
+  assert.deepEqual(list.map((e) => [e.id, e.horizon]), [[day.id, "day"], [month.id, "month-task"]]);
+  assert.equal(list.filter((e) => e.title === "dentist").length, 1, "no second copy");
+});
+
+test("moving a row to another month puts it at the end of that group and renumbers the old one", () => {
+  const { store } = setup();
+  const a = store.create(USER, entry({ date: "2026-12-05", horizon: "month-task", title: "a" }), 1);
+  const b = store.create(USER, entry({ date: "2026-12-05", horizon: "month-task", title: "b" }), 2);
+  store.create(USER, entry({ date: "2027-01-05", horizon: "month-task", title: "z" }), 3);
+  const moved = store.update(USER, a.id, { date: "2027-01-10" }, 4)!;
+  assert.deepEqual([moved.date, moved.horizon, moved.position], ["2027-01-31", "month-task", 1]);
+  assert.equal(store.get(USER, b.id)?.position, 0);
+});
+
+test("changing the horizon moves the entry to the end of the other group, and back to a day keeps the date", () => {
+  const { store } = setup();
+  store.create(USER, entry({ date: "2026-12-31", title: "on the 31st" }), 1);
+  const made = store.create(USER, entry({ date: "2026-12-12", title: "later" }), 2);
+  const month = store.update(USER, made.id, { horizon: "month-task" }, 3)!;
+  assert.deepEqual([month.date, month.horizon, month.position], ["2026-12-31", "month-task", 0]);
+  const back = store.update(USER, made.id, { horizon: "day", date: "2026-12-12" }, 4)!;
+  assert.deepEqual([back.date, back.horizon, back.position], ["2026-12-12", "day", 0]);
+});
+
+test("move and remove work inside one group and leave the day entries of the same date alone", () => {
+  const { store } = setup();
+  const day = store.create(USER, entry({ date: "2026-12-31", title: "day" }), 1);
+  const a = store.create(USER, entry({ date: "2026-12-31", horizon: "month-task", title: "a" }), 2);
+  store.create(USER, entry({ date: "2026-12-31", horizon: "month-task", title: "b" }), 3);
+  assert.deepEqual(store.move(USER, a.id, "down")!.map((e) => e.title), ["b", "a"]);
+  assert.deepEqual(store.remove(USER, a.id)!.map((e) => [e.title, e.position]), [["b", 0]]);
+  assert.equal(store.get(USER, day.id)?.position, 0);
+});
+
+test("listScan sees day entries only, so a scan never touches a month item", () => {
+  const { store } = setup();
+  store.create(USER, entry({ date: "2026-12-31", title: "day" }), 1);
+  store.create(USER, entry({ date: "2026-12-31", horizon: "month-task", title: "month" }), 2);
+  assert.deepEqual(store.listScan(USER, DEC).map((e) => e.title), ["day"]);
+});
+
+test("an old database without the horizon column gets it on open and its entries are day entries", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bujo-horizon-"));
+  const path = join(dir, "old.db");
+  try {
+    const first = openDb(path);
+    first.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run(USER, "Philipp", "hash", 1);
+    createEntryStore(first).create(USER, entry({ title: "old" }), 1);
+    first.exec("ALTER TABLE entries DROP COLUMN horizon");
+    first.close();
+    const reopened = openDb(path);
+    const [old] = createEntryStore(reopened).list(USER, { from: "2026-11-20", to: "2026-11-20" });
+    assert.deepEqual({ title: old.title, horizon: old.horizon }, { title: "old", horizon: "day" });
+    reopened.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

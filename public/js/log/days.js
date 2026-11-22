@@ -12,9 +12,19 @@
     return (a.position - b.position) || (a.createdAt - b.createdAt);
   }
 
-  /** The entries of one day, in the order the server keeps them. */
+  /** The horizon of an entry. Entries cached before horizons existed have none, and are day entries. */
+  function horizonOf(entry) {
+    return entry.horizon || 'day';
+  }
+
+  /** The entries of one day (day horizon only, a month or future item has its own list), in the order the server keeps them. */
   function dayEntries(entries, date) {
-    return entries.filter(function (entry) { return entry.date === date; }).sort(byPosition);
+    return entries.filter(function (entry) { return entry.date === date && horizonOf(entry) === 'day'; }).sort(byPosition);
+  }
+
+  /** The entries of one group in server order: a day, or the month-task or future items filed under a month's last day. */
+  function groupEntries(entries, horizon, date) {
+    return entries.filter(function (entry) { return entry.date === date && horizonOf(entry) === horizon; }).sort(byPosition);
   }
 
   /** Whether an entry of this type has a sync state to show. Notes never go to CalDAV, so they show none. */
@@ -41,10 +51,16 @@
     return pills;
   }
 
-  /** The chips of a line being edited: its day when it differs from the day it sits in, then the tags and time. No sync words. */
+  /** The chips of a line being edited: its day or month when it differs from where it sits, then the tags and time. No sync words. */
   function editPills(line) {
     var pills = [];
-    if (line.date !== line.home) pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
+    var horizon = line.horizon || 'day';
+    var home = line.homeHorizon || 'day';
+    if (horizon !== 'day' && (line.date !== line.home || horizon !== home)) {
+      pills.push({ kind: 'date', text: L.copy.horizon.chip(line.date.slice(0, 7), line.home.slice(0, 4)) });
+    } else if (horizon === 'day' && (line.date !== line.home || home !== 'day')) {
+      pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
+    }
     pills = pills.concat(tagPills(line.tags));
     if (line.time) pills.push({ kind: 'time', text: line.time, hue: 'ochre' });
     return pills;
@@ -61,7 +77,7 @@
   }
 
   L.days = {
-    dayEntries: dayEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
+    horizonOf: horizonOf, dayEntries: dayEntries, groupEntries: groupEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
     entryPills: entryPills, editPills: editPills
   };
 })();

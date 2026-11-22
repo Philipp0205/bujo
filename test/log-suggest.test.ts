@@ -10,7 +10,10 @@ type Token = { kind: "tag" | "date"; query: string; start: number; end: number }
 
 type Suggest = {
   fuzzy: { fold: (text: string) => string; rank: (query: string, pool: Item[], limit?: number) => Item[] };
-  dates: { suggest: (query: string, today: string) => Array<{ iso: string; label: string; hint: string; insert: string }> };
+  dates: {
+    suggest: (query: string, today: string) => Array<{ iso: string; label: string; hint: string; insert: string }>;
+    suggestMonths: (query: string, today: string) => Array<{ month: string; label: string; hint: string; insert: string }>;
+  };
   token: { at: (text: string, caret: number) => Token | null; apply: (text: string, token: Token, insert: string) => { text: string; caret: number } };
   options: { optionsFor: (token: { kind: string; query: string }, line: { tags: string[] }, pool: Item[], today: string) => Option[] };
 };
@@ -220,4 +223,35 @@ test("options: a date token gives dates shaped like the tag options", () => {
     ["date", "Mo 23.11.", "Montag", "@23.11.", "2026-11-23"],
     ["date", "So 22.11.", "morgen", "@22.11.", "2026-11-22"],
   ]);
+});
+
+test("months: de, dez and dec all offer December, as a whole month, with no year this year", () => {
+  for (const query of ["de", "dez", "dec", "DEZ", "december"]) {
+    const list = optionsFor("date", query).filter((o) => o.kind === "month");
+    assert.deepEqual(list.map((o) => [o.label, o.hint, o.insert, o.value]), [["December", "whole month", "@dezember", "2026-12"]], query);
+  }
+});
+
+test("months: a month that has passed this year is offered for next year, with the year", () => {
+  const list = optionsFor("date", "jan").filter((o) => o.kind === "month");
+  assert.deepEqual(list.map((o) => [o.label, o.insert, o.value]), [["January 2027", "@01.2027", "2027-01"]]);
+});
+
+test("months: the current month counts as this year", () => {
+  const list = optionsFor("date", "nov").filter((o) => o.kind === "month");
+  assert.deepEqual(list.map((o) => [o.label, o.insert, o.value]), [["November", "@november", "2026-11"]]);
+});
+
+test("months: a written mm.yyyy is offered as that month, and a bare number or a one letter query is not", () => {
+  assert.deepEqual(plain(S.dates.suggestMonths("12.2027", TODAY)).map((o) => o.month), ["2027-12"]);
+  assert.deepEqual(plain(S.dates.suggestMonths("12", TODAY)), []);
+  assert.deepEqual(plain(S.dates.suggestMonths("", TODAY)), []);
+});
+
+test("months: @mo still offers Monday first and no month, and the days come before the months", () => {
+  const list = optionsFor("date", "mo");
+  assert.equal(list[0].value, "2026-11-23");
+  assert.equal(list.some((o) => o.kind === "month"), false);
+  const mixed = optionsFor("date", "di");
+  assert.equal(mixed[0].kind, "date");
 });

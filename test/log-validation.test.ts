@@ -33,24 +33,35 @@ test("checkRange: a good range, a reversed one, a bad date and the span cap", ()
   assert.equal(checkRange(null, "2026-11-20").ok, false);
   assert.equal(checkRange("2026-11-20", "soon").ok, false);
   assert.equal(checkRange("2026-02-30", "2026-03-02").ok, false);
-  // 92 days inclusive is fine, 93 is not.
-  assert.equal(checkRange("2026-01-01", "2026-04-02").ok, true);
-  assert.equal(checkRange("2026-01-01", "2026-04-03").ok, false);
-  assert.equal(RANGE_MAX_DAYS, 92);
+  // 200 days inclusive is fine, 201 is not (six months of Future and Month views fit).
+  assert.equal(checkRange("2026-01-01", "2026-07-19").ok, true);
+  assert.equal(checkRange("2026-01-01", "2026-07-20").ok, false);
+  assert.equal(RANGE_MAX_DAYS, 200);
 });
 
-test("checkNewEntry trims, defaults tags and time to none and keeps the rest", () => {
+test("checkNewEntry trims, defaults horizon, tags and time and keeps the rest", () => {
   const checked = checkNewEntry({ date: "2026-11-20", type: "event", title: "  Lunch mit Mira  ", tags: [" Freizeit ", "Mira"], time: "13:00" });
-  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", type: "event", title: "Lunch mit Mira", tags: ["Freizeit", "Mira"], time: "13:00", body: null } });
+  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", horizon: "day", type: "event", title: "Lunch mit Mira", tags: ["Freizeit", "Mira"], time: "13:00", body: null } });
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß", tags: [], time: null, body: null },
+    value: { date: "2026-11-20", horizon: "day", type: "task", title: "Küchengarten ä ö ü ß", tags: [], time: null, body: null },
   });
   // An empty tag list and a blank time mean none.
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "note", title: "x", tags: [], time: "" }), {
     ok: true,
-    value: { date: "2026-11-20", type: "note", title: "x", tags: [], time: null, body: null },
+    value: { date: "2026-11-20", horizon: "day", type: "note", title: "x", tags: [], time: null, body: null },
   });
+});
+
+test("checkNewEntry and checkEntryPatch take a horizon: day, month-task or future, nothing else", () => {
+  const base = { date: "2026-12-31", type: "task", title: "x" };
+  for (const horizon of ["day", "month-task", "future"]) {
+    const checked = checkNewEntry({ ...base, horizon });
+    assert.equal(checked.ok && checked.value.horizon, horizon, horizon);
+  }
+  for (const horizon of ["month", "", null, 3]) assert.equal(checkNewEntry({ ...base, horizon }).ok, false, String(horizon));
+  assert.deepEqual(checkEntryPatch({ horizon: "future" }), { ok: true, value: { horizon: "future" } });
+  assert.equal(checkEntryPatch({ horizon: "later" }).ok, false);
 });
 
 test("checkNewEntry drops a repeated tag ignoring case and keeps the first spelling and the order", () => {
@@ -90,7 +101,7 @@ test("checkNewEntry allows an id only when it is a lowercase UUID, and keeps it"
   const base = { date: "2026-11-20", type: "task", title: "x" };
   const id = "3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b";
   const good = checkNewEntry({ ...base, id });
-  assert.deepEqual(good, { ok: true, value: { id, date: "2026-11-20", type: "task", title: "x", tags: [], time: null, body: null } });
+  assert.deepEqual(good, { ok: true, value: { id, date: "2026-11-20", horizon: "day", type: "task", title: "x", tags: [], time: null, body: null } });
   assert.equal("id" in (checkNewEntry(base) as { value: object }).value, false);
   for (const bad of ["", "abc", id.toUpperCase(), id.replace(/-/g, ""), `${id}0`, " " + id, 7, null, {}]) {
     const checked = checkNewEntry({ ...base, id: bad });

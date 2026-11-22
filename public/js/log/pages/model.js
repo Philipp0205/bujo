@@ -1,6 +1,6 @@
 /*
  * Pure model of the daily pages: which days are pages, their numbers, the neighbours of a page, the ?day= value and the
- * month grid of the day picker. No DOM, no fetch, no strings to show. Needs dates.js.
+ * month grid of the day picker. No DOM, no fetch, no strings to show. Needs dates.js and days.js. Only day entries make pages.
  */
 (function () {
   'use strict';
@@ -13,7 +13,7 @@
   /** The pages in date order: every day with entries, plus today even when it is empty. */
   function sequence(entries, today) {
     var seen = {};
-    entries.forEach(function (entry) { seen[entry.date] = true; });
+    entries.forEach(function (entry) { if (L.days.horizonOf(entry) === 'day') seen[entry.date] = true; });
     seen[today] = true;
     return Object.keys(seen).sort();
   }
@@ -89,7 +89,7 @@
   /** A map of the days that have entries, from a list of entries. */
   function marksOf(entries) {
     var marks = {};
-    entries.forEach(function (entry) { marks[entry.date] = true; });
+    entries.forEach(function (entry) { if (L.days.horizonOf(entry) === 'day') marks[entry.date] = true; });
     return marks;
   }
 

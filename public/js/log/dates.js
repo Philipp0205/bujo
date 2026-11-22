@@ -10,7 +10,7 @@
   var BACK_DAYS = 6;
   var AHEAD_DAYS = 7;
   /** The longest range the server lists (RANGE_MAX_DAYS in src/log/validation.ts). */
-  var MAX_DAYS = 92;
+  var MAX_DAYS = 200;
 
   function pad(n) {
     return String(n).padStart(2, '0');
@@ -40,9 +40,25 @@
     return weekday + ' ' + iso.slice(8, 10) + '.' + iso.slice(5, 7);
   }
 
+  /** The short English weekday of a day, like "Wed". */
+  function weekdayShort(iso) {
+    return parseIso(iso).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' });
+  }
+
   /** The days the log shows around today: six back, seven ahead. */
   function windowAround(today) {
     return { from: addDays(today, -BACK_DAYS), to: addDays(today, AHEAD_DAYS) };
+  }
+
+  /** The first day of the month of a day. */
+  function monthStart(iso) {
+    return iso.slice(0, 7) + '-01';
+  }
+
+  /** The last day of the month that lies `ahead` months after the month of a day (0 is that month itself). */
+  function monthEnd(iso, ahead) {
+    var parts = iso.split('-').map(Number);
+    return new Date(Date.UTC(parts[0], parts[1] + ahead, 0)).toISOString().slice(0, 10);
   }
 
   /** The usual window, stretched to include one more day (a scan applied to a day outside it), within the server's range cap. */
@@ -68,7 +84,9 @@
   }
 
   L.dates = {
-    todayIso: todayIso, parseIso: parseIso, addDays: addDays, dayHeading: dayHeading, windowAround: windowAround, windowWith: windowWith,
+    todayIso: todayIso, parseIso: parseIso, addDays: addDays, dayHeading: dayHeading, weekdayShort: weekdayShort,
+    monthStart: monthStart, monthEnd: monthEnd,
+    windowAround: windowAround, windowWith: windowWith,
     reachable: reachable, reaches: reaches
   };
 })();

@@ -62,6 +62,17 @@ test("inPaperWindow: the boundary holds across a month and a year end", () => {
   assert.equal(inPaperWindow("2025-12-17", "2026-01-01"), false);
 });
 
+test("inPaperWindow: a month or future item counts while its month is this month or later", () => {
+  const today = "2026-11-22";
+  for (const horizon of ["month-task", "future"] as const) {
+    assert.equal(inPaperWindow("2026-11-30", today, horizon), true, `${horizon}: this month`);
+    assert.equal(inPaperWindow("2027-03-31", today, horizon), true, `${horizon}: a later month`);
+    assert.equal(inPaperWindow("2026-10-31", today, horizon), false, `${horizon}: last month`);
+  }
+  assert.equal(inPaperWindow("2026-11-10", today, "day"), true, "a day item keeps the 14 day window");
+  assert.equal(inPaperWindow("2026-11-07", today, "day"), false);
+});
+
 test("the browser twin of the window (public/js/log/paper/recent.js) uses the same number and the same boundary", () => {
   const sandbox: any = { window: {} };
   sandbox.window.BujoLog = { dates: { addDays: (iso: string, n: number) => addDays(iso, n) } };
@@ -71,6 +82,12 @@ test("the browser twin of the window (public/js/log/paper/recent.js) uses the sa
   for (const date of ["2026-11-22", "2026-11-08", "2026-11-07", "2026-12-25"]) {
     assert.equal(recent.contains(date, "2026-11-22"), inPaperWindow(date, "2026-11-22"), date);
   }
+  for (const date of ["2026-10-31", "2026-11-21", "2026-11-30", "2027-03-31"]) {
+    assert.equal(recent.contains(date, "2026-11-22", "month-task"), inPaperWindow(date, "2026-11-22", "month-task"), `month ${date}`);
+  }
+  assert.equal(recent.shows({ onPaper: false, date: "2026-10-31", horizon: "month-task" }, "2026-11-22"), false, "a past month is old");
+  assert.equal(recent.shows({ onPaper: false, date: "2026-11-30", horizon: "month-task" }, "2026-11-22"), true, "this month counts");
+  assert.equal(recent.shows({ onPaper: true, date: "2026-11-30", horizon: "future" }, "2026-11-22"), false, "written: no mark");
   assert.equal(recent.shows({ onPaper: false, date: "2026-11-08" }, "2026-11-22"), true);
   assert.equal(recent.shows({ onPaper: false, date: "2026-11-07" }, "2026-11-22"), false, "old and unwritten: no mark");
   assert.equal(recent.shows({ onPaper: true, date: "2026-11-22" }, "2026-11-22"), false, "written: no mark");

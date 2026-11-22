@@ -38,6 +38,28 @@
         hasEntries: 'has entries'
       }
     },
+    horizon: {
+      switcherLabel: 'Log view',
+      views: { future: 'Future', month: 'Month', daily: 'Daily' },
+      titles: { daily: 'Daily Log', month: 'Monthly Log', future: 'Future Log' },
+      futureHeading: 'Next six months',
+      thisMonth: 'This month',
+      thisMonthLabel: 'Back to this month',
+      prevMonth: 'Previous month',
+      nextMonth: 'Next month',
+      noDays: 'No dated entries this month.',
+      monthTasks: 'Month tasks',
+      bucketEmpty: 'Nothing here yet.',
+      /** "December 2026": the month name is English, the year follows it. */
+      monthName: function (month) {
+        return L.copy.pages.picker.months[Number(month.slice(5, 7)) - 1] + ' ' + month.slice(0, 4);
+      },
+      /** The chip of a line filed under a month: the month name, with the year when it is not the year of its home. */
+      chip: function (month, homeYear) {
+        var name = L.copy.pages.picker.months[Number(month.slice(5, 7)) - 1];
+        return month.slice(0, 4) === homeYear ? name : name + ' ' + month.slice(0, 4);
+      }
+    },
     loading: 'Turning the page\u2026',
     loadFailed: 'Could not load the log. Try again.',
     retry: 'Try again',
@@ -86,6 +108,7 @@
       label: 'Suggestions',
       useTag: function (text) { return 'use ' + text; },
       weekdays: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+      monthHint: 'whole month',
       relative: { heute: 'heute', morgen: 'morgen', '\u00fcbermorgen': '\u00fcbermorgen' },
       weekdayNames: {
         montag: 'Montag', dienstag: 'Dienstag', mittwoch: 'Mittwoch', donnerstag: 'Donnerstag',
@@ -95,6 +118,8 @@
     clip: {
       /** The German weekday of the day headers in copied text, in the order of Date.getUTCDay (Sunday first). */
       weekdays: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
+      /** The German month names of the headers of month and future entries in copied text. */
+      months: ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
       copied: function (count) { return 'Copied ' + count; },
       failed: 'Could not copy. Try again.'
     },

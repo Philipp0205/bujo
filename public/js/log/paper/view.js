@@ -1,5 +1,5 @@
 /*
- * Render functions of the "not on paper" list: the sheet, a day with its rows, a row with its "Mark as written" button.
+ * Render functions of the "not on paper" list: the sheet, a day or a month with its rows, a row with its "Mark as written" button.
  * They build nodes and call back, they never fetch. Needs ak-dom.js, copy.js, dates.js, days.js, glyph.js and paper/model.js.
  */
 (function () {
@@ -26,10 +26,13 @@
         h('button', { class: 'todo-written', type: 'button', 'data-action': 'mark-written', onclick: function () { onWritten(entry); } }, L.copy.paper.written)));
   }
 
-  /** A day: its heading and its rows. */
+  /** A day or a month: its heading and its rows. A month group is headed by the month name. */
   function day(group, onWritten) {
-    return h('section', { class: 'todo-day', 'data-date': group.date },
-      h('h3', { class: 'todo-day-head', 'data-testid': 'not-on-paper-day' }, L.dates.dayHeading(group.date)),
+    var head = group.month
+      ? h('h3', { class: 'todo-day-head', 'data-testid': 'not-on-paper-month' }, L.copy.horizon.monthName(group.date.slice(0, 7)))
+      : h('h3', { class: 'todo-day-head', 'data-testid': 'not-on-paper-day' }, L.dates.dayHeading(group.date));
+    return h('section', { class: 'todo-day', 'data-date': group.date, 'data-horizon': group.month ? 'month' : 'day' },
+      head,
       group.entries.map(function (entry) { return row(entry, onWritten); }));
   }
 

@@ -37,21 +37,35 @@
     return L.copy.clip.weekdays[weekday] + ' ' + iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.';
   }
 
-  /** The days the entries sit on, in date order. */
-  function datesOf(entries) {
-    var seen = {};
-    entries.forEach(function (entry) { seen[entry.date] = true; });
-    return Object.keys(seen).sort();
+  /** The header of a month group, like "Dezember 2026". */
+  function monthHeading(date) {
+    return L.copy.clip.months[Number(date.slice(5, 7)) - 1] + ' ' + date.slice(0, 4);
   }
 
-  /** The text of the entries: lines in day order then position, with a header per day when there is more than one day. */
-  function format(entries) {
-    var dates = datesOf(entries);
-    var groups = dates.map(function (date) {
-      var lines = L.days.dayEntries(entries, date).map(line);
-      return (dates.length > 1 ? [heading(date)] : []).concat(lines).join('\n');
+  /** The groups the entries sit in, in date order with a day before the month items of the same date: { date, month, entries }. */
+  function groupsOf(entries) {
+    var seen = {};
+    entries.forEach(function (entry) {
+      var month = L.days.horizonOf(entry) !== 'day';
+      seen[(month ? 'm' : 'd') + entry.date] = { date: entry.date, month: month };
     });
-    return groups.join('\n\n');
+    return Object.keys(seen).map(function (key) { return seen[key]; }).sort(function (a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : Number(a.month) - Number(b.month);
+    }).map(function (group) {
+      var items = group.month
+        ? L.days.groupEntries(entries, 'month-task', group.date).concat(L.days.groupEntries(entries, 'future', group.date))
+        : L.days.dayEntries(entries, group.date);
+      return { date: group.date, month: group.month, entries: items };
+    });
+  }
+
+  /** The text of the entries: lines in group order then position, with a header per day or month when there is more than one group. */
+  function format(entries) {
+    var groups = groupsOf(entries);
+    return groups.map(function (group) {
+      var head = group.month ? monthHeading(group.date) : heading(group.date);
+      return (groups.length > 1 ? [head] : []).concat(group.entries.map(line)).join('\n');
+    }).join('\n\n');
   }
 
   L.clip = { format: format };

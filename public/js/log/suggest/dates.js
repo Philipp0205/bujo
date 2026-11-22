@@ -5,6 +5,8 @@
  * { iso, label: "Mo 23.11.", hint: "morgen", insert: "@23.11." }. The label shows the weekday and the day (with the year
  * when it is not this year). The insert is the canonical written form: "@dd.mm." this year, "@dd.mm.yyyy" otherwise,
  * so the same day is never read two ways. Words match by prefix after folding (so "uber" finds "übermorgen").
+ * suggestMonths(query, today) lists whole months for a name prefix ("de", "dez", "dec") or "mm.yyyy", each as
+ * { month: "2026-12", label: "December", hint: "whole month", insert: "@dezember" } ("@12.2027" when the year is not this one).
  */
 (function () {
   'use strict';
@@ -16,6 +18,11 @@
   var RELATIVE = ['heute', 'morgen', '\u00fcbermorgen'];
   var WEEKDAYS = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
   var SHORT = { montag: 'mo', dienstag: 'di', mittwoch: 'mi', donnerstag: 'do', freitag: 'fr', samstag: 'sa', sonntag: 'so' };
+  /** The names a month answers to, German first (the first one is what a suggestion inserts), then English. */
+  var MONTHS = [
+    ['januar', 'january'], ['februar', 'february'], ['m\u00e4rz', 'march'], ['april'], ['mai', 'may'], ['juni', 'june'],
+    ['juli', 'july'], ['august'], ['september'], ['oktober', 'october'], ['november'], ['dezember', 'december']
+  ];
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
 
@@ -92,5 +99,37 @@
     return out.slice(0, LIMIT);
   }
 
-  L.suggest.dates = { suggest: suggest };
+  /** The months whose German or English name starts with the query (folded), in calendar order, as month numbers 1 to 12. */
+  function monthsNamed(query) {
+    var fold = L.suggest.fuzzy.fold;
+    var wanted = fold(query);
+    var found = [];
+    MONTHS.forEach(function (names, index) {
+      if (names.some(function (name) { return fold(name).indexOf(wanted) === 0; })) found.push(index + 1);
+    });
+    return found;
+  }
+
+  /** One suggestion for a month: { month: YYYY-MM, label, hint, insert }. The year shows in the label and the insert when it is not this year. */
+  function makeMonth(month, today) {
+    var number = Number(month.slice(5, 7));
+    var other = month.slice(0, 4) !== today.slice(0, 4);
+    var name = L.copy.pages.picker.months[number - 1];
+    return {
+      month: month, label: other ? name + ' ' + month.slice(0, 4) : name, hint: L.copy.suggest.monthHint,
+      insert: other ? '@' + pad(number) + '.' + month.slice(0, 4) : '@' + MONTHS[number - 1][0]
+    };
+  }
+
+  /** Month suggestions for the text after "@": a name prefix ("de", "dez", "dec"), or a written "mm.yyyy". Never for an empty query. */
+  function suggestMonths(query, today) {
+    var numeric = /^\d{1,2}\.\d{4}$/.test(query);
+    if (query === '' || (/^\d/.test(query) && !numeric)) return [];
+    var keys = numeric ? [L.dateToken.monthOf('@' + query, today)] : monthsNamed(query).map(function (number) {
+      return L.dateToken.monthOf('@' + MONTHS[number - 1][0], today);
+    });
+    return keys.filter(Boolean).map(function (month) { return makeMonth(month, today); });
+  }
+
+  L.suggest.dates = { suggest: suggest, suggestMonths: suggestMonths };
 })();

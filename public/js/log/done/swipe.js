@@ -20,10 +20,11 @@
   var start = null;
   var swallowUntil = 0;
 
-  /** The swipeable row under an event: a task or done row of a card, never the line in the edit sheet. */
+  /** The swipeable row under an event: a task or done row of a day card, never a month or future row, never the line in the edit sheet. */
   function rowOf(event) {
     var row = event.target.closest && event.target.closest('.paper-row');
     if (!row || !row.closest('.entry-card, .card-child')) return null;
+    if (row.getAttribute('data-horizon') !== 'day') return null;
     var type = row.getAttribute('data-type');
     return type === 'task' || type === 'done' ? row : null;
   }

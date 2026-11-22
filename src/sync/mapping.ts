@@ -30,12 +30,16 @@ export type TodoShape = {
   due: string | null;
 };
 
-/** The VTODO an entry stands for. done is finished, scheduled has a DUE day, task and migrated are open with none. */
-export function todoShape(entry: Pick<Entry, "type" | "title" | "date">): TodoShape {
+/**
+ * The VTODO an entry stands for. done is finished. scheduled has a DUE day. A task, done or migrated entry of a month or
+ * the future has DUE = the last day of its month (its date). A plain daily task has no DUE.
+ */
+export function todoShape(entry: Pick<Entry, "type" | "title" | "date"> & { horizon?: Entry["horizon"] }): TodoShape {
+  const inMonth = entry.horizon !== undefined && entry.horizon !== "day";
   return {
     summary: entry.title,
     status: entry.type === "done" ? "COMPLETED" : "NEEDS-ACTION",
-    due: entry.type === "scheduled" ? entry.date : null,
+    due: entry.type === "scheduled" || inMonth ? entry.date : null,
   };
 }
 

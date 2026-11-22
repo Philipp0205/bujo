@@ -752,6 +752,7 @@ html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted);
   -webkit-tap-highlight-color: transparent;
 }
 .suggest-opt[data-kind="date"] { color: var(--ink-ochre); }
+.suggest-opt[data-kind="month"] { color: var(--ink-ochre); }
 .suggest-opt[data-kind="new"] { color: var(--paper-muted); font-style: italic; }
 .suggest-opt[aria-selected="true"] { border-bottom-color: currentColor; }
 .suggest-hint { color: var(--paper-muted); font: italic 13px/36px var(--font-text); }

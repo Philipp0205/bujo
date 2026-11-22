@@ -1,12 +1,14 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
 import { onPaper } from "./paper.ts";
-import type { DateRange, Entry, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
+import { settleHorizon } from "./horizon.ts";
+import type { DateRange, Entry, EntryHorizon, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
 
 /** A row with the scan provenance columns: the store reads them to derive onPaper, and listScan to hand out the snapshot. */
 type Row = {
   id: string;
   date: string;
+  horizon: EntryHorizon | null;
   time: string | null;
   type: Entry["type"];
   title: string;
@@ -82,7 +84,7 @@ export type EntryStore = {
 
 /** The entry columns, the scan provenance (read to derive onPaper, never sent), the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
-  "id, date, time, type, title, body, sync, sync_error, position, indent, created_at, updated_at, " +
+  "id, date, horizon, time, type, title, body, sync, sync_error, position, indent, created_at, updated_at, " +
   "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, " +
   "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
@@ -112,6 +114,7 @@ function toEntry(row: Row): Entry {
   const entry = {
     id: row.id,
     date: row.date,
+    horizon: row.horizon ?? "day",
     time: row.time,
     type: row.type,
     title: row.title,
@@ -154,8 +157,8 @@ export function createEntryStore(db: Db): EntryStore {
     tags.forEach((tag, position) => insert.run(id, position, tag));
   }
 
-  function nextPosition(userId: string, date: string): number {
-    const row = db.prepare("SELECT MAX(position) AS top FROM entries WHERE user_id = ? AND date = ?").get(userId, date) as {
+  function nextPosition(userId: string, date: string, horizon: EntryHorizon): number {
+    const row = db.prepare("SELECT MAX(position) AS top FROM entries WHERE user_id = ? AND date = ? AND horizon = ?").get(userId, date, horizon) as {
       top: number | null;
     };
     return row.top === null ? 0 : Number(row.top) + 1;
@@ -172,25 +175,25 @@ export function createEntryStore(db: Db): EntryStore {
     return row ? toEntry(row) : undefined;
   }
 
-  /** The ids of one day, in order. */
-  function dayIds(userId: string, date: string): string[] {
-    const rows = db.prepare(`SELECT id FROM entries WHERE user_id = ? AND date = ? ${DAY_ORDER}`).all(userId, date) as Array<{ id: string }>;
+  /** The ids of one group (a day, or a month's lane), in order. Month entries share the last day with that day's own entries, so the horizon is part of the group. */
+  function groupIds(userId: string, date: string, horizon: EntryHorizon): string[] {
+    const rows = db.prepare(`SELECT id FROM entries WHERE user_id = ? AND date = ? AND horizon = ? ${DAY_ORDER}`).all(userId, date, horizon) as Array<{ id: string }>;
     return rows.map((row) => row.id);
   }
 
-  function dayEntries(userId: string, date: string): Entry[] {
-    return (db.prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date = ? ${DAY_ORDER}`).all(userId, date) as Row[]).map(toEntry);
+  function groupEntries(userId: string, date: string, horizon: EntryHorizon): Entry[] {
+    return (db.prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date = ? AND horizon = ? ${DAY_ORDER}`).all(userId, date, horizon) as Row[]).map(toEntry);
   }
 
-  /** Writes the order of a day as 0..n-1, and clears the indent of the first entry (nothing above it to nest under). */
+  /** Writes the order of a group as 0..n-1, and clears the indent of the first entry (nothing above it to nest under). */
   function renumber(userId: string, ids: string[]): void {
     const write = db.prepare("UPDATE entries SET position = ?, indent = CASE WHEN ? = 0 THEN 0 ELSE indent END WHERE user_id = ? AND id = ?");
     ids.forEach((id, index) => write.run(index, index, userId, id));
   }
 
-  /** An indent of 1 only stands when an entry sits above in the day. */
+  /** An indent of 1 only stands when an entry sits above in its group. */
   function settleIndent(userId: string, entry: Entry): void {
-    if (entry.indent === 1 && dayIds(userId, entry.date).indexOf(entry.id) <= 0) {
+    if (entry.indent === 1 && groupIds(userId, entry.date, entry.horizon).indexOf(entry.id) <= 0) {
       db.prepare("UPDATE entries SET indent = 0 WHERE user_id = ? AND id = ?").run(userId, entry.id);
     }
   }
@@ -198,7 +201,7 @@ export function createEntryStore(db: Db): EntryStore {
   return {
     list(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, horizon, position, created_at, id`)
         .all(userId, range.from, range.to) as Row[];
       return rows.map(toEntry);
     },
@@ -214,10 +217,11 @@ export function createEntryStore(db: Db): EntryStore {
 
     listScan(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND horizon = 'day' AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
         .all(userId, range.from, range.to) as Row[];
       return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
     },
+
 
     setScanProvenance(userId, id, snapshot) {
       db.prepare("UPDATE entries SET scan_key = ?, scan_type = ?, scan_title = ?, scan_tags = ?, scan_time = ?, scan_at = ? WHERE user_id = ? AND id = ?").run(
@@ -244,10 +248,12 @@ export function createEntryStore(db: Db): EntryStore {
       const existing = input.id ? owner(id) : undefined;
       if (existing === userId) return get(userId, id)!;
       if (existing !== undefined) throw new EntryIdTaken();
+      const horizon = input.horizon ?? "day";
+      const placed = settleHorizon(input, horizon);
       inTransaction(db, () => {
         db.prepare(
-          "INSERT INTO entries (id, user_id, date, time, type, title, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ).run(id, userId, input.date, input.time, input.type, input.title, input.body ?? null, nextPosition(userId, input.date), now, now);
+          "INSERT INTO entries (id, user_id, date, horizon, time, type, title, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ).run(id, userId, placed.date, horizon, input.time, placed.type, input.title, input.body ?? null, nextPosition(userId, placed.date, horizon), now, now);
         writeTags(id, input.tags);
       });
       return get(userId, id)!;
@@ -256,13 +262,14 @@ export function createEntryStore(db: Db): EntryStore {
     update(userId, id, patch, now) {
       const current = get(userId, id);
       if (!current) return undefined;
-      const next = { ...current, ...patch };
-      const sameDay = next.date === current.date;
-      const position = sameDay ? current.position : nextPosition(userId, next.date);
-      const indent = sameDay ? next.indent : (patch.indent ?? 0);
+      const next = settleHorizon({ ...current, ...patch }, patch.horizon ?? current.horizon);
+      const sameGroup = next.date === current.date && next.horizon === current.horizon;
+      const position = sameGroup ? current.position : nextPosition(userId, next.date, next.horizon);
+      const indent = sameGroup ? next.indent : (patch.indent ?? 0);
       inTransaction(db, () => {
-        db.prepare("UPDATE entries SET date = ?, time = ?, type = ?, title = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+        db.prepare("UPDATE entries SET date = ?, horizon = ?, time = ?, type = ?, title = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
           next.date,
+          next.horizon,
           next.time,
           next.type,
           next.title,
@@ -276,21 +283,21 @@ export function createEntryStore(db: Db): EntryStore {
         if (patch.tags !== undefined) writeTags(id, patch.tags);
       });
       settleIndent(userId, get(userId, id)!);
-      if (!sameDay) renumber(userId, dayIds(userId, current.date));
+      if (!sameGroup) renumber(userId, groupIds(userId, current.date, current.horizon));
       return get(userId, id);
     },
 
     move(userId, id, direction) {
       const current = get(userId, id);
       if (!current) return undefined;
-      const ids = dayIds(userId, current.date);
+      const ids = groupIds(userId, current.date, current.horizon);
       const from = ids.indexOf(id);
       const to = direction === "up" ? from - 1 : from + 1;
       if (to >= 0 && to < ids.length) {
         [ids[from], ids[to]] = [ids[to], ids[from]];
         inTransaction(db, () => renumber(userId, ids));
       }
-      return dayEntries(userId, current.date);
+      return groupEntries(userId, current.date, current.horizon);
     },
 
     remove(userId, id) {
@@ -298,10 +305,11 @@ export function createEntryStore(db: Db): EntryStore {
       if (!current) return undefined;
       inTransaction(db, () => {
         db.prepare("DELETE FROM entries WHERE user_id = ? AND id = ?").run(userId, id);
-        renumber(userId, dayIds(userId, current.date));
+        renumber(userId, groupIds(userId, current.date, current.horizon));
       });
-      return dayEntries(userId, current.date);
+      return groupEntries(userId, current.date, current.horizon);
     },
+
 
     setSync(userId, id, change) {
       const error = change.sync === "error" ? (change.error ?? null) : null;

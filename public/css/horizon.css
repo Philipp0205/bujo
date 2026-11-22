@@ -1,0 +1,98 @@
+/*
+ * bujo Future and Month views: the view switcher row above the date row, the month heading, and the sections of the Month and Future
+ * bodies. Everything is ink on the dotted paper, in the paper tokens: no cards, no borders, no kit accent. Rows are the daily rows
+ * (log.css). The switcher row is two grid units tall and lines up with the date row below it. Loaded after pages.css.
+ */
+
+/* ----- The view switcher ----- */
+
+.view-switcher {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 0 0 0 38px;
+}
+
+/* A word of the row. Its tap area is 44px tall; the pen underline of the view on screen is drawn by the ink decorator. */
+.view-tab {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  box-sizing: border-box;
+  min-width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  font: italic 400 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" 400;
+  font-synthesis: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.view-tab[aria-pressed="true"] { color: var(--paper-ink); cursor: default; }
+.view-tab:disabled { opacity: 0.5; cursor: default; }
+.view-tab[aria-pressed="true"]:disabled { opacity: 1; }
+html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
+
+/* The words recede the dots behind them, like the date and the rows. */
+.view-tab > span,
+.view-tab { background: transparent; }
+
+/* ----- The month heading ----- */
+
+.horizon-title {
+  display: inline-block;
+  min-height: 44px;
+  padding: 10px 2px 0;
+  box-sizing: border-box;
+  color: var(--paper-ink);
+  font: italic 400 19px/26px var(--font-text);
+  font-variation-settings: "opsz" 19, "wght" 450;
+  font-synthesis: none;
+  white-space: nowrap;
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+
+/* ----- Sections of the Month and Future bodies ----- */
+
+.horizon-section { margin: 0; padding: 0; }
+
+/* The label of a day, the month tasks or a month of the Future Log: small italic ink, on the text column, on the grid. */
+.horizon-label {
+  width: fit-content;
+  max-width: calc(100% - 40px);
+  margin: 0 0 0 38px;
+  padding: 12px 2px 0;
+  box-sizing: border-box;
+  min-height: 48px;
+  color: var(--paper-muted);
+  font: italic 400 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" 450;
+  font-synthesis: none;
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+
+/* A quiet line for a day-less month or an empty bucket. */
+.horizon-empty {
+  width: fit-content;
+  margin: 0 0 0 38px;
+  padding: 12px 2px 0;
+  box-sizing: border-box;
+  min-height: 48px;
+  color: var(--paper-muted);
+  font: italic 400 15px/24px var(--font-text);
+  font-variation-settings: "opsz" 15, "wght" 400;
+  font-synthesis: none;
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}

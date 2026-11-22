@@ -3,7 +3,8 @@
  * turn targets. They build nodes and call back, they never fetch and know nothing of the state. Needs ak-dom.js, copy.js, dates.js,
  * glyph.js and view.js (the Today mark). The cards of the day come in as the body.
  * page(ctx): date, ready, isToday, number, around { prev, next }, locked (selecting or editing), turn ('next' | 'prev' | null), body (nodes),
- *            nav { turn(direction), pick(), home() }.
+ *            nav { turn(direction), pick(), home() }, switcher (the view switcher row, or nothing).
+ * shell(ctx, key, headNode) is the same page around any head row: the Month and Future views use it with their own head.
  */
 (function () {
   'use strict';
@@ -65,18 +66,24 @@
     });
   }
 
-  /** The leaf: the scrolling body of the day and the two edge strips. The incoming leaf of a turn slides in (log pages.css). */
-  function leaf(ctx) {
+  /** The leaf: the scrolling body and the two edge strips. The incoming leaf of a turn slides in (log pages.css). */
+  function leaf(ctx, key) {
     return h('div', { class: 'page-leaf', 'data-turn': ctx.turn },
-      h('div', { class: 'page-body', 'data-date': ctx.date, 'data-testid': 'page-body' }, ctx.body),
+      h('div', { class: 'page-body', 'data-date': key, 'data-testid': 'page-body' }, ctx.body),
       edge('prev', ctx),
       edge('next', ctx));
   }
 
-  /** One page of the notebook for a day. */
-  function page(ctx) {
-    return h('div', { class: 'paper-page daily-page', 'data-date': ctx.date, 'data-page': ctx.number ? String(ctx.number) : null }, head(ctx), leaf(ctx));
+  /** The shell of every view: the switcher row, the head row, then the scrolling leaf. key is the day, the month or "future" (it lets a redraw keep the scroll). */
+  function shell(ctx, key, headNode) {
+    return h('div', { class: 'paper-page daily-page', 'data-date': key, 'data-view': ctx.view || 'daily', 'data-page': ctx.number ? String(ctx.number) : null },
+      ctx.switcher || null, headNode, leaf(ctx, key));
   }
 
-  L.pages.view = { page: page };
+  /** One page of the notebook for a day. */
+  function page(ctx) {
+    return shell(ctx, ctx.date, head(ctx));
+  }
+
+  L.pages.view = { page: page, shell: shell };
 })();

@@ -1,6 +1,6 @@
 import { addDays } from "./date-token.ts";
 import type { EntryStore } from "./store.ts";
-import type { Entry, ScanSnapshot } from "./types.ts";
+import type { Entry, EntryHorizon, ScanSnapshot } from "./types.ts";
 import { editedInApp, snapshotOf } from "./scan/fields.ts";
 
 /**
@@ -12,8 +12,11 @@ export const PAPER_WINDOW_DAYS = 14;
 /**
  * True when an entry dated `date` is a not-on-paper candidate: today or up to PAPER_WINDOW_DAYS back (boundary included).
  * A future day is always in, since it is upcoming and not an old leftover. Both arguments are YYYY-MM-DD.
+ * A month-task or future entry has no day: its date is the last day of its month, and it counts while that month is this
+ * month or later, which is the same as that last day not being before today.
  */
-export function inPaperWindow(date: string, today: string): boolean {
+export function inPaperWindow(date: string, today: string, horizon: EntryHorizon = "day"): boolean {
+  if (horizon !== "day") return date >= today;
   return date >= addDays(today, -PAPER_WINDOW_DAYS);
 }
 

@@ -4,9 +4,9 @@
  * Needs markup.js, tags.js, model.js, row.js, type.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
- * host: today() the calendar day, pageDate() the day of the page on screen (where a new line goes), draw() renders the page,
- *       entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
- *       replaceDay(date, entries) swaps a day for the server's list, dayEntries(date) reads a day in order,
+ * host: today() the calendar day, slot() where a new line goes ({ date, horizon }: the day of the Daily page, or the month on screen),
+ *       draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
+ *       replaceGroup(horizon, date, entries) swaps a day or a month's items for the server's list, group(horizon, date) reads one in order,
  *       openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
  * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter saves and starts the next.
@@ -53,15 +53,15 @@
   /** What the bar keys may do for the active line. A key is off when there is no neighbour or when the day is being changed. Copy needs a title. */
   function caps() {
     if (!active) return { copy: false, up: false, down: false, indent: false, outdent: false };
-    var saved = !active.isNew && active.date === active.original.date && active.original.queued !== 'create';
-    var day = host.dayEntries(active.isNew ? active.date : active.original.date);
-    var at = day.findIndex(function (entry) { return entry.id === active.id; });
+    var saved = !active.isNew && !model.moved(active) && active.original.queued !== 'create';
+    var group = host.group(active.isNew ? active.horizon : active.homeHorizon, active.isNew ? active.date : active.home);
+    var at = group.findIndex(function (entry) { return entry.id === active.id; });
     var nested = active.indent === 1;
     return {
       copy: model.hasTitle(active),
       up: saved && at > 0,
-      down: saved && at >= 0 && at < day.length - 1,
-      indent: !nested && (active.isNew ? day.length > 0 : at > 0 && active.date === active.original.date),
+      down: saved && at >= 0 && at < group.length - 1,
+      indent: !nested && (active.isNew ? group.length > 0 : at > 0 && !model.moved(active)),
       outdent: nested
     };
   }
@@ -180,7 +180,7 @@
 
   /** An empty line is not saved: a new one is dropped, an existing one keeps its saved title. Nothing is sent or deleted. */
   function abandon(line, next) {
-    if (next) start(model.blank(host.pageDate()));
+    if (next) start(model.blank(host.slot()));
     else end();
     return { ok: true, entry: line.original };
   }
@@ -206,11 +206,11 @@
     if (input) input.readOnly = on;
   }
 
-  /** What follows a good save: end, or the next line (on the same day when the saved entry landed there). The sheet stays open. */
+  /** What follows a good save: end, or the next line (in the same group when the saved entry landed there). The sheet stays open. */
   function saved(line, entry, next) {
     if (!next) end();
-    else if (line.isNew && entry.date === line.home) start(model.blank(line.home));
-    else start(model.blank(host.pageDate()));
+    else if (line.isNew && entry.date === line.home && (entry.horizon || 'day') === line.homeHorizon) start(model.blank({ date: line.home, horizon: line.homeHorizon }));
+    else start(model.blank(host.slot()));
   }
 
   /** A failed save keeps the line open with its draft and a short error. */
@@ -264,10 +264,10 @@
     commit(false).then(function (result) { if (result.ok) make(); });
   }
 
-  /** The "+ Add entry" tap and the empty space: a new line on the page being shown, or the next one when a line is already being typed. */
+  /** The "+ Add entry" tap and the empty space: a new line in the view being shown, or the next one when a line is already being typed. */
   function addLine() {
-    if (!active) { start(model.blank(host.pageDate())); return; }
-    if (active.saving) { active.saving.then(function (result) { if (result.ok) start(model.blank(host.pageDate())); }); return; }
+    if (!active) { start(model.blank(host.slot())); return; }
+    if (active.saving) { active.saving.then(function (result) { if (result.ok) start(model.blank(host.slot())); }); return; }
     if (active.isNew && !model.hasTitle(active)) { focusTitle(); return; }
     commit(true);
   }
@@ -377,15 +377,16 @@
   function removeLine() {
     var line = active;
     if (line.isNew) { end(); return; }
+    var group = line.original.horizon || 'day';
     if (line.original.queued === 'create') {
       L.outbox.save.discard(line.id).then(function () {
-        host.replaceDay(line.original.date, host.dayEntries(line.original.date).filter(function (entry) { return entry.id !== line.id; }));
+        host.replaceGroup(group, line.original.date, host.group(group, line.original.date).filter(function (entry) { return entry.id !== line.id; }));
         end();
       });
       return;
     }
     request(function () { return L.api.remove(line.id); }, function (entries) {
-      host.replaceDay(line.original.date, entries);
+      host.replaceGroup(group, line.original.date, entries);
       end();
     });
   }
@@ -394,7 +395,7 @@
   function moveLine(direction) {
     var line = active;
     request(function () { return L.api.move(line.id, direction); }, function (entries) {
-      host.replaceDay(line.original.date, entries);
+      host.replaceGroup(line.original.horizon || 'day', line.original.date, entries);
       paint();
     });
   }
@@ -419,7 +420,7 @@
     var line = active;
     settleMarkup(line);
     if (!model.hasTitle(line)) { showBar(); return; }
-    var entry = { type: line.type, title: line.title.trim(), tags: line.tags, time: line.time, date: line.date };
+    var entry = { type: line.type, title: line.title.trim(), tags: line.tags, time: line.time, date: line.date, horizon: line.horizon };
     copying = true;
     L.clipboard.copy([entry]).then(function () {
       copying = false;
@@ -465,7 +466,7 @@
       tagClear: function () { set('tags', [], false); },
       date: function (iso) {
         if (!iso) return;
-        if (iso !== active.date) active.indent = 0;
+        model.chooseDay(active, iso);
         set('date', iso, true);
       },
       time: function (hhmm) { set('time', hhmm || null, true); },

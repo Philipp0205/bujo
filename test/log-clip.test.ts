@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-type Entry = { type: string; title: string; date: string; position: number; createdAt?: number; tags?: string[]; time?: string | null; indent?: number };
+type Entry = {
+  type: string; title: string; date: string; position: number; createdAt?: number; tags?: string[]; time?: string | null; indent?: number;
+  horizon?: string;
+};
 
 /** The browser modules, loaded the way a page loads them: scripts that hang themselves on one window.BujoLog. */
 function load(): { format: (entries: Entry[]) => string } {
@@ -103,4 +106,25 @@ test("clip: a parent and a child together are two flush-left lines", () => {
     entry("task", "Eltern", "2026-11-23", { position: 1 }),
   ]);
   assert.equal(text, "\u2022 Eltern\n\u2022 Kind");
+});
+
+test("clip: month and future items sit under a German month header, after the days of that date", () => {
+  const text = clip.format([
+    entry("task", "Jahresplan", "2026-12-31", { horizon: "future" }),
+    entry("task", "Aufräumen", "2026-11-30", { horizon: "month-task" }),
+    entry("task", "Sitzung", "2026-11-23"),
+  ]);
+  assert.equal(text, "Montag 23.11.\n\u2022 Sitzung\n\nNovember 2026\n\u2022 Aufräumen\n\nDezember 2026\n\u2022 Jahresplan");
+});
+
+test("clip: a day and a month item on the same last day stay in two groups", () => {
+  const text = clip.format([
+    entry("task", "Monatsende", "2026-11-30", { horizon: "month-task" }),
+    entry("task", "Dienstag", "2026-11-30"),
+  ]);
+  assert.equal(text, "Montag 30.11.\n\u2022 Dienstag\n\nNovember 2026\n\u2022 Monatsende");
+});
+
+test("clip: a lone month group has no header", () => {
+  assert.equal(clip.format([entry("task", "Nur Monat", "2026-12-31", { horizon: "future" })]), "\u2022 Nur Monat");
 });
