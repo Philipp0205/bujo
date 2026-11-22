@@ -304,7 +304,8 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 
 /* The dot grid recedes behind the words of a row: a soft paper-coloured wash hugs the title text and nothing else
    (the words after it have their own wash in ink-script.css). It follows each wrapped line. */
-.paper-row .paper-title {
+.paper-row .paper-title,
+.todo-row .paper-title {
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
   box-decoration-break: clone;

@@ -67,6 +67,7 @@
   font-variation-settings: "opsz" 32, "wght" 400;
   font-synthesis: none;
   color: var(--paper-ink);
+  text-shadow: var(--paper-glow);
 }
 
 .sheet-sub {
@@ -74,6 +75,7 @@
   margin: 16px 0 0;
   padding: 0 16px 0 var(--text-col);
   color: var(--paper-muted);
+  text-shadow: var(--paper-glow);
   font-style: italic;
   font-size: 16px;
   line-height: 24px;

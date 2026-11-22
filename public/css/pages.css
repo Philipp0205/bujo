@@ -6,16 +6,50 @@
 
 /* ----- The page fills the screen ----- */
 
+/* The log is paper-coloured only. The dots are painted by the bands (.paper-head, the switcher, the date row) and by the scrolling
+   body (.page-body), never behind both, so the grid always moves with the rows it belongs to. */
 #log.paper {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+  background-image: none;
 }
 /* An id selector beats the router's own rule for a hidden tab page. */
 #log.paper[hidden] { display: none; }
 html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
+
+/* The fixed bands above the body carry their own grid, on the same 24px rhythm and shift, so the sheet reads as one page. Each band
+   starts a whole number of grid units below the one before it (96 + 48 + 48), so the dots run on unbroken from band to body.
+   The body's grid is attached to its content (local), so it scrolls with the rows. Notes keeps the grid of .paper: its page scrolls the window. */
+#log .paper-head,
+#log .select-bar,
+#log .view-switcher,
+#log .page-head,
+#log .page-body {
+  background-image: var(--paper-dot-image);
+  background-size: var(--grid) var(--grid);
+  background-position: 0 var(--grid-shift);
+  background-repeat: repeat;
+}
+#log .page-body { background-attachment: local; }
+
+/* The status-bar inset is padding on #log, so it would be bare paper without a grid of its own. This strip continues
+   the same 24px rhythm into that inset (height 0 when safe-top is 0). */
+#log.paper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--ak-safe-top);
+  background-image: var(--paper-dot-image);
+  background-size: var(--grid) var(--grid);
+  background-position: 0 calc(var(--grid-shift) + var(--ak-safe-top));
+  background-repeat: repeat;
+  pointer-events: none;
+}
 
 .paper-page.daily-page {
   position: relative;
@@ -30,6 +64,7 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
 
 /* ----- The date row ----- */
 
+/* The date row is as wide as the screen (it cancels the page's side padding and gives it back), so its grid meets the body's at the edge. */
 .page-head {
   flex: none;
   display: flex;
@@ -37,7 +72,8 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
   justify-content: space-between;
   gap: 8px;
   min-height: 48px;
-  padding: 0 0 0 38px;
+  margin: 0 -16px;
+  padding: 0 16px 0 54px;
 }
 .page-title { display: flex; align-items: center; flex: 1 1 auto; gap: 8px; min-width: 0; }
 .page-head .paper-day { flex: none; margin: 0; padding: 0; }
@@ -129,6 +165,7 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
   font-variation-settings: "opsz" 16, "wght" 400;
   font-synthesis: none;
   font-variant-numeric: lining-nums;
+  text-shadow: var(--paper-glow);
 }
 
 html.ak-base .page-head :focus-visible,

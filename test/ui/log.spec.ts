@@ -198,17 +198,21 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
   expect(Math.round(barBox.y + barBox.height)).toBe(844);
 });
 
-test("the paper is the mock's solid dot grid in the page colour, never white", async ({ page }, testInfo) => {
+test("the paper is the page colour, never white, and its dot grid is on the scrolling body", async ({ page }, testInfo) => {
   await page.goto(app.baseUrl);
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
   const dark = testInfo.project.name === "phone-dark";
-  const paper = await page.locator(".paper:visible").evaluate((el) => {
+  const grid = (selector: string) => page.locator(selector).first().evaluate((el) => {
     const style = getComputedStyle(el);
-    return { bg: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize };
+    return { bg: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize, attachment: style.backgroundAttachment };
   });
+  const paper = await grid("#log.paper");
   expect(paper.bg).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
-  expect(paper.image).toContain("radial-gradient");
-  expect(paper.size).toContain("24px 24px");
+  expect(paper.image).toBe("none");
+  const body = await grid("[data-testid=page-body]");
+  expect(body.image).toContain("radial-gradient");
+  expect(body.size).toContain("24px 24px");
+  expect(body.attachment).toBe("local");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
