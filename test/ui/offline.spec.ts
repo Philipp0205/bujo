@@ -69,7 +69,10 @@ test("a queued entry survives a reload and is sent after it", async ({ page }) =
   await expect(waiting(page)).toHaveCount(1);
   expect(await serverTitles(page, "Kept on")).toEqual([]);
 
-  await page.reload();
+  // A full goto, not page.reload(): an aborted POST from the boot flush can make reload() fail
+  // with net::ERR_ABORTED while it waits for "load". The queue is in IndexedDB either way.
+  await page.goto(app.baseUrl, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toBeVisible();
   await expect(row(page, "Kept on the phone").getByTestId("waiting-to-send")).toBeVisible();
 
   await page.unroute("**/api/entries");
