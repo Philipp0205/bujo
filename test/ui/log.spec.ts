@@ -123,7 +123,10 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   await expect(row(page, "Heute Aufgabe").locator(".pill")).toHaveText(["Haushalt"]);
   await expect(row(page, "Mittagessen").locator(".pill")).toHaveText(["Freizeit", "13:00"]);
   await expect(row(page, "Küchengarten")).toHaveAttribute("data-sync", "local");
-  await expect(row(page, "Küchengarten").locator(".paper-meta")).toHaveCount(0);
+  // The words after its title hold only the "not on paper" mark: no pill and no sync dot.
+  await expect(row(page, "Küchengarten").locator(".paper-meta > *")).toHaveCount(1);
+  await expect(row(page, "Küchengarten").locator(".paper-meta .paper-off")).toHaveCount(1);
+  await expect(row(page, "Küchengarten").locator(".pill")).toHaveCount(0);
   await expect(row(page, "Küchengarten").locator(".sync-mark")).toHaveCount(0);
   await expect(row(page, "Küchengarten")).not.toContainText("not synced");
   await expect(row(page, "Heute Aufgabe").locator(".sync-mark")).toHaveAttribute("data-sync", "local");
@@ -209,7 +212,7 @@ test("the paper is the mock's solid dot grid in the page colour, never white", a
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
-test("each entry is an ink card: the symbol shares the title's row, the pills sit under the title start, a long title wraps", async ({ page }) => {
+test("each entry is a borderless row: the symbol shares the title's line, the tags follow the title on it, a long title wraps", async ({ page }) => {
   const long = "Ein sehr langer Titel, der niemals auf eine Zeile passt und deshalb umbrechen muss ".repeat(2);
   await seed(page, [
     { date: day(0), type: "task", title: "Winzig", tags: ["Haushalt"] },
@@ -219,25 +222,29 @@ test("each entry is an ink card: the symbol shares the title's row, the pills si
   await expect(row(page, "Winzig")).toBeVisible();
 
   const card = page.locator(".entry-card", { has: row(page, "Winzig") });
-  await expect(card.locator(":scope > svg.ink-stroke")).toHaveCount(1);
+  await expect(card.locator(":scope > svg.ink-stroke")).toHaveCount(0);
   const short = row(page, "Winzig");
   const sym = (await short.locator(".paper-sym").boundingBox())!;
   const title = (await short.locator(".paper-title").boundingBox())!;
-  const pills = (await short.locator(".paper-meta").boundingBox())!;
+  const meta = (await short.locator(".paper-meta").boundingBox())!;
   expect(Math.abs(sym.y - title.y)).toBeLessThan(4);
   expect(title.x).toBeGreaterThan(sym.x + sym.width - 1);
-  expect(pills.y).toBeGreaterThanOrEqual(title.y + title.height);
-  expect(Math.abs(pills.x - title.x)).toBeLessThan(1);
+  // The tag is on the title's own line, after the title, not under it.
+  expect(meta.x).toBeGreaterThanOrEqual(title.x + title.width - 1);
+  expect(meta.y).toBeLessThan(title.y + title.height);
   await expect(short.locator(".pill")).toHaveText(["Haushalt"]);
+  expect((await short.boundingBox())!.height).toBe(48);
 
   const wide = page.locator(".paper-row", { hasText: "Ein sehr langer" });
   const wideTitle = (await wide.locator(".paper-title").boundingBox())!;
   expect(wideTitle.height).toBeGreaterThan(30);
-  const clipped = await wide.locator(".paper-title").evaluate((el) => el.scrollWidth > el.clientWidth);
+  const clipped = await wide.locator(".paper-body").evaluate((el) => el.scrollWidth > el.clientWidth);
   expect(clipped).toBe(false);
   const rowBox = (await wide.boundingBox())!;
-  const pillBox = (await wide.locator(".paper-meta").boundingBox())!;
-  expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+  for (const pill of await wide.locator(".pill").all()) {
+    const box = (await pill.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);
+  }
   await expect(wide.locator(".pill")).toHaveText(["Arbeit", "13:00"]);
 });
 

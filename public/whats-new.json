@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-borderless-ink",
+    "date": "2026-11-22",
+    "title": "A page that reads like handwriting",
+    "bullets": [
+      "Entries no longer sit in outlined cards. They are written straight on the dotted page, one line to each grid row.",
+      "Tags and the time follow the title in a handwritten script, each tag in its own pen colour.",
+      "The day picker now opens in the middle of the screen, under the date."
+    ]
+  },
+  {
     "id": "2026-11-22-daily-pages",
     "date": "2026-11-22",
     "title": "One day per page",

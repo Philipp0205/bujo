@@ -42,76 +42,64 @@ async function seedNested(page: Page): Promise<void> {
 const card = (page: Page, title: string) => page.locator(".entry-card", { hasText: title });
 const strokeD = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => el.getAttribute("d"));
 
-test("cards, nested cards, pills and the Today mark each carry an ink svg, and no soft paper chrome is left", async ({ page }) => {
+test("rows, nested rows and their tags carry no ink svg and no box, while the Today mark keeps its pen underline", async ({ page }) => {
   await seedNested(page);
   await page.goto(app.baseUrl);
   await expect(card(page, "Zahnarzt")).toBeVisible();
 
   await expect(page.locator(".entry-card")).toHaveCount(2);
-  for (const title of ["Zahnarzt", "Mittagessen"]) {
-    await expect(card(page, title).locator(":scope > svg.ink-stroke")).toHaveCount(1);
-  }
   const child = card(page, "Zahnarzt").locator(".card-child");
   await expect(child).toHaveCount(1);
-  await expect(child.locator(":scope > svg.ink-stroke")).toHaveCount(1);
   await expect(child).toContainText("Rechnung prüfen");
+  await expect(page.locator(".entry-card svg.ink-stroke")).toHaveCount(0);
 
   await expect(card(page, "Zahnarzt").locator(".paper-row[data-indent='0'] .pill")).toHaveText(["health", "14:30"]);
-  const pills = page.locator(".entry-card .pill");
-  const count = await pills.count();
-  expect(count).toBeGreaterThanOrEqual(5);
-  await expect(page.locator(".entry-card .pill > svg.ink-stroke")).toHaveCount(count);
+  await expect(page.locator(".paper-meta .pill")).toHaveCount(5);
   await expect(page.locator("[data-testid=today-mark] > svg.ink-stroke")).toHaveCount(1);
   await expect(page.locator("[data-testid=today-mark]")).toHaveText("Today");
 
-  // The pen is the card chrome: nothing is filled, boxed, rounded by CSS or shadowed.
-  for (const selector of [".entry-card", ".card-child", ".pill"]) {
+  // No outline of any kind is left on a row, a nested row or a tag. A tag keeps the soft paper wash behind its word, which is no outline.
+  for (const selector of [".entry-card", ".card-child", ".paper-row", ".paper-meta .pill"]) {
     const style = await page.locator(selector).first().evaluate((el) => {
       const css = getComputedStyle(el);
-      return { bg: css.backgroundColor, shadow: css.boxShadow, border: css.borderTopWidth, radius: css.borderTopLeftRadius };
+      return { border: css.borderTopWidth, radius: css.borderTopLeftRadius, outline: css.outlineStyle };
     });
-    expect(style).toEqual({ bg: "rgba(0, 0, 0, 0)", shadow: "none", border: "0px", radius: "0px" });
+    expect(style).toEqual({ border: "0px", radius: "0px", outline: "none" });
+  }
+  for (const selector of [".entry-card", ".card-child", ".paper-row"]) {
+    const style = await page.locator(selector).first().evaluate((el) => {
+      const css = getComputedStyle(el);
+      return { shadow: css.boxShadow, bg: css.backgroundColor };
+    });
+    expect(style).toEqual({ shadow: "none", bg: "rgba(0, 0, 0, 0)" });
   }
 });
 
-test("a pill is outlined in its own colour and the card in the pen colour", async ({ page }) => {
+test("a tag is written in its own pen colour, time in ochre, and the Today underline in the today colour", async ({ page }) => {
   await seedNested(page);
   await page.goto(app.baseUrl);
   await expect(card(page, "Zahnarzt")).toBeVisible();
 
   const colour = (selector: string) => page.locator(selector).first().evaluate((el) => getComputedStyle(el).color);
-  const tag = await colour(".pill-tag > svg.ink-stroke");
-  expect(tag).toBe(await colour(".pill-tag"));
-  const time = await colour(".pill-time > svg.ink-stroke");
-  expect(time).toBe(await colour(".pill-time"));
+  const tag = await colour(".pill-tag");
+  const time = await colour(".pill-time");
   expect(tag).not.toBe(time);
-  expect(await colour(".entry-card > svg.ink-stroke")).toBe(await page.evaluate(() => {
-    const probe = document.createElement("i");
-    probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--pen");
-    document.body.appendChild(probe);
-    const value = getComputedStyle(probe).color;
-    probe.remove();
-    return value;
-  }));
+  expect(await page.locator(".pill-time").first().evaluate((el) => el.getAttribute("data-hue"))).toBe("ochre");
+  expect(await page.locator(".pill-tag").first().evaluate((el) => el.getAttribute("data-hue"))).toMatch(/^(sage|sky|leaf|clay|brick)$/);
+  expect(await colour("[data-testid=today-mark] > svg.ink-stroke")).toBe(await colour("[data-testid=today-mark]"));
 });
 
-test("the wobble is stable: a reload gives the same strokes, and a resize redraws with the same seed", async ({ page }) => {
+test("the Today underline wobble is stable: a reload gives the same stroke", async ({ page }) => {
   await seedNested(page);
   await page.goto(app.baseUrl);
   await expect(card(page, "Zahnarzt")).toBeVisible();
-  const before = await strokeD(page, ".entry-card:has-text('Mittagessen') > svg.ink-stroke path");
+  const before = await strokeD(page, "[data-testid=today-mark] > svg.ink-stroke path");
   expect(before).toMatch(/^M/);
 
   await page.reload();
   await expect(card(page, "Mittagessen")).toBeVisible();
-  expect(await strokeD(page, ".entry-card:has-text('Mittagessen') > svg.ink-stroke path")).toBe(before);
-
-  // A taller card (its title wraps in a narrower window) is drawn again, and never twice.
-  await page.setViewportSize({ width: 320, height: 844 });
-  await expect.poll(() => strokeD(page, ".entry-card:has-text('Mittagessen') > svg.ink-stroke path")).not.toBe(before);
-  await expect(card(page, "Mittagessen").locator(":scope > svg.ink-stroke")).toHaveCount(1);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => strokeD(page, ".entry-card:has-text('Mittagessen') > svg.ink-stroke path")).toBe(before);
+  expect(await strokeD(page, "[data-testid=today-mark] > svg.ink-stroke path")).toBe(before);
+  await expect(page.locator("[data-testid=today-mark] > svg.ink-stroke")).toHaveCount(1);
 });
 
 test("the edit sheet is inked: a wobbly top, a handle, a rule above the bar and chips, with the bar and input still working", async ({ page }) => {

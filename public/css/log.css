@@ -1,8 +1,8 @@
 /*
- * bujo paper look: the rapid log (/), its ink cards and the details sheet.
+ * bujo paper look: the rapid log (/), its rows and the details sheet.
  * Colours, fonts, the dot grid and the pen stroke base are in paper.css; the sheet shell is in sheet.css.
- * Each top-level entry is a card drawn with a fine pen: no fill, no CSS border, the outline is an
- * <svg class="ink-stroke"> made by js/log/ink, so the dots show through. The details sheets keep the ruled paper with its margin line.
+ * A row is plain ink on the dotted page: no card, no border, no fill (the tags and time after a title are in ink-script.css).
+ * The details sheets keep the ruled paper with its margin line.
  */
 
 /* The sprite is only a warehouse for <use>. */
@@ -24,9 +24,9 @@
 }
 .paper-state[data-state="error"] { color: var(--paper-today); }
 
-/* The quiet line above the days while the device is offline. */
+/* The quiet line above the days while the device is offline. It is one grid unit tall and starts in the text column. */
 .paper-hint {
-  margin: 0 4px 12px;
+  margin: 0 12px 0 40px;
   color: var(--paper-muted);
   font-style: italic;
   font-size: 15px;
@@ -82,21 +82,22 @@
 
 /* ----- Rows ----- */
 
-/* One card per top-level entry: no fill, no border, no shadow. The pen outline is its ink svg. Nested entries get their own smaller outline. */
+/* A row is plain ink on the dotted page: no card, no border, no fill. The wrappers stay (swipe, press and the editor find their row through
+   them), but they carry no box. Every one-line row is two grid units (48px) tall, so the words land on the dots. */
 .entry-card {
   position: relative;
-  margin: 0 0 8px;
-  padding: 4px 0;
+  margin: 0;
+  padding: 0;
   background: transparent;
 }
 
+/* A nested entry sits one step in, under its parent. */
 .card-child {
   position: relative;
-  margin: 0 8px 8px;
-  padding: 4px 0;
+  margin: 0 0 0 24px;
+  padding: 0;
   background: transparent;
 }
-.card-child:first-of-type { margin-top: 4px; }
 
 .paper-row {
   position: relative;
@@ -106,9 +107,9 @@
   align-items: flex-start;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   margin: 0;
-  padding: 9px 16px 9px 14px;
+  padding: 12px 12px 12px 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -124,7 +125,7 @@
   -webkit-touch-callout: none;
 }
 
-/* The title and pills of a row are one button that opens the entry; it looks like plain text. */
+/* The title and the words after it are one button that opens the entry; it looks like plain text. */
 .paper-open {
   appearance: none;
   -webkit-appearance: none;
@@ -204,7 +205,7 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   flex: none;
   width: 24px;
   height: 24px;
-  margin: 1px 0 0 -2px;
+  margin: 0;
   color: var(--pen);
 }
 .select-check svg { position: absolute; inset: 0; display: block; width: 24px; height: 24px; }
@@ -241,8 +242,8 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   color: var(--paper-ink);
 }
 .paper-sym svg,
@@ -267,7 +268,7 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.paper-sym-btn::after { content: ""; position: absolute; inset: -9px -4px -9px -14px; }
+.paper-sym-btn::after { content: ""; position: absolute; inset: -12px -4px -12px -16px; }
 html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
 
 /* The ink of a flip: the glyph and the title settle in like a pen stroke drying (a short fade and nudge, in the paper colours). */
@@ -286,32 +287,28 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   flex: 1;
   display: block;
   min-width: 0;
+  line-height: 24px;
 }
 
+/* The title and the inked words after it (.paper-meta) are inline, so the words follow the title on its line and wrap with it. */
 .paper-title {
-  display: block;
+  display: inline;
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 18px;
-  line-height: 26px;
+  line-height: 24px;
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 18, "wght" 400;
   font-synthesis: none;
 }
 
-/* The dot grid recedes behind the words of a card: a soft paper-coloured wash hugs the title text and the pills, nothing else.
-   Each is a block shrunk to its text, so the layout is the same as without the wash; the margins, the gutter and the card outline keep their dots. */
+/* The dot grid recedes behind the words of a row: a soft paper-coloured wash hugs the title text and nothing else
+   (the words after it have their own wash in ink-script.css). It follows each wrapped line. */
 .paper-row .paper-title {
-  width: fit-content;
-  max-width: 100%;
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
-}
-.paper-row .paper-meta {
-  width: fit-content;
-  max-width: 100%;
-  background: var(--paper-bg);
-  box-shadow: var(--paper-wash);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .paper-row[data-type="done"] .paper-title {
@@ -323,17 +320,11 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 .paper-row[data-type="done"] .paper-sym { color: var(--paper-done); }
 .paper-row[data-type="migrated"] { opacity: 0.55; }
 
-/* The pills sit on a second line, under the start of the title: tag, time, "not synced", and the dot of a local or failed entry. */
-.paper-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-}
+/* The inked words (tags, time, "not synced", the sync dot, the page mark) flow after the title. Their look is in ink-script.css. */
+.paper-meta { display: inline; }
 
-/* A pill has no fill: its outline is an ink stroke in the pill's own colour. */
-.pill {
+/* A mark in the edit sheet's chip row keeps the small pen-outlined chip: no fill, its outline is an ink stroke in its own colour. */
+.sheet-chips .pill {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -348,20 +339,19 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
-.pill-tag { color: var(--ink-sage); }
-.pill-time { color: var(--ink-ochre); }
-.pill-date { color: var(--paper-ink); }
-.pill-local { color: var(--paper-muted); }
-.pill-queued { color: var(--paper-muted); font-style: italic; }
+.sheet-chips .pill-tag { color: var(--ink-sage); }
+.sheet-chips .pill-time { color: var(--ink-ochre); }
+.sheet-chips .pill-date { color: var(--paper-ink); }
 
+/* The quiet "+ Add entry" line: its text starts in the text column. The wash hugs the words, not the full width. */
 .paper-add {
   appearance: none;
   -webkit-appearance: none;
   display: block;
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   margin: 0;
-  padding: 0 4px;
+  padding: 0 4px 0 40px;
   border: 0;
   background: transparent;
   color: var(--paper-muted);
@@ -370,6 +360,14 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   text-align: left;
   cursor: pointer;
 }
+.paper-add-text {
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+html.ak-base .paper-open:focus-visible,
+html.ak-base .paper-add:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
 
 /* ----- The edit sheet ----- */
 

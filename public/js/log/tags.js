@@ -9,6 +9,8 @@
 
   var TAG_MAX = 40;
   var TAGS_MAX = 10;
+  /** The pen colours a tag can take. Time is always ochre and is not in this list. The colours live in ink-script.css. */
+  var HUES = ['sage', 'sky', 'leaf', 'clay', 'brick'];
 
   function key(tag) { return String(tag).trim().toLowerCase(); }
 
@@ -69,8 +71,16 @@
     return text.trim() === join(original) ? original.slice() : parse(text);
   }
 
+  /** The ink hue of a tag, stable for the same word in any case, so a tag keeps its pen colour on every row. */
+  function hueOf(tag) {
+    var word = key(tag);
+    var hash = 0;
+    for (var i = 0; i < word.length; i++) hash = (hash * 31 + word.charCodeAt(i)) % 100003;
+    return HUES[hash % HUES.length];
+  }
+
   L.tags = {
-    TAG_MAX: TAG_MAX, TAGS_MAX: TAGS_MAX, indexOf: indexOf, has: has, isTag: isTag, add: add, remove: remove,
-    same: same, spell: spell, parse: parse, join: join, fromField: fromField
+    TAG_MAX: TAG_MAX, TAGS_MAX: TAGS_MAX, HUES: HUES, indexOf: indexOf, has: has, isTag: isTag, add: add, remove: remove,
+    same: same, spell: spell, parse: parse, join: join, fromField: fromField, hueOf: hueOf
   };
 })();
