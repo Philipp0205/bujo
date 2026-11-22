@@ -60,6 +60,21 @@
         return month.slice(0, 4) === homeYear ? name : name + ' ' + month.slice(0, 4);
       }
     },
+    move: {
+      /** The accessible name of a trace row's glyph: what the line on this page says happened to the entry. */
+      traceLabel: { migrated: 'Moved', scheduled: 'Scheduled' },
+      chooserLabel: 'Choose where the entry goes',
+      migrateTitle: 'Move to',
+      scheduleTitle: 'Schedule for',
+      thisDay: 'This day',
+      nextDay: 'Next day',
+      pickDay: 'Pick a day',
+      pickDayLabel: 'Day to move to',
+      thisMonth: 'This month',
+      futureHeading: 'Future months',
+      /** The aria name of a future month chip: the full month name and year. */
+      monthLabel: function (month) { return L.copy.horizon.monthName(month); }
+    },
     loading: 'Turning the page\u2026',
     loadFailed: 'Could not load the log. Try again.',
     retry: 'Try again',

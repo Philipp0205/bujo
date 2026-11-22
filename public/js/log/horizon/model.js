@@ -58,14 +58,14 @@
     return { date: lastDay(target), horizon: target <= L.pages.model.monthOf(today) ? 'month-task' : 'future' };
   }
 
-  /** The day entries of a month grouped by day, in date order: [{ date, entries }]. Days without entries are not listed. */
+  /** The days of a month with something on them, in date order: [{ date, entries, traces }]. A day with only a trace is listed too. */
   function monthDays(entries, month) {
     var seen = {};
     entries.forEach(function (entry) {
       if (L.days.horizonOf(entry) === 'day' && L.pages.model.monthOf(entry.date) === month) seen[entry.date] = true;
     });
     return Object.keys(seen).sort().map(function (date) {
-      return { date: date, entries: L.days.dayEntries(entries, date) };
+      return { date: date, entries: L.days.dayEntries(entries, date), traces: L.days.tracesOf(entries, 'day', date) };
     });
   }
 
@@ -76,13 +76,21 @@
     return groups.reduce(function (cards, group) { return cards.concat(L.days.cardsOf(group)); }, []);
   }
 
-  /** The six buckets of the Future Log: [{ month, cards }], this month first. */
+  /** The traces left on the lanes of a whole month (month tasks and future items), after the entries. */
+  function monthTraces(entries, month) {
+    var date = lastDay(month);
+    return ['month-task', 'future'].reduce(function (all, horizon) { return all.concat(L.days.tracesOf(entries, horizon, date)); }, []);
+  }
+
+  /** The six buckets of the Future Log: [{ month, cards, traces }], this month first. */
   function buckets(entries, today) {
-    return futureMonths(today).map(function (month) { return { month: month, cards: monthCards(entries, month) }; });
+    return futureMonths(today).map(function (month) {
+      return { month: month, cards: monthCards(entries, month), traces: monthTraces(entries, month) };
+    });
   }
 
   L.horizon.model = {
     VIEWS: VIEWS, isView: isView, futureMonths: futureMonths, span: span, lastDay: lastDay, readMonth: readMonth, shifted: shifted,
-    slotOf: slotOf, monthDays: monthDays, monthCards: monthCards, buckets: buckets
+    slotOf: slotOf, monthDays: monthDays, monthCards: monthCards, monthTraces: monthTraces, buckets: buckets
   };
 })();

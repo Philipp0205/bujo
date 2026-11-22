@@ -18,6 +18,13 @@
     });
   }
 
+  /** The entries of a range followed by the traces moves left on its pages (as pseudo entries, see move/traces.js): one list the cache can hold. */
+  function listWithTraces(from, to) {
+    return call('GET', '/api/entries?from=' + from + '&to=' + to + '&traces=1').then(function (body) {
+      return body.entries.concat((body.traces || []).map(L.move.traces.fromServer));
+    });
+  }
+
   /** The entries from one day to another that are not on paper yet (the server filters), both days included. */
   function listNotOnPaper(from, to) {
     return call('GET', '/api/entries?from=' + from + '&to=' + to + '&onPaper=0').then(function (body) {
@@ -91,5 +98,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

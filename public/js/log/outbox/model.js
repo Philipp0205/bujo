@@ -72,12 +72,14 @@
     return items.map(function (each) { return each.key === item.key ? next : each; });
   }
 
-  /** Queues changes to a saved entry. They join the entry's queued create or its queued update, else become a new update. */
+  /** Queues changes to a saved entry. They join the entry's queued create or its queued update, else become a new update.
+   * A trace is for the old page on the server, which a queued create has none of, so it never goes into a create. */
   function enqueueUpdate(items, id, patch, now) {
     var create = items.find(function (item) { return item.kind === 'create' && item.id === id; });
     var fields = Object.assign({}, patch);
     var indent = fields.indent;
     delete fields.indent;
+    delete fields.trace;
     if (create) return changed(items, create, fields, indent);
     var update = items.find(function (item) { return item.kind === 'update' && item.id === id; });
     if (update) return changed(items, update, patch);
@@ -114,12 +116,16 @@
     };
   }
 
-  /** An entry with the queued changes for it applied, marked as queued. An entry with none comes back as it was (no queued mark). */
+  /** An entry with the queued changes for it applied, marked as queued. An entry with none comes back as it was (no queued mark).
+   * A queued move that asks for a trace leaves the entry off paper (its paper line is on the old page); the trace itself is no entry field. */
   function overlay(entry, items) {
     var plain = Object.assign({}, entry);
     delete plain.queued;
     return items.filter(function (item) { return item.kind === 'update' && item.id === entry.id; }).reduce(function (shown, item) {
-      return Object.assign({}, shown, item.body, { queued: 'update' });
+      var next = Object.assign({}, shown, item.body, { queued: 'update' });
+      if (item.body.trace) next.onPaper = false;
+      delete next.trace;
+      return next;
     }, plain);
   }
 

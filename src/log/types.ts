@@ -88,6 +88,28 @@ export type EntryPatch = Partial<Omit<NewEntry, "id">> & {
   indent?: number;
 };
 
+/** Why an entry left a page: moved on (migrated, ">") or scheduled ahead ("<"). */
+export const TRACE_KINDS = ["migrated", "scheduled"] as const;
+export type TraceKind = (typeof TRACE_KINDS)[number];
+
+/**
+ * What a move leaves on the page the entry came from: a muted ">" or "<" line with the title as it was. Local only: it has no
+ * UID, is never an entry, and never reaches the sync target. The live entry keeps its id and moves on.
+ */
+export type Trace = {
+  id: string;
+  entryId: string;
+  /** The old page: a day, or the last day of the old month with its horizon. */
+  date: string;
+  horizon: EntryHorizon;
+  kind: TraceKind;
+  title: string;
+  createdAt: number;
+};
+
+/** A checked edit that may also ask for a trace on the old page. The trace is only left when the edit moves the entry to another page. */
+export type EntryChange = EntryPatch & { trace?: TraceKind };
+
 export type DateRange = { from: string; to: string };
 
 /** The outcome of a check. The error is a message safe to show to the caller. */

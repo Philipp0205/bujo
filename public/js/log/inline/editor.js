@@ -1,13 +1,14 @@
 /*
  * The inline editor: the one line of the rapid log that is being typed in the edit sheet, and what happens to it (save, drop, next line).
  * Application logic only. The nodes come from row.js, bar.js and edit-sheet.js, the page is drawn by the host (main.js).
- * Needs markup.js, tags.js, model.js, row.js, type.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js.
+ * Needs markup.js, tags.js, model.js, row.js, type.js, pop.js, bar.js, edit-sheet.js, complete.js, viewport.js, keyboard.js, layers.js, api.js, copy.js, clipboard.js,
+ * move/model.js and move/chooser.js (the Moved and Scheduled types ask where the entry goes).
  * One Back ends the edit and the keyboard together: a history pop (see layers.js) or a soft keyboard that was up and went away.
  *
  * host: today() the calendar day, slot() where a new line goes ({ date, horizon }: the day of the Daily page, or the month on screen),
  *       draw() renders the page, entries() the entries on screen, upsert(entry) keeps the state in step with a saved entry,
  *       replaceGroup(horizon, date, entries) swaps a day or a month's items for the server's list, group(horizon, date) reads one in order,
- *       openSheet(entry) opens the details sheet.
+ *       forget(id) drops the traces of a deleted entry, openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
  * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter saves and starts the next.
  */
@@ -88,15 +89,16 @@
     return commit(false);
   }
 
-  /** True while any popover is open: a bar popover or the type chooser. They share the Escape, Back and outside-tap rules. */
+  /** True while any popover is open: a bar popover, the type chooser or the move chooser. They share the Escape, Back and outside-tap rules. */
   function popOpen() {
-    return bar.popOpen() || L.inline.type.isOpen();
+    return bar.popOpen() || L.inline.type.isOpen() || L.move.chooser.isOpen();
   }
 
-  /** Closes the bar popover and the type chooser, whichever is open. Never touches the focus. */
+  /** Closes the bar popover and the choosers, whichever is open. Never touches the focus. */
   function dropPops() {
     bar.closePop();
     L.inline.type.close();
+    L.move.chooser.close();
   }
 
   /** The Android Back that only dismissed the keyboard fires no popstate, so it ends the edit here. An open popover closes first instead. */
@@ -220,13 +222,13 @@
     focusTitle();
   }
 
-  /** Sends the changes of a line. Resolves { ok, entry }. */
+  /** Sends the changes of a line. Resolves { ok, entry }. A move that asked for a trace tells the page, which draws it on the old page. */
   function persist(line, body, next) {
     lock(true);
     line.saving = send(line, body).then(function (entry) {
       line.saving = null;
       lock(false);
-      host.upsert(entry);
+      host.upsert(entry, body.trace);
       saved(line, entry, next);
       return { ok: true, entry: entry };
     }, function (error) {
@@ -386,6 +388,7 @@
       return;
     }
     request(function () { return L.api.remove(line.id); }, function (entries) {
+      host.forget(line.id);
       host.replaceGroup(group, line.original.date, entries);
       end();
     });
@@ -479,15 +482,47 @@
     if (!active) return;
     if (bar.popKind() === kind) { closePop(); return; }
     L.inline.complete.hide();
-    quietly(L.inline.type.close);
+    quietly(dropPops);
     bar.openPop(kind, active, choices());
     syncLayers();
     if (kind === 'tag') bar.popInput().focus();
   }
 
-  /** A type was picked in the chooser: it goes on the line (the date stays as it is) and the chooser closes. */
+  /** True for a line the move chooser can act on: a saved entry that is not done (a new line and a done one only take the type, as before). */
+  function movable(line) {
+    return !line.isNew && line.type !== 'done';
+  }
+
+  /** A place was picked in the move chooser (null is "this day"). It goes on the line and a real move is saved at once, with its trace. */
+  function pickPlace(kind, target) {
+    if (!active) return;
+    L.move.model.apply(active, kind, target);
+    active.error = '';
+    L.inline.row.update(active);
+    showBar();
+    closePop();
+    if (active.trace) commit(false);
+  }
+
+  /** Opens the move chooser for Moved (migrate) or Scheduled (schedule). A written @day or @month is read first, so the chooser shows it as the pick. */
+  function openMove(kind) {
+    settleMarkup(active);
+    L.move.chooser.open({
+      kind: kind, choices: L.move.model.options(active, kind, host.today()), selected: L.move.model.filedKey(active), today: host.today(),
+      onPick: function (target) { pickPlace(kind, target); }
+    });
+    syncLayers();
+    focusTitle();
+  }
+
+  /** A type was picked in the chooser: Moved and Scheduled of a saved entry ask where it goes, any other type goes on the line (the date stays as it is). */
   function pickType(type) {
     if (!active) return;
+    if ((type === 'migrated' || type === 'scheduled') && movable(active)) {
+      closePop();
+      openMove(type === 'migrated' ? 'migrate' : 'schedule');
+      return;
+    }
     active.type = type;
     L.inline.row.update(active);
     showBar();
@@ -497,7 +532,7 @@
   /** A tap on the type marker: opens the chooser, or closes it when it is open. The title keeps the focus, so the keyboard stays up. */
   function toggleMarker() {
     if (!active) return;
-    if (L.inline.type.isOpen()) { closePop(); return; }
+    if (L.inline.type.isOpen() || L.move.chooser.isOpen()) { closePop(); return; }
     L.inline.complete.hide();
     quietly(bar.closePop);
     L.inline.type.open(active.type, pickType);
@@ -560,7 +595,7 @@
 
   /** True for a press on a popover or on what opens one (a bar key, the type marker): it handles itself, so it must not close the popover first. */
   function onPopSurface(target) {
-    return !!target.closest('.inline-pop, .inline-bar, .type-chooser, .type-marker');
+    return !!target.closest('.inline-pop, .inline-bar, .type-chooser, .move-chooser, .type-marker');
   }
 
   /** A press inside the editing zone must not move focus off the title. A press outside an open popover only closes it. */

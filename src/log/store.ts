@@ -51,6 +51,8 @@ export type EntryStore = {
    * Does nothing for an unknown entry.
    */
   setScanProvenance(userId: string, id: string, snapshot: ScanSnapshot): void;
+  /** Forgets the paper line a scan or a "written" mark left on an entry, so it is not on paper any more. Not an edit: updated_at and sync stay. */
+  clearScanProvenance(userId: string, id: string): void;
   get(userId: string, id: string): Entry | undefined;
   /** The tags in use, with how many entries carry each and when one last changed. Newest use first, then by name. */
   listTags(userId: string): TagUse[];
@@ -231,6 +233,13 @@ export function createEntryStore(db: Db): EntryStore {
         JSON.stringify(snapshot.tags),
         snapshot.time,
         snapshot.at,
+        userId,
+        id,
+      );
+    },
+
+    clearScanProvenance(userId, id) {
+      db.prepare("UPDATE entries SET scan_key = NULL, scan_type = NULL, scan_title = NULL, scan_tags = NULL, scan_time = NULL, scan_at = NULL WHERE user_id = ? AND id = ?").run(
         userId,
         id,
       );

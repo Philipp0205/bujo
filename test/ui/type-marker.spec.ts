@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-dots-contrast" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-cross-log" } });
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
@@ -144,7 +144,7 @@ test("Back closes the chooser first, then the sheet", async ({ page }) => {
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
 });
 
-test("an existing entry changes type from the marker and keeps its date, also scheduled", async ({ page }) => {
+test("an existing entry set to scheduled asks where it goes, and This day keeps its date with no trace", async ({ page }) => {
   const created = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day(2), type: "task", title: "Marker Termin" } });
   expect(created.status()).toBe(201);
   await page.goto(`${app.baseUrl}/?day=${day(2)}`);
@@ -153,6 +153,13 @@ test("an existing entry changes type from the marker and keeps its date, also sc
 
   await marker(page).click();
   await option(page, "scheduled").click();
+  const move = page.getByTestId("move-chooser");
+  await expect(move).toBeVisible();
+  await expect(move).toHaveAttribute("data-kind", "schedule");
+  await expect(title(page)).toBeFocused();
+  await move.locator('[data-dest="here"]').click();
+  await expect(move).toHaveCount(0);
+
   await expect(marker(page).locator("use")).toHaveAttribute("href", "#g-sched");
   await page.locator(".inline-bar [data-key=date]").click();
   await expect(page.locator('.inline-pop input[name="date"]')).toHaveValue(day(2));
@@ -161,6 +168,7 @@ test("an existing entry changes type from the marker and keeps its date, also sc
 
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await expect(row(page, "Marker Termin")).toHaveAttribute("data-type", "scheduled");
+  await expect(page.getByTestId("trace-row")).toHaveCount(0);
   expect((await serverEntries(page, "Marker Termin"))[0]).toMatchObject({ type: "scheduled", date: day(2) });
 });
 

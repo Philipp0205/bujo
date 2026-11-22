@@ -1,11 +1,14 @@
 import {
   ENTRY_HORIZONS,
   ENTRY_TYPES,
+  TRACE_KINDS,
   type Checked,
   type DateRange,
+  type EntryChange,
   type EntryPatch,
   type EntryType,
   type NewEntry,
+  type TraceKind,
 } from "./types.ts";
 import { isEntryHorizon } from "./horizon.ts";
 
@@ -178,10 +181,21 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   return { ok: true, value: "id" in body ? { id: body.id as string, ...entry } : entry };
 }
 
-/** Checks an edit body: any of the fields (and indent, which a create cannot set), at least one. Clients cannot set sync. */
-export function checkEntryPatch(body: Record<string, unknown>): Checked<EntryPatch> {
-  const bad = badField(body, PATCH_FIELDS);
+/**
+ * Checks an edit body: any of the fields (and indent, which a create cannot set), at least one. Clients cannot set sync.
+ * "trace" ("migrated" or "scheduled") asks for a trace on the old page when the edit moves the entry to another page. A create has no trace.
+ */
+export function checkEntryPatch(body: Record<string, unknown>): Checked<EntryChange> {
+  const bad = badField(body, [...PATCH_FIELDS, "trace"]);
   if (bad) return fail(bad);
-  if (Object.keys(body).length === 0) return fail("nothing to change");
-  return checkFields(body);
+  const { trace, ...rest } = body;
+  if (Object.keys(rest).length === 0) return fail("nothing to change");
+  const fields = checkFields(rest);
+  if (!fields.ok || trace === undefined) return fields;
+  if (!isTraceKind(trace)) return fail(`trace must be one of ${TRACE_KINDS.join(", ")}`);
+  return { ok: true, value: { ...fields.value, trace } };
+}
+
+function isTraceKind(value: unknown): value is TraceKind {
+  return typeof value === "string" && (TRACE_KINDS as readonly string[]).includes(value);
 }

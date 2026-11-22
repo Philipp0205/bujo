@@ -17,14 +17,20 @@
     return entry.horizon || 'day';
   }
 
-  /** The entries of one day (day horizon only, a month or future item has its own list), in the order the server keeps them. */
+  /** The entries of one day (day horizon only, a month or future item has its own list), in the order the server keeps them. Traces are not entries: see tracesOf. */
   function dayEntries(entries, date) {
-    return entries.filter(function (entry) { return entry.date === date && horizonOf(entry) === 'day'; }).sort(byPosition);
+    return entries.filter(function (entry) { return !entry.isTrace && entry.date === date && horizonOf(entry) === 'day'; }).sort(byPosition);
   }
 
   /** The entries of one group in server order: a day, or the month-task or future items filed under a month's last day. */
   function groupEntries(entries, horizon, date) {
-    return entries.filter(function (entry) { return entry.date === date && horizonOf(entry) === horizon; }).sort(byPosition);
+    return entries.filter(function (entry) { return !entry.isTrace && entry.date === date && horizonOf(entry) === horizon; }).sort(byPosition);
+  }
+
+  /** The traces one move left on a page (a day, or a month lane), in the order they were left. They sit after the entries of the page. */
+  function tracesOf(entries, horizon, date) {
+    return entries.filter(function (entry) { return entry.isTrace === true && entry.date === date && horizonOf(entry) === horizon; })
+      .sort(function (a, b) { return a.createdAt - b.createdAt; });
   }
 
   /** Whether an entry of this type has a sync state to show. Notes never go to CalDAV, so they show none. */
@@ -77,7 +83,7 @@
   }
 
   L.days = {
-    horizonOf: horizonOf, dayEntries: dayEntries, groupEntries: groupEntries, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
+    horizonOf: horizonOf, dayEntries: dayEntries, groupEntries: groupEntries, tracesOf: tracesOf, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
     entryPills: entryPills, editPills: editPills
   };
 })();

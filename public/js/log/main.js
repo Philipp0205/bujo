@@ -17,7 +17,7 @@
   var L = window.BujoLog = window.BujoLog || {};
   var root = document.getElementById('log');
   var state = {
-    status: 'loading', entries: [], server: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
+    status: 'loading', entries: [], server: [], serverTraces: [], traces: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
     page: null, turn: null, arrival: false, view: 'daily', month: null, loadedKey: null
   };
   var booted = false;
@@ -36,9 +36,14 @@
     select: L.select.mode
   };
 
+  /** What the pages draw: the live entries and, after them, the traces that moves left (a day with only a trace is still a page). */
+  function drawn() {
+    return L.move.traces.withTraces(state.entries, state.traces);
+  }
+
   /** The page on screen: its day and the days that are pages. While loading the day is the one asked for, since there are no entries to check it against. */
   function shownPage() {
-    var days = L.pages.model.sequence(state.entries, state.today);
+    var days = L.pages.model.sequence(drawn(), state.today);
     var ready = state.status === 'ready';
     return { days: days, date: ready ? L.pages.model.settle(days, state.page, state.today) : state.page || state.today };
   }
@@ -98,12 +103,21 @@
     replaceGroup: replaceGroup,
     entries: function () { return state.entries; },
     group: function (horizon, date) { return L.days.groupEntries(state.entries, horizon, date); },
+    forget: forget,
     openSheet: function (entry) { L.sheet.open({ entry: entry, today: state.today, onSaved: reload }); }
   };
 
-  /** The log the person sees: the server's list with the queued entries and changes laid over it. */
+  /** The log the person sees: the server's list with the queued entries and changes laid over it, and the traces that goes with them. */
   function rebuild() {
-    state.entries = L.outbox.model.merge(state.server, L.outbox.queue.items());
+    var items = L.outbox.queue.items();
+    state.entries = L.outbox.model.merge(state.server, items);
+    state.traces = L.move.traces.derive(state.serverTraces, state.server, items);
+  }
+
+  /** An entry was deleted: the traces it left on other pages went with it on the server, so they leave the page too. */
+  function forget(id) {
+    state.serverTraces = L.move.traces.forget(state.serverTraces, id);
+    rebuild();
   }
 
   /** Swaps every entry of one group (a day, or the items of one month) for the list of that group (after a delete or a move). */
@@ -115,15 +129,22 @@
     recount();
   }
 
+  /** Puts a saved entry in the server list, and settles its traces: a move to another page leaves the one asked for (kind) on the old page. */
+  function takeSaved(entry, kind) {
+    var at = state.server.findIndex(function (item) { return item.id === entry.id; });
+    if (at >= 0) {
+      state.serverTraces = L.move.traces.afterMove(state.serverTraces, state.server[at], entry, kind);
+      state.server[at] = entry;
+    } else {
+      state.server.push(entry);
+    }
+  }
+
   /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end. An entry that is
    * still queued (a new one, or one with queued changes) is not the server's, so it stays out of the server list: the merge shows it.
-   * The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */
-  function upsert(entry) {
-    if (!entry.queued) {
-      var at = state.server.findIndex(function (item) { return item.id === entry.id; });
-      if (at >= 0) state.server[at] = entry;
-      else state.server.push(entry);
-    }
+   * kind is the trace the save asked for, if any. The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */
+  function upsert(entry, kind) {
+    if (!entry.queued) takeSaved(entry, kind);
     rebuild();
     state.status = 'ready';
     state.version += 1;
@@ -147,10 +168,10 @@
 
   /** The cards of the view: a day, a month or the six months. */
   function viewBody(date) {
-    var ctx = { entries: state.entries, today: state.today, actions: actions, month: shownMonth() };
+    var ctx = { entries: drawn(), today: state.today, actions: actions, month: shownMonth() };
     if (state.view === 'month') return L.horizon.screen.monthBody(ctx);
     if (state.view === 'future') return L.horizon.screen.futureBody(ctx);
-    return L.view.dayPage(date, state.entries, actions, state.today);
+    return L.view.dayPage(date, ctx.entries, actions, state.today);
   }
 
   /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
@@ -222,7 +243,7 @@
     var anchor = root.querySelector('[data-testid="page-date"]');
     if (!anchor || !canTurn()) return;
     L.pages.picker.open({
-      anchor: anchor, date: shownPage().date, today: state.today, marks: L.pages.model.marksOf(state.entries),
+      anchor: anchor, date: shownPage().date, today: state.today, marks: L.pages.model.marksOf(drawn()),
       loaded: L.dates.windowWith(state.today, state.focus), onPick: turnToPicked
     });
   }
@@ -307,14 +328,14 @@
   function fetchWindow() {
     state.today = L.dates.todayIso();
     var range = L.dates.windowWith(state.today, state.focus);
-    return L.api.list(range.from, range.to);
+    return L.api.listWithTraces(range.from, range.to);
   }
 
   /** Reads the span of Month and Future: the first of this month through the end of the sixth month. */
   function fetchSpan() {
     state.today = L.dates.todayIso();
     var range = L.horizon.model.span(state.today);
-    return L.api.list(range.from, range.to);
+    return L.api.listWithTraces(range.from, range.to);
   }
 
   /** What a view reads: its cache key and its fetcher. Month and Future share one span, so a switch between them needs no read. */
@@ -327,19 +348,25 @@
   function settleArrival() {
     if (!state.arrival) return false;
     state.arrival = false;
-    if (!state.page || L.pages.model.sequence(state.entries, state.today).indexOf(state.page) >= 0) return false;
+    if (!state.page || L.pages.model.sequence(drawn(), state.today).indexOf(state.page) >= 0) return false;
     state.page = null;
     return true;
   }
 
   /** Takes a list that was read while the state was at version `seen`, from the source `key`. True when the screen has to change. A list that came from the
    * server (final) also ends the arrival on a ?day= page. */
-  function accept(entries, seen, final, key) {
+  function accept(list, seen, final, key) {
     if (seen !== state.version) return false;
-    var shown = L.outbox.model.merge(entries, L.outbox.queue.items());
-    var same = state.status === 'ready' && state.drawnToday === state.today && state.loadedKey === key && JSON.stringify(shown) === JSON.stringify(state.entries);
-    state.server = entries;
+    var parts = L.move.traces.split(list);
+    var items = L.outbox.queue.items();
+    var shown = L.outbox.model.merge(parts.entries, items);
+    var traces = L.move.traces.derive(parts.traces, parts.entries, items);
+    var same = state.status === 'ready' && state.drawnToday === state.today && state.loadedKey === key
+      && JSON.stringify(shown) === JSON.stringify(state.entries) && JSON.stringify(traces) === JSON.stringify(state.traces);
+    state.server = parts.entries;
+    state.serverTraces = parts.traces;
     state.entries = shown;
+    state.traces = traces;
     state.status = 'ready';
     state.loadedKey = key;
     var moved = final && settleArrival();
@@ -481,10 +508,10 @@
     BujoNav.data.warm(BujoNav.data.KEYS.log, fetchWindow);
   }
 
-  /** The queue sent an entry: the page takes the saved entry in place of the queued one. */
-  function onSent(entry) {
+  /** The queue sent an entry: the page takes the saved entry in place of the queued one, with the trace the sent change asked for. */
+  function onSent(entry, item) {
     if (!booted) return;
-    upsert(entry);
+    upsert(entry, item && item.kind === 'update' ? item.body.trace : null);
     render();
   }
 
