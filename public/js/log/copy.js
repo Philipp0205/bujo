@@ -11,7 +11,6 @@
     title: 'Rapid Log',
     today: 'Today',
     addEntry: '+ Add entry',
-    scanLabel: 'Scan a page',
     notSynced: 'not synced',
     loading: 'Turning the page\u2026',
     loadFailed: 'Could not load the log. Try again.',

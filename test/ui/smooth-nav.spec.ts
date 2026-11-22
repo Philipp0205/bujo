@@ -49,7 +49,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   const title = await seedNote(page, "Kitchen garden");
   await page.goto(app.baseUrl);
   await expect(heading(page, "Rapid Log")).toBeVisible();
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
   const barNode = await bar(page).elementHandle();
   await markDocument(page);
 
@@ -72,7 +72,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(heading(page, "Rapid Log")).toBeVisible();
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
 
   // One document the whole time, and one bar that was never replaced.
   expect(await sameDocument(page)).toBe(true);

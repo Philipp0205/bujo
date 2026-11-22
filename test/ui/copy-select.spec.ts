@@ -130,6 +130,7 @@ test("a long press on a card starts select mode with that entry selected and no 
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
   await expect(page.getByRole("heading", { name: "Rapid Log", level: 1 })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Main" }).locator("[data-tab=add]")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main" }).locator("[data-tab=scan]")).toBeVisible();
   await expect(page.locator(`.paper-day-group[data-date="${day(-1)}"] [data-testid=select-check]`)).toHaveCount(2);
   await expect(row(page, "Gehalten").getByTestId("select-check")).toHaveAttribute("data-checked", "true");
 });

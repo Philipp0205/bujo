@@ -1,6 +1,6 @@
 /*
  * Boots the rapid log: loads the window of days, renders it, and wires the inline editor and the sheets. Needs every other
- * log file and core.js. The state lives here and nowhere else. The header camera (and ?scan=1) starts the scan flow from here,
+ * log file and core.js. The state lives here and nowhere else. The Scan tab (and ?scan=1) starts the scan flow from here,
  * the Add tab opens the new-entry sheet from here.
  * The page registers with BujoNav.router, which shows it on a cold load of / and again whenever the Rapid log tab is tapped
  * (the page stays in the document, hidden, while another tab is on screen). The last rows come from AppKit.swr at once.
@@ -33,7 +33,7 @@
     if (!L.select.mode.on()) L.inline.editor.addLine();
   }
 
-  /** Starts the scan flow with the phone camera opening at once. Runs inside the tap on the header camera, so the chooser may open. */
+  /** Starts the scan flow with the phone camera opening at once. Runs inside the tap on the Scan tab, so the chooser may open. */
   function startScan() {
     L.scan.flow.start({ day: state.today, onApplied: applied, autoCapture: true });
   }
@@ -94,9 +94,9 @@
     return L.view.stateNote(state.status, reload);
   }
 
-  /** The top of the page: the select bar while selecting, otherwise the italic title header with the Scan and "Not on paper" buttons. */
+  /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
   function top() {
-    return L.select.mode.on() ? L.select.mode.bar() : L.view.header(L.paper.count.get(), openPaperList, startScan);
+    return L.select.mode.on() ? L.select.mode.bar() : L.view.header(L.paper.count.get(), openPaperList);
   }
 
   /** Opens the "not on paper" list. Marking an entry as written reads the log again, so its row mark goes. */

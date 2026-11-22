@@ -126,7 +126,7 @@
     });
   }
 
-  /** A scan request (a ?scan=1 link, or code): the page's own scan when it has one, else the log, which starts it. No tab calls it any more. */
+  /** A scan request (the Scan tab, a ?scan=1 link, or code): the page's own scan when it has one, else the log, which starts it. */
   function scan() {
     var view = views[current];
     if (view && view.scan) view.scan();

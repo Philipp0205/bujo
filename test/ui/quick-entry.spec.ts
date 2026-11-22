@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { useBujo } from "./harness.ts";
-import { addTab } from "./scan-helpers.ts";
+import { addTab, openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -103,9 +103,14 @@ test("Add opens no what's new sheet on top of the new entry", async ({ page }) =
   await expect(page.getByTestId("whats-new-sheet")).toHaveCount(0);
 });
 
-test("the camera in the header of the log opens the file chooser in the same tap", async ({ page }) => {
+test("the Scan tab of the bar opens the file chooser in the same tap, from the log and from Notes", async ({ page }) => {
   await page.goto(app.baseUrl);
   await expect(heading(page)).toBeVisible();
-  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Scan a page" }).click()]);
-  expect(await chooser.element().getAttribute("id")).toBe("scan-file");
+  expect(await (await openScan(page)).element().getAttribute("id")).toBe("scan-file");
+
+  await page.goto(`${app.baseUrl}/notes`);
+  await logIsWarm(page);
+  expect(await (await openScan(page)).element().getAttribute("id")).toBe("scan-file");
+  await expect(page).toHaveURL(`${app.baseUrl}/`);
+  await expect(page.getByTestId("scan-screen")).toBeVisible();
 });

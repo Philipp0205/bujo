@@ -4,7 +4,7 @@
  * cold, and mark() moves the active tab after that. This file keeps the history memory the router and page-back share: the log
  * is the home, so a tab opened from it is pushed (Back returns to the log), a switch between Notes and Account replaces the page
  * (no stack of tabs), and a tap on Rapid log goes back in history when the log is the entry before.
- * Add is an action, not a page: it never becomes the active tab. The router opens a new entry on the log.
+ * Add and Scan are actions, not pages: they never become the active tab. The router opens a new entry or the camera on the log.
  * Needs ak-tabbar.js, nav/copy.js and nav/icons.js. Load nav/page-back.js first on a page that can be opened first in the window.
  */
 (function () {
@@ -12,7 +12,7 @@
 
   var N = window.BujoNav = window.BujoNav || {};
 
-  var ORDER = ['log', 'notes', 'add', 'account'];
+  var ORDER = ['log', 'notes', 'add', 'scan', 'account'];
   var PATHS = { log: '/', notes: '/notes', account: '/settings' };
   /** The log with this query starts the scan flow at boot (see log/main.js). A shared link or the router's fallback uses it. */
   var SCAN_URL = '/?scan=1';
@@ -44,9 +44,10 @@
     return ORDER.map(function (id) { return { id: id, label: N.copy.tabs[id], icon: N.icons.icon(id) }; });
   }
 
-  /** A tap on a tab: Add opens a new entry and returns (it is no route), any other tab is shown by the router. */
+  /** A tap on a tab: Add and Scan are actions (they open an entry or the camera and return, no route), any other tab is shown by the router. */
   function select(id) {
     if (id === 'add') N.router.add();
+    else if (id === 'scan') N.router.scan();
     else N.router.go(id);
   }
 

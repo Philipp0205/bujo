@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
-import { addTab, openScan, scanButton } from "./scan-helpers.ts";
+import { addTab, openScan, scanTab } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -43,7 +43,7 @@ async function seed(page: Page, entries: Array<{ date: string; type: string; tit
   for (const entry of entries) expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: entry })).status()).toBe(201);
 }
 
-/** Taps the header camera, sends the photo through the camera chooser the tap opened. The review sheet is up after this. */
+/** Taps the Scan tab, sends the photo through the camera chooser the tap opened. The review sheet is up after this. */
 async function scanPage(page: Page, lines: ReturnType<typeof line>[]): Promise<void> {
   app.ocr.setLines(lines);
   await page.goto(app.baseUrl);
@@ -57,55 +57,71 @@ const rows = (page: Page) => review(page).locator(".scan-row");
 const logRow = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 const bar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 
-test("the header of the log has the scan camera (and no settings icon), and the bar has Add in the middle, never as the current page", async ({ page }) => {
+test("the header of the log has no camera and no settings icon, and the bar has Scan right of the raised, centred Add, neither ever the current page", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Account"]);
-  await expect(bar(page).locator("[data-tab=scan]")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Scan a page" })).toBeVisible();
-  await expect(scanButton(page)).toBeVisible();
-  await expect(scanButton(page)).toHaveAttribute("title", "Scan a page");
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Rapid log", "Notes", "Add", "Scan", "Account"]);
+  await expect(page.locator("[data-action=scan]")).toHaveCount(0);
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
-  // Nothing is left to write down, so the camera is the only button of the header.
-  await expect(page.locator(".paper-head button")).toHaveCount(1);
+  await expect(page.locator(".paper-head").getByText("Scan a page")).toHaveCount(0);
+  // Nothing is left to write down, so the header has no button at all.
+  await expect(page.locator(".paper-head button")).toHaveCount(0);
 
   for (const path of ["/", "/notes", "/settings"]) {
     await page.goto(`${app.baseUrl}${path}`);
-    await expect(addTab(page)).toBeVisible();
-    await expect(addTab(page)).toHaveAccessibleName("Add");
-    await expect(addTab(page)).not.toHaveAttribute("aria-current", "page");
+    for (const [tab, name] of [[addTab(page), "Add"], [scanTab(page), "Scan"]] as const) {
+      await expect(tab).toBeVisible();
+      await expect(tab).toHaveAccessibleName(name);
+      await expect(tab).not.toHaveAttribute("aria-current", "page");
+    }
   }
 
-  // Add sits between Notes and Account, raised above the other tabs.
+  // Add sits in the middle, raised above the other tabs, with Scan immediately to its right.
   await page.goto(app.baseUrl);
-  const boxes = await Promise.all(["log", "notes", "add", "account"].map((id) => bar(page).locator(`[data-tab=${id}]`).boundingBox()));
-  const [log, notes, add, account] = boxes.map((box) => box!);
+  const ids = ["log", "notes", "add", "scan", "account"];
+  const boxes = await Promise.all(ids.map((id) => bar(page).locator(`[data-tab=${id}]`).boundingBox()));
+  const [log, notes, add, scan, account] = boxes.map((box) => box!);
   expect(log.x).toBeLessThan(notes.x);
   expect(notes.x + notes.width).toBeLessThanOrEqual(add.x + 1);
-  expect(add.x + add.width).toBeLessThanOrEqual(account.x + 1);
-  const centre = add.x + add.width / 2;
-  expect(Math.abs(centre - 390 / 2)).toBeLessThan(24);
+  expect(add.x + add.width).toBeLessThanOrEqual(scan.x + 1);
+  expect(scan.x - (add.x + add.width)).toBeLessThan(2);
+  expect(scan.x + scan.width).toBeLessThanOrEqual(account.x + 1);
+  expect(Math.abs(add.x + add.width / 2 - 390 / 2)).toBeLessThan(24);
+  expect(scan.width).toBeGreaterThanOrEqual(44);
+  expect(scan.height).toBeGreaterThanOrEqual(44);
   const circle = (await addTab(page).locator(".ak-tab-icon").boundingBox())!;
   expect(circle.y).toBeLessThan(log.y);
+  // Scan is a plain tab, not a second raised button: its icon sits level with the other tabs.
+  const camera = (await scanTab(page).locator(".ak-tab-icon").boundingBox())!;
+  const rapid = (await bar(page).locator("[data-tab=log] .ak-tab-icon").boundingBox())!;
+  expect(Math.abs(camera.y - rapid.y)).toBeLessThan(1);
 });
 
-test("the camera sits right of the Not on paper button in the header, level with the title", async ({ page }) => {
+test("the Not on paper button stays in the header, and the header still has no camera", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Noch nicht auf Papier" }]);
   await page.goto(app.baseUrl);
   const paper = page.getByTestId("not-on-paper-open");
   await expect(paper).toBeVisible();
-  const [title, todo, camera] = await Promise.all([
-    page.locator(".paper-head h1").boundingBox(),
-    paper.boundingBox(),
-    scanButton(page).boundingBox(),
-  ]);
-  expect(todo!.x + todo!.width).toBeLessThanOrEqual(camera!.x + 1);
-  expect(camera!.x + camera!.width).toBeLessThanOrEqual(390);
+  await expect(page.locator(".paper-head [data-testid=not-on-paper-open]")).toHaveCount(1);
+  await expect(page.locator("[data-action=scan]")).toHaveCount(0);
+  await expect(page.locator(".paper-head").getByText("Scan a page")).toHaveCount(0);
+  const [title, todo] = await Promise.all([page.locator(".paper-head h1").boundingBox(), paper.boundingBox()]);
+  expect(todo!.x + todo!.width).toBeLessThanOrEqual(390);
   const mid = (box: { y: number; height: number }) => box.y + box.height / 2;
-  expect(Math.abs(mid(camera!) - mid(title!))).toBeLessThan(12);
-  expect(Math.abs(mid(todo!) - mid(camera!))).toBeLessThan(2);
+  expect(Math.abs(mid(todo!) - mid(title!))).toBeLessThan(12);
+
+  await paper.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
 });
 
-test("tapping the header camera opens the file chooser in the same tap, and the camera screen, with the gallery still there", async ({ page }) => {
+test("tapping the Scan tab opens the file chooser in the same tap, from Notes and Account too, and the camera screen, with the gallery still there", async ({ page }) => {
+  for (const path of ["/notes", "/settings"]) {
+    await page.goto(`${app.baseUrl}${path}`);
+    const [from] = await Promise.all([page.waitForEvent("filechooser"), scanTab(page).click()]);
+    expect(await from.element().getAttribute("id")).toBe("scan-file");
+    await expect(page.getByTestId("scan-screen")).toBeVisible();
+    await expect(scanTab(page)).not.toHaveAttribute("aria-current", "page");
+  }
+  await page.goto(app.baseUrl);
   await page.goto(app.baseUrl);
   const chooser = await openScan(page);
   expect(chooser.isMultiple()).toBe(false);

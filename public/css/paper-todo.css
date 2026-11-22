@@ -3,12 +3,13 @@
  * Everything is ink on paper, in the paper tokens. Loaded after log.css and sheet.css.
  */
 
-/* The header button sits in the actions group at the right edge, level with the title and left of the camera. It is only in the header while something is left to write down. */
-.paper-actions .paper-todo {
+/* The header button sits at the right edge, level with the title. It is only in the header while something is left to write down. */
+.paper-head .paper-todo {
   appearance: none;
   -webkit-appearance: none;
+  align-self: flex-start;
   min-height: 44px;
-  margin: 0;
+  margin: 32px 0 0;
   padding: 0 12px;
   border: 0;
   background: transparent;
