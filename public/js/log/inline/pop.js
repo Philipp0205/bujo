@@ -30,20 +30,20 @@
     });
   }
 
-  /** One row of the tag list: the tag, pressed when the line has it. A tap toggles it. */
+  /** One row of the tag list: the tag, pressed when the line has it. A tap toggles it and closes the popover. */
   function tagRow(line, item, cb, redraw) {
     var on = L.tags.has(line.tags, item.tag);
     return h('button', {
       class: 'pop-tag', type: 'button', 'data-tag': item.tag, role: 'option', 'aria-selected': on ? 'true' : 'false',
-      onclick: function () { cb.tagToggle(item.tag); redraw(); }
+      onclick: function () { cb.tagToggle(item.tag); cb.close(); }
     }, h('span', { class: 'pop-tag-mark', 'aria-hidden': 'true' }, on ? '\u2713' : ''), h('span', { class: 'pop-tag-name' }, '#' + item.tag));
   }
 
-  /** The last row for a typed word that is no tag yet: "+ #word". */
+  /** The last row for a typed word that is no tag yet: "+ #word". A tap adds it and closes the popover. */
   function newTagRow(text, cb, redraw) {
     return h('button', {
       class: 'pop-tag pop-tag-new', type: 'button', 'data-new': text, role: 'option',
-      onclick: function () { cb.tagAdd(text); redraw(true); }
+      onclick: function () { cb.tagAdd(text); cb.close(); }
     }, h('span', { class: 'pop-tag-name' }, L.copy.inline.tagAdd(text)));
   }
 
@@ -64,17 +64,17 @@
     return rows;
   }
 
-  /** Enter in the search field: toggles an exact match, else adds the word as a new tag. Empty text closes the popover. */
+  /** Enter in the search field: toggles an exact match, else adds the word as a new tag, then closes. Empty text just closes the popover. */
   function submitTag(line, input, cb, redraw) {
     var query = queryOf(input);
     if (query === '') { cb.close(); return; }
     var match = tagItems(line, cb).filter(function (item) { return item.tag.toLowerCase() === query.toLowerCase(); })[0];
     if (match) cb.tagToggle(match.tag);
     else cb.tagAdd(query);
-    redraw(true);
+    cb.close();
   }
 
-  /** The tag popover: a search field over a short scrolling list. Tapping a tag toggles it, the popover stays open. */
+  /** The tag popover: a search field over a short scrolling list. Tapping a tag toggles it and closes the popover. */
   function tagPop(line, cb) {
     var input = h('input', {
       class: 'pop-input', type: 'text', name: 'tag', maxlength: 40, autocomplete: 'off', autocapitalize: 'off',

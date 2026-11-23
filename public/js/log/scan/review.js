@@ -61,19 +61,19 @@
     return input;
   }
 
-  /** The keep or skip check at the end of a row. */
+  /** The keep check at the end of a row: a box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
   function keepToggle(item, onToggle) {
     var copy = L.copy.scan.review;
-    var button = h('button', { class: 'scan-keep', type: 'button', role: 'checkbox', 'data-field': 'include', onclick: function () {
+    var button = h('button', { class: 'scan-keep', type: 'button', role: 'checkbox', 'data-field': 'include', 'aria-label': copy.keep, onclick: function () {
       item.include = !item.include;
       item.touched = true;
       onToggle();
-    } }, L.glyph.use('g-check', { viewBox: '0 0 24 24', width: 20, height: 20 }));
+    } }, h('span', { class: 'scan-keep-box', 'aria-hidden': 'true' }, L.glyph.use('g-check', { viewBox: '0 0 24 24', width: 16, height: 16 })),
+    h('span', { class: 'scan-keep-label', 'aria-hidden': 'true', 'data-testid': 'scan-keep-label' }, copy.keepLabel));
     return {
       node: button,
       show: function () {
         button.setAttribute('aria-checked', item.include ? 'true' : 'false');
-        button.setAttribute('aria-label', item.include ? copy.drop : copy.keep);
       }
     };
   }

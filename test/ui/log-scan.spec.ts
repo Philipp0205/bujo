@@ -286,9 +286,20 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   const before = await page.request.get(`${app.baseUrl}/api/entries?from=${day(0)}&to=${day(0)}`);
   expect(JSON.stringify(await before.json())).not.toContain("Stuttgart");
 
+  // Each row's check says what it does in words, and it sits on a box that is visible whether the line is kept or skipped.
+  await expect(rows(page).locator('[data-field="include"] .scan-keep-label')).toHaveText(["Keep", "Keep", "Keep"]);
+  const keepBox = rows(page).nth(1).locator(".scan-keep-box");
+  const boxEdge = () => keepBox.evaluate((node) => getComputedStyle(node).borderTopWidth);
+  expect(parseFloat(await boxEdge())).toBeGreaterThan(0);
+  await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAccessibleName("Keep this line");
+
   // Drop the second line, edit the third: its type, title and tag.
   await rows(page).nth(1).locator('[data-field="include"]').click();
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
+  await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAttribute("aria-checked", "false");
+  expect(parseFloat(await boxEdge())).toBeGreaterThan(0);
+  await expect(rows(page).nth(1).locator(".scan-keep-label")).toBeVisible();
+  await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAccessibleName("Keep this line");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 2 entries");
   await rows(page).nth(2).locator('[data-field="type"]').selectOption("task");
   await rows(page).nth(2).locator('[data-field="title"]').fill("Library card expires in January");

@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-quick-fixes-2" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -108,14 +108,15 @@ test("Moved on a saved entry opens a chooser with next day, a day of your choice
   expect((await stored(page)).traces).toHaveLength(0);
 });
 
-test("Scheduled offers This day beside the others", async ({ page }) => {
-  await seed(page, { date: day(0), title: "Schedule Probe" });
-  await openLog(page);
+test("Scheduled offers This day beside the others, but no Today", async ({ page }) => {
+  await seed(page, { date: day(-1), title: "Schedule Probe" });
+  await openLog(page, `?day=${day(-1)}`);
   await chooseMove(page, "Schedule Probe", "scheduled");
 
   await expect(move(page)).toHaveAttribute("data-kind", "schedule");
   await expect(dest(page, "here")).toHaveText("This day");
-  await expect(dest(page, `day:${day(1)}`)).toHaveText("Next day");
+  await expect(move(page).getByRole("button", { name: "Today", exact: true })).toHaveCount(0);
+  await expect(move(page).getByRole("button", { name: "Next day", exact: true })).toBeVisible();
 });
 
 test("migrate day to day: the entry keeps its id on the next day, and a > trace stays on the old page", async ({ page }) => {
@@ -281,6 +282,69 @@ test("offline, a move is queued with its trace shown, and the server holds both 
   expect(now.entries.find((entry) => entry.id === id)).toMatchObject({ date: day(1), horizon: "day" });
   expect(now.traces[0]).toMatchObject({ entryId: id, date: day(0), kind: "migrated" });
   await expect(traceRows(page)).toHaveCount(1);
+});
+
+test("an entry moved with > to a day beyond the loaded days is on that day's log, and the old page keeps its trace", async ({ page }) => {
+  const id = await seed(page, { date: day(0), title: "Weit weg" });
+  await openLog(page);
+  await chooseMove(page, "Weit weg", "migrated");
+  await move(page).getByTestId("move-date").fill(day(12));
+  await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  await expect(traceRows(page)).toHaveCount(1);
+  await expect(traceRows(page).first()).toHaveText("Weit weg");
+
+  // Straight after the move, and again after another tab and back (which reads the log again), the next arrow reaches the new day.
+  await expect(page.getByTestId("page-next")).toBeEnabled();
+  await page.getByRole("navigation", { name: "Main" }).getByText("Notes").click();
+  await page.getByRole("navigation", { name: "Main" }).getByText("Daily log").click();
+  await expect(switcher(page)).toBeVisible();
+  await expect(page.getByTestId("page-next")).toBeEnabled();
+  await page.getByTestId("page-next").click();
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(12));
+  await expect(live(page, "Weit weg")).toHaveCount(1);
+
+  // After a reload the day picker reaches it too: its day carries a mark and opens the page.
+  await page.goto(app.baseUrl);
+  await expect(switcher(page)).toBeVisible();
+  await page.getByTestId("page-date").click();
+  if (day(12).slice(0, 7) !== day(0).slice(0, 7)) await page.getByTestId("picker-next").click();
+  await page.locator(`[data-testid="picker-day"][data-date="${day(12)}"]`).click();
+  await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(12));
+  await expect(live(page, "Weit weg")).toHaveCount(1);
+  await page.getByTestId("today-jump").click();
+  await expect(traceRows(page)).toHaveCount(1);
+  expect(await entryOf(page, "Weit weg")).toMatchObject({ id, date: day(12), horizon: "day" });
+});
+
+test("Moved offers Today when the entry is on another day, and a pick lands it on today with a trace behind", async ({ page }) => {
+  const id = await seed(page, { date: day(-2), title: "Heute nachholen" });
+  await openLog(page, `?day=${day(-2)}`);
+  await chooseMove(page, "Heute nachholen", "migrated");
+
+  await expect(move(page).getByRole("button", { name: "Today", exact: true })).toHaveAttribute("data-dest", `day:${day(0)}`);
+  await expect(move(page).getByRole("button", { name: "Today", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(dest(page, "here")).toHaveCount(0);
+  await expect(move(page).getByRole("button", { name: "Next day", exact: true })).toBeVisible();
+  await expect(move(page).getByTestId("move-date")).toBeVisible();
+  await expect(dest(page, `month:${month(0)}`)).toHaveText("This month");
+
+  await move(page).getByRole("button", { name: "Today", exact: true }).click();
+  await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  await expect(traceRows(page)).toHaveCount(1);
+  const now = await stored(page);
+  expect(now.entries[0]).toMatchObject({ id, date: day(0), horizon: "day", type: "task" });
+  expect(now.traces).toMatchObject([{ entryId: id, date: day(-2), horizon: "day", kind: "migrated" }]);
+  await page.getByTestId("today-jump").click();
+  await expect(live(page, "Heute nachholen")).toHaveCount(1);
+});
+
+test("Today is not offered on today's page", async ({ page }) => {
+  await seed(page, { date: day(0), title: "Schon heute" });
+  await openLog(page);
+  await chooseMove(page, "Schon heute", "migrated");
+  await expect(dest(page, `day:${day(0)}`)).toHaveCount(0);
+  await expect(move(page).getByRole("button", { name: "Today", exact: true })).toHaveCount(0);
+  await expect(dest(page, `day:${day(1)}`)).toHaveText("Next day");
 });
 
 test("moving back to the old day takes its trace away", async ({ page }) => {

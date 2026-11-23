@@ -30,10 +30,11 @@
     return h('label', { class: 'move-option move-day' }, h('span', { class: 'move-day-label' }, L.copy.move.pickDay), input);
   }
 
-  /** The quick row: this day (a schedule on a day), next day, pick a day, this month. A place the entry is in already is left out. */
+  /** The quick row: this day (a schedule on a day), today (a move), next day, pick a day, this month. A place the entry is in already is left out. */
   function quick(choices, selected, onPick) {
     var row = h('div', { class: 'move-quick' });
     if (choices.here) row.appendChild(option(L.copy.move.thisDay, 'here', selected, function () { onPick(null); }));
+    if (choices.today) row.appendChild(option(L.copy.move.today, choices.today.key, selected, function () { onPick(choices.today); }));
     if (choices.next) row.appendChild(option(L.copy.move.nextDay, choices.next.key, selected, function () { onPick(choices.next); }));
     row.appendChild(dayField(selected, onPick));
     if (choices.thisMonth) row.appendChild(option(L.copy.move.thisMonth, choices.thisMonth.key, selected, function () { onPick(choices.thisMonth); }));

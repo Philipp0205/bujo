@@ -257,6 +257,45 @@ test("a keyboard dismissal with a popover open closes the popover first and keep
   await expect(page.getByTestId("edit-sheet")).toBeVisible();
 });
 
+test("the Time key opens the picker on the first tap, and the keyboard it hides does not close the popover or the sheet", async ({ page }) => {
+  await seed(page, -4, "Elf");
+  await fakeViewport(page);
+  await page.addInitScript(() => {
+    (window as unknown as { __pickers: number }).__pickers = 0;
+    HTMLInputElement.prototype.showPicker = function () { (window as unknown as { __pickers: number }).__pickers += 1; };
+  });
+  await openDay(page, -4);
+  await row(page, "Elf").click();
+  await setKeyboard(page, 320);
+
+  await page.locator(".inline-bar [data-key=time]").click();
+  const input = page.locator('.inline-pop input[name="time"]');
+  await expect(input).toBeFocused();
+  expect(await page.evaluate(() => (window as unknown as { __pickers: number }).__pickers)).toBe(1);
+
+  // The picker takes the place of the soft keyboard: it goes away, and the popover and the sheet stay.
+  await setKeyboard(page, 0);
+  await expect(input).toBeVisible();
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+  await input.fill("08:15");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["08:15"]);
+});
+
+test("without a picker field in focus, a dismissed keyboard still closes an open popover first", async ({ page }) => {
+  await seed(page, -5, "Zwoelf");
+  await fakeViewport(page);
+  await openDay(page, -5);
+  await row(page, "Zwoelf").click();
+  await setKeyboard(page, 320);
+  await page.locator(".inline-bar [data-key=date]").click();
+  await expect(page.locator('.inline-pop input[name="date"]')).toBeVisible();
+  await page.locator(".paper-edit-input").focus();
+
+  await setKeyboard(page, 0);
+  await expect(page.locator(".inline-pop")).toHaveCount(0);
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+});
+
 test("the Android keyboard dismissal drops an empty new line", async ({ page }) => {
   await fakeViewport(page);
   await page.goto(app.baseUrl);

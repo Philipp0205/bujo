@@ -148,10 +148,17 @@
     }
   }
 
+  /** A saved entry on a day beyond the usual window stretches the window to that day, so a later read still holds it (its page stays reachable). */
+  function keepInWindow(entry) {
+    if (L.days.horizonOf(entry) !== 'day') return;
+    if (!L.pages.model.within(L.dates.windowAround(state.today), entry.date)) state.focus = entry.date;
+  }
+
   /** Keeps the entries in step with an entry the editor just saved: replaced in place, or added at the end. An entry that is
    * still queued (a new one, or one with queued changes) is not the server's, so it stays out of the server list: the merge shows it.
    * kind is the trace the save asked for, if any. The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */
   function upsert(entry, kind) {
+    if (kind) keepInWindow(entry);
     if (!entry.queued) takeSaved(entry, kind);
     rebuild();
     state.status = 'ready';

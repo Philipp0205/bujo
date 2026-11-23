@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-quick-fixes-2" } });
 });
 
 /** The pages are the days that have entries, so every test starts from an empty log: all entries of the throwaway account go. */
@@ -97,6 +97,28 @@ test("today opens by default, with its heading, the Today mark, the page number 
   await expect(page.locator("[data-action=add-entry]")).toHaveText("+ Add entry");
   await expect(page.getByTestId("today-jump")).toHaveCount(0);
   expect(addressDay(page)).toBeNull();
+});
+
+test("another day shows its own date and no Today mark, and the Today chip only jumps back", async ({ page }) => {
+  await seed(page, [{ offset: -3, title: "Vor Tagen" }, { offset: 2, title: "Bald" }]);
+  await openLog(page);
+  const heading = (offset: number) => new Date(`${day(offset)}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" }) + ` ${day(offset).slice(8)}.${day(offset).slice(5, 7)}`;
+
+  for (const offset of [-3, 2]) {
+    await page.goto(`${app.baseUrl}/?day=${day(offset)}`);
+    await expect(body(page)).toHaveAttribute("data-date", day(offset));
+    await expect(page.getByTestId("page-date")).toHaveText(heading(offset));
+    await expect(page.getByTestId("page-date")).not.toContainText("Today");
+    await expect(page.getByTestId("today-mark")).toHaveCount(0);
+    await expect(page.getByTestId("today-jump")).toHaveText("Today");
+    await expect(page.getByTestId("today-jump")).toHaveAccessibleName("Back to today");
+  }
+
+  await page.getByTestId("today-jump").click();
+  await expect(body(page)).toHaveAttribute("data-date", day(0));
+  await expect(page.getByTestId("page-date")).toHaveText(heading(0));
+  await expect(page.getByTestId("today-mark")).toHaveText("Today");
+  await expect(page.getByTestId("today-jump")).toHaveCount(0);
 });
 
 test("the arrows turn to the next page that has entries and stop at the ends", async ({ page }) => {

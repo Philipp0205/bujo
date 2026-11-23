@@ -8,6 +8,7 @@ data/
 .DS_Store
 .playwright-mcp/
 test/ui/screenshots/
+test/ui/*.shot.ts
 test-results/
 playwright-report/
 .oc/

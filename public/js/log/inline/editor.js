@@ -101,8 +101,16 @@
     L.move.chooser.close();
   }
 
-  /** The Android Back that only dismissed the keyboard fires no popstate, so it ends the edit here. An open popover closes first instead. */
+  /** True while a native time or date field of the bar popover has the focus: its own picker replaces the soft keyboard, so the keyboard going away is not a Back. */
+  function pickerHasFocus() {
+    var field = document.activeElement;
+    return !!field && (field.type === 'time' || field.type === 'date') && !!field.closest('.inline-pop');
+  }
+
+  /** The Android Back that only dismissed the keyboard fires no popstate, so it ends the edit here. An open popover closes first instead.
+   * A tap on the time or date field of a popover hides the keyboard for its picker, so that dismissal leaves the popover open. */
   function onKeyboardDismissed() {
+    if (pickerHasFocus()) return;
     if (popOpen()) {
       quietly(dropPops);
       syncLayers();
@@ -478,7 +486,16 @@
     };
   }
 
-  /** A tap on a bar key: open its popover, or close it when it is already open. The tag field takes focus to type in. */
+  /** Opens the native picker of the time field at once, inside the tap on the Time key, so one tap is enough (a first tap on the field only hid the keyboard). */
+  function openTimePicker() {
+    var input = bar.popInput();
+    if (!input) return;
+    quietly(function () { input.focus({ preventScroll: true }); });
+    if (typeof input.showPicker !== 'function') return;
+    try { input.showPicker(); } catch (error) { /* no picker to show here (no user gesture): the focused field is still there to tap */ }
+  }
+
+  /** A tap on a bar key: open its popover, or close it when it is already open. The tag field takes focus to type in, the time field opens its picker. */
   function toggle(kind) {
     if (!active) return;
     if (bar.popKind() === kind) { closePop(); return; }
@@ -487,6 +504,7 @@
     bar.openPop(kind, active, choices());
     syncLayers();
     if (kind === 'tag') bar.popInput().focus();
+    else if (kind === 'time') openTimePicker();
   }
 
   /** True for a line the move chooser can act on: a saved entry that is not done (a new line and a done one only take the type, as before). */

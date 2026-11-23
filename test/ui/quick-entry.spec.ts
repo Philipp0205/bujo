@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   // The install banner would sit over the page, so it is dismissed for the session before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   // The account keeps the seen id between tests, so each one starts with the newest entry seen and no what's new sheet over the log.
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-quick-fixes-2" } });
 });
 
 const sheet = (page: Page) => page.getByTestId("edit-sheet");

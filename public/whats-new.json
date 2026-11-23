@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-23-quick-fixes-2",
+    "date": "2026-11-23",
+    "title": "Quick fixes",
+    "bullets": [
+      "Moving an entry with > to a day more than a week away now keeps it reachable: its day opens from the arrows and the calendar.",
+      "The > chooser has a Today option, shown when the entry is on another day.",
+      "The Time key opens the time picker on the first tap.",
+      "In the scan review each line has a Keep box with its word, so it is clear you can untick a line.",
+      "Picking a tag in the tag popup now closes it."
+    ]
+  },
+  {
     "id": "2026-11-23-one-sheet-scroll",
     "date": "2026-11-23",
     "title": "One sheet of paper",
