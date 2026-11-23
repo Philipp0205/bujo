@@ -1,4 +1,4 @@
-# Light test deps. No torch and no transformers: the recognizer is stubbed in tests.
+# Test deps: the runtime ones plus pytest. The gateway is a local fake, so no network or key is needed.
 opencv-python-headless
 numpy
 scikit-image

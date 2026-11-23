@@ -1,22 +1,22 @@
-"""HTTP service tests. The recognizer is a fake, so no model and no tesseract are needed."""
+"""HTTP service tests. The page reader is a fake, so no gateway is needed."""
 import http.client
 import json
 import threading
 
 import pytest
 
-from bujo_ocr import server
-from bujo_ocr.recognize import Reading
+from bujo_ocr import llm, server
 from fixtures import make_page, to_jpeg, to_webp
 
 
-def fake_recognizer(crops):
-    return [Reading(text=f"zeile {i + 1} ä ö ü ß", confidence=0.9, engine="fake") for i, _ in enumerate(crops)]
+def fake_reader(image):
+    lines = [llm.LlmLine("•", f"zeile {i + 1} ä ö ü ß", [], None, 0.9) for i in range(7)]
+    return llm.LlmPage(date=None, lines=lines, model="fake")
 
 
 @pytest.fixture()
 def service():
-    httpd = server.make_server("127.0.0.1", 0, fake_recognizer)
+    httpd = server.make_server("127.0.0.1", 0, fake_reader)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     yield httpd.server_address[1]
@@ -44,7 +44,7 @@ def test_healthz(service):
 
 
 def test_dual_stack_host_answers_on_ipv4_and_ipv6():
-    httpd = server.make_server("::", 0, fake_recognizer)
+    httpd = server.make_server("::", 0, fake_reader)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     try:
@@ -80,12 +80,12 @@ def test_post_ocr_returns_the_json_shape(service, encode, content_type):
     assert body["kind"] is None and body["period"] is None
     assert body["width"] == fixture.width and body["height"] == fixture.height
     assert isinstance(body["ms"], int)
-    assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]
+    assert len(body["lines"]) == 7
     for index, line in enumerate(body["lines"]):
         assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time"}
-        assert line["tags"] == [] and line["time"] is None
+        assert line["tags"] == [] and line["time"] is None and line["symbol"] == "•"
         assert line["text"] == f"zeile {index + 1} ä ö ü ß"
-        assert line["engine"] == "fake"
+        assert line["engine"] == "llm:fake"
         assert 0 <= line["confidence"] <= 1
         x, y, w, h = line["bbox"]
         assert x >= 0 and y >= 0 and x + w <= body["width"] and y + h <= body["height"]
@@ -133,11 +133,39 @@ def test_empty_body_is_400(service):
     assert call(service, "POST", "/ocr", b"", "image/png")[0] == 400
 
 
-def test_a_blank_page_gives_no_lines(service):
-    from fixtures import noisy_blank
+def test_a_missing_gateway_setting_is_a_503_with_a_clear_message():
+    httpd = server.make_server("127.0.0.1", 0)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, body = call(httpd.server_address[1], "POST", "/ocr", make_page().png, "image/png")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+    assert status == 503 and "OCR_LLM_BASE" in body["error"] and "OCR_LLM_KEY" in body["error"]
 
-    status, body = call(service, "POST", "/ocr", noisy_blank(), "image/png")
-    assert status == 200 and body["lines"] == []
+
+def test_a_reader_failure_is_a_502():
+    def broken(image):
+        raise llm.LlmError("http 500")
+
+    httpd = server.make_server("127.0.0.1", 0, broken)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, _ = call(httpd.server_address[1], "POST", "/ocr", make_page().png, "image/png")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+    assert status == 502
+
+
+def test_startup_without_gateway_settings_exits_with_a_clear_message():
+    with pytest.raises(SystemExit) as exit_info:
+        server.main()
+    assert "OCR_LLM_BASE" in str(exit_info.value)
 
 
 def test_the_service_writes_nothing_to_disk(service, tmp_path, monkeypatch):

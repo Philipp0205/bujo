@@ -1,12 +1,12 @@
-"""Optional whole-page reading with a vision LLM behind an OpenAI-compatible gateway (for example a LiteLLM proxy).
+"""Whole-page reading with a vision LLM behind an OpenAI-compatible gateway (for example a LiteLLM proxy).
 
-Enabled only when OCR_LLM_BASE and OCR_LLM_KEY are both set. Env is read at call time:
+OCR_LLM_BASE and OCR_LLM_KEY are required. Env is read at call time:
   OCR_LLM_BASE     gateway root, for example https://gateway.example/v1 (a trailing slash is fine)
   OCR_LLM_KEY      bearer key for the gateway
   OCR_LLM_MODEL    model name (default claude-haiku-5-5)
   OCR_LLM_TIMEOUT  seconds to wait per gateway request (default 25: the app gives the whole scan 60 s)
 
-read_page(image_bgr) -> LlmPage. Every problem is an LlmError, so the caller can fall back to the local path.
+read_page(image_bgr) -> LlmPage. Every problem is an LlmError.
 The page photo is shrunk and encoded in memory, sent to the gateway only, and never written or logged.
 Standard library plus Pillow and numpy.
 """
@@ -42,6 +42,9 @@ _SYMBOL_ALIASES = {
     "o": "○", "O": "○", "◯": "○", "°": "○",
     "X": "x", "×": "x",
 }
+
+NOT_CONFIGURED = "not configured"
+NOT_CONFIGURED_MESSAGE = "OCR_LLM_BASE and OCR_LLM_KEY must be set: the OCR service reads pages with a vision LLM."
 
 KINDS = ("daily", "future", "calendar", "month-task")
 
@@ -156,7 +159,7 @@ def _env_settings() -> Settings:
 
 
 def configured() -> bool:
-    """True when the gateway base and key are both set, which is what turns the LLM path on."""
+    """True when the gateway base and key are both set."""
     settings = _env_settings()
     return bool(settings.base and settings.key)
 
@@ -338,7 +341,7 @@ def read_page(image_bgr: np.ndarray, *, opener=None) -> LlmPage:
     settings = _env_settings()
     try:
         if not (settings.base and settings.key):
-            raise LlmError("not configured")
+            raise LlmError(NOT_CONFIGURED)
         return _ask(settings, image_bgr, opener or urllib.request.build_opener(_NoRedirects))
     except LlmError as error:
         log.warning("llm read failed: %s (model %s)", error.category, settings.model)
