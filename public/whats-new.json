@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-fonts",
+    "date": "2026-11-23",
+    "title": "Pick your paper font",
+    "bullets": [
+      "Settings has a new Paper font choice: Newsreader, Literata, Source Serif or Lora. It sets the face of your titles, entries and day headings, and stays on this phone.",
+      "Journal text is a little heavier than before, so it reads more like pen on paper.",
+      "Quick entry now ends with two handwritten words: Done saves and closes, Next line saves and starts the next one. Enter still saves and closes."
+    ]
+  },
+  {
     "id": "2026-11-23-paper-order",
     "date": "2026-11-23",
     "title": "The log follows your paper",

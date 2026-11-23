@@ -31,8 +31,8 @@
   border-radius: 0;
   background: transparent;
   color: var(--paper-muted);
-  font: italic 400 16px/24px var(--font-text);
-  font-variation-settings: "opsz" 16, "wght" 400;
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" var(--text-weight);
   font-synthesis: none;
   white-space: nowrap;
   text-shadow: var(--paper-glow);
@@ -56,8 +56,8 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   padding: 10px 2px 0;
   box-sizing: border-box;
   color: var(--paper-ink);
-  font: italic 400 19px/26px var(--font-text);
-  font-variation-settings: "opsz" 19, "wght" 450;
+  font: italic var(--text-weight) 19px/26px var(--font-text);
+  font-variation-settings: "opsz" 19, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
   white-space: nowrap;
   background: var(--paper-bg);
@@ -77,8 +77,8 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   box-sizing: border-box;
   min-height: 48px;
   color: var(--paper-muted);
-  font: italic 400 16px/24px var(--font-text);
-  font-variation-settings: "opsz" 16, "wght" 450;
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
@@ -92,8 +92,8 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   box-sizing: border-box;
   min-height: 48px;
   color: var(--paper-muted);
-  font: italic 15px/24px var(--font-text);
-  font-variation-settings: "opsz" 15, "wght" 400;
+  font: italic var(--text-weight) 15px/24px var(--font-text);
+  font-variation-settings: "opsz" 15, "wght" var(--text-weight);
   font-synthesis: none;
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
@@ -145,8 +145,8 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   width: 32px;
   padding-right: 6px;
   color: var(--paper-muted);
-  font: italic 400 14px/24px var(--font-text);
-  font-variation-settings: "opsz" 14, "wght" 450;
+  font: italic var(--text-weight) 14px/24px var(--font-text);
+  font-variation-settings: "opsz" 14, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
   font-variant-numeric: tabular-nums;
   text-align: right;

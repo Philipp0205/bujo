@@ -62,11 +62,11 @@
   margin: 0;
   padding: 8px 16px 0 var(--text-col);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 32px;
   line-height: 48px;
   letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 32, "wght" 400;
+  font-variation-settings: "opsz" 32, "wght" var(--text-weight);
   font-synthesis: none;
   color: var(--paper-ink);
   text-shadow: var(--paper-glow);
@@ -81,7 +81,7 @@
   font-style: italic;
   font-size: 16px;
   line-height: 24px;
-  font-variation-settings: "opsz" 16, "wght" 400;
+  font-variation-settings: "opsz" 16, "wght" var(--text-weight);
   font-synthesis: none;
 }
 
@@ -113,5 +113,5 @@
   border-radius: 0;
   background: transparent;
   color: var(--paper-today);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
 }

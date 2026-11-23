@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v50',
+  version: 'v51',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -28,6 +28,12 @@ AppKitSW.setup({
     '/fonts/newsreader.woff2',
     '/fonts/newsreader-italic.woff2',
     '/fonts/ibm-plex-sans.woff2',
+    '/fonts/literata.woff2',
+    '/fonts/literata-italic.woff2',
+    '/fonts/source-serif-4.woff2',
+    '/fonts/source-serif-4-italic.woff2',
+    '/fonts/lora.woff2',
+    '/fonts/lora-italic.woff2',
     '/fonts/caveat-latin.woff2',
     '/fonts/caveat-latin-ext.woff2',
     '/fonts/caveat-latin-600.woff2',
@@ -136,6 +142,9 @@ AppKitSW.setup({
     '/js/theme/boot.js',
     '/js/theme/copy.js',
     '/js/theme/section.js',
+    '/js/font/boot.js',
+    '/js/font/copy.js',
+    '/js/font/section.js',
     '/js/settings.js',
     '/js/scan.js',
     '/manifest.webmanifest?v=1',

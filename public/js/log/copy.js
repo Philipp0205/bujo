@@ -138,7 +138,8 @@
       typeMarker: function (label) { return 'Entry type: ' + label; },
       typeChooser: 'Choose an entry type',
       keys: {
-        next: '+ Next',
+        done: 'Done',
+        next: 'Next line',
         tag: 'Tag',
         date: 'Date',
         time: 'Time',
