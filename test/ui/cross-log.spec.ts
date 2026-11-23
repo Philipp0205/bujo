@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-quick-fixes-2" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-paper-month-future" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -74,7 +74,13 @@ const dest = (page: Page, key: string) => move(page).locator(`[data-dest="${key}
 async function openLog(page: Page, query = ""): Promise<void> {
   await page.goto(`${app.baseUrl}/${query}`);
   await expect(switcher(page)).toBeVisible();
-  await page.waitForFunction(() => !!document.querySelector(".paper-add"));
+  await page.waitForFunction(() => !!document.querySelector(".paper-add, .month-calendar"));
+}
+
+/** Turns from the open month's calendar page to its tasks page. */
+async function toTasks(page: Page): Promise<void> {
+  await page.getByTestId("month-next").click();
+  await expect(page.getByTestId("month-tasks")).toBeVisible();
 }
 
 /** Taps the row of an entry, then the marker and a type in the type chooser: the move chooser is open after it. */
@@ -166,6 +172,7 @@ test("migrate day to this month: a month task in the Month view, with the trace 
 
   expect(await entryOf(page, "In den Monat")).toMatchObject({ id, date: lastDay(0), horizon: "month-task", type: "task" });
   await tab(page, "month").click();
+  await toTasks(page);
   await expect(page.getByTestId("month-tasks").locator(".paper-row:not(.paper-trace)", { hasText: "In den Monat" })).toHaveCount(1);
   await expect(page.getByTestId("month-tasks").locator(".paper-row:not(.paper-trace)", { hasText: "In den Monat" })).toHaveAttribute("data-horizon", "month-task");
 });
@@ -187,6 +194,7 @@ test("migrate day to a future month: the Future view lists it under that month",
 test("migrate month to month: the item moves to the chosen month and the old month keeps a trace", async ({ page }) => {
   const id = await seed(page, { date: lastDay(0), title: "Monatsumzug", horizon: "month-task" });
   await openLog(page, "?view=month");
+  await toTasks(page);
   await expect(live(page, "Monatsumzug")).toBeVisible();
   await chooseMove(page, "Monatsumzug", "migrated");
   await expect(dest(page, `month:${month(0)}`)).toHaveCount(0);
@@ -200,12 +208,14 @@ test("migrate month to month: the item moves to the chosen month and the old mon
   expect(now.traces).toMatchObject([{ entryId: id, date: lastDay(0), horizon: "month-task", kind: "migrated" }]);
 
   await tab(page, "future").click();
-  await expect(page.getByTestId("future-bucket").nth(3).locator(".paper-row:not(.paper-trace)", { hasText: "Monatsumzug" })).toHaveCount(1);
+  await page.getByTestId("future-next").click();
+  await expect(page.getByTestId("future-bucket").nth(0).locator(".paper-row:not(.paper-trace)", { hasText: "Monatsumzug" })).toHaveCount(1);
 });
 
 test("migrate month to a chosen day: the item becomes a day task on the day you pick", async ({ page }) => {
   const id = await seed(page, { date: lastDay(0), title: "Auf einen Tag", horizon: "month-task" });
   await openLog(page, "?view=month");
+  await toTasks(page);
   await chooseMove(page, "Auf einen Tag", "migrated");
   await move(page).getByTestId("move-date").fill(day(2));
 
@@ -243,7 +253,8 @@ test("schedule into a future month: it stays a task there, and the trace on the 
   expect(now.entries.find((entry) => entry.id === id)).toMatchObject({ date: lastDay(4), horizon: "future", type: "task" });
   expect(now.traces).toMatchObject([{ entryId: id, date: day(0), horizon: "day", kind: "scheduled" }]);
   await tab(page, "future").click();
-  await expect(page.getByTestId("future-bucket").nth(4).locator(".paper-row:not(.paper-trace)", { hasText: "Später planen" })).toHaveCount(1);
+  await page.getByTestId("future-next").click();
+  await expect(page.getByTestId("future-bucket").nth(1).locator(".paper-row:not(.paper-trace)", { hasText: "Später planen" })).toHaveCount(1);
 });
 
 test("a written @month in the title preselects its month in the chooser, and nothing is filed twice", async ({ page }) => {

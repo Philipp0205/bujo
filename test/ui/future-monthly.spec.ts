@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-quick-fixes-2" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-paper-month-future" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -68,11 +68,22 @@ const sheet = (page: Page) => page.locator("#log");
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
 
-/** Opens the log (or a link into it) and waits until its scripts are wired, so a tap is heard. */
+/** Opens the log (or a link into it) and waits until its scripts are wired, so a tap is heard. A month's calendar page has no Add row. */
 async function openLog(page: Page, query = ""): Promise<void> {
   await page.goto(`${app.baseUrl}/${query}`);
   await expect(switcher(page)).toBeVisible();
-  await page.waitForFunction(() => !!document.querySelector(".paper-add"));
+  await page.waitForFunction(() => !!document.querySelector(".paper-add, .month-calendar"));
+}
+
+/** The number of days in the month n months from this one. */
+function daysIn(ahead: number): number {
+  return Number(lastDay(ahead).slice(8, 10));
+}
+
+/** The label the calendar writes for the day of a month n months ahead: "1 M" (number, then the English weekday initial). */
+function dayText(ahead: number, dayOfMonth: number): string {
+  const [year, number] = month(ahead).split("-").map(Number);
+  return `${dayOfMonth} ${["S", "M", "T", "W", "T", "F", "S"][new Date(year, number - 1, dayOfMonth).getDay()]}`;
 }
 
 /** Types a line, saves it with Enter (which closes the sheet) and waits until the sheet is gone. */
@@ -102,7 +113,7 @@ test("the log opens on Daily, and the switcher shows Future, Month and Daily in 
   expect(above.y + above.height).toBeLessThanOrEqual(date.y + 1);
 });
 
-test("Month shows a dated daily entry once, on its day, and the month-task under Month tasks", async ({ page }) => {
+test("Month opens on a calendar page: every day of the month on a line like \"1 M\", empty days too, entries beside their day", async ({ page }) => {
   await seed(page, [
     { date: day(0), title: "Heute erledigen" },
     { date: lastDay(0), title: "Monatsaufgabe", horizon: "month-task" },
@@ -112,15 +123,21 @@ test("Month shows a dated daily entry once, on its day, and the month-task under
 
   await expect(page.getByRole("heading", { name: "Monthly Log", level: 1 })).toBeVisible();
   await expect(page.getByTestId("month-heading")).toHaveText(monthName(0));
-  await expect(page.getByTestId("month-day-label")).toHaveCount(1);
+  const labels = page.getByTestId("month-day-label");
+  await expect(labels).toHaveCount(daysIn(0));
+  await expect(labels.first()).toHaveText(dayText(0, 1));
+  await expect(labels.last()).toHaveText(dayText(0, daysIn(0)));
+  const today = new Date().getDate();
+  const line = page.locator(`.cal-day[data-date="${day(0)}"]`);
+  await expect(line.getByTestId("month-day-label")).toHaveText(dayText(0, today));
+  await expect(line.locator(".paper-row", { hasText: "Heute erledigen" })).toHaveAttribute("data-horizon", "day");
   await expect(row(page, "Heute erledigen")).toHaveCount(1);
-  await expect(row(page, "Heute erledigen")).toHaveAttribute("data-horizon", "day");
-  await expect(page.getByTestId("month-tasks").locator(".paper-row", { hasText: "Monatsaufgabe" })).toHaveAttribute("data-horizon", "month-task");
+  await expect(page.locator(".cal-day[data-date$='-01'] .paper-row")).toHaveCount(today === 1 ? 1 : 0);
+  await expect(row(page, "Monatsaufgabe")).toHaveCount(0);
+  await expect(page.getByTestId("month-tasks")).toHaveCount(0);
+  await expect(page.locator("[data-action=add-entry]")).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get("view")).toBe("month");
   expect(new URL(page.url()).searchParams.get("month")).toBeNull();
-
-  // The month item has no done toggle, and the day entry still has one.
-  await expect(row(page, "Monatsaufgabe").getByTestId("toggle-done")).toHaveCount(0);
   await expect(row(page, "Heute erledigen").getByTestId("toggle-done")).toHaveCount(1);
 
   // The same entry stays on its Daily page, with no copy of it elsewhere.
@@ -129,39 +146,87 @@ test("Month shows a dated daily entry once, on its day, and the month-task under
   await expect(row(page, "Monatsaufgabe")).toHaveCount(0);
 });
 
-test("Month: the arrows move through the six months and stop at both ends, and This month jumps back", async ({ page }) => {
+test("the month tasks are their own page: a turn goes from the calendar to the tasks and on to the next month", async ({ page }) => {
+  await seed(page, [{ date: lastDay(0), title: "Monatsaufgabe", horizon: "month-task" }]);
+  await openLog(page, "?view=month");
+
+  await page.getByTestId("month-next").click();
+  await expect(page.getByTestId("month-heading")).toHaveText(monthName(0));
+  const tasks = page.getByTestId("month-tasks");
+  await expect(tasks.locator(".paper-row", { hasText: "Monatsaufgabe" })).toHaveAttribute("data-horizon", "month-task");
+  await expect(page.getByTestId("month-day-label")).toHaveCount(0);
+  await expect(row(page, "Monatsaufgabe").getByTestId("toggle-done")).toHaveCount(0);
+  await expect(page.locator("[data-action=add-entry]")).toHaveCount(1);
+
+  await page.getByTestId("month-next").click();
+  await expect(page.getByTestId("month-heading")).toHaveText(monthName(1));
+  await expect(page.getByTestId("month-day-label")).toHaveCount(daysIn(1));
+  await expect(tasks).toHaveCount(0);
+
+  await page.getByTestId("month-prev").click();
+  await expect(tasks).toHaveCount(1);
+  await expect(page.getByTestId("month-heading")).toHaveText(monthName(0));
+});
+
+test("Month: the arrows walk the twelve pages and stop at both ends, and This month goes back to its calendar", async ({ page }) => {
   await openLog(page, "?view=month");
 
   await expect(page.getByTestId("month-prev")).toBeDisabled();
   await expect(page.getByTestId("month-jump")).toHaveCount(0);
   await page.getByTestId("month-next").click();
-  await expect(page.getByTestId("month-heading")).toHaveText(monthName(1));
   await expect(page.getByTestId("month-jump")).toBeVisible();
+  await page.getByTestId("month-next").click();
+  await expect(page.getByTestId("month-heading")).toHaveText(monthName(1));
   expect(new URL(page.url()).searchParams.get("month")).toBe(month(1));
-  for (let step = 0; step < 4; step += 1) await page.getByTestId("month-next").click();
+  for (let step = 0; step < 8; step += 1) await page.getByTestId("month-next").click();
   await expect(page.getByTestId("month-heading")).toHaveText(monthName(5));
+  await expect(page.getByTestId("month-day-label")).toHaveCount(daysIn(5));
+  await page.getByTestId("month-next").click();
+  await expect(page.getByTestId("month-tasks")).toBeVisible();
   await expect(page.getByTestId("month-next")).toBeDisabled();
+
   await page.getByTestId("month-jump").click();
   await expect(page.getByTestId("month-heading")).toHaveText(monthName(0));
+  await expect(page.getByTestId("month-day-label")).toHaveCount(daysIn(0));
+  await expect(page.getByTestId("month-jump")).toHaveCount(0);
 });
 
-test("Future shows six English month headings, empty upcoming ones too, and the future item in its month", async ({ page }) => {
+test("Future shows three English month headings to a page, empty upcoming ones too, and the next three on the second page", async ({ page }) => {
   await seed(page, [
     { date: lastDay(2), title: "Urlaub planen", horizon: "future" },
     { date: lastDay(0), title: "Diesen Monat", horizon: "month-task" },
+    { date: lastDay(4), title: "Fernziel", horizon: "future" },
   ]);
   await openLog(page);
   await tab(page, "future").click();
 
   await expect(page.getByRole("heading", { name: "Future Log", level: 1 })).toBeVisible();
   const labels = page.getByTestId("future-bucket-label");
-  await expect(labels).toHaveCount(6);
-  await expect(labels).toHaveText([0, 1, 2, 3, 4, 5].map(monthName));
+  await expect(labels).toHaveText([0, 1, 2].map(monthName));
   await expect(page.getByTestId("future-bucket").nth(2).locator(".paper-row", { hasText: "Urlaub planen" })).toHaveCount(1);
   await expect(page.getByTestId("future-bucket").nth(0).locator(".paper-row", { hasText: "Diesen Monat" })).toHaveCount(1);
   await expect(page.getByTestId("future-bucket").nth(1).locator(".paper-row")).toHaveCount(0);
+  await expect(row(page, "Fernziel")).toHaveCount(0);
   expect(new URL(page.url()).searchParams.get("view")).toBe("future");
   await expect(row(page, "Urlaub planen").getByTestId("toggle-done")).toHaveCount(0);
+  await expect(page.getByTestId("future-prev")).toBeDisabled();
+
+  await page.getByTestId("future-next").click();
+  await expect(labels).toHaveText([3, 4, 5].map(monthName));
+  await expect(page.getByTestId("future-bucket").nth(1).locator(".paper-row", { hasText: "Fernziel" })).toHaveCount(1);
+  await expect(row(page, "Urlaub planen")).toHaveCount(0);
+  await expect(page.getByTestId("future-next")).toBeDisabled();
+
+  await page.getByTestId("future-prev").click();
+  await expect(labels).toHaveText([0, 1, 2].map(monthName));
+});
+
+test("a thin rule parts one month of the Future Log from the next, and none sits above the first", async ({ page }) => {
+  await openLog(page, "?view=future");
+  const rule = (index: number) => page.getByTestId("future-bucket").nth(index).evaluate((node) => getComputedStyle(node, "::before").content);
+  expect(await rule(0)).toBe("none");
+  expect(await rule(1)).toBe('""');
+  expect(await rule(2)).toBe('""');
 });
 
 test("an @dezember line typed on Daily lands under that month, off the day page", async ({ page }) => {
@@ -176,25 +241,43 @@ test("an @dezember line typed on Daily lands under that month, off the day page"
   await expect.poll(() => stored(page, day(0), "day")).toEqual([]);
 
   await tab(page, "future").click();
-  await expect(page.getByTestId("future-bucket").nth(december).locator(".paper-row", { hasText: "Jahresrückblick" })).toHaveCount(1);
+  if (december >= 3) await page.getByTestId("future-next").click();
+  await expect(page.getByTestId("future-bucket").nth(december % 3).locator(".paper-row", { hasText: "Jahresrückblick" })).toHaveCount(1);
 });
 
-test("Add while Month is open makes a month-task, and Add while Future is open makes a future item, in that view", async ({ page }) => {
+test("Add while Month is open makes a month-task on its tasks page, and Add while Future is open makes a future item, in that view", async ({ page }) => {
   await openLog(page, "?view=month");
-  await page.locator("[data-action=add-entry]").click();
+  // On the calendar the Add tab opens the tasks page: a month task has no day to sit on.
+  await addTab(page).click();
   await typeLine(page, "Im Monat");
   await expect(page.getByTestId("month-tasks").locator(".paper-row", { hasText: "Im Monat" })).toHaveCount(1);
   await expect.poll(() => stored(page, lastDay(0), "month-task")).toEqual(["Im Monat"]);
+  await page.locator("[data-action=add-entry]").click();
+  await typeLine(page, "Noch eins");
+  await expect.poll(() => stored(page, lastDay(0), "month-task")).toHaveLength(2);
 
   await tab(page, "future").click();
   await page.locator("[data-action=add-entry]").click();
   await typeLine(page, "In der Zukunft");
   await expect(page.getByTestId("future-bucket").nth(1).locator(".paper-row", { hasText: "In der Zukunft" })).toHaveCount(1);
   await expect.poll(() => stored(page, lastDay(1), "future")).toEqual(["In der Zukunft"]);
+
+  await page.getByTestId("future-next").click();
+  await page.locator("[data-action=add-entry]").click();
+  await typeLine(page, "Ganz spaet");
+  await expect(page.getByTestId("future-bucket").nth(0).locator(".paper-row", { hasText: "Ganz spaet" })).toHaveCount(1);
+  await expect.poll(() => stored(page, lastDay(3), "future")).toEqual(["Ganz spaet"]);
+});
+
+test("a tap on the bare paper of the calendar starts no line", async ({ page }) => {
+  await openLog(page, "?view=month");
+  await page.locator(".cal-day").nth(2).click({ position: { x: 300, y: 10 } });
+  await expect(title(page)).toHaveCount(0);
 });
 
 test("a month-task is a task even when the line was an event, because an event needs a day", async ({ page }) => {
   await openLog(page, "?view=month");
+  await page.getByTestId("month-next").click();
   await page.locator("[data-action=add-entry]").click();
   await typeLine(page, "Konferenz");
   await expect(row(page, "Konferenz")).toHaveAttribute("data-type", "task");
@@ -204,6 +287,7 @@ test("a long month scrolls as one sheet: the title, the switcher and the month r
   const entries: Seed[] = Array.from({ length: 14 }, (_, i) => ({ date: lastDay(0), title: `Monatsaufgabe ${i + 1}`, horizon: "month-task" }));
   await seed(page, entries);
   await openLog(page, "?view=month");
+  await page.getByTestId("month-next").click();
   await expect(page.getByTestId("month-heading")).toBeInViewport();
 
   await sheet(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
@@ -224,10 +308,24 @@ test("a long month scrolls as one sheet: the title, the switcher and the month r
   await expect(page.getByTestId("month-heading")).toBeInViewport();
 });
 
+test("a long calendar page ends above the tab bar, with the last day of the month on its own line", async ({ page }) => {
+  const entries: Seed[] = Array.from({ length: 6 }, (_, i) => ({ date: lastDay(0), title: `Termin ${i + 1}`, horizon: "day" }));
+  await seed(page, entries);
+  await openLog(page, "?view=month");
+
+  await sheet(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  const bar = (await mainBar(page).boundingBox())!;
+  const last = (await page.locator(".cal-day").last().boundingBox())!;
+  expect(last.y + last.height).toBeLessThanOrEqual(bar.y);
+  await expect(page.getByTestId("month-day-label").last()).toHaveText(dayText(0, daysIn(0)));
+});
+
 test("a long Future Log ends above the tab bar too", async ({ page }) => {
   const entries: Seed[] = Array.from({ length: 10 }, (_, i) => ({ date: lastDay(5), title: `Spaeter ${i + 1}`, horizon: "future" }));
   await seed(page, entries);
   await openLog(page, "?view=future");
+  await page.getByTestId("future-next").click();
+  await expect(row(page, "Spaeter 10")).toBeVisible();
 
   await sheet(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const bar = (await mainBar(page).boundingBox())!;
@@ -235,12 +333,18 @@ test("a long Future Log ends above the tab bar too", async ({ page }) => {
   expect(add.y + add.height).toBeLessThanOrEqual(bar.y);
 });
 
-test("the Add row lines up with the text column on every view", async ({ page }) => {
+test("the Add row lines up with the text column on every view that has one", async ({ page }) => {
   await openLog(page);
   const columns: number[] = [];
   for (const name of ["daily", "month", "future"] as const) {
     await tab(page, name).click();
     await expect(tab(page, name)).toHaveAttribute("aria-pressed", "true");
+    if (name === "month") {
+      await page.getByTestId("month-next").click();
+      await expect(page.getByTestId("month-tasks")).toBeVisible();
+    }
+    // A turn slides the page in, so the column is read once the slide has ended.
+    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
     columns.push((await page.locator(".paper-add-text").boundingBox())!.x);
   }
   expect(new Set(columns.map((x) => Math.round(x))).size).toBe(1);
@@ -255,6 +359,7 @@ test("Not on paper counts a month-task that is not on paper, and lists it under 
   await expect(page.getByTestId("not-on-paper-month")).toHaveText(monthName(1));
   await expect(page.getByTestId("not-on-paper-row")).toHaveCount(1);
 });
+
 
 test("the switcher, a ?view=month link and the Back layers: a link opens that view and keeps the other parameters", async ({ page }) => {
   await openLog(page, `?view=month&month=${month(2)}`);

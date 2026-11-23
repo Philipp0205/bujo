@@ -14,6 +14,7 @@
 
   var VIEWS = ['future', 'month', 'daily'];
   var MONTHS_SHOWN = 6;
+  var FUTURE_PER_PAGE = 3;
   var MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
   /** True for a view name the log knows. */
@@ -45,28 +46,35 @@
     return futureMonths(today).indexOf(text) >= 0 ? text : null;
   }
 
-  /** The month n months from a month when that month is one of the six, else null (the arrows stop at the ends). */
-  function shifted(month, n, today) {
-    var next = L.pages.model.shiftMonth(month, n);
-    return futureMonths(today).indexOf(next) >= 0 ? next : null;
-  }
-
   /** Where a new line goes while a view is open: { date, horizon }. Month files under the month on screen (a month-task this month, a
-   * future item later), Future under the month after this one, which a written @month or the Date key can change. */
-  function slotOf(view, month, today) {
-    var target = view === 'future' ? L.pages.model.shiftMonth(L.pages.model.monthOf(today), 1) : month;
-    return { date: lastDay(target), horizon: target <= L.pages.model.monthOf(today) ? 'month-task' : 'future' };
+   * future item later). Future files under the month after this one on its first page, else under the first month of the open page;
+   * a written @month or the Date key can change either. */
+  function slotOf(view, month, today, page) {
+    var here = L.pages.model.monthOf(today);
+    var target = month;
+    if (view === 'future') target = page ? futureMonths(today)[page * FUTURE_PER_PAGE] : L.pages.model.shiftMonth(here, 1);
+    return { date: lastDay(target), horizon: target <= here ? 'month-task' : 'future' };
   }
 
-  /** The days of a month with something on them, in date order: [{ date, entries, traces }]. A day with only a trace is listed too. */
+  /** Every day of a month in date order: [{ date, entries, traces }]. The paper calendar writes out all of them, so a day with nothing on it is listed too. */
   function monthDays(entries, month) {
-    var seen = {};
-    entries.forEach(function (entry) {
-      if (L.days.horizonOf(entry) === 'day' && L.pages.model.monthOf(entry.date) === month) seen[entry.date] = true;
-    });
-    return Object.keys(seen).sort().map(function (date) {
+    return L.dates.daysOfMonth(month).map(function (date) {
       return { date: date, entries: L.days.dayEntries(entries, date), traces: L.days.tracesOf(entries, 'day', date) };
     });
+  }
+
+  /** The pages of the Month view, in the order they turn: for each of the six months its calendar, then its tasks. [{ month, part }] */
+  function monthPages(today) {
+    return futureMonths(today).reduce(function (pages, month) {
+      return pages.concat([{ month: month, part: 'calendar' }, { month: month, part: 'tasks' }]);
+    }, []);
+  }
+
+  /** The Month page n steps from a page ({ month, part }), or null past either end. Walks the calendar and tasks pages of every month in turn. */
+  function monthStep(page, n, today) {
+    var pages = monthPages(today);
+    var at = pages.findIndex(function (item) { return item.month === page.month && item.part === page.part; });
+    return at < 0 ? null : pages[at + n] || null;
   }
 
   /** The cards of the entries filed under a whole month: the month-tasks first, then the future items, each group in its own order. */
@@ -89,8 +97,23 @@
     });
   }
 
+  /** The Future Log in pages of three months: [[bucket, bucket, bucket], [bucket, bucket, bucket]], this month first. */
+  function futurePages(entries, today) {
+    var all = buckets(entries, today);
+    var pages = [];
+    for (var at = 0; at < all.length; at += FUTURE_PER_PAGE) pages.push(all.slice(at, at + FUTURE_PER_PAGE));
+    return pages;
+  }
+
+  /** The Future page n steps from a page number (from 0), as { page }, or null past either end. */
+  function futureStep(page, n) {
+    var next = page + n;
+    return next >= 0 && next < MONTHS_SHOWN / FUTURE_PER_PAGE ? { page: next } : null;
+  }
+
   L.horizon.model = {
-    VIEWS: VIEWS, isView: isView, futureMonths: futureMonths, span: span, lastDay: lastDay, readMonth: readMonth, shifted: shifted,
-    slotOf: slotOf, monthDays: monthDays, monthCards: monthCards, monthTraces: monthTraces, buckets: buckets
+    VIEWS: VIEWS, isView: isView, futureMonths: futureMonths, span: span, lastDay: lastDay, readMonth: readMonth,
+    slotOf: slotOf, monthDays: monthDays, monthPages: monthPages, monthStep: monthStep, monthCards: monthCards, monthTraces: monthTraces,
+    buckets: buckets, futurePages: futurePages, futureStep: futureStep
   };
 })();

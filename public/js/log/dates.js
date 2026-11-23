@@ -61,6 +61,19 @@
     return new Date(Date.UTC(parts[0], parts[1] + ahead, 0)).toISOString().slice(0, 10);
   }
 
+  /** Every day of a month (YYYY-MM), first to last, as YYYY-MM-DD. */
+  function daysOfMonth(month) {
+    var last = Number(monthEnd(month + '-01', 0).slice(8, 10));
+    var days = [];
+    for (var n = 1; n <= last; n += 1) days.push(month + '-' + pad(n));
+    return days;
+  }
+
+  /** The weekday of a day as a number, Sunday 0 through Saturday 6. */
+  function weekdayIndex(iso) {
+    return parseIso(iso).getUTCDay();
+  }
+
   /** The usual window, stretched to include one more day (a scan applied to a day outside it), within the server's range cap. */
   function windowWith(today, extra) {
     var usual = windowAround(today);
@@ -85,7 +98,7 @@
 
   L.dates = {
     todayIso: todayIso, parseIso: parseIso, addDays: addDays, dayHeading: dayHeading, weekdayShort: weekdayShort,
-    monthStart: monthStart, monthEnd: monthEnd,
+    monthStart: monthStart, monthEnd: monthEnd, daysOfMonth: daysOfMonth, weekdayIndex: weekdayIndex,
     windowAround: windowAround, windowWith: windowWith,
     reachable: reachable, reaches: reaches
   };

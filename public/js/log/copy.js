@@ -45,10 +45,13 @@
       futureHeading: 'Next six months',
       thisMonth: 'This month',
       thisMonthLabel: 'Back to this month',
-      prevMonth: 'Previous month',
-      nextMonth: 'Next month',
-      noDays: 'No dated entries this month.',
       monthTasks: 'Month tasks',
+      /** The English weekday initials in the order of Date.getUTCDay (Sunday first): Tuesday and Thursday are both T, Saturday and Sunday both S. */
+      weekdayInitials: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+      /** The day number of a day on the monthly calendar, with no leading zero ("1", "22"). */
+      dayNumber: function (iso) { return String(Number(iso.slice(8, 10))); },
+      /** The single English weekday initial of a day on the monthly calendar ("M" for a Monday). */
+      dayInitial: function (iso) { return L.copy.horizon.weekdayInitials[L.dates.weekdayIndex(iso)]; },
       bucketEmpty: 'Nothing here yet.',
       /** "December 2026": the month name is English, the year follows it. */
       monthName: function (month) {

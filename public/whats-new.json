@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-paper-month-future",
+    "date": "2026-11-23",
+    "title": "Month and Future like the paper",
+    "bullets": [
+      "Month now opens on a calendar page: every day of the month on its own line, like \"1 M\", with the day's entries beside it. Days with nothing on them stay as empty lines.",
+      "The month's tasks have their own page. Turn from the calendar to the tasks, and on to the next month.",
+      "Future shows three months to a page, divided by thin lines, and a second page for the next three."
+    ]
+  },
+  {
     "id": "2026-11-23-quick-fixes-2",
     "date": "2026-11-23",
     "title": "Quick fixes",
