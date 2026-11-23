@@ -19,6 +19,30 @@ Until `package.json` exists, those steps are placeholders and the script reports
 - If you changed what a screen looks like, take a Playwright screenshot of each changed screen at a 390x844 phone viewport (fake data only) into `/tmp/opencode/shots/<branch-name>/`, and list the paths in your final message. Don't commit them. Before each shot, dismiss the app-kit install banner and wait until toasts are gone. Use deviceScaleFactor 3, empty the shots folder first, and seed fresh fake data for the shots instead of reusing what earlier tests left behind. After shooting, check with `sha1sum` that no two shots are identical. Write the shot script as `test/ui/<name>.shot.ts` (gitignored, reuses `test/ui/harness.ts`) and run it with `npx playwright test -c playwright.shots.config.ts`. Don't build a Playwright setup, `package.json` or `node_modules` link under `/tmp`. Before each shot, scroll the changed element into view with `locator.scrollIntoViewIfNeeded()`, and give light and dark shots of the same screen the same scroll position.
 - Open each PNG with the read tool and check it against the task's mock if there is one: alignment and centring, paper colors (no leftover app-kit accent in focus rings, links, banners), nothing cut off or covered. For any scrollable list or sheet, also shoot it scrolled to the bottom (and expanded, if it can expand) and check that the last row sits fully above any fixed dock, bar or button. Fix and retake before reporting done.
 
+## Shipping a user-visible change
+
+When a change alters what a user sees in the app:
+
+- Bump `version` by one in `public/sw.js`, inside `AppKitSW.setup`. The file already says to bump it whenever a file in `shell` changes.
+- Add a what's-new entry at the top of `public/whats-new.json` (newest first). Each entry is an object with `id`, `date`, `title`, `bullets`. The id is `YYYY-MM-DD-<slug>`, for example `2026-11-23-fonts`. Title and bullets are one-line user copy matching the existing entries (recent ones are short English sentences).
+- Update the fixture ids: `test/ui/whats-new.spec.ts` has `const NEWEST` set to the newest catalog id (for example `2026-11-23-fonts`). The other `test/ui/*.spec.ts` files dismiss the sheet by PUTting that same id to `/api/whats-new/seen`. When you add a newer entry, update `NEWEST` and those seen ids so the sheet does not cover the tests. `test/whats-new.test.ts` checks the shipped json generically and needs no id change if the entry follows the format.
+- Take the shots from the screenshot rule in Gates, and run `scripts/check.sh`.
+- Skip all of this (version bump, entry, fixture ids, shots) for docs-only or test-only changes that do not change what a user sees.
+
+## How the bujo bot works
+
+The outer loop, for any agent or human:
+
+- One git worktree per change, cut from current `origin/main`.
+- One OpenCode run does the whole loop: implement, then run `scripts/check.sh` and fix until it passes. Use the global default model, no `-m`.
+- After that run, the bot reads the diff and runs `scripts/check.sh` itself. Green is the proof.
+- Then it opens a PR with phone screenshots of the changed screens. Docs-only or test-only PRs need no screenshots.
+- Philipp picks merge, change, or hold. Squash merge only on his go and only with green checks. Never push to `main` after the initial commit.
+- After a merge, the bot repins the Railway app service to the merge sha, and repins the ocr service only when `ocr/` changed. Then it smokes `/healthz` and `/sw.js`.
+- Tests use the `bujo-test` CalDAV list only, never his real Nextcloud lists.
+- Never touch the server, app-kit, Nextcloud config, or other repos directly.
+- Never commit secrets or real page photos.
+
 ## Scope
 
 - Build every item the task lists. If you can't finish one, say so by name in your final message under "Not done", with the reason. Never drop a listed item silently.
