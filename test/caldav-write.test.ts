@@ -130,6 +130,18 @@ test("editTodo someday adds or removes only that tag", () => {
   assert.equal(editTodo(base, "s-1", { someday: false }, NOW).changed, false);
 });
 
+test("buildNewTodo cancel writes STATUS:CANCELLED, and editTodo cancel turns a finished task into a cancelled one", () => {
+  const fresh = buildNewTodo({ uid: "c-1", summary: "x", cancel: true }, NOW);
+  assert.equal(parseVTodos(fresh)[0].status, "CANCELLED");
+  assert.equal(fresh.includes("COMPLETED"), false);
+  const done = editTodo(buildNewTodo({ uid: "c-2", summary: "x" }, NOW), "c-2", { complete: true }, NOW).ics;
+  const cancelled = editTodo(done, "c-2", { cancel: true }, NOW + 1000);
+  assert.equal(cancelled.changed, true);
+  assert.equal(parseVTodos(cancelled.ics)[0].status, "CANCELLED");
+  assert.equal(/COMPLETED:|PERCENT-COMPLETE/.test(cancelled.ics), false);
+  assert.equal(editTodo(cancelled.ics, "c-2", { cancel: true }, NOW + 2000).changed, false);
+});
+
 test("create PUTs <list>/<uid>.ics with If-None-Match: * and returns the read-back task", async () => {
   await withSource(async (fake, source) => {
     const task = await source.create("Aufgaben", {

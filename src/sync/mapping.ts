@@ -8,7 +8,7 @@ import { mismatchReason } from "./strings.ts";
 export type SyncKind = "todo" | "event";
 
 /** The entry types that become a VTODO. */
-const TODO_TYPES: readonly EntryType[] = ["task", "done", "migrated", "scheduled"];
+const TODO_TYPES: readonly EntryType[] = ["task", "done", "migrated", "scheduled", "dropped"];
 
 /** The kind of calendar object an entry type is written as, or null for a type that stays local. */
 export function syncKind(type: EntryType): SyncKind | null {
@@ -26,36 +26,40 @@ export const EVENT_CATEGORY = "bujo";
 /** What the VTODO must say for an entry: the part the read-back checks. */
 export type TodoShape = {
   summary: string;
-  status: "NEEDS-ACTION" | "COMPLETED";
+  status: "NEEDS-ACTION" | "COMPLETED" | "CANCELLED";
   /** YYYY-MM-DD for DUE;VALUE=DATE, or null for no DUE. */
   due: string | null;
 };
 
 /**
- * The VTODO an entry stands for. done is finished. scheduled has a DUE day. A task, done or migrated entry of a month or
+ * The VTODO an entry stands for. done is finished, dropped is CANCELLED. scheduled has a DUE day. A task, done or migrated entry of a month or
  * the future has DUE = the last day of its month (its date). A plain task on a real day (daily log or monthly calendar) has no DUE.
  */
 export function todoShape(entry: Pick<Entry, "type" | "title" | "date"> & { horizon?: Entry["horizon"] }): TodoShape {
   const inMonth = entry.horizon !== undefined && !isDayDated(entry.horizon);
   return {
     summary: entry.title,
-    status: entry.type === "done" ? "COMPLETED" : "NEEDS-ACTION",
+    status: statusOf(entry.type),
     due: entry.type === "scheduled" || inMonth ? entry.date : null,
   };
 }
 
+/** The VTODO STATUS an entry type is written with. */
+function statusOf(type: EntryType): TodoShape["status"] {
+  if (type === "done") return "COMPLETED";
+  return type === "dropped" ? "CANCELLED" : "NEEDS-ACTION";
+}
+
 /** A whole new VCALENDAR for an entry. No DTSTART, PRIORITY or CATEGORIES: the tags are not mapped. */
 export function newTodoFor(shape: TodoShape, uid: string, nowMs: number): string {
-  return buildNewTodo({ uid, summary: shape.summary, due: shape.due, complete: shape.status === "COMPLETED" }, nowMs);
+  const todo = { uid, summary: shape.summary, due: shape.due };
+  return buildNewTodo({ ...todo, complete: shape.status === "COMPLETED", cancel: shape.status === "CANCELLED" }, nowMs);
 }
 
 /** The edit that turns an existing VTODO into this shape. Everything else on the object stays as it is. */
 export function patchFor(shape: TodoShape): TodoPatch {
-  return {
-    summary: shape.summary,
-    due: shape.due,
-    ...(shape.status === "COMPLETED" ? { complete: true } : { reopen: true }),
-  };
+  const status = shape.status === "COMPLETED" ? { complete: true } : shape.status === "CANCELLED" ? { cancel: true } : { reopen: true };
+  return { summary: shape.summary, due: shape.due, ...status };
 }
 
 /** Compares a calendar object read back from the server with what was written. Null when it matches, else what differs. */

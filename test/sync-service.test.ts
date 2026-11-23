@@ -139,6 +139,50 @@ test("done completes the VTODO, and task again reopens it", async () => {
   });
 });
 
+test("dropped cancels the VTODO (never COMPLETED), keeps the UID, and task again reopens it", async () => {
+  await withSync(async (ctx) => {
+    const created = make(ctx);
+    ctx.service.enqueue(USER_ID, created);
+    await ctx.service.idle();
+
+    ctx.service.enqueue(USER_ID, ctx.entries.update(USER_ID, created.id, { type: "dropped" }, NOW)!);
+    await ctx.service.idle();
+    assert.equal(reread(ctx, created.id).sync, "synced");
+    assert.ok(stored(ctx.fake).includes("STATUS:CANCELLED"));
+    assert.ok(stored(ctx.fake).includes("UID:uid-1"));
+    assert.equal(/STATUS:COMPLETED|COMPLETED:|PERCENT-COMPLETE/.test(stored(ctx.fake)), false);
+    assert.equal(ctx.fake.requests.some((request) => request.method === "DELETE"), false);
+
+    ctx.service.enqueue(USER_ID, ctx.entries.update(USER_ID, created.id, { type: "task" }, NOW)!);
+    await ctx.service.idle();
+    assert.ok(stored(ctx.fake).includes("STATUS:NEEDS-ACTION"));
+  });
+});
+
+test("an entries table made before the dropped type accepts it after open, and keeps its rows, tags and indexes", () => {
+  const file = `/tmp/opencode/bujo-dropped-${process.pid}-${Date.now()}.db`;
+  const old = new DatabaseSync(file);
+  old.exec(`
+    CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT, email_verified_at INTEGER, recovery_hash TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE entries (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, date TEXT NOT NULL, time TEXT,
+      type TEXT NOT NULL CHECK (type IN ('task', 'note', 'event', 'done', 'migrated', 'scheduled')), title TEXT NOT NULL, tag TEXT,
+      sync TEXT NOT NULL DEFAULT 'local', position INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE entry_tags (entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE, position INTEGER NOT NULL, tag TEXT NOT NULL, PRIMARY KEY (entry_id, position));
+    INSERT INTO users VALUES ('u', 'T', NULL, NULL, 'h', 1);
+    INSERT INTO entries VALUES ('e1', 'u', '2026-11-20', NULL, 'task', 'Altbestand', NULL, 'local', 0, 1, 1);
+    INSERT INTO entry_tags VALUES ('e1', 0, 'haus');
+  `);
+  old.close();
+  for (let round = 0; round < 2; round++) {
+    const db = openDb(file);
+    const entries = createEntryStore(db);
+    assert.equal(entries.update("u", "e1", { type: "dropped" }, NOW)!.type, "dropped");
+    assert.deepEqual(entries.get("u", "e1")!.tags, ["haus"]);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'idx_entries_user_date'").get() as { n: number }).n, 1);
+    db.close();
+  }
+});
+
 test("an entry that moves to a note goes back to local and writes nothing", async () => {
   await withSync(async (ctx) => {
     const created = make(ctx);

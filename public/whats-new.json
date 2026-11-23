@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-migration-review",
+    "date": "2026-11-23",
+    "title": "Migrate your open tasks",
+    "bullets": [
+      "When earlier days still hold open tasks, a quiet line on today's page offers to review them. \"Review earlier tasks\" is always at the foot of a daily page.",
+      "Go through them one at a time, oldest first: keep a task (it moves to today and leaves a > behind), schedule it (it leaves a <), or drop it (struck through, it stays where it was).",
+      "Keep all remaining moves the rest to today in one go. A short tally ends the review."
+    ]
+  },
+  {
     "id": "2026-11-23-row-swipes",
     "date": "2026-11-23",
     "title": "Swipe a task to move it",

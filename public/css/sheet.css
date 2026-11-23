@@ -4,7 +4,8 @@
  * The kit sets its pink accents again in its light scheme, so the scan sheet pins them to paper colours.
  */
 
-.sheet-scan {
+.sheet-scan,
+.sheet-migrate {
   --ak-accent: var(--paper-ink);
   --ak-accent-2: var(--paper-muted);
   --ak-accent-strong: var(--paper-ink);
@@ -12,7 +13,8 @@
   --ak-danger: var(--paper-today);
   accent-color: var(--paper-ink);
 }
-.sheet-scan :focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+.sheet-scan :focus-visible,
+.sheet-migrate :focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
 .ak-sheet-layer .ak-scrim { background: var(--paper-scrim); }
 

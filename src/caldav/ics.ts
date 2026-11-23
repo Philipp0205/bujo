@@ -340,6 +340,8 @@ export type TodoPatch = {
   complete?: boolean;
   /** Back to STATUS:NEEDS-ACTION when the task is not open: COMPLETED and PERCENT-COMPLETE are removed. */
   reopen?: boolean;
+  /** STATUS:CANCELLED. COMPLETED and PERCENT-COMPLETE are removed, so a cancelled task never reads as finished. */
+  cancel?: boolean;
 };
 
 export type NewTodo = {
@@ -351,6 +353,8 @@ export type NewTodo = {
   categories?: string[];
   /** Write the task as finished: STATUS:COMPLETED, COMPLETED:<now>, PERCENT-COMPLETE:100. */
   complete?: boolean;
+  /** Write the task as dropped: STATUS:CANCELLED. Ignored when `complete` is set. */
+  cancel?: boolean;
 };
 
 /** `YYYYMMDDTHHMMSSZ` for an epoch ms. */
@@ -417,7 +421,7 @@ export function buildNewTodo(input: NewTodo, nowMs: number): string {
   ];
   if (input.description) lines.push(descriptionLine(input.description));
   if (input.complete) lines.push("STATUS:COMPLETED", `COMPLETED:${stamp}`, "PERCENT-COMPLETE:100");
-  else lines.push("STATUS:NEEDS-ACTION");
+  else lines.push(input.cancel ? "STATUS:CANCELLED" : "STATUS:NEEDS-ACTION");
   if (input.priority) lines.push(priorityLine(input.priority));
   if (input.due) lines.push(dueLine(input.due));
   if (input.categories && input.categories.length > 0) lines.push(categoriesLine(input.categories));
@@ -620,6 +624,13 @@ export function editTodo(ics: string, uid: string, patch: TodoPatch, nowMs: numb
   }
   if (patch.reopen === true && (current.status !== "NEEDS-ACTION" || current.completed !== null)) {
     setProp("STATUS", "STATUS:NEEDS-ACTION");
+    setProp("COMPLETED", null);
+    setProp("PERCENT-COMPLETE", null);
+    changed = true;
+  }
+
+  if (patch.cancel === true && (current.status !== "CANCELLED" || current.completed !== null)) {
+    setProp("STATUS", "STATUS:CANCELLED");
     setProp("COMPLETED", null);
     setProp("PERCENT-COMPLETE", null);
     changed = true;

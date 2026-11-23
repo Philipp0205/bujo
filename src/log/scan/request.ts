@@ -73,7 +73,7 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   const unknown = Object.keys(raw).find((key) => !ITEM_KEYS.includes(key));
   if (unknown) bad(`${at}: unknown field ${unknown.slice(0, 40)}`);
   if (typeof raw.id !== "string" || !/^l[1-9]\d*$/.test(raw.id) || Number(raw.id.slice(1)) > draft.page.length) bad(`${at}: unknown item id`);
-  if (!isEntryType(raw.type)) bad(`${at}: type must be task, note, event, done, migrated or scheduled`);
+  if (!isEntryType(raw.type)) bad(`${at}: type must be task, note, event, done, migrated, scheduled or dropped`);
   if (typeof raw.title !== "string") bad(`${at}: title must be text`);
   if (raw.include !== undefined && typeof raw.include !== "boolean") bad(`${at}: include must be true or false`);
   if (raw.unmatched !== undefined && typeof raw.unmatched !== "boolean") bad(`${at}: unmatched must be true or false`);

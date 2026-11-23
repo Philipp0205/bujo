@@ -1,7 +1,7 @@
 /*
  * Render functions of the daily log: header, the entries of a day, ink cards. They build nodes and call back, they never fetch.
- * actions: open(entry), add(), toggleDone(entry), and select { on(), ticked(entry), toggle(entry) } for select mode.
- * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, done/model.js, paper/recent.js and paper/view.js (the row mark and the header button).
+ * actions: open(entry), add(), toggleDone(entry), migrate(), and select { on(), ticked(entry), toggle(entry) } for select mode.
+ * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, migrate/model.js, done/model.js, paper/recent.js and paper/view.js (the row mark and the header button).
  */
 (function () {
   'use strict';
@@ -131,12 +131,28 @@
     return traces.length ? h('div', { class: 'paper-traces' }, traces.map(traceRow)) : null;
   }
 
-  /** The entries of one day: a card per top-level entry, the traces of moves, then the add row (not while selecting). The date heading is on the page's date row. */
+  /** The quiet prompt at the top of today's page while earlier days hold open tasks: how many, and the way into the review. */
+  function migratePrompt(count, onOpen) {
+    return h('button', { class: 'paper-migrate paper-migrate-prompt', type: 'button', 'data-action': 'migrate-prompt', 'data-testid': 'migrate-prompt', onclick: onOpen },
+      h('span', { class: 'paper-migrate-text' }, L.copy.migrate.prompt(count) + ' \u00b7 ', h('span', { class: 'paper-migrate-go' }, L.copy.migrate.promptAction)));
+  }
+
+  /** The always-there line under the entries of a daily page: opens the migration review even when nothing is waiting. */
+  function migrateLink(onOpen) {
+    return h('button', { class: 'paper-migrate', type: 'button', 'data-action': 'migrate-open', 'data-testid': 'migrate-open', onclick: onOpen },
+      h('span', { class: 'paper-migrate-text' }, L.copy.migrate.link));
+  }
+
+  /** The entries of one day: the migrate prompt (today only), a card per top-level entry, the traces of moves, then the add row and migrate link (not while selecting). The date heading is on the page's date row. */
   function dayPage(date, entries, actions, today) {
+    var waiting = date === today ? L.migrate.model.open(entries, today).length : 0;
+    var picking = actions.select.on();
     return h('section', { class: 'paper-day-group', 'data-date': date },
+      waiting && !picking ? migratePrompt(waiting, actions.migrate) : null,
       L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return entryCard(card, actions, today); }),
       traceList(L.days.tracesOf(entries, 'day', date)),
-      actions.select.on() ? null : addRow(actions.add));
+      picking ? null : addRow(actions.add),
+      picking ? null : migrateLink(actions.migrate));
   }
 
   /** The quiet line above the days while the device is offline. */
