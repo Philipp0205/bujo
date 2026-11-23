@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-one-tap",
+    "date": "2026-11-23",
+    "title": "One tap to close a task, hold for the type",
+    "bullets": [
+      "Tap the bullet of a task to mark it done, and tap again to open it up. The tap target is bigger now.",
+      "Hold the bullet to pick any type: task, done, moved, scheduled, event or note. Moved and scheduled ask where the entry goes.",
+      "Hold the title or the rest of the row to select, as before."
+    ]
+  },
+  {
     "id": "2026-11-23-migration-review",
     "date": "2026-11-23",
     "title": "Migrate your open tasks",

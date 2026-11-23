@@ -76,7 +76,7 @@
   /** Wires select mode to its host and starts watching long presses on the page. */
   function init(options) {
     host = options.host;
-    L.select.press.init({ root: options.root, onHold: hold });
+    L.select.press.init({ root: options.root, onHold: hold, skip: L.type.hold.owns });
   }
 
   L.select.mode = {

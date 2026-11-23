@@ -59,6 +59,11 @@
   function open(id, kind) {
     var entry = entryOf(id);
     if (!entry || entry.type !== 'task') return;
+    chooseMove(entry, kind);
+  }
+
+  /** Opens the chooser for an entry and moves it on a pick. Also the path of the type picker's > and <. */
+  function chooseMove(entry, kind) {
     choose(entry, kind, function (target) { pick(entry, kind, target); });
   }
 
@@ -73,5 +78,5 @@
     L.move.swipe.init({ root: options.root, active: function () { return !options.select.on(); }, onSwipe: open });
   }
 
-  L.move.pick = { init: init, move: move, choose: choose, drop: drop, fail: fail };
+  L.move.pick = { init: init, move: move, choose: choose, chooseMove: chooseMove, save: save, drop: drop, fail: fail, entryOf: entryOf };
 })();

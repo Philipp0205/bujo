@@ -2,7 +2,8 @@
  * The long press on a log row: hold for about half a second without moving to start selecting. Mouse and touch both work
  * (pointer events). A press that moves more than a few pixels is a scroll or a drag, so it is dropped. The click that follows
  * a long press is swallowed, so letting go never opens the editor. Needs days.js (hasDay) and the DOM.
- * options: root (the page node), onHold(id) with the data-id of the pressed row.
+ * options: root (the page node), onHold(id) with the data-id of the pressed row, skip(event) true for a press that is not this hold's
+ * (the marker hold of type/hold.js).
  */
 (function () {
   'use strict';
@@ -16,6 +17,7 @@
 
   var root = null;
   var onHold = null;
+  var skip = null;
   var press = null;
   var swallow = null;
 
@@ -43,7 +45,7 @@
     swallow = null;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     var row = rowOf(event);
-    if (!row) return;
+    if (!row || (skip && skip(event))) return;
     press = { id: row.getAttribute('data-id'), x: event.clientX, y: event.clientY, fired: false, timer: window.setTimeout(fire, HOLD_MS) };
   }
 
@@ -78,6 +80,7 @@
   function init(options) {
     root = options.root;
     onHold = options.onHold;
+    skip = options.skip || null;
     root.addEventListener('pointerdown', onDown);
     root.addEventListener('contextmenu', onMenu);
     document.addEventListener('pointermove', onMove);
