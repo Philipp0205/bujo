@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-important" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-paper-order" } });
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */

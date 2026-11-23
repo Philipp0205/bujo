@@ -3,7 +3,8 @@ import type { OcrResult } from "../../scan/ocr-client.ts";
 import type { ScanEntry } from "../types.ts";
 import { detectKind, type Detected } from "./kind.ts";
 import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
-import { resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
+import { pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
+import { MAX_PAPER_PAGE } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
 import type { Fields, Line, PageKind, Resolution, ScanStatus, ViewHint } from "./types.ts";
 
@@ -60,6 +61,10 @@ export type Review = {
   fallbackDate: string;
   /** The month (YYYY-MM) of a calendar or month-task page, else null. */
   month: string | null;
+  /** The physical page of the day this scan is taken for: a rescan of the page its lines match, else the next new page. Only a daily page has a choice. */
+  page: number;
+  /** The pages the day already has paper for, ascending, so the review can offer them as rescans. Empty for any kind but daily. */
+  pages: number[];
   items: ReviewItem[];
 };
 
@@ -121,22 +126,52 @@ function startsIncluded(line: ParsedLine, check: LineCheck): boolean {
   return check.status === "edited" && !check.contested;
 }
 
+/** The page numbers a day already has paper for, ascending. */
+export function pagesOf(entries: readonly ScanEntry[]): number[] {
+  return [...new Set(entries.flatMap((entry) => (entry.page === null ? [] : [entry.page])))].sort((a, b) => a - b);
+}
+
+/**
+ * The page a scan most likely shows: the existing page its lines match the most entries of (a rescan), else the next page after the
+ * last one (a first scan of a new page), else 1. Entries not on paper do not count: a line that only matches one of those is no sign
+ * of an earlier page.
+ */
+function suggestPage(placed: readonly Placed[], reader: SlotReader, pages: readonly number[]): number {
+  const scores = pages.map((page) => {
+    const resolved = resolveSlots(placed, pageReader(reader, page));
+    return { page, score: [...resolved.values()].filter((resolution) => resolution.target?.page === page).length };
+  });
+  const best = scores.reduce((top, item) => (item.score > top.score ? item : top), { page: 0, score: 0 });
+  if (best.score > 0) return best.page;
+  return Math.min(MAX_PAPER_PAGE, pages.length > 0 ? pages[pages.length - 1] + 1 : 1);
+}
+
+/** The page and the existing pages a review starts with. Only a daily page has them: any other kind files on page 1. */
+function pageChoice(kind: PageKind, date: string, placed: readonly Placed[], reader: SlotReader): { page: number; pages: number[] } {
+  if (kind !== "daily") return { page: 1, pages: [] };
+  const pages = pagesOf(reader.entries({ horizon: "day", date }));
+  return { page: suggestPage(placed, reader, pages), pages };
+}
+
 /** The review a draft starts with for one kind (the detected one unless the person picked another). `reader` gives each slot's entries. */
 export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind = draft.detected.kind): Review {
-  const page = parsePage(draft.page, draft.fallbackDate, kind, draft.llm.period);
-  const date = page.pageDate ?? draft.fallbackDate;
-  const where: Where = { kind, date, month: page.month };
-  const placed = page.lines.map((line) => ({ line, slot: slotOf(where, line) }));
-  const checks = checkPlaced(placed, reader);
+  const parsed = parsePage(draft.page, draft.fallbackDate, kind, draft.llm.period);
+  const date = parsed.pageDate ?? draft.fallbackDate;
+  const where: Where = { kind, date, month: parsed.month };
+  const placed = parsed.lines.map((line) => ({ line, slot: slotOf(where, line) }));
+  const { page, pages } = pageChoice(kind, date, placed, reader);
+  const checks = checkPlaced(placed, pageReader(reader, page));
   return {
     id: draft.id,
     expires: draft.expires,
     kind,
     detected: draft.detected,
     date,
-    pageDate: page.pageDate,
+    pageDate: parsed.pageDate,
     fallbackDate: draft.fallbackDate,
-    month: page.month,
-    items: page.lines.map((line, index) => ({ ...line, ...checks[index], include: startsIncluded(line, checks[index]) })),
+    month: parsed.month,
+    page,
+    pages,
+    items: parsed.lines.map((line, index) => ({ ...line, ...checks[index], include: startsIncluded(line, checks[index]) })),
   };
 }

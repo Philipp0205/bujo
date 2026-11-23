@@ -3,10 +3,11 @@ import { isoDate } from "../app-kit/time.ts";
 import { createEntryStore } from "../log/store.ts";
 import { createTraceStore } from "../log/trace.ts";
 import { applyLogDraft } from "../log/scan/apply.ts";
-import { buildLogDraft, checkPlaced, startReview, type LogDraft } from "../log/scan/draft.ts";
+import { buildLogDraft, checkPlaced, pagesOf, startReview, type LogDraft } from "../log/scan/draft.ts";
 import { suggestNote } from "../log/scan/note.ts";
+import { pageReader, type SlotReader } from "../log/scan/plan.ts";
 import { storeReader } from "../log/scan/reader.ts";
-import { parseReview, placeReview } from "../log/scan/request.ts";
+import { parseReview, placeReview, type SentReview } from "../log/scan/request.ts";
 import { isPageKind, VIEW_HINTS, type ViewHint } from "../log/scan/types.ts";
 import { isValidDate } from "../log/validation.ts";
 import type { OcrClient } from "../scan/ocr-client.ts";
@@ -85,13 +86,21 @@ async function switchKind(ctx: RouteContext, deps: LogScanDeps, id: string): Pro
   sendJson(ctx.res, 200, { draft: startReview(draft, readerOf(ctx, session.user.id), body.kind) });
 }
 
+/** The pages a daily review's day has paper for, so the page picker follows a day the person changed. Empty for any other kind. */
+function existingPages(review: SentReview, reader: SlotReader, fallbackDate: string): number[] {
+  if (review.kind !== "daily") return [];
+  return pagesOf(reader.entries({ horizon: "day", date: review.date ?? fallbackDate }));
+}
+
 /** POST /api/log/scan/:id/check: tells the review which lines are new, edited or unchanged in their slots, with before and after for edits. */
 async function checkSlots(ctx: RouteContext, deps: LogScanDeps, id: string): Promise<void> {
   const session = requireSession(ctx.who);
   const draft = draftOf(deps, id);
   const review = parseReview(await readJson(ctx.req, { max: REVIEW_BODY_MAX }), draft);
-  const items = checkPlaced(placeReview(review, draft.fallbackDate), readerOf(ctx, session.user.id));
-  sendJson(ctx.res, 200, { date: review.date, items, ...(review.kind === "daily" ? {} : { kind: review.kind, month: review.month }) });
+  const reader = readerOf(ctx, session.user.id);
+  const items = checkPlaced(placeReview(review, draft.fallbackDate), pageReader(reader, review.page));
+  const extra = review.kind === "daily" ? {} : { kind: review.kind, month: review.month };
+  sendJson(ctx.res, 200, { date: review.date, page: review.page, pages: existingPages(review, reader, draft.fallbackDate), items, ...extra });
 }
 
 /** POST /api/log/scan/:id/apply: adds the kept new lines and updates the kept edited ones. Once per draft. Never deletes. */
@@ -102,7 +111,7 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
   const store = createEntryStore(ctx.accounts.db);
   const results = applyLogDraft(ctx.accounts.db, store, readerOf(ctx, session.user.id), session.user.id, draft, review, ctx.accounts.now());
   const synced = ctx.sync ? results.map((result) => ({ ...result, entry: ctx.sync!.enqueue(session.user.id, result.entry) })) : results;
-  sendJson(ctx.res, 200, { kind: review.kind, date: review.date, month: review.month, results: synced });
+  sendJson(ctx.res, 200, { kind: review.kind, date: review.date, month: review.month, page: review.page, results: synced });
 }
 
 /**
@@ -113,10 +122,12 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note. Keeps and writes
  *                                   nothing: the note is saved by the review through POST /api/entries.
  *   POST /api/log/scan/:id/kind     { kind }. Reads the page again as that kind and answers a fresh review. Writes nothing.
- *   POST /api/log/scan/:id/check    the review's kind, day or month and lines. Answers new, edited (with before and after) or unchanged
- *                                   per line, each against its own slot. Writes nothing.
+ *   POST /api/log/scan/:id/check    the review's kind, day or month, page and lines. Answers new, edited (with before and after) or unchanged
+ *                                   per line, each against its own slot and the entries of that physical page (and those not on paper).
+ *                                   Also answers the pages the day has paper for. Writes nothing.
  *   POST /api/log/scan/:id/apply    the same body. Adds the kept new lines and updates the kept edited ones (outcome "created" or
- *                                   "updated"). Skipped lines may be sent so unchanged ones are recorded. Once per draft.
+ *                                   "updated") and files them on the page, in the order of the paper. A page left out is page 1.
+ *                                   Skipped lines may be sent so unchanged ones are recorded. Once per draft.
  *                                   An entry no line names is never touched, and nothing is deleted.
  */
 export async function handleLogScan(ctx: RouteContext, deps: LogScanDeps): Promise<boolean> {

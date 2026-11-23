@@ -212,7 +212,7 @@ test("check: a daily check answers the same shape it always did", async () => {
   await withLogScan(async (ctx) => {
     const { review } = await scan(ctx, [line("none", "20.11.2026"), line("•", "Brot")]);
     const checked = await post(ctx, review.id, "check", { date: "2026-11-21", items: [{ id: "l2", type: "task", title: "Brot" }] });
-    assert.deepEqual(Object.keys(checked.json).sort(), ["date", "items"]);
+    assert.deepEqual(Object.keys(checked.json).sort(), ["date", "items", "page", "pages"]);
     assert.deepEqual(Object.keys(checked.json.items[0]).sort(), ["after", "before", "contested", "id", "status", "target"]);
   });
 });

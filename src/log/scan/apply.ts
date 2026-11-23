@@ -6,7 +6,7 @@ import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
 import type { LogDraft } from "./draft.ts";
 import { snapshotOf } from "./fields.ts";
-import { resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
+import { pageReader, resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
 import { placeReview, type SentItem, type SentReview } from "./request.ts";
 import type { Slot } from "./types.ts";
 
@@ -44,7 +44,7 @@ function checkKept(plan: readonly Planned[]): void {
   }
 }
 
-/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent, position or body. */
+/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent or body (the page filing sets the position after). */
 function writeOne(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): ApplyOutcome {
   const paper = validFields(item, slot!);
   if (!paper.ok) throw new HttpError(400, paper.error);
@@ -75,10 +75,29 @@ function stampUnchanged(store: EntryStore, userId: string, now: number, { item, 
 }
 
 /**
+ * Files the entries of the page in the order of the paper lines: a line's entry is the one it created or changed, or the one it
+ * matched unchanged (even when skipped, it is still on the paper). Per slot, in page order. Lines with no entry are left out.
+ */
+function placeOnPaper(store: EntryStore, userId: string, page: number, plan: readonly Planned[], outcomes: readonly ApplyOutcome[]): void {
+  const written = new Map(outcomes.map((outcome) => [outcome.id, outcome.entry.id]));
+  const bySlot = new Map<string, { slot: Slot; ids: string[] }>();
+  for (const { item, slot, resolution } of plan) {
+    const id = written.get(item.id) ?? resolution.target?.id;
+    if (!slot || !id) continue;
+    const group = bySlot.get(`${slot.horizon}|${slot.date}`) ?? { slot, ids: [] };
+    if (!group.ids.includes(id)) group.ids.push(id);
+    bySlot.set(`${slot.horizon}|${slot.date}`, group);
+  }
+  for (const { slot, ids } of bySlot.values()) store.placeOnPaper(userId, slot, page, ids);
+}
+
+/**
  * Writes what the person kept from a draft into the log, sync state local (the route then queues the push). Kept new lines add
  * entries, kept edited lines change their entry's type, title, tags or time, and nothing is ever deleted. Unchanged lines are
  * recorded (key only) and change no content, even when ticked. Each line files in its own slot (a day, or a month's lane) and
- * matches only the entries of that slot. The whole request is checked first, the slots are read again here (the client's status
+ * matches only the entries of that slot and of the scanned physical page (or not on paper). Entries of a page are then filed in
+ * the paper's line order after earlier pages, so a rescan of page 1 keeps page 2 and a first scan of page 2 appends to the day.
+ * The whole request is checked first, the slots are read again here (the client's status
  * is not trusted), and the writes share one transaction: all or nothing. A draft can be applied once.
  * Throws 409 when it was applied, 400 for a bad request or when no kept line would add or change anything.
  */
@@ -92,12 +111,14 @@ export function applyLogDraft(
   now: number,
 ): ApplyOutcome[] {
   if (draft.applied) throw new HttpError(409, "This scan was already applied.");
-  const plan = planReview(reader, review, draft.fallbackDate);
+  const plan = planReview(pageReader(reader, review.page), review, draft.fallbackDate);
   checkKept(plan);
   if (!plan.some(isWrite)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
   const outcomes = inTransaction(db, () => {
     plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
-    return plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
+    const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
+    placeOnPaper(store, userId, review.page, plan, done);
+    return done;
   });
   draft.applied = true;
   return outcomes;

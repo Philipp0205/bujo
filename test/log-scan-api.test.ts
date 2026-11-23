@@ -112,7 +112,7 @@ test("apply: writes only the kept lines with their edits, updates the task an x 
 
     const entries = await entriesOf(base, signed);
     assert.equal(entries.length, 2, "the line that updates a task adds no entry");
-    assert.deepEqual(entries.map((e) => [e.type, e.title, e.tags]), [["done", "Water the plants", []], ["note", "Brot kaufen, Vollkorn", ["Haushalt", "Einkauf"]]]);
+    assert.deepEqual(entries.map((e) => [e.type, e.title, e.tags]), [["note", "Brot kaufen, Vollkorn", ["Haushalt", "Einkauf"]], ["done", "Water the plants", []]], "paper order: l2 then l4");
     assert.equal(entries.some((e) => e.title === "Lunch with Mira"), false, "a line that was not sent is not written");
 
     const again = await api(base, "POST", `/api/log/scan/${draft.id}/apply`, { body: sent, headers: signed.headers });
@@ -136,6 +136,8 @@ test("check: tells the review about another day without writing, and a bad reque
         { id: "l2", status: "edited", target: { id: checked.json.items[0].target.id, title: "Brot kaufen" }, before: note, after: { ...note, type: "task" }, contested: false },
         { id: "l3", status: "new", target: null, before: null, after: null, contested: false },
       ],
+      page: 1,
+      pages: [],
     });
     assert.equal((await entriesOf(base, signed, "2026-11-21")).length, 1);
     assert.equal((await api(base, "POST", `/api/log/scan/${draft.id}/check`, { body: { ...body, date: "nope" }, headers: signed.headers })).status, 400);
@@ -366,7 +368,7 @@ test("un-match: a kept line the person un-matched is created as a new entry and 
     assert.deepEqual([checked.json.items[0].status, checked.json.items[0].target], ["new", null]);
     const applied = await applyTo(ctx, draft, [{ id: "l2", type: "done", title: "Zahnarst anrufen", unmatched: true }]);
     assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["created"]);
-    assert.deepEqual((await storedOf(ctx)).map((e) => [e.type, e.title]), [["task", "Zahnarzt anrufen"], ["done", "Zahnarst anrufen"]]);
+    assert.deepEqual((await storedOf(ctx)).map((e) => [e.type, e.title]), [["done", "Zahnarst anrufen"], ["task", "Zahnarzt anrufen"]]);
   });
 });
 

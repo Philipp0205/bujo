@@ -3,7 +3,7 @@ import test from "node:test";
 import { editTodo, parseVTodos } from "../src/caldav/ics.ts";
 import { loadSyncConfig } from "../src/sync/config.ts";
 import { isLiveList, writeRefusal } from "../src/sync/guard.ts";
-import { isSyncable, newTodoFor, patchFor, readBackMismatch, syncKind, todoShape } from "../src/sync/mapping.ts";
+import { isSyncable, newTodoFor, patchFor, readBackMismatch, remoteImportantOf, remotePriorityOf, syncKind, todoShape } from "../src/sync/mapping.ts";
 
 const NOW = Date.parse("2026-11-20T10:00:00Z");
 const UID = "fresh-uid-1";
@@ -253,14 +253,54 @@ test("important: a new VTODO carries PRIORITY:1, a plain one has no PRIORITY at 
   assert.ok(dropped.includes("PRIORITY:1") && dropped.includes("STATUS:CANCELLED"));
 });
 
-test("important: an edit sets PRIORITY:1 over a remote 5, and clearing removes a remote 1 but leaves a 5 or 9", () => {
+/** The remote fixture with another raw PRIORITY. */
+const remoteWith = (raw: number) => REMOTE.replace("PRIORITY:5", `PRIORITY:${raw}`);
+const plain = (title = "Alter Titel") => todoShape(entry("task", title));
+const priorityOf = (ics: string) => parseVTodos(ics).find((item) => item.uid === UID)!;
+
+test("important: an edit sets PRIORITY:1 over a remote 5 or 9, and a remote 2 may become 1", () => {
   const set = editTodo(REMOTE, UID, patchFor(todoShape({ ...entry("task", "Alter Titel"), important: true }), 5), NOW);
   assert.ok(set.ics.includes("PRIORITY:1") && !set.ics.includes("PRIORITY:5"));
-  const cleared = editTodo(set.ics, UID, patchFor(todoShape(entry("task", "Alter Titel")), 1), NOW + 1000);
-  assert.equal(cleared.ics.includes("PRIORITY"), false);
-  assert.ok(cleared.ics.includes("CATEGORIES:Haushalt"));
-  const kept = editTodo(REMOTE, UID, patchFor(todoShape(entry("task", "Neu")), 5), NOW);
-  assert.ok(kept.ics.includes("PRIORITY:5"));
+  const nine = editTodo(remoteWith(9), UID, patchFor(todoShape({ ...entry("task"), important: true }), 9), NOW);
+  assert.ok(nine.ics.includes("PRIORITY:1"));
+  const two = editTodo(remoteWith(2), UID, patchFor(todoShape({ ...entry("task"), important: true }), 1), NOW);
+  assert.equal(priorityOf(two.ics).priority, 1);
+});
+
+test("important: a remote PRIORITY 1 to 4 reads as important, 5 to 9 does not", () => {
+  for (const raw of [1, 2, 3, 4]) assert.equal(remoteImportantOf(remoteWith(raw), UID), true, `PRIORITY:${raw}`);
+  for (const raw of [5, 6, 9]) assert.equal(remoteImportantOf(remoteWith(raw), UID), false, `PRIORITY:${raw}`);
+  assert.equal(remoteImportantOf(REMOTE.replace("PRIORITY:5\r\n", ""), UID), false);
+  assert.equal(remotePriorityOf(remoteWith(2), UID), 1);
+});
+
+test("important: an edit without the flag keeps a remote PRIORITY:1 and a raw PRIORITY:2", () => {
+  for (const raw of [1, 2, 3, 4]) {
+    const edited = editTodo(remoteWith(raw), UID, patchFor(plain("Neuer Titel"), remotePriorityOf(remoteWith(raw), UID)), NOW);
+    assert.ok(edited.ics.includes("SUMMARY:Neuer Titel"));
+    assert.ok(edited.ics.includes(`PRIORITY:${raw}`), `PRIORITY:${raw} was removed`);
+  }
+  const done = editTodo(remoteWith(2), UID, patchFor(todoShape(entry("done", "Alter Titel")), 1), NOW);
+  assert.ok(done.ics.includes("PRIORITY:2") && done.ics.includes("STATUS:COMPLETED"));
+});
+
+test("important: an explicit unflag removes a remote 1 to 4 and leaves a 5 or 9", () => {
+  for (const raw of [1, 2, 3, 4]) {
+    const cleared = editTodo(remoteWith(raw), UID, patchFor(plain(), 1, true), NOW);
+    assert.equal(cleared.ics.includes("PRIORITY"), false, `PRIORITY:${raw}`);
+    assert.ok(cleared.ics.includes("CATEGORIES:Haushalt"));
+  }
+  for (const raw of [5, 9]) {
+    const kept = editTodo(remoteWith(raw), UID, patchFor(plain("Neu"), raw as 5 | 9, true), NOW);
+    assert.ok(kept.ics.includes(`PRIORITY:${raw}`), `PRIORITY:${raw}`);
+  }
+});
+
+test("important: not important leaves a remote 5 or 9 alone", () => {
+  for (const raw of [5, 6, 9]) {
+    const kept = editTodo(remoteWith(raw), UID, patchFor(plain("Neu"), raw === 5 ? 5 : 9), NOW);
+    assert.ok(kept.ics.includes(`PRIORITY:${raw}`), `PRIORITY:${raw}`);
+  }
 });
 
 test("important: readBackMismatch says PRIORITY when the server did not keep it", () => {
@@ -268,5 +308,15 @@ test("important: readBackMismatch says PRIORITY when the server did not keep it"
   const good = newTodoFor(shape, UID, NOW);
   assert.equal(readBackMismatch(good, UID, shape), null);
   assert.match(readBackMismatch(good.replace("PRIORITY:1", "PRIORITY:5"), UID, shape)!, /PRIORITY/);
-  assert.match(readBackMismatch(good, UID, todoShape(entry("task")))!, /PRIORITY/);
+  assert.equal(readBackMismatch(good.replace("PRIORITY:1", "PRIORITY:3"), UID, shape), null, "a 1-4 counts as important");
+});
+
+test("important: readBackMismatch accepts a remote 1-4 left on an unmarked entry, and checks an explicit unflag", () => {
+  const shape = plain();
+  const marked = remoteWith(2);
+  assert.equal(readBackMismatch(marked, UID, shape), null);
+  assert.equal(readBackMismatch(remoteWith(5), UID, shape), null);
+  assert.match(readBackMismatch(marked, UID, shape, true)!, /PRIORITY/);
+  assert.equal(readBackMismatch(remoteWith(5), UID, shape, true), null);
+  assert.equal(readBackMismatch(newTodoFor(shape, UID, NOW), UID, shape, true), null);
 });

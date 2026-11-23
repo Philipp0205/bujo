@@ -151,13 +151,25 @@
       h('span', { class: 'paper-migrate-text' }, L.copy.migrate.link));
   }
 
+  /** The quiet break where the next physical page of the day starts: a dashed ink line with the page number. It is a drawing only and takes no touches. */
+  function pageBreak(page) {
+    var text = L.copy.paperPage.break(page);
+    return h('div', { class: 'page-break', 'data-testid': 'page-break', 'data-page': String(page), role: 'separator', 'aria-label': text },
+      h('span', { class: 'page-break-text' }, text));
+  }
+
+  /** One card of a day, with the page break above it when it is the first line of a later physical page. */
+  function dayCard(card, actions, today) {
+    return [card.startsPage ? pageBreak(card.startsPage) : null, entryCard(card, actions, today)];
+  }
+
   /** The entries of one day: the migrate prompt (today only), a card per top-level entry, the traces of moves, then the add row and migrate link (not while selecting). The date heading is on the page's date row. */
   function dayPage(date, entries, actions, today) {
     var waiting = date === today ? L.migrate.model.open(entries, today).length : 0;
     var picking = actions.select.on();
     return h('section', { class: 'paper-day-group', 'data-date': date },
       waiting && !picking ? migratePrompt(waiting, actions.migrate) : null,
-      L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return entryCard(card, actions, today); }),
+      L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return dayCard(card, actions, today); }),
       traceList(L.days.tracesOf(entries, 'day', date)),
       picking ? null : addRow(actions.add),
       picking ? null : migrateLink(actions.migrate));

@@ -8,7 +8,7 @@ import { isPageKind, type Line, type PageKind } from "./types.ts";
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
 const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important"];
-const BODY_KEYS = ["kind", "date", "month", "items"];
+const BODY_KEYS = ["kind", "date", "month", "page", "items"];
 
 /** One line as the review sends it back: edits included. `day` is a calendar line's day, `month` a future line's month (YYYY-MM). `unmatched` says it is not the entry it matched. */
 export type SentItem = {
@@ -25,8 +25,11 @@ export type SentItem = {
   important: boolean;
 };
 
-/** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, and the lines. */
-export type SentReview = { kind: PageKind; date: string | null; month: string | null; items: SentItem[] };
+/** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, the physical page and the lines. */
+export type SentReview = { kind: PageKind; date: string | null; month: string | null; page: number; items: SentItem[] };
+
+/** The most physical pages one day may have. A real log never comes near it. */
+export const MAX_PAPER_PAGE = 20;
 
 /** A sent line as the matcher reads it: tags that are not a list of text, or a time that is not text, count as none. The apply step checks them for real. */
 export function toLine(item: SentItem, kind: PageKind = "daily"): Line {
@@ -106,8 +109,15 @@ function parseMonth(value: unknown, kind: PageKind): string | null {
   return needed ? value : null;
 }
 
+/** The physical page the photo shows: a whole number 1 to MAX_PAPER_PAGE. Left out means page 1, so a request without one rescans the first page as before. */
+function parsePaperPage(value: unknown): number {
+  if (value === undefined) return 1;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > MAX_PAPER_PAGE) bad(`page must be a whole number from 1 to ${MAX_PAPER_PAGE}`);
+  return value;
+}
+
 /**
- * Checks a request body of the shape { kind?, date?, month?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched? }] }.
+ * Checks a request body of the shape { kind?, date?, month?, page?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched? }] }.
  * Used by both the check and the apply step, so they read the same thing. 400 on anything else.
  * A daily page needs `date`. A calendar or month-task page needs `month`. A future page needs neither, each line carries its month.
  * The apply step may send every line of the review: skipped lines (include false) let it record the key of an unchanged one.
@@ -126,5 +136,5 @@ export function parseReview(body: Record<string, unknown>, draft: LogDraft): Sen
     seen.add(item.id);
     return item;
   });
-  return { kind, date, month, items };
+  return { kind, date, month, page: parsePaperPage(body.page), items };
 }

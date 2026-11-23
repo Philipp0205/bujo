@@ -22,13 +22,16 @@ export type SyncServiceOptions = {
   log?: (message: string) => void;
 };
 
+/** `unflag` is true when the edit sent important: false (the picker toggle), the only thing that removes a remote PRIORITY 1-4. */
+export type EnqueueOptions = { unflag?: boolean };
+
 /** Pushes rapid-log entries to Nextcloud, one way, in the background. */
 export type SyncService = {
   /**
    * Starts a push for an entry and returns it at once: pending when a push was queued, error when the guard or
    * the list setup refused it, local for a type that does not sync. The push itself runs after this returns.
    */
-  enqueue(userId: string, entry: Entry): Entry;
+  enqueue(userId: string, entry: Entry, options?: EnqueueOptions): Entry;
   /** Resolves when every queued push has finished. For tests and a clean shutdown. */
   idle(): Promise<void>;
 };
@@ -84,6 +87,14 @@ export function createSyncService(options: SyncServiceOptions): SyncService {
     uuid: options.uuid ?? randomUUID,
   });
   const queues = new Map<string, Queue>();
+  /** Entries whose important flag was explicitly turned off and whose push has not finished: only these remove a remote PRIORITY 1-4. */
+  const unflagged = new Set<string>();
+
+  /** Remembers an explicit unflag until its push ends, so a retry still carries it. Marking important again drops it. */
+  function noteUnflag(entry: Entry, flags?: EnqueueOptions): void {
+    if (flags?.unflag) unflagged.add(entry.id);
+    else if (entry.important) unflagged.delete(entry.id);
+  }
 
   /** One push for one entry, with the state written when it ends. `last` is false while another push is queued behind it. */
   async function run(userId: string, id: string, last: () => boolean): Promise<void> {
@@ -105,7 +116,8 @@ export function createSyncService(options: SyncServiceOptions): SyncService {
   /** The push itself, with the state written when it ends. */
   async function push(userId: string, entry: Entry, list: CalDavList, last: () => boolean): Promise<void> {
     try {
-      const link = await pushEntry(deps(list), entry, store.getRemote(userId, entry.id));
+      const link = await pushEntry(deps(list), entry, store.getRemote(userId, entry.id), unflagged.has(entry.id));
+      if (last()) unflagged.delete(entry.id);
       store.setSync(userId, entry.id, { sync: last() ? "synced" : "pending", link });
     } catch (error) {
       const failure = describeFailure(error, syncKind(entry.type) ?? "todo");
@@ -137,7 +149,8 @@ export function createSyncService(options: SyncServiceOptions): SyncService {
   }
 
   return {
-    enqueue(userId, entry) {
+    enqueue(userId, entry, flags) {
+      noteUnflag(entry, flags);
       const kind = syncKind(entry.type);
       if (!kind) return entry.sync === "local" ? entry : (store.setSync(userId, entry.id, { sync: "local" }) ?? entry);
       const target = targetFor(kind, options.caldav, options.sync);
