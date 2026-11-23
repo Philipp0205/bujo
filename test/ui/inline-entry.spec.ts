@@ -60,6 +60,7 @@ test("tap add, type a title, Enter creates a task on today", async ({ page }) =>
 
   await expect(saved(page, "Zahnarzt anrufen")).toHaveAttribute("data-type", "task");
   await expect(saved(page, "Zahnarzt anrufen").locator(".paper-title")).toHaveText("Zahnarzt anrufen");
+  await expect(sheet(page)).toBeHidden();
   const entries = await stored(page);
   expect(entries).toHaveLength(1);
   expect(entries[0]).toMatchObject({ date: day(0), type: "task", title: "Zahnarzt anrufen" });
@@ -78,30 +79,56 @@ test("the empty space under today's last entry starts a line too", async ({ page
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("Enter saves and starts the next focused line, with no loading note between", async ({ page }) => {
+test("Enter saves the line and closes the sheet completely", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Erste Zeile");
   await page.keyboard.press("Enter");
 
   await expect(saved(page, "Erste Zeile")).toBeVisible();
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.locator(".inline-bar")).toBeHidden();
+  await expect(page.locator(".paper-row:not([data-id])")).toHaveCount(0);
+  await expect(page.locator('[data-state="loading"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe("TEXTAREA");
+  expect((await stored(page)).map((entry) => entry.title)).toEqual(["Erste Zeile"]);
+});
+
+test("the + Next key saves the line and opens a fresh focused one, with no loading note between", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await page.keyboard.type("Naechste eins");
+  await page.locator(".bar-key[data-key=next]").click();
+
+  await expect(saved(page, "Naechste eins")).toBeVisible();
+  await expect(sheet(page)).toBeVisible();
   await expect(line(page)).toHaveValue("");
   await expect(line(page)).toBeFocused();
   await expect(page.locator(".paper-line[data-new=true]")).toHaveCount(1);
   await expect(page.locator('[data-state="loading"]')).toHaveCount(0);
 
-  await page.keyboard.type("Zweite Zeile");
-  await page.keyboard.press("Enter");
-  await expect(saved(page, "Zweite Zeile")).toBeVisible();
-  await expect(saved(page, "Erste Zeile")).toBeVisible();
+  await page.keyboard.type("Naechste zwei");
+  await page.locator(".bar-key[data-key=next]").click();
+  await expect(saved(page, "Naechste zwei")).toBeVisible();
+  await expect(saved(page, "Naechste eins")).toBeVisible();
   await expect(line(page)).toBeFocused();
-  expect((await stored(page)).map((entry) => entry.title).sort()).toEqual(["Erste Zeile", "Zweite Zeile"]);
+  expect((await stored(page)).map((entry) => entry.title).sort()).toEqual(["Naechste eins", "Naechste zwei"]);
 });
 
-test("Enter on an empty new line saves nothing", async ({ page }) => {
+test("Enter on an empty new line closes the sheet and saves nothing", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.press("Enter");
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.locator(".paper-row:not([data-id])")).toHaveCount(0);
+  expect(await stored(page)).toHaveLength(0);
+});
+
+test("the + Next key on an empty new line saves nothing and keeps the sheet open and focused", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await page.locator(".bar-key[data-key=next]").click();
+  await expect(sheet(page)).toBeVisible();
   await expect(line(page)).toBeFocused();
   expect(await stored(page)).toHaveLength(0);
 });
@@ -188,6 +215,7 @@ test("type set through the marker, tag, day and time through the bar are saved w
   const created = today(page).locator('.paper-row[data-type="event"]', { hasText: "Zahnarzt" });
   await expect(created).toHaveCount(1);
   await expect(created.locator(".pill")).toHaveText(["Gesundheit", "09:30"]);
+  await expect(sheet(page)).toBeHidden();
   expect((await stored(page))[0]).toMatchObject({ type: "event", tags: ["Gesundheit"], time: "09:30", date: day(0) });
 });
 
@@ -199,14 +227,9 @@ test("a new line given another day leaves this page and lands on that day's page
   await page.locator('.inline-pop input[name="date"]').fill(day(1));
   await page.keyboard.press("Enter");
 
-  // Today's page does not show it (the next line opens here), and the entry is stored on the other day.
+  // Today's page does not show it, the sheet is closed, and the entry is stored on the other day.
   await expect(saved(page, "Morgen erledigen")).toHaveCount(0);
   await expect.poll(async () => (await stored(page)).map((entry) => `${entry.date} ${entry.title}`)).toEqual([`${day(1)} Morgen erledigen`]);
-  // The save starts a follow-on blank line. Wait for it so Escape drops that empty line, not the in-flight save (which would keep the sheet open).
-  await expect(line(page)).toHaveValue("");
-  await expect(line(page)).toBeFocused();
-
-  await page.keyboard.press("Escape");
   await expect(sheet(page)).toBeHidden();
   // Tomorrow now has an entry, so it is a page: the next arrow turns to it.
   await expect(page.getByTestId("page-next")).toBeEnabled();
@@ -252,8 +275,8 @@ test("tapping an existing row lets you change the title inline and save it", asy
 
   await expect(saved(page, "Neuer Titel")).toBeVisible();
   await expect(saved(page, "Neuer Titel").locator(".pill")).toHaveText(["Haushalt"]);
-  await expect(sheet(page)).toBeVisible();
-  await expect(page.locator(".paper-line[data-new=true]")).toHaveCount(1);
+  await expect(sheet(page)).toBeHidden();
+  await expect(page.locator(".paper-line[data-new=true]")).toHaveCount(0);
   const all = await everything(page);
   expect(all.filter((entry) => entry.title === "Alter Titel")).toHaveLength(0);
   expect(all.filter((entry) => entry.title === "Neuer Titel")).toHaveLength(1);
@@ -365,6 +388,7 @@ test("a long title wraps, the field grows, and Enter saves it as one line", asyn
 
   await page.keyboard.press("Enter");
   await expect(saved(page, "Quartal")).toBeVisible();
+  await expect(sheet(page)).toBeHidden();
   const entries = await stored(page);
   expect(entries.map((entry) => entry.title)).toEqual([LONG_TITLE]);
 });
@@ -380,6 +404,7 @@ test("pasted line breaks become spaces, so the title stays one line", async ({ p
   await expect(line(page)).toHaveValue("Erste Zweite Dritte");
   await page.keyboard.press("Enter");
   await expect(saved(page, "Erste Zweite")).toBeVisible();
+  await expect(sheet(page)).toBeHidden();
   expect((await stored(page)).map((entry) => entry.title)).toEqual(["Erste Zweite Dritte"]);
 });
 

@@ -1,9 +1,9 @@
 /*
- * The accessory bar: one thin row of icon keys at the bottom of the edit sheet, above the keyboard. It scrolls sideways when
- * the keys do not fit. Tag, Date and Time open a popover (the entry type is chosen from the marker of the line, see type.js). Copy, Delete, Up, Down, Indent and Outdent act on the entry.
+ * The accessory bar: one thin row of keys at the bottom of the edit sheet, above the keyboard. All are icon keys except the first,
+ * "+ Next" (save and open a fresh line), which shows its words. It scrolls sideways when the keys do not fit. Tag, Date and Time open a popover (the entry type is chosen from the marker of the line, see type.js). Copy, Delete, Up, Down, Indent and Outdent act on the entry.
  * Details opens the details sheet and only shows for an entry that is already saved. The bar is built once and the edit
  * sheet holds it, so a page redraw never touches it.
- * Needs ak-dom.js, copy.js, glyph.js and pop.js. actions: toggle(kind), act(name) and details().
+ * Needs ak-dom.js, copy.js, glyph.js and pop.js. actions: toggle(kind), act(name), details() and next().
  */
 (function () {
   'use strict';
@@ -40,10 +40,19 @@
     });
   }
 
+  /** The one labelled key: saves the line and opens a fresh one. It shows its words, because Enter alone now closes the sheet. */
+  function nextKey(actions) {
+    var label = L.copy.inline.keys.next;
+    keys.next = h('button', {
+      class: 'bar-key bar-key-next', type: 'button', 'data-key': 'next', 'data-action': 'next', title: label, onclick: actions.next
+    }, label);
+    return keys.next;
+  }
+
   /** Builds the bar once. The edit sheet puts it in the page. */
   function mount(actions) {
     if (node) return node;
-    var row = POPS.map(function (kind) { return popKey(kind, actions); })
+    var row = [nextKey(actions)].concat(POPS.map(function (kind) { return popKey(kind, actions); }))
       .concat(ACTS.map(function (kind) { return actKey(kind, actions); }))
       .concat([keyButton('details', { 'data-action': 'details' }, actions.details)]);
     node = h('div', { class: 'inline-bar', role: 'toolbar', 'aria-label': L.copy.inline.barLabel },

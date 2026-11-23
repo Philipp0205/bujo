@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-23-enter-closes-sheet",
+    "date": "2026-11-23",
+    "title": "Enter closes the sheet",
+    "bullets": [
+      "Press Enter in the entry sheet to save the line and close the sheet. On an empty line it just closes.",
+      "To keep writing, tap + Next on the keyboard bar. It saves the line and opens a fresh one."
+    ]
+  },
+  {
     "id": "2026-11-23-scan-page-kind",
     "date": "2026-11-23",
     "title": "Scan more than a day",

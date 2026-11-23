@@ -188,10 +188,11 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
   await expect(bar).toBeVisible();
   const keys = bar.locator(".bar-key:visible");
   expect(await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-key")))).toEqual(
-    ["tag", "date", "time", "remove", "up", "down", "indent", "outdent"],
+    ["next", "tag", "date", "time", "remove", "up", "down", "indent", "outdent"],
   );
-  expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""))).every(Boolean)).toBe(true);
-  expect((await keys.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""))).join("")).toBe("");
+  const icons = bar.locator(".bar-key:visible:not([data-key=next])");
+  expect((await icons.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label") ?? ""))).every(Boolean)).toBe(true);
+  expect((await icons.evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""))).join("")).toBe("");
   const box = (await sheet.boundingBox())!;
   expect(Math.round(box.y + box.height)).toBe(844);
   const barBox = (await bar.boundingBox())!;

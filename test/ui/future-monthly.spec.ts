@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -73,12 +73,10 @@ async function openLog(page: Page, query = ""): Promise<void> {
   await page.waitForFunction(() => !!document.querySelector(".paper-add"));
 }
 
-/** Types a line, saves it with Enter, waits for the next empty line (the save is done then) and closes it with Escape. */
+/** Types a line, saves it with Enter (which closes the sheet) and waits until the sheet is gone. */
 async function typeLine(page: Page, text: string): Promise<void> {
   await title(page).fill(text);
   await page.keyboard.press("Enter");
-  await expect(title(page)).toHaveValue("");
-  await page.keyboard.press("Escape");
   await expect(title(page)).toHaveCount(0);
 }
 

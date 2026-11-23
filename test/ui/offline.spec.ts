@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
 });
 
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
@@ -23,13 +23,12 @@ async function openLog(page: Page): Promise<void> {
   await page.waitForFunction(() => !!document.querySelector(".paper-add"));
 }
 
-/** Types one line in the Add sheet and saves it with Enter, waits for its row, then closes the empty next line. */
+/** Types one line in the Add sheet and saves it with Enter (which closes the sheet), then waits for its row. */
 async function addLine(page: Page, text: string): Promise<void> {
   await addTab(page).click();
   await title(page).fill(text);
   await page.keyboard.press("Enter");
   await expect(row(page, text)).toBeVisible();
-  await page.keyboard.press("Escape");
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
 }
 
