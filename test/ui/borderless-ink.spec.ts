@@ -6,7 +6,7 @@ const app = useBujo();
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-22-cross-log" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
 });
 
 /** Every test starts from an empty log: all entries of the throwaway account go. Local fake data only. */

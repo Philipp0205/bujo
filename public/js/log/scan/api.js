@@ -16,9 +16,17 @@
     return '/api/log/scan/' + encodeURIComponent(id) + '/' + step;
   }
 
-  /** Sends the photo. day is the day open in the log: the date to use when the page names none. */
-  function scan(file, day) {
-    return Bujo.upload('/api/log/scan?date=' + encodeURIComponent(day), file, { guarded: true }).then(function (body) {
+  /** Sends the photo. day is the day open in the log: the date to use when the page names none. view ('daily', 'future' or 'month') is the open log view, a hint for the page kind. */
+  function scan(file, day, view) {
+    var query = '?date=' + encodeURIComponent(day) + (view ? '&view=' + encodeURIComponent(view) : '');
+    return Bujo.upload('/api/log/scan' + query, file, { guarded: true }).then(function (body) {
+      return body.draft;
+    });
+  }
+
+  /** Reads the draft again as another page kind. Resolves with the new review. Writes nothing. */
+  function setKind(id, kind) {
+    return post(draftPath(id, 'kind'), { kind: kind }).then(function (body) {
       return body.draft;
     });
   }
@@ -35,10 +43,10 @@
     return post(draftPath(id, 'check'), body);
   }
 
-  /** Writes the kept lines and records the unchanged ones. Resolves with { date, results }. */
+  /** Writes the kept lines and records the unchanged ones. Resolves with { kind, date, month, results }. */
   function apply(id, body) {
     return post(draftPath(id, 'apply'), body);
   }
 
-  L.scan.api = { scan: scan, note: note, check: check, apply: apply };
+  L.scan.api = { scan: scan, setKind: setKind, note: note, check: check, apply: apply };
 })();

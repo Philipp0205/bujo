@@ -2,7 +2,11 @@ import { correctWords } from "../../scan/match.ts";
 import type { OcrLine, OcrSymbol } from "../../scan/ocr-client.ts";
 import type { EntryType } from "../types.ts";
 import { parseMarkup } from "../markup.ts";
+import { isWeekdayOnly, parseDayRow } from "./calendar.ts";
+import { monthOfPage, monthsOfFuturePage } from "./future.ts";
 import { parseHeaderDate } from "./header.ts";
+import { findHeadings, type Heading } from "./months.ts";
+import type { PageKind } from "./types.ts";
 
 /** The bullet of each OCR symbol as a log entry type. A line with no bullet is read as a note. */
 const SYMBOL_TYPES: Record<OcrSymbol, EntryType> = {
@@ -14,6 +18,9 @@ const SYMBOL_TYPES: Record<OcrSymbol, EntryType> = {
   "<": "scheduled",
   none: "note",
 };
+
+/** The part of an OCR line the parser reads. The box is not needed, so a draft can keep lines without it. */
+export type PageLine = Pick<OcrLine, "symbol" | "text" | "confidence">;
 
 /** One scanned line, as the review starts from it. */
 export type ParsedLine = {
@@ -28,16 +35,23 @@ export type ParsedLine = {
   confidence: number;
   /** True for a line with no bullet: it may be a stray mark, so the review leaves it off by default. */
   noBullet: boolean;
+  /** Future page only: the month (YYYY-MM) the line sits under. */
+  month?: string;
+  /** Calendar page only: the day of the month the line sits on, or null when the page gave it none. */
+  day?: number | null;
 };
 
 export type ParsedPage = {
-  /** The date the page header names, or null when no header line parsed. */
+  kind: PageKind;
+  /** The date the page header names (daily pages), or null when no header line parsed. */
   pageDate: string | null;
+  /** The month (YYYY-MM) of a calendar or month-task page, else null. */
+  month: string | null;
   lines: ParsedLine[];
 };
 
 /** The header date of the first symbol-less line that parses, with that line's index. */
-function findHeader(lines: readonly OcrLine[], fallbackDate: string): { date: string; index: number } | null {
+function findHeader(lines: readonly PageLine[], fallbackDate: string): { date: string; index: number } | null {
   for (let index = 0; index < lines.length; index++) {
     if (lines[index].symbol !== "none") continue;
     const date = parseHeaderDate(lines[index].text, fallbackDate);
@@ -50,7 +64,7 @@ function findHeader(lines: readonly OcrLine[], fallbackDate: string): { date: st
  * One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected, then written #tags and a time
  * are cut out of the title. An "@..." word stays in the title: the review has no date field per line.
  */
-function toParsedLine(line: OcrLine, index: number): ParsedLine {
+function toParsedLine(line: PageLine, index: number): ParsedLine {
   const markup = parseMarkup(correctWords(line.text.trim()), { final: true, dates: false });
   return {
     id: `l${index + 1}`,
@@ -63,12 +77,80 @@ function toParsedLine(line: OcrLine, index: number): ParsedLine {
   };
 }
 
-/**
- * Turns the OCR lines of a rapid-log page into entry drafts. The header line (a date) is not an entry.
- * Line ids follow the page order (l1, l2, ...) and stay put when the header line is dropped.
- */
-export function parsePage(lines: readonly OcrLine[], fallbackDate: string): ParsedPage {
+/** A month or future entry has no day to hang an event on, so it is read as a task (the same rule the store applies on write). */
+function asMonthLine(line: ParsedLine): ParsedLine {
+  return line.type === "event" ? { ...line, type: "task" } : line;
+}
+
+/** The lines of a page with the heading lines taken out. Ids keep the page order, so they stay put. */
+function bodyLines(lines: readonly PageLine[], headings: readonly Heading[]): Array<{ line: PageLine; index: number }> {
+  const skip = new Set(headings.map((heading) => heading.index));
+  return lines.map((line, index) => ({ line, index })).filter(({ index }) => !skip.has(index));
+}
+
+function parseDaily(lines: readonly PageLine[], fallbackDate: string): ParsedPage {
   const header = findHeader(lines, fallbackDate);
   const parsed = lines.map(toParsedLine).filter((_, index) => index !== header?.index);
-  return { pageDate: header?.date ?? null, lines: parsed };
+  return { kind: "daily", pageDate: header?.date ?? null, month: null, lines: parsed };
+}
+
+/** A month's task page: the lines under one month heading, with no day. */
+function parseMonthTask(lines: readonly PageLine[], fallbackDate: string, period: string | null): ParsedPage {
+  const headings = findHeadings(lines);
+  const first = headings.find((heading) => heading.type === "month") ?? null;
+  const month = monthOfPage(first, period, fallbackDate);
+  const parsed = bodyLines(lines, headings).map(({ line, index }) => asMonthLine(toParsedLine(line, index)));
+  return { kind: "month-task", pageDate: null, month, lines: parsed };
+}
+
+/** The month a future line falls under: that of the nearest heading above it, else the first heading below, else the fallback month. */
+function futureMonthOf(index: number, headings: readonly Heading[], months: Map<number, string>, fallbackDate: string): string {
+  const monthHeadings = headings.filter((heading) => months.has(heading.index));
+  const above = monthHeadings.filter((heading) => heading.index < index).at(-1);
+  const heading = above ?? monthHeadings[0];
+  return heading ? months.get(heading.index)! : fallbackDate.slice(0, 7);
+}
+
+/** A future page: each line goes under the month heading above it. A leading day number stays in the title. */
+function parseFuture(lines: readonly PageLine[], fallbackDate: string, period: string | null): ParsedPage {
+  const headings = findHeadings(lines);
+  const months = monthsOfFuturePage(headings, period, fallbackDate);
+  const parsed = bodyLines(lines, headings).map(({ line, index }) => ({
+    ...asMonthLine(toParsedLine(line, index)),
+    month: futureMonthOf(index, headings, months, fallbackDate),
+  }));
+  return { kind: "future", pageDate: null, month: null, lines: parsed };
+}
+
+/** One calendar line: a day row gives its day and text (a row with no bullet is an event of that day), any other line stays on the day above. */
+function toCalendarLine(line: PageLine, index: number, lastDay: number | null): ParsedLine {
+  const row = parseDayRow(line, false);
+  if (!row) return { ...toParsedLine(isWeekdayOnly(line.text) ? { ...line, text: "" } : line, index), day: lastDay };
+  const parsed = toParsedLine({ ...line, text: row.text }, index);
+  return { ...parsed, type: line.symbol === "none" ? "event" : parsed.type, noBullet: false, day: row.day };
+}
+
+/** A calendar page: day rows with the weekday letters stripped. Empty days (a number and a weekday, no text) are dropped, and a line with no day number stays on the day above. */
+function parseCalendar(lines: readonly PageLine[], fallbackDate: string, period: string | null): ParsedPage {
+  const headings = findHeadings(lines);
+  const first = headings.find((heading) => heading.type === "month") ?? null;
+  const parsed: ParsedLine[] = [];
+  let lastDay: number | null = null;
+  for (const { line, index } of bodyLines(lines, headings)) {
+    const next = toCalendarLine(line, index, lastDay);
+    lastDay = next.day ?? lastDay;
+    if (next.title !== "") parsed.push(next);
+  }
+  return { kind: "calendar", pageDate: null, month: monthOfPage(first, period, fallbackDate), lines: parsed };
+}
+
+/**
+ * Turns the OCR lines of a log page into entry drafts for one page kind. Daily is the default. Heading lines (the date, a
+ * month, a year) are not entries. Line ids follow the page order (l1, l2, ...) and stay put when heading lines are dropped.
+ */
+export function parsePage(lines: readonly PageLine[], fallbackDate: string, kind: PageKind = "daily", period: string | null = null): ParsedPage {
+  if (kind === "future") return parseFuture(lines, fallbackDate, period);
+  if (kind === "calendar") return parseCalendar(lines, fallbackDate, period);
+  if (kind === "month-task") return parseMonthTask(lines, fallbackDate, period);
+  return parseDaily(lines, fallbackDate);
 }

@@ -21,7 +21,16 @@ export type OcrLine = {
   engine: string;
 };
 
-export type OcrResult = { lines: OcrLine[]; width: number; height: number; ms: number };
+export type OcrResult = {
+  lines: OcrLine[];
+  width: number;
+  height: number;
+  ms: number;
+  /** What the LLM engine says the page is (daily, future, calendar or month-task), when it said. Only a hint: the log scan checks it. */
+  kind?: string;
+  /** The year (YYYY) or month (YYYY-MM) the LLM read from the page header, when it read one. */
+  period?: string;
+};
 
 /** Reads one page photo. The Buffer is not kept. */
 export type OcrClient = (image: Buffer, contentType: string) => Promise<OcrResult>;
@@ -57,6 +66,8 @@ function parseResult(json: unknown): OcrResult {
     width: typeof body.width === "number" ? body.width : 0,
     height: typeof body.height === "number" ? body.height : 0,
     ms: typeof body.ms === "number" ? body.ms : 0,
+    ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
+    ...(typeof body.period === "string" ? { period: body.period } : {}),
   };
 }
 

@@ -1,4 +1,20 @@
-import type { EntryType, ScanEntry } from "../types.ts";
+import type { EntryHorizon, EntryType, ScanEntry } from "../types.ts";
+
+/** What a photographed log page is: a day, the future log, a month's calendar page or a month's task page. */
+export const PAGE_KINDS = ["daily", "future", "calendar", "month-task"] as const;
+export type PageKind = (typeof PAGE_KINDS)[number];
+
+/** True for a page kind name the API knows. */
+export function isPageKind(value: unknown): value is PageKind {
+  return typeof value === "string" && (PAGE_KINDS as readonly string[]).includes(value);
+}
+
+/** The log view the person had open when scanning: a weak hint for the page kind. */
+export const VIEW_HINTS = ["daily", "future", "month"] as const;
+export type ViewHint = (typeof VIEW_HINTS)[number];
+
+/** Where a line files: one day, or one month's lane (date is then the last day of that month). Matching is per slot. */
+export type Slot = { horizon: EntryHorizon; date: string };
 
 /**
  * What a scanned line means for the log of its day:

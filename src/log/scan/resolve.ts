@@ -29,7 +29,7 @@ function proposal(paper: Fields, current: Fields): Fields {
   return { type: paper.type, title: sameTitle ? current.title : paper.title, tags, time: paper.time ?? current.time };
 }
 
-const NEW: Resolution = { status: "new", target: null, before: null, after: null, contested: false, protectedEdit: false };
+export const NEW: Resolution = { status: "new", target: null, before: null, after: null, contested: false, protectedEdit: false };
 
 /** What a line bound to an entry means: unchanged, an app edit to leave alone, or an edit to propose. */
 function classify(line: Line, entry: ScanEntry): Resolution {

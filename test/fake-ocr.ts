@@ -12,6 +12,8 @@ export type FakeOcr = {
   requests: Array<{ method: string; path: string; contentType: string | undefined; bytes: number }>;
   /** Replace the answer for the next calls. */
   setLines(lines: OcrLine[]): void;
+  /** What the LLM engine says about the page for the next calls (null for none). */
+  setPage(kind: string | null, period?: string | null): void;
   /** Answer the next calls with this status and no result (0 = answer normally). */
   failWith(status: number): void;
   /** Never answer (for the timeout test). */
@@ -42,6 +44,7 @@ export const DEFAULT_PAGE: OcrLine[] = [
 
 export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<FakeOcr> {
   let lines = initial;
+  let llm: { kind: string | null; period: string | null } = { kind: null, period: null };
   let failStatus = 0;
   let hanging = false;
   let delayMs = 0;
@@ -64,7 +67,7 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
         res.writeHead(failStatus, { "content-type": "application/json" }).end('{"error":"nope"}');
         return;
       }
-      const result: OcrResult = { lines, width: 900, height: 700, ms: 12 };
+      const result: OcrResult = { lines, width: 900, height: 700, ms: 12, ...(llm.kind ? { kind: llm.kind } : {}), ...(llm.period ? { period: llm.period } : {}) };
       const body = JSON.stringify(result);
       const answer = () => {
         res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
@@ -80,6 +83,9 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
     requests,
     setLines: (next) => {
       lines = next;
+    },
+    setPage: (kind, period = null) => {
+      llm = { kind, period };
     },
     failWith: (status) => {
       failStatus = status;

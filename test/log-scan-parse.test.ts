@@ -5,6 +5,7 @@ import type { Entry } from "../src/log/types.ts";
 import { buildLogDraft, checkLines, startReview } from "../src/log/scan/draft.ts";
 import { parseHeaderDate } from "../src/log/scan/header.ts";
 import { parsePage } from "../src/log/scan/parse.ts";
+import { fixedReader } from "../src/log/scan/plan.ts";
 import { resolveLines } from "../src/log/scan/resolve.ts";
 import { line } from "./fake-ocr.ts";
 
@@ -113,7 +114,7 @@ test("startReview: a new draft starts on the page date, bulletless and empty lin
   const draft = buildLogDraft({ ocr, fallbackDate: "2026-11-19", now: 1000, ttlMs: 500 });
   assert.equal(draft.expires, 1500);
   assert.equal(draft.applied, false);
-  const review = startReview(draft, [entry("e1", "task", "Milch kaufen"), entry("e2", "task", "Eier holen")]);
+  const review = startReview(draft, fixedReader([entry("e1", "task", "Milch kaufen"), entry("e2", "task", "Eier holen")]));
   assert.equal(review.date, "2026-11-20");
   assert.equal(review.pageDate, "2026-11-20");
   assert.equal(review.fallbackDate, "2026-11-19");

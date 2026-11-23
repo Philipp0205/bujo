@@ -43,8 +43,10 @@ _SYMBOL_ALIASES = {
     "X": "x", "×": "x",
 }
 
+KINDS = ("daily", "future", "calendar", "month-task")
+
 SYSTEM_PROMPT = (
-    "You read a photo of a handwritten bullet-journal rapid-log page, written in German and English. "
+    "You read a photo of one handwritten bullet-journal log page, written in German and English. "
     "For each written line, in reading order, return: symbol, the bullet at the start of the line, one of "
     "• (task), x (done task), > (migrated), < (scheduled), ○ (event), – (note), or none when the line has no bullet; "
     "text, exactly as written without the bullet, keeping umlauts, ß, #tags and times; "
@@ -52,16 +54,28 @@ SYSTEM_PROMPT = (
     "time, a time written in the line as HH:MM, or null; "
     "confidence, how sure you are of the line, 0 to 1. "
     "Do not correct spelling. Do not invent lines. "
+    "Also name the kind of page: daily (one day, headed by a date), future (a future log: several months, each with a "
+    "short list under it, maybe headed by a year or Future log), calendar (one month as a column of day numbers with "
+    "weekday letters and short text after some days) or month-task (one month, a plain task list). "
+    "Return period as the year (YYYY) of a future page or the month (YYYY-MM) of a calendar or month-task page when the "
+    "page says it, else null. "
     "If the first line is a date, return it as a line with symbol none and also put it in date as written. "
-    'Answer with JSON only, matching the schema: {"date": string or null, '
+    "On a future, calendar or month-task page, return each month heading as a line with symbol none, for example "
+    "Januar, and the year or Future log heading too. "
+    "On a calendar page, return each written day as one line with symbol none and text starting with the day number, "
+    "for example 15 Fr Zahnarzt, keep the weekday letters, and leave out days with nothing written. "
+    "On a future page keep a day number at the start of an item as part of its text. "
+    'Answer with JSON only, matching the schema: {"date": string or null, "kind": string, "period": string or null, '
     '"lines": [{"symbol", "text", "tags", "time", "confidence"}]}.'
 )
-USER_INSTRUCTION = "Read this rapid-log page and answer with the JSON."
+USER_INSTRUCTION = "Read this log page and answer with the JSON."
 
 PAGE_SCHEMA = {
     "type": "object",
     "properties": {
         "date": {"type": ["string", "null"]},
+        "kind": {"type": ["string", "null"], "enum": [*KINDS, None]},
+        "period": {"type": ["string", "null"]},
         "lines": {
             "type": "array",
             "items": {
@@ -78,7 +92,7 @@ PAGE_SCHEMA = {
             },
         },
     },
-    "required": ["date", "lines"],
+    "required": ["date", "kind", "period", "lines"],
     "additionalProperties": False,
 }
 RESPONSE_FORMAT = {
@@ -113,6 +127,8 @@ class LlmPage:
     date: str | None
     lines: list[LlmLine]
     model: str
+    kind: str | None = None
+    period: str | None = None
 
 
 @dataclass
@@ -282,15 +298,29 @@ def _line(item) -> LlmLine | None:
     return LlmLine(symbol, text, _tags(item.get("tags")), _time(item.get("time")), _confidence(item.get("confidence")))
 
 
+_PERIOD = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]))?$")
+
+
+def _kind(value) -> str | None:
+    """The page kind when it is one of the four, else None (an unknown word is not an error: the app decides)."""
+    return value.strip().lower() if isinstance(value, str) and value.strip().lower() in KINDS else None
+
+
+def _period(value) -> str | None:
+    """A year (YYYY) or a month (YYYY-MM), else None."""
+    return value.strip() if isinstance(value, str) and _PERIOD.match(value.strip()) else None
+
+
 def parse_page(content: str, model: str) -> LlmPage:
-    """The model text to an LlmPage. Raises LlmError for bad JSON, a bad shape or no usable line."""
+    """The model text to an LlmPage. Raises LlmError for bad JSON, a bad shape or no usable line.
+    A page kind or period that is not valid becomes None."""
     data = _load_json(content)
     lines = [line for line in map(_line, data["lines"]) if line]
     if not lines:
         raise LlmError("no lines")
     date = data.get("date")
     date = date.strip() if isinstance(date, str) and date.strip() else None
-    return LlmPage(date=date, lines=lines, model=model)
+    return LlmPage(date=date, lines=lines, model=model, kind=_kind(data.get("kind")), period=_period(data.get("period")))
 
 
 def _ask(settings: Settings, image_bgr: np.ndarray, opener) -> LlmPage:

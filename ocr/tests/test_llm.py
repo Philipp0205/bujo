@@ -12,7 +12,7 @@ from PIL import Image
 
 from bujo_ocr import detector, llm, server
 from bujo_ocr.recognize import Reading
-from fixtures import make_page
+from fixtures import CALENDAR_LINES, FUTURE_LINES, MONTH_TASK_LINES, make_page
 
 PAGE_ANSWER = {
     "date": "20.11.2025",
@@ -202,6 +202,69 @@ def test_a_bullet_with_empty_text_is_kept():
     assert len(page.lines) == 1
 
 
+# page kind and period
+
+
+def kind_answer(kind, period, lines):
+    return {
+        "date": None,
+        "kind": kind,
+        "period": period,
+        "lines": [{"symbol": s, "text": t, "tags": [], "time": None, "confidence": 0.9} for s, t in lines],
+    }
+
+
+@pytest.mark.parametrize(
+    "kind, period, lines",
+    [
+        ("future", "2027", FUTURE_LINES),
+        ("calendar", "2026-12", CALENDAR_LINES),
+        ("month-task", "2026-12", MONTH_TASK_LINES),
+    ],
+)
+def test_the_page_kind_and_period_are_read_and_the_heading_lines_stay(kind, period, lines):
+    page = llm.parse_page(json.dumps(kind_answer(kind, period, lines), ensure_ascii=False), "m")
+    assert (page.kind, page.period) == (kind, period)
+    assert [(line.symbol, line.text) for line in page.lines] == lines
+
+
+@pytest.mark.parametrize(
+    "kind, period, want_kind, want_period",
+    [
+        ("weekly", "2026-13", None, None),
+        (3, 2027, None, None),
+        ("", "26", None, None),
+        (None, None, None, None),
+        ("Daily", "2026-1", "daily", None),
+        ("future ", " 2027-02 ", "future", "2027-02"),
+    ],
+)
+def test_an_invalid_kind_or_period_becomes_none(kind, period, want_kind, want_period):
+    page = llm.parse_page(json.dumps({"kind": kind, "period": period, "lines": [{"symbol": "•", "text": "a"}]}), "m")
+    assert (page.kind, page.period) == (want_kind, want_period)
+
+
+def test_an_answer_without_kind_or_period_is_a_page_with_none():
+    page = llm.parse_page(json.dumps({"date": None, "lines": [{"symbol": "•", "text": "a"}]}), "m")
+    assert (page.kind, page.period) == (None, None)
+
+
+def test_the_prompt_and_schema_ask_for_every_page_kind(gateway):
+    assert set(llm.KINDS) == {"daily", "future", "calendar", "month-task"}
+    assert {"kind", "period"} <= set(llm.PAGE_SCHEMA["required"])
+    assert llm.PAGE_SCHEMA["properties"]["kind"]["enum"] == [*llm.KINDS, None]
+    for word in ("future", "calendar", "month-task", "weekday letters", "day number"):
+        assert word in llm.SYSTEM_PROMPT
+
+
+def test_run_ocr_passes_the_kind_and_period_on(gateway):
+    gateway.answers = [ok(kind_answer("future", "2027", FUTURE_LINES))]
+    result = server.run_ocr(make_page(FUTURE_LINES).png, fake_recognizer)
+    assert (result["kind"], result["period"]) == ("future", "2027")
+    assert [line["text"] for line in result["lines"]] == [text for _, text in FUTURE_LINES]
+    assert result["lines"][0]["symbol"] == "none"
+
+
 # format rejection
 
 
@@ -298,8 +361,9 @@ def test_run_ocr_uses_the_llm_and_the_detector_boxes(gateway):
         {"symbol": e.symbol, "text": e.text, "tags": [], "time": None, "confidence": 0.9} for e in fixture.expected
     ]})]
     result = server.run_ocr(fixture.png, fake_recognizer)
-    assert set(result) == {"lines", "date", "width", "height", "ms"}
+    assert set(result) == {"lines", "date", "kind", "period", "width", "height", "ms"}
     assert result["date"] == "20.11.2025"
+    assert (result["kind"], result["period"]) == (None, None)
     assert [line["symbol"] for line in result["lines"]] == [e.symbol for e in fixture.expected]
     for line in result["lines"]:
         assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time"}

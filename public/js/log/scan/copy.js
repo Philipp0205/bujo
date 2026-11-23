@@ -10,10 +10,10 @@
   L.copy.scan = {
     camera: {
       close: 'Close',
-      title: 'Align the daily log page',
+      title: 'Align the log page',
       titleNote: 'Align the note page',
       modes: 'What to scan',
-      rapid: 'Daily log',
+      rapid: 'Log page',
       note: 'Free note',
       shutter: 'Take a photo',
       gallery: 'Choose from gallery'
@@ -39,7 +39,10 @@
       size: 'The photo is too large (at most 15 MB).',
       scanFailed: 'Could not read the page. Try again.',
       applyFailed: 'Could not save the entries. Try again.',
-      titleRequired: 'Give every kept line a title.'
+      titleRequired: 'Give every kept line a title.',
+      dayRequired: 'Give every kept line a day of this month.',
+      monthRequired: 'Give every kept line a month.',
+      kindFailed: 'Could not switch the page kind. Try again.'
     },
     review: {
       title: 'Review scan',
@@ -47,6 +50,24 @@
       dateFromPage: 'Read from the page',
       dateFallback: 'Today, no date found',
       datePicked: 'Picked by you',
+      kindGroup: 'Kind of page',
+      kinds: { daily: 'Daily', future: 'Future', calendar: 'Calendar', 'month-task': 'Month tasks' },
+      kindSource: {
+        llm: 'Kind read from the page',
+        page: 'Kind read from the page',
+        view: 'Kind from the open view',
+        default: 'Kind assumed, please check',
+        picked: 'Kind picked by you'
+      },
+      futureSubject: 'Future log',
+      month: 'Month',
+      monthCaption: 'Month of this page',
+      monthLabel: function (month) {
+        return L.copy.pages.picker.months[Number(month.slice(5, 7)) - 1] + ' ' + month.slice(0, 4);
+      },
+      dayLabel: 'Day',
+      noMonth: 'No month yet',
+      noDay: 'No day yet',
       type: 'Type',
       titleLabel: 'Title',
       tagLabel: 'Tag',
