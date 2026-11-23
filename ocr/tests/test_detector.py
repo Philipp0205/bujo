@@ -1,8 +1,6 @@
-"""Detector tests on synthetic pages. No model, no torch, no real photo."""
-import sys
+"""Detector tests on synthetic pages. No model, no real photo."""
 
 import cv2
-import numpy as np
 import pytest
 
 from bujo_ocr import detector
@@ -78,18 +76,6 @@ def test_an_empty_page_has_no_lines():
     assert page.lines == []
 
 
-def test_text_crop_excludes_the_symbol_and_is_a_clean_image():
-    page = analyse(make_page(grid=True).png)
-    for line in page.lines:
-        crop = detector.crop_text_region(page, line)
-        assert crop.ndim == 2 and crop.dtype == np.uint8
-        assert crop.shape[0] > 10 and crop.shape[1] > 10
-        assert set(np.unique(crop)) <= {0, 255}
-        assert (crop == 0).any()
-    with_symbol = page.lines[1]
-    assert with_symbol.text_x > with_symbol.sym_box[1] - 1
-
-
 def test_jpeg_and_webp_are_read_like_png():
     fixture = make_page(cream=True, grid=True)
     for data in (to_jpeg(fixture.png), to_webp(fixture.png)):
@@ -113,52 +99,3 @@ def test_a_big_photo_is_shrunk_and_bboxes_map_back_to_the_original():
 def test_garbage_is_an_image_error():
     with pytest.raises(detector.ImageError):
         detector.decode_image(b"this is not an image")
-
-
-def test_detector_imports_without_torch():
-    assert "torch" not in sys.modules
-    assert "transformers" not in sys.modules
-
-
-@pytest.mark.parametrize("want", SYMBOLS)
-def test_spike_drawn_shapes_are_classified(want):
-    """The spike's sanity test: each shape drawn alone on a 60 px canvas."""
-    c = np.zeros((60, 60), np.uint8)
-    if want == ">":
-        cv2.line(c, (15, 12), (42, 30), 255, 4)
-        cv2.line(c, (42, 30), (15, 48), 255, 4)
-    elif want == "<":
-        cv2.line(c, (45, 12), (18, 30), 255, 4)
-        cv2.line(c, (18, 30), (45, 48), 255, 4)
-    elif want == "x":
-        cv2.line(c, (14, 12), (46, 48), 255, 4)
-        cv2.line(c, (46, 12), (14, 48), 255, 4)
-    elif want == "○":
-        cv2.circle(c, (30, 30), 12, 255, 3)
-    elif want == "•":
-        cv2.circle(c, (30, 40), 4, 255, -1)
-    else:
-        cv2.line(c, (18, 40), (42, 40), 255, 4)
-    got, _ = detector.classify_symbol(c, 0, 60, 0, 60, 45.0)
-    assert got == want
-
-
-@pytest.mark.parametrize("symbol", ["x", "•", "○", "–", ">", "<"])
-def test_a_symbol_written_close_to_its_text_is_still_a_symbol(symbol):
-    # Handwriting puts the bullet close to the text: on a real page an x sat a third of a line height away.
-    fx = make_page([("none", "20.11.2025"), (symbol, "Task zwei")], text_gap=12, grid=True)
-    page = detector.analyse(detector.decode_image(fx.png))
-    assert [line.symbol for line in page.lines] == ["none", symbol]
-
-
-def test_a_speck_far_right_of_a_line_is_not_part_of_it():
-    from PIL import Image, ImageDraw
-    import io
-    fx = make_page([("•", "Task eins")], width=1400)
-    img = Image.open(io.BytesIO(fx.png)).convert("RGB")
-    ImageDraw.Draw(img).ellipse([1300, fx.expected[0].y_center - 6, 1312, fx.expected[0].y_center + 6], fill=(20, 20, 30))
-    buf = io.BytesIO(); img.save(buf, format="PNG")
-    page = detector.analyse(detector.decode_image(buf.getvalue()))
-    assert len(page.lines) == 1
-    x, y, w, h = detector.line_bbox(page, page.lines[0])
-    assert x + w < 1000

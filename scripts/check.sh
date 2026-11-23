@@ -3,7 +3,7 @@
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 2
 
-# The python tests need only the light requirements-test.txt (no torch, no model download).
+# The python tests need only requirements-test.txt (the gateway is faked locally).
 # The venv is recreated when that file changes (its hash is kept next to it).
 ocr_tests() {
   local venv=ocr/.venv-test

@@ -2,10 +2,10 @@
 line segmentation and a heuristic class for the leftmost glyph of each line.
 
 Ported from the OCR spike (scored 4/4 symbols on the real page, 6/6 on drawn shapes). It needs only
-OpenCV, numpy, scikit-image and Pillow. It must import without torch or transformers.
+OpenCV, numpy, scikit-image and Pillow.
 
 Pipeline: image bytes -> BGR array -> preprocess() -> segment_lines() -> classify_symbol() per line
--> crop_text_region() for the recognizer. analyse() runs all of it.
+-> line_bbox() for the page boxes. analyse() runs all of it.
 
 Symbols: "•" task, "x" done, ">" migrated, "<" scheduled, "○" event, "–" note, "none" (a line without a
 bullet, such as the date line). Nothing here writes to disk. The image lives in memory only.
@@ -49,7 +49,6 @@ class Line:
     x1: int
     symbol: str = NONE
     sym_box: tuple[int, int] | None = None
-    text_x: int = 0
     features: dict = field(default_factory=dict)
 
 
@@ -62,8 +61,6 @@ class Page:
     original_size: tuple[int, int]  # width, height of the image as it came in
     box: tuple[int, int, int, int]  # page crop (left, top, right, bottom) inside `image`
     ink: np.ndarray  # crop-sized, 255 where ink
-    clean: np.ndarray  # crop-sized, black ink on white, dot grid removed
-    dotmax: int
     lines: list[Line] = field(default_factory=list)
 
 
@@ -131,7 +128,7 @@ def _grid_dot_limit(areas: np.ndarray, page_area: int) -> int:
 
 def preprocess(img: np.ndarray) -> dict:
     """Page crop, illumination normalise, threshold, drop the dot grid. Returns a dict with
-    `crop`, `norm`, `ink` (255 where ink), `clean` (black on white), `box`, `dotmax`."""
+    `crop`, `norm`, `ink` (255 where ink) and `box`."""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     left, top, right, bottom = _page_box(gray)
     crop = img[top:bottom, left:right]
@@ -143,7 +140,6 @@ def preprocess(img: np.ndarray) -> dict:
     count, labels, stats, _ = cv2.connectedComponentsWithStats(bw, connectivity=8)
     h, w = bw.shape
     ink = np.zeros_like(bw)
-    dotmax = 12
     if count > 1:
         areas = stats[1:, cv2.CC_STAT_AREA]
         dotmax = _grid_dot_limit(areas, h * w)
@@ -158,8 +154,7 @@ def preprocess(img: np.ndarray) -> dict:
             if cw > 8 * ch and cw > 0.3 * w:
                 keep[k] = False
         ink = keep[labels].astype(np.uint8) * 255
-    clean = 255 - ink
-    return dict(crop=crop, norm=norm, ink=ink, clean=clean, box=(left, top, right, bottom), dotmax=dotmax)
+    return dict(crop=crop, norm=norm, ink=ink, box=(left, top, right, bottom))
 
 
 def segment_lines(ink: np.ndarray, min_gap: int = 12) -> list[tuple[int, int, int, int]]:
@@ -281,7 +276,7 @@ def analyse_lines(ink: np.ndarray) -> list[Line]:
         height = y1 - y0
         fine = glyph_groups(ink, y0, y1, x0, x1, gap_ratio=0.0)  # any blank column splits
         # A speck far to the right (page edge, a smudge) is not part of the line: cut the line at the first
-        # blank wider than FAR_GAP line heights, so the text crop holds only the writing.
+        # blank wider than FAR_GAP line heights, so the line box holds only the writing.
         for i in range(len(fine) - 1):
             if fine[i + 1][0] - fine[i][1] > FAR_GAP * height:
                 fine = fine[: i + 1]
@@ -300,15 +295,12 @@ def analyse_lines(ink: np.ndarray) -> list[Line]:
         line = Line(y0=y0, y1=y1, x0=x0, x1=x1, symbol=symbol, features=features)
         if symbol != NONE:
             line.sym_box = fine[0]
-            line.text_x = fine[1][0] if len(fine) > 1 else x1
-        else:
-            line.text_x = x0
         lines.append(line)
     return lines
 
 
 def analyse(img: np.ndarray) -> Page:
-    """Shrinks a very large photo, runs preprocess and line analysis. The result holds the cleaned page."""
+    """Shrinks a very large photo, runs preprocess and line analysis."""
     original = (img.shape[1], img.shape[0])
     small, scale = _shrink(img)
     pre = preprocess(small)
@@ -318,19 +310,9 @@ def analyse(img: np.ndarray) -> Page:
         original_size=original,
         box=pre["box"],
         ink=pre["ink"],
-        clean=pre["clean"],
-        dotmax=pre["dotmax"],
     )
     page.lines = analyse_lines(page.ink)
     return page
-
-
-def crop_text_region(page: Page, line: Line, pad: int = 12) -> np.ndarray:
-    """The cleaned text of one line (symbol cut off), black on white with a white margin. Input for the recognizer."""
-    clean = page.clean
-    y0, y1 = max(0, line.y0 - pad), min(clean.shape[0], line.y1 + pad)
-    x0, x1 = max(0, line.text_x - pad), min(clean.shape[1], line.x1 + pad)
-    return clean[y0:y1, x0:x1]
 
 
 def line_bbox(page: Page, line: Line) -> list[int]:
