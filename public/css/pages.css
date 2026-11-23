@@ -93,8 +93,8 @@ html.is-editing .paper-page.daily-page { padding-bottom: 320px; }
   border-radius: 0;
   background: transparent;
   color: var(--paper-ink);
-  font: italic 400 19px/26px var(--font-text);
-  font-variation-settings: "opsz" 19, "wght" 450;
+  font: italic var(--text-weight) 19px/26px var(--font-text);
+  font-variation-settings: "opsz" 19, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
   text-decoration: underline dotted;
   text-decoration-thickness: 0.75px;
@@ -128,8 +128,8 @@ html.is-editing .paper-page.daily-page { padding-bottom: 320px; }
   border-radius: 14px;
   background: transparent;
   color: var(--paper-ink);
-  font: italic 400 15px/26px var(--font-text);
-  font-variation-settings: "opsz" 15, "wght" 400;
+  font: italic var(--text-weight) 15px/26px var(--font-text);
+  font-variation-settings: "opsz" 15, "wght" var(--text-weight);
   font-synthesis: none;
   white-space: nowrap;
   cursor: pointer;
@@ -165,8 +165,8 @@ html.is-editing .paper-page.daily-page { padding-bottom: 320px; }
   min-width: 22px;
   text-align: center;
   color: var(--paper-muted);
-  font: italic 400 16px/24px var(--font-text);
-  font-variation-settings: "opsz" 16, "wght" 400;
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" var(--text-weight);
   font-synthesis: none;
   font-variant-numeric: lining-nums;
   text-shadow: var(--paper-glow);
@@ -249,8 +249,8 @@ html.ak-base .day-picker :focus-visible { outline: 1px solid var(--paper-muted);
 .picker-month {
   flex: 1;
   text-align: center;
-  font: italic 400 17px/24px var(--font-text);
-  font-variation-settings: "opsz" 17, "wght" 450;
+  font: italic var(--text-weight) 17px/24px var(--font-text);
+  font-variation-settings: "opsz" 17, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
 }
 .picker-arrow {
@@ -297,7 +297,7 @@ html.ak-base .day-picker :focus-visible { outline: 1px solid var(--paper-muted);
   border-radius: 50%;
   background: transparent;
   color: var(--paper-ink);
-  font: 400 17px/36px var(--font-text);
+  font: var(--text-weight) 17px/36px var(--font-text);
   font-variant-numeric: lining-nums;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

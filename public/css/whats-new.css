@@ -19,7 +19,7 @@
   font-style: italic;
   font-size: 13px;
   line-height: 24px;
-  font-variation-settings: "opsz" 14, "wght" 400;
+  font-variation-settings: "opsz" 14, "wght" var(--text-weight);
   font-synthesis: none;
 }
 .sheet-entry .wn-title {

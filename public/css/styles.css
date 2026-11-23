@@ -54,7 +54,7 @@ html.ak-base {
 .ak-navbar-title {
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
 }
 
 /* The title row. Flex children next to .ak-large-title get max-width: none (app-kit gotcha). */
@@ -70,11 +70,11 @@ html.ak-base {
   padding: 32px 20px 16px;
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 32px;
   line-height: 48px;
   letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 32, "wght" 400;
+  font-variation-settings: "opsz" 32, "wght" var(--text-weight);
   font-synthesis: none;
   color: var(--paper-ink);
 }
@@ -97,12 +97,12 @@ html.ak-base {
   color: var(--paper-muted);
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 16px;
   line-height: 24px;
   letter-spacing: 0;
   text-transform: none;
-  font-variation-settings: "opsz" 16, "wght" 450;
+  font-variation-settings: "opsz" 16, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
 }
 
@@ -115,6 +115,32 @@ html.ak-base {
 }
 .bj-form .bj-note,
 .bj-card .bj-note { padding: 0; }
+
+/* The font picker: one row per face, each set in that face. The chosen row carries an ink underline on its name. */
+.bj-font-list { display: flex; flex-direction: column; }
+.bj-font-opt {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--paper-ink) 14%, transparent);
+  background: transparent;
+  color: var(--paper-ink);
+  text-align: left;
+  cursor: pointer;
+  font-weight: 500;
+  font-synthesis: none;
+}
+.bj-font-opt[data-font="newsreader"] { font-family: Newsreader, Georgia, serif; font-weight: 500; }
+.bj-font-opt[data-font="literata"] { font-family: Literata, Georgia, serif; font-weight: 450; }
+.bj-font-opt[data-font="source-serif"] { font-family: "Source Serif 4", Georgia, serif; font-weight: 500; }
+.bj-font-opt[data-font="lora"] { font-family: Lora, Georgia, serif; font-weight: 450; }
+.bj-font-name { display: block; font-size: 20px; line-height: 24px; }
+.bj-font-sample { display: block; color: var(--paper-muted); font-style: italic; font-size: 16px; line-height: 24px; }
+.bj-font-on .bj-font-name { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+.bj-font-on .bj-font-sample { color: var(--paper-ink); }
 
 /* Links are italic ink with a thin underline, never the browser blue. */
 .bj-app a,
@@ -202,7 +228,7 @@ html.ak-base {
   color: var(--paper-ink);
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   text-decoration: underline;
   text-decoration-thickness: 0.75px;
   text-underline-offset: 3px;
@@ -217,10 +243,10 @@ html.ak-base {
   color: var(--paper-muted);
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 14px;
   line-height: 24px;
-  font-variation-settings: "opsz" 14, "wght" 400;
+  font-variation-settings: "opsz" 14, "wght" var(--text-weight);
   font-synthesis: none;
 }
 .bj-app .ak-input {
@@ -235,6 +261,7 @@ html.ak-base {
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--paper-ink) 25%, transparent);
   color: var(--paper-ink);
   font-family: var(--font-text);
+  font-weight: var(--text-weight);
   line-height: 24px;
   caret-color: var(--paper-ink);
 }
@@ -270,7 +297,7 @@ html.ak-base {
   background: transparent;
   box-shadow: none;
   color: var(--paper-today);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
 }
 .bj-app .ak-banner[data-kind="ok"] { color: var(--paper-ink); }
 .bj-app .ak-empty {
@@ -279,7 +306,7 @@ html.ak-base {
   border: 0;
   border-radius: 0;
   color: var(--paper-muted);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
 }
 
 /* A loose empty line or button inside a section keeps the same gutter as the cards. */
@@ -308,7 +335,7 @@ html.ak-base {
 
 .bj-list { margin: 0; padding: 0; list-style: none; }
 .bj-list > li.ak-row { align-items: flex-start; padding: 12px 20px; }
-.bj-app .ak-row-title { font-family: var(--font-text); font-size: 18px; font-weight: 400; line-height: 24px; }
+.bj-app .ak-row-title { font-family: var(--font-text); font-size: 18px; font-weight: var(--text-weight); line-height: 24px; }
 .bj-app .ak-row-sub { font-size: 15px; line-height: 22px; }
 
 .bj-meta {
@@ -364,7 +391,7 @@ html.ak-base {
 .bj-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .bj-check input { width: 22px; height: 22px; accent-color: var(--paper-ink); }
 .bj-badge { padding: 2px 10px; color: var(--paper-muted); font-family: var(--font-ui); font-size: 13px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 30%, transparent); border-radius: 999px; }
-.bj-ocr { margin: 0; font-size: 18px; font-weight: 400; overflow-wrap: anywhere; }
+.bj-ocr { margin: 0; font-size: 18px; font-weight: var(--text-weight); overflow-wrap: anywhere; }
 .bj-item .bj-meta { margin: 0; }
 .bj-low { color: var(--paper-today); }
 .bj-bar {

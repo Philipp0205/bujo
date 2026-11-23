@@ -9,6 +9,13 @@
 @font-face { font-family: Newsreader; src: url("/fonts/newsreader.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
 @font-face { font-family: Newsreader; src: url("/fonts/newsreader-italic.woff2") format("woff2"); font-weight: 200 800; font-style: italic; font-display: swap; }
 @font-face { font-family: "IBM Plex Sans"; src: url("/fonts/ibm-plex-sans.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+/* The other journal text faces (the font choice in settings). Variable weight, Latin only like Newsreader. */
+@font-face { font-family: Literata; src: url("/fonts/literata.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: Literata; src: url("/fonts/literata-italic.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("/fonts/source-serif-4.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("/fonts/source-serif-4-italic.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: swap; }
+@font-face { font-family: Lora; src: url("/fonts/lora.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: Lora; src: url("/fonts/lora-italic.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: swap; }
 /* Caveat is the pen hand for the tags and time written after a title (ink-script.css). Latin first, Latin Extended for accents. */
 @font-face { font-family: Caveat; src: url("/fonts/caveat-latin.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: Caveat; src: url("/fonts/caveat-latin-ext.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; unicode-range: U+0100-024F; }
@@ -46,6 +53,8 @@
   --text-col: 60px;
   --font-text: Newsreader, Georgia, "Times New Roman", serif;
   --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  /* Journal text runs a step heavier than the regular 400. Each face below sets its own step. */
+  --text-weight: 500;
   --paper-dot-image: radial-gradient(circle at center, var(--paper-dot) 1.1px, transparent 1.25px);
   --paper-margin-image: linear-gradient(
     to right,
@@ -134,6 +143,11 @@ html[data-ak-scheme="dark"] {
   --ak-accent-ink: var(--paper-bg);
 }
 
+/* The journal text face: html[data-font] is set by js/font/boot.js. No attribute means Newsreader. */
+html[data-font="literata"] { --font-text: Literata, Georgia, "Times New Roman", serif; --text-weight: 450; }
+html[data-font="source-serif"] { --font-text: "Source Serif 4", Georgia, "Times New Roman", serif; --text-weight: 500; }
+html[data-font="lora"] { --font-text: Lora, Georgia, "Times New Roman", serif; --text-weight: 450; }
+
 /* The page colour is what theme-color.js copies into the browser bar. */
 html.ak-base,
 html.ak-base body {
@@ -175,11 +189,11 @@ html.ak-base body {
   padding: 32px 12px 16px 20px;
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 32px;
   line-height: 48px;
   letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 32, "wght" 400;
+  font-variation-settings: "opsz" 32, "wght" var(--text-weight);
   font-synthesis: none;
   color: var(--paper-ink);
   text-shadow: var(--paper-glow);

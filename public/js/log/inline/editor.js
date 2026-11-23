@@ -10,7 +10,7 @@
  *       replaceGroup(horizon, date, entries) swaps a day or a month's items for the server's list, group(horizon, date) reads one in order,
  *       forget(id) drops the traces of a deleted entry, openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
- * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter does the same and closes the sheet; the "+ Next" key of the bar saves and starts the next line.
+ * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter does the same and closes the sheet; the "Done" key of the bar does what Enter does and the "Next line" key saves and starts the next line.
  */
 (function () {
   'use strict';
@@ -559,11 +559,16 @@
     focusTitle();
   }
 
-  /** The "+ Next" key: saves a non-empty line and opens a fresh one in the sheet. An empty line saves nothing and keeps the sheet and focus. */
+  /** The "Next line" key: saves a non-empty line and opens a fresh one in the sheet. An empty line saves nothing and keeps the sheet and focus. */
   function saveAndNext() {
     if (!active || active.saving) return;
     if (!model.hasTitle(active)) { focusTitle(); return; }
     commit(true);
+  }
+
+  /** The "Done" key: saves a non-empty line and closes the sheet, the same as Enter. */
+  function saveAndClose() {
+    if (active && !active.saving) commit(false);
   }
 
   /** Enter saves a non-empty line and closes the sheet; an empty line just closes it. Backspace on an empty new line removes it. */
@@ -653,7 +658,7 @@
     });
     var line = L.inline.row.build(typed, toggleMarker);
     watchCaret(line.querySelector('.paper-edit-input'));
-    sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details, next: saveAndNext }));
+    sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details, done: saveAndClose, next: saveAndNext }));
     L.suggest.pool.refresh();
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusout', onFocusOut);

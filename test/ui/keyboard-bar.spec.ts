@@ -42,13 +42,14 @@ async function openRow(page: Page, offset: number, title: string): Promise<void>
   await expect(page.locator(".inline-bar")).toBeVisible();
 }
 
-test("the bar is one row of icon keys with a name each, and one labelled + Next key", async ({ page }) => {
+test("the bar is one row of icon keys with a name each, after two handwritten word keys", async ({ page }) => {
   await seed(page, 1, ["Eins"]);
   await openRow(page, 1, "Eins");
   const keys = page.locator(".inline-bar .bar-key");
-  await expect(keys).toHaveCount(11);
-  await expect(key(page, "next")).toHaveText("+ Next");
-  const icons = page.locator(".inline-bar .bar-key:not([data-key=next])");
+  await expect(keys).toHaveCount(12);
+  await expect(key(page, "done")).toHaveText("Done");
+  await expect(key(page, "next")).toHaveText("Next line");
+  const icons = page.locator(".inline-bar .bar-key:not(.bar-word)");
   const texts = await icons.evaluateAll((nodes) => nodes.map((node) => (node.textContent ?? "").trim()));
   expect(texts.every((text) => text === "")).toBe(true);
   const names = await icons.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")));

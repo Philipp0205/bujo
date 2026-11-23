@@ -43,7 +43,7 @@
       maxlength: 200,
       autocomplete: 'off',
       autocapitalize: 'sentences',
-      enterkeyhint: 'enter',
+      enterkeyhint: 'done',
       'aria-label': L.copy.inline.titleLabel
     });
     input.addEventListener('input', function (event) {

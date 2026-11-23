@@ -14,7 +14,7 @@
   border: 0;
   background: transparent;
   color: var(--paper-ink);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
   text-decoration: underline;
   text-decoration-thickness: 0.75px;
   text-underline-offset: 3px;
@@ -65,10 +65,10 @@
   color: var(--paper-muted);
   font-family: var(--font-text);
   font-style: italic;
-  font-weight: 400;
+  font-weight: var(--text-weight);
   font-size: 16px;
   line-height: 22px;
-  font-variation-settings: "opsz" 16, "wght" 450;
+  font-variation-settings: "opsz" 16, "wght" calc(var(--text-weight) + 50);
   font-synthesis: none;
   text-shadow: var(--paper-glow);
 }
@@ -94,7 +94,7 @@
   border: 0;
   background: transparent;
   color: var(--paper-ink);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
   text-decoration: underline;
   text-decoration-thickness: 0.75px;
   text-underline-offset: 3px;
@@ -105,6 +105,6 @@
   margin: 0;
   padding: 8px 16px 8px var(--text-col);
   color: var(--paper-muted);
-  font: italic 16px/24px var(--font-text);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
 }
 .todo-note[data-state="error"] { color: var(--paper-today); }

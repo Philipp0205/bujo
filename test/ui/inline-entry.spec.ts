@@ -94,7 +94,7 @@ test("Enter saves the line and closes the sheet completely", async ({ page }) =>
   expect((await stored(page)).map((entry) => entry.title)).toEqual(["Erste Zeile"]);
 });
 
-test("the + Next key saves the line and opens a fresh focused one, with no loading note between", async ({ page }) => {
+test("the Next line key saves the line and opens a fresh focused one, with no loading note between", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.keyboard.type("Naechste eins");
@@ -124,13 +124,28 @@ test("Enter on an empty new line closes the sheet and saves nothing", async ({ p
   expect(await stored(page)).toHaveLength(0);
 });
 
-test("the + Next key on an empty new line saves nothing and keeps the sheet open and focused", async ({ page }) => {
+test("the Next line key on an empty new line saves nothing and keeps the sheet open and focused", async ({ page }) => {
   await page.goto(app.baseUrl);
   await page.locator("[data-action=add-entry]").click();
   await page.locator(".bar-key[data-key=next]").click();
   await expect(sheet(page)).toBeVisible();
   await expect(line(page)).toBeFocused();
   expect(await stored(page)).toHaveLength(0);
+});
+
+test("the Done key saves the line and closes the sheet like Enter, and on an empty line just closes it", async ({ page }) => {
+  await page.goto(app.baseUrl);
+  await page.locator("[data-action=add-entry]").click();
+  await page.keyboard.type("Fertig so");
+  await page.locator(".bar-key[data-key=done]").click();
+  await expect(saved(page, "Fertig so")).toBeVisible();
+  await expect(sheet(page)).toBeHidden();
+  expect((await stored(page)).map((entry) => entry.title)).toEqual(["Fertig so"]);
+
+  await page.locator("[data-action=add-entry]").click();
+  await page.locator(".bar-key[data-key=done]").click();
+  await expect(sheet(page)).toBeHidden();
+  expect(await stored(page)).toHaveLength(1);
 });
 
 test("Backspace on an empty new line removes it and hides the bar, with no entry created", async ({ page }) => {
