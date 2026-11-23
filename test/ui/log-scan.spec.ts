@@ -315,7 +315,7 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   expect(errors).toEqual([]);
 });
 
-test("an x line over an open task is an update with before and after, and a repeated line is folded into the unchanged count", async ({ page }) => {
+test("an x line over an open task is an update with before and after, and a repeated line shows as matched, not as a new entry", async ({ page }) => {
   await seed(page, [
     { date: day(0), type: "task", title: "Water the office plants" },
     { date: day(0), type: "note", title: "Idee Wochenende" },
@@ -323,7 +323,8 @@ test("an x line over an open task is an update with before and after, and a repe
   await scanPage(page, [headerLine(day(0)), line("x", "Water the office plants", 0.91), line("–", "Idee Wochenende", 0.9), line("•", "Kuchen backen", 0.9)]);
 
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "edited");
-  await expect(rows(page).nth(0).locator(".scan-meta")).toHaveText("91% \u00b7 updates entry");
+  await expect(rows(page).nth(0).locator(".scan-meta")).toHaveText("91%");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Water the office plants \u00b7 will be marked done");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "true");
   await expect(rows(page).nth(0).locator('[data-role="was"]')).toContainText("was");
   await expect(rows(page).nth(0).locator('[data-role="was"]')).toContainText("Water the office plants");
@@ -331,21 +332,18 @@ test("an x line over an open task is an update with before and after, and a repe
   await expect(rows(page).nth(0).locator(".scan-glyph svg use")).toHaveAttribute("href", "#g-done");
   await expect(rows(page)).toHaveCount(3);
 
-  // The repeated note is folded away: a count, the row hidden, nothing ticked.
-  await expect(page.getByTestId("scan-unchanged")).toHaveText(/^Show 1 unchanged/);
-  await expect(rows(page).nth(1)).toBeHidden();
+  // The repeated note is shown, matched, with nothing to write and nothing ticked. No fold hides it.
+  await expect(page.getByTestId("scan-unchanged")).toHaveCount(0);
+  await expect(rows(page).nth(1)).toBeVisible();
   await expect(rows(page).nth(1)).toHaveAttribute("data-status", "unchanged");
+  await expect(rows(page).nth(1)).toHaveAttribute("data-match", "matched");
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
+  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText("matches: Idee Wochenende \u00b7 already matches, only marked on paper");
   await expect(rows(page).nth(2)).toHaveAttribute("data-status", "new");
+  await expect(rows(page).nth(2).locator('[data-role="match"]')).toBeHidden();
+  await expect(rows(page).nth(2).locator('[data-field="unmatch"]')).toBeHidden();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 1 update");
   await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 1 new entry, 1 update`);
-
-  // Opening the note shows the line and ticks nothing.
-  await page.getByTestId("scan-unchanged").click();
-  await expect(page.getByTestId("scan-unchanged")).toContainText("Hide 1 unchanged");
-  await expect(rows(page).nth(1)).toBeVisible();
-  await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
-  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 1 update");
 
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -355,28 +353,85 @@ test("an x line over an open task is an update with before and after, and a repe
   await expect(logRow(page, "Kuchen backen")).toHaveAttribute("data-type", "task");
 });
 
-test("a rescan shows updates and new lines, hides unchanged ones, and applies without touching an entry missing from the page", async ({ page }) => {
+test("a line with OCR noise is shown as matching the existing item, and apply adds no duplicate", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "task", title: "Fensterputzer anrufen" }, { date: day(0), type: "task", title: "Roggenbrot kaufen" }]);
+  await scanPage(page, [headerLine(day(0)), line("•", "Fensterputzer anrufcn", 0.78), line("x", "Roggenbrot kaufn", 0.9)]);
+
+  await expect(rows(page).nth(0)).toBeVisible();
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Fensterputzer anrufen \u00b7 already matches, only marked on paper");
+  await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
+  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText("matches: Roggenbrot kaufen \u00b7 will be marked done");
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 update");
+
+  await review(page).locator("[data-action=apply]").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(logRow(page, "Fensterputzer anrufen")).toHaveCount(1);
+  await expect(logRow(page, "Fensterputzer anrufen")).toHaveAttribute("data-type", "task");
+  await expect(logRow(page, "Fensterputzer anrufcn")).toHaveCount(0);
+  await expect(logRow(page, "Roggenbrot kaufen")).toHaveCount(1);
+  await expect(logRow(page, "Roggenbrot kaufen")).toHaveAttribute("data-type", "done");
+  await expect(logRow(page, "Roggenbrot kaufn")).toHaveCount(0);
+});
+
+test("Not the same turns a matched line into a new entry, and Match again puts it back", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "task", title: "Steuererklaerung abgeben" }]);
+  await scanPage(page, [headerLine(day(0)), line("x", "Steuererklaerung abgcben", 0.9)]);
+  const first = rows(page).nth(0);
+  const unmatch = first.locator('[data-field="unmatch"]');
+
+  await expect(unmatch).toHaveText("Not the same");
+  await expect(unmatch).toHaveAccessibleName("Treat as a new entry, not Steuererklaerung abgeben");
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 update");
+
+  await unmatch.click();
+  await expect(first).toHaveAttribute("data-status", "new");
+  await expect(first).toHaveAttribute("data-match", "unmatched");
+  await expect(first).toHaveAttribute("data-include", "true");
+  await expect(first.locator('[data-role="match"]')).toHaveText("new entry, not Steuererklaerung abgeben");
+  await expect(first.locator('[data-role="was"]')).toBeHidden();
+  await expect(unmatch).toHaveText("Match again");
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 entry");
+
+  // The server agrees: a recheck keeps it new, and a reload of the check does not bring the match back.
+  await first.locator('[data-field="title"]').press("Tab");
+  await expect(first).toHaveAttribute("data-status", "new");
+
+  await unmatch.click();
+  await expect(first).toHaveAttribute("data-status", "edited");
+  await expect(first.locator('[data-role="match"]')).toHaveText("matches: Steuererklaerung abgeben \u00b7 will be marked done");
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 update");
+
+  await unmatch.click();
+  await review(page).locator("[data-action=apply]").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(logRow(page, "Steuererklaerung abgeben")).toHaveCount(1);
+  await expect(logRow(page, "Steuererklaerung abgeben")).toHaveAttribute("data-type", "task");
+  await expect(logRow(page, "Steuererklaerung abgcben")).toHaveAttribute("data-type", "done");
+});
+
+test("a rescan shows updates, new lines and matched lines, and applies without touching an entry missing from the page", async ({ page }) => {
   await seed(page, [
     { date: day(0), type: "task", title: "Semmeln kaufen" },
-    { date: day(0), type: "task", title: "Zahnarzt anrufen" },
+    { date: day(0), type: "task", title: "Kieferorthopaede anrufen" },
     { date: day(0), type: "note", title: "Idee Urlaub" },
     { date: day(0), type: "event", title: "Nicht mehr auf dem Blatt" },
   ]);
   await scanPage(page, [
     headerLine(day(0)),
     line("x", "Semmeln kaufen", 0.92),
-    line("•", "Zahnarzt anrufen #health 14h30", 0.9),
+    line("•", "Kieferorthopaede anrufen #health 14h30", 0.9),
     line("–", "Idee Urlaub", 0.9),
     line("•", "Post abholen", 0.9),
   ]);
 
   await expect(review(page).locator('.scan-row[data-status="edited"]')).toHaveCount(2);
   await expect(review(page).locator('.scan-row[data-status="new"]')).toHaveCount(1);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
+  await expect(review(page).locator('.scan-row[data-status="unchanged"]')).toBeVisible();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 2 updates");
   const tagged = review(page).locator('.scan-row[data-id="l3"]');
   await expect(tagged.locator('[data-role="was"]')).toContainText("no tag");
   await expect(tagged.locator('[data-role="was"]')).toContainText("no time");
+  await expect(tagged.locator('[data-role="match"]')).toHaveText("matches: Kieferorthopaede anrufen \u00b7 will update the entry");
   await expect(tagged.locator('[data-field="tag"]')).toHaveValue("health");
 
   // Skipping the new line leaves only the two updates to write.
@@ -386,26 +441,27 @@ test("a rescan shows updates and new lines, hides unchanged ones, and applies wi
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(logRow(page, "Semmeln kaufen")).toHaveAttribute("data-type", "done");
-  const zahnarzt = logRow(page, "Zahnarzt anrufen");
-  await expect(zahnarzt).toHaveCount(1);
-  await expect(zahnarzt.locator(".pill")).toContainText(["health", "14:30"]);
+  const kiefer = logRow(page, "Kieferorthopaede anrufen");
+  await expect(kiefer).toHaveCount(1);
+  await expect(kiefer.locator(".pill")).toContainText(["health", "14:30"]);
   await expect(logRow(page, "Idee Urlaub")).toHaveAttribute("data-type", "note");
   await expect(logRow(page, "Post abholen")).toHaveCount(0);
   await expect(logRow(page, "Nicht mehr auf dem Blatt")).toHaveCount(1);
 });
 
-test("a page that only repeats the log shows just the unchanged count and nothing to apply", async ({ page }) => {
+test("a page that only repeats the log shows its matched line and nothing to apply", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Nur wiederholt" }]);
   await scanPage(page, [headerLine(day(0)), line("•", "Nur wiederholt", 0.9)]);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
-  await expect(rows(page).nth(0)).toBeHidden();
+  await expect(rows(page).nth(0)).toBeVisible();
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Nur wiederholt");
   await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Nothing to apply");
 });
 
-test("the unchanged note is hidden when no line is unchanged", async ({ page }) => {
+test("a new line has no match line and no Not the same button", async ({ page }) => {
   await scanPage(page, [headerLine(day(0)), line("•", "Ganz neu", 0.9)]);
-  await expect(page.getByTestId("scan-unchanged")).toBeHidden();
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toBeHidden();
+  await expect(rows(page).nth(0).locator('[data-field="unmatch"]')).toBeHidden();
 });
 
 test("a rescan after an app edit does not overwrite the edit", async ({ page }) => {
@@ -418,7 +474,7 @@ test("a rescan after an app edit does not overwrite the edit", async ({ page }) 
   expect((await page.request.patch(`${app.baseUrl}/api/entries/${made.id}`, { data: { type: "migrated", tags: ["Haushalt"] } })).status()).toBe(200);
 
   await scanPage(page, [headerLine(day(0)), line("•", "Gartentor streichen", 0.9), line("•", "Eier holen", 0.9)]);
-  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
+  await expect(review(page).locator('.scan-row[data-status="unchanged"]')).toBeVisible();
   await expect(review(page).locator('.scan-row[data-status="new"]')).toHaveCount(1);
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -439,11 +495,10 @@ test("a page with no date uses today, and picking another day rechecks the lines
   await expect(page.getByTestId("scan-date-source")).toHaveText("Picked by you");
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "false");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Butter holen");
   await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
-  await expect(page.getByTestId("scan-unchanged")).toContainText("Show 1 unchanged");
 
   // Edit the line so it differs from the entry: it becomes an update to that day's entry, not a second row.
-  await page.getByTestId("scan-unchanged").click();
   await rows(page).nth(0).locator('[data-field="title"]').fill("Butter und Brot holen");
   await rows(page).nth(0).locator('[data-field="title"]').press("Tab");
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "edited");

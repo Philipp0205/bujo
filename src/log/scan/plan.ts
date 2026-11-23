@@ -78,12 +78,12 @@ function bestTrace(line: Line, traces: readonly Trace[], claimed: Set<string>): 
 
 /**
  * A ">" or "<" line with no entry of its own is often the trace a move left on this page: the paper shows where the entry went.
- * Such a line is unchanged with no target (nothing to stamp or write). Each trace answers one line.
+ * Such a line is unchanged with no target (nothing to stamp or write). Each trace answers one line. An un-matched line answers none.
  */
 function matchTraces(lines: readonly Line[], resolved: Map<string, Planned>, traces: readonly Trace[]): void {
   const claimed = new Set<string>();
   for (const line of lines) {
-    if (resolved.get(line.id)?.status !== "new" || (line.type !== "migrated" && line.type !== "scheduled")) continue;
+    if (line.unmatched || resolved.get(line.id)?.status !== "new" || (line.type !== "migrated" && line.type !== "scheduled")) continue;
     const trace = bestTrace(line, traces, claimed);
     if (!trace) continue;
     claimed.add(trace.id);

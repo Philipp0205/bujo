@@ -51,7 +51,8 @@ function writeOne(store: EntryStore, userId: string, now: number, { item, slot, 
   if (resolution.status === "edited" && resolution.target && resolution.after) {
     const { type, title, tags, time } = resolution.after;
     const updated = store.update(userId, resolution.target.id, { type, title, tags, time }, now)!;
-    store.setScanProvenance(userId, updated.id, snapshotOf(paper.entry, now));
+    // The paper state is what the entry now says: a title the paper only misspelled stays as the entry has it.
+    store.setScanProvenance(userId, updated.id, snapshotOf(updated, now));
     return { id: item.id, outcome: "updated", entry: updated };
   }
   const created = store.create(userId, paper.entry, now);
@@ -61,13 +62,14 @@ function writeOne(store: EntryStore, userId: string, now: number, { item, slot, 
 
 /**
  * Records the paper line on a matched entry that did not change, so the next scan knows its key. It writes no content and
- * leaves updated_at and sync alone. An entry the person changed in the app is not stamped: a stamp would hide that edit.
+ * leaves updated_at and sync alone. The entry's own fields are stamped, so a line with OCR noise never puts the noise on the entry.
+ * An entry the person changed in the app is not stamped: a stamp would hide that edit.
  * A line that matched a trace has no entry and is not stamped.
  */
 function stampUnchanged(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): void {
   if (resolution.status !== "unchanged" || !resolution.target || resolution.protectedEdit || !slot) return;
   const paper = validFields(item, slot);
-  if (paper.ok) store.setScanProvenance(userId, resolution.target.id, snapshotOf(paper.entry, now));
+  if (paper.ok) store.setScanProvenance(userId, resolution.target.id, snapshotOf(resolution.target, now));
 }
 
 /**

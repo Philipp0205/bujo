@@ -97,7 +97,8 @@ test("fuzzy text: case, umlaut spelling and small OCR slips still bind", () => {
   );
   assert.deepEqual([out.get("a")?.target?.id, out.get("b")?.target?.id, out.get("c")?.target?.id], ["e1", "e2", "e3"]);
   assert.deepEqual([out.get("a")?.status, out.get("b")?.status], ["unchanged", "unchanged"]);
-  assert.equal(out.get("c")?.status, "edited", "a corrected spelling is a title change");
+  assert.equal(out.get("c")?.status, "unchanged", "OCR noise in the title only restates the entry, it is not an edit");
+  assert.equal(out.get("c")?.after, null);
 });
 
 test("the stored scan key binds a line whose title the person later reworded in the app", () => {
@@ -168,4 +169,60 @@ test("an unrelated type binds only on a near-exact title", () => {
   const existing = [entry("e1", "event", "Lunch with Mira")];
   assert.equal(resolveLines([paper("a", "task", "Lunch with Mira")], existing).get("a")?.status, "edited");
   assert.equal(resolveLines([paper("a", "task", "Lunch with Mirko")], existing).get("a")?.status, "new");
+});
+
+test("match: case, bullets and punctuation in the title do not matter, and the line is unchanged", () => {
+  const existing = [entry("e1", "task", "Zahnarzt anrufen")];
+  for (const title of ["ZAHNARZT ANRUFEN!", "  zahnarzt   anrufen. ", "• Zahnarzt anrufen"]) {
+    const hit = resolveLines([paper("a", "task", title)], existing).get("a")!;
+    assert.deepEqual([hit.status, hit.target?.id], ["unchanged", "e1"], title);
+  }
+});
+
+test("match: typo-level OCR noise is the same item, not a duplicate, and leaves the entry's title alone", () => {
+  const existing = [entry("e1", "task", "Zahnarzt anrufen"), entry("e2", "task", "Gartentor streichen", { position: 1 })];
+  const out = resolveLines([paper("a", "task", "Zahnarst anrufcn"), paper("b", "task", "Gartentor streichn")], existing);
+  assert.deepEqual([out.get("a")?.status, out.get("a")?.target?.id], ["unchanged", "e1"]);
+  assert.deepEqual([out.get("b")?.status, out.get("b")?.target?.id], ["unchanged", "e2"]);
+});
+
+test("match: below 70 percent is not a match, the line is new", () => {
+  const existing = [entry("e1", "task", "Brot kaufen")];
+  for (const title of ["Brot holen", "Milch trinken", "Brct kautcn"]) {
+    const hit = resolveLines([paper("a", "task", title)], existing).get("a")!;
+    assert.deepEqual([hit.status, hit.target], ["new", null], title);
+  }
+});
+
+test("state change: x on paper over a task in the app marks that item done, with the same title and no second row", () => {
+  const existing = [entry("e1", "task", "Zahnarzt anrufen")];
+  const hit = resolveLines([paper("a", "done", "Zahnarst anrufen")], existing).get("a")!;
+  assert.equal(hit.status, "edited");
+  assert.equal(hit.target?.id, "e1");
+  assert.deepEqual([hit.before?.type, hit.after?.type, hit.after?.title], ["task", "done", "Zahnarzt anrufen"]);
+});
+
+test("state change: > and < over a task are the migration and the schedule of that item", () => {
+  const existing = [entry("e1", "task", "Zahnarzt anrufen"), entry("e2", "task", "Brot kaufen", { position: 1 })];
+  const out = resolveLines([paper("a", "migrated", "Zahnarzt anrufcn"), paper("b", "scheduled", "Brot kaufen")], existing);
+  assert.deepEqual([out.get("a")?.status, out.get("a")?.target?.id, out.get("a")?.after?.type], ["edited", "e1", "migrated"]);
+  assert.deepEqual([out.get("b")?.status, out.get("b")?.target?.id, out.get("b")?.after?.type], ["edited", "e2", "scheduled"]);
+});
+
+test("1:1: two similar lines use each entry at most once, and each line prefers its best entry whatever the page order", () => {
+  const existing = [entry("e1", "task", "Milch kaufen"), entry("e2", "task", "Milch kaufen gehen", { position: 1 })];
+  for (const lines of [[paper("a", "task", "Milch kaufen gehe"), paper("b", "task", "Milch kaufcn")], [paper("b", "task", "Milch kaufcn"), paper("a", "task", "Milch kaufen gehe")]]) {
+    const bound = alignLines(lines, existing);
+    assert.equal(bound.get("a")?.id, "e2");
+    assert.equal(bound.get("b")?.id, "e1");
+  }
+  const one = alignLines([paper("a", "task", "Milch kaufen gehe"), paper("b", "task", "Milch kaufen gehn")], [entry("e2", "task", "Milch kaufen gehen")]);
+  assert.deepEqual([one.get("a")?.id, one.has("b")], ["e2", false], "the second line gets no entry once the first claimed it");
+});
+
+test("un-matched: a line the person un-matched is new, claims no entry, and leaves the entry to another line", () => {
+  const existing = [entry("e1", "task", "Zahnarzt anrufen")];
+  const out = resolveLines([{ ...paper("a", "task", "Zahnarst anrufen"), unmatched: true }, paper("b", "task", "Zahnarzt anrufen")], existing);
+  assert.deepEqual([out.get("a")?.status, out.get("a")?.target], ["new", null]);
+  assert.deepEqual([out.get("b")?.status, out.get("b")?.target?.id], ["unchanged", "e1"]);
 });

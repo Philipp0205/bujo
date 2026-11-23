@@ -1,13 +1,17 @@
 import { CORRECTIONS } from "./wordlist.ts";
 
 /**
- * Matching scanned lines to open backlog titles. German text, OCR noise tolerated.
- * normalise -> correct known misreadings -> fuzzy score (Levenshtein and trigram, plus word coverage).
+ * Matching scanned lines to open backlog titles and to the entries of a log page. German text, OCR noise tolerated.
+ * normalise -> correct known misreadings -> drop a leading bullet -> fuzzy score.
+ * The measure is the mean of a Levenshtein ratio (catches wrong letters) and a trigram Dice score (catches shifted or
+ * dropped letters), 0..1. A shorter line that names most words of a longer title scores by word coverage, capped lower.
+ * Two different numbers pull a score down, so "task 1" is not "task 2".
  * A weak or an ambiguous best match is not used by default: the review screen decides.
+ * The log scan (src/log/scan) and the trace and rescan-key matching share this one matcher and this one threshold.
  */
 
-/** Best score below this is no match. */
-export const MATCH_THRESHOLD = 0.72;
+/** Best score at or above this is a match: two texts are the same item. The one threshold for every matcher. */
+export const MATCH_THRESHOLD = 0.7;
 /** Two different tasks both over the threshold and closer than this make the match ambiguous. */
 export const AMBIGUOUS_GAP = 0.1;
 /** Candidates the review screen may offer. Lower than the threshold so a person can pick a weak one. */
@@ -50,9 +54,12 @@ export function correctWords(text: string): string {
   });
 }
 
-/** The form that is compared: corrected, then normalised. */
+/**
+ * The form that is compared: corrected, then normalised, with a leading "x" bullet word dropped. The other bullets
+ * (• – ○ > <) are punctuation, so normalise already removes them. A lone "x" is kept: it is all the title there is.
+ */
 export function matchKey(text: string): string {
-  return normalise(correctWords(text));
+  return normalise(correctWords(text)).replace(/^x (?=\S)/, "");
 }
 
 export function levenshtein(a: string, b: string): number {
@@ -116,23 +123,47 @@ function wordCoverage(scan: string[], title: string[]): number {
 
 const isNumber = (word: string) => /^\d+$/.test(word);
 
+/** True when both texts name numbers and the numbers differ: "task 1" and "task 2" are different tasks. */
+function numbersDiffer(wa: string[], wb: string[]): boolean {
+  const na = wa.filter(isNumber);
+  const nb = wb.filter(isNumber);
+  return na.length > 0 && nb.length > 0 && na.join(" ") !== nb.join(" ");
+}
+
+/** Mean of the Levenshtein ratio and the trigram Dice score of two normalised strings: the whole-text measure. */
+function wholeSimilarity(a: string, b: string): number {
+  return 0.5 * levenshteinSimilarity(a, b) + 0.5 * trigramSimilarity(a, b);
+}
+
 /** Similarity of two already-normalised strings, 0..1. */
 export function similarity(a: string, b: string): number {
   if (a === "" || b === "") return 0;
   if (a === b) return 1;
-  const whole = 0.5 * levenshteinSimilarity(a, b) + 0.5 * trigramSimilarity(a, b);
+  const whole = wholeSimilarity(a, b);
   const wa = a.split(" ");
   const wb = b.split(" ");
   // A shorter line that names several words of a longer title. One word alone is not enough, and the line has to
   // carry a fair share of the title's letters. Capped below a full match.
   const letters = (words: string[]) => words.reduce((sum, word) => sum + word.length, 0);
   const partial = wa.length >= 2 && letters(wa) >= 0.35 * letters(wb) ? 0.85 * wordCoverage(wa, wb) : 0;
-  let score = Math.max(whole, partial);
-  // "task 1" and "task 2" are different tasks. When both name numbers and the numbers differ, the score drops.
-  const na = wa.filter(isNumber);
-  const nb = wb.filter(isNumber);
-  if (na.length > 0 && nb.length > 0 && na.join(" ") !== nb.join(" ")) score *= 0.6;
-  return score;
+  const score = Math.max(whole, partial);
+  return numbersDiffer(wa, wb) ? score * 0.6 : score;
+}
+
+/** Letter-level score (spaces ignored) from which a matched title reads as the same words misread, not as a reworded title. */
+export const SAME_WORDS = 0.8;
+
+/**
+ * True when two titles say the same thing up to OCR noise: equal keys, or the same letters give or take a few wrong,
+ * dropped or split ones (Levenshtein ratio with spaces ignored, SAME_WORDS or more) and no differing number. A matched
+ * line with such a title restates its entry, so the entry keeps its own spelling. An added or removed word is a real edit.
+ */
+export function sameWords(a: string, b: string): boolean {
+  const ka = matchKey(a);
+  const kb = matchKey(b);
+  if (ka === kb) return true;
+  if (ka === "" || kb === "") return false;
+  return !numbersDiffer(ka.split(" "), kb.split(" ")) && levenshteinSimilarity(ka.replace(/ /g, ""), kb.replace(/ /g, "")) >= SAME_WORDS;
 }
 
 /** Scores a line against every open task and decides. `candidates` are the open tasks to match against. */

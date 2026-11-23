@@ -73,18 +73,42 @@
       tagLabel: 'Tag',
       tag: 'tag',
       checkSpelling: 'check spelling',
-      updatesEntry: 'updates entry',
       changedInApp: 'also changed in the app',
       was: 'was',
       noTag: 'no tag',
       noTime: 'no time',
       keep: 'Keep this line',
       keepLabel: 'Keep',
+      /** The faint line of a line that matched an entry of the day: it is that item, not a new one. */
+      matches: function (title) {
+        return 'matches: ' + title;
+      },
+      /** A ">" or "<" line that matched the trace a move left on this page: nothing to write. */
+      matchesTrace: 'matches the trace of a moved entry',
+      traceChange: 'already on paper, nothing to write',
+      /** What applying does to the matched entry, by the kind of change the paper carries. */
+      matchChange: {
+        same: 'already matches, only marked on paper',
+        done: 'will be marked done',
+        migrated: 'will be marked migrated',
+        scheduled: 'will be marked scheduled',
+        task: 'will be set to a task',
+        note: 'will be set to a note',
+        event: 'will be set to an event',
+        fields: 'will update the entry'
+      },
+      /** A matched line that was un-matched: it is a new entry, and the item it matched is left alone. */
+      notMatched: function (title) {
+        return 'new entry, not ' + (title ? title : 'the moved entry');
+      },
+      unmatch: 'Not the same',
+      unmatchLabel: function (title) {
+        return 'Treat as a new entry, not ' + (title ? title : 'the moved entry');
+      },
+      rematch: 'Match again',
+      rematchLabel: 'Match this line to its entry again',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
-      unchanged: function (count, open) {
-        return (open ? 'Hide ' : 'Show ') + count + ' unchanged';
-      },
       /** The subtitle and the button say what will be written: new entries and updates, never the unchanged lines. */
       writes: function (counts) {
         var parts = [];
