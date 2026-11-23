@@ -7,7 +7,7 @@ import { isPageKind, type Line, type PageKind } from "./types.ts";
 
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
-const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched"];
+const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important"];
 const BODY_KEYS = ["kind", "date", "month", "items"];
 
 /** One line as the review sends it back: edits included. `day` is a calendar line's day, `month` a future line's month (YYYY-MM). `unmatched` says it is not the entry it matched. */
@@ -21,6 +21,8 @@ export type SentItem = {
   day: number | null;
   month: string | null;
   unmatched: boolean;
+  /** The handwritten * on the line. */
+  important: boolean;
 };
 
 /** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, and the lines. */
@@ -78,7 +80,8 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   if (raw.include !== undefined && typeof raw.include !== "boolean") bad(`${at}: include must be true or false`);
   if (raw.unmatched !== undefined && typeof raw.unmatched !== "boolean") bad(`${at}: unmatched must be true or false`);
   const { id, type, title } = raw as { id: string; type: EntryType; title: string };
-  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true };
+  if (raw.important !== undefined && typeof raw.important !== "boolean") bad(`${at}: important must be true or false`);
+  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true };
 }
 
 /** The kind a request names, or the draft's detected kind when it names none. */

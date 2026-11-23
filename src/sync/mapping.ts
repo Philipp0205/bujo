@@ -1,4 +1,4 @@
-import { buildNewTodo, parseVTodos, type TodoPatch } from "../caldav/ics.ts";
+import { buildNewTodo, parseVTodos, type Priority, type TodoPatch } from "../caldav/ics.ts";
 import { buildNewEvent, eventDifferences, parseVEvents, type EventFields } from "../caldav/vevent.ts";
 import { isDayDated } from "../log/horizon.ts";
 import type { Entry, EntryType } from "../log/types.ts";
@@ -29,18 +29,22 @@ export type TodoShape = {
   status: "NEEDS-ACTION" | "COMPLETED" | "CANCELLED";
   /** YYYY-MM-DD for DUE;VALUE=DATE, or null for no DUE. */
   due: string | null;
+  /** True writes PRIORITY:1. False leaves PRIORITY unset. */
+  important: boolean;
 };
 
 /**
  * The VTODO an entry stands for. done is finished, dropped is CANCELLED. scheduled has a DUE day. A task, done or migrated entry of a month or
  * the future has DUE = the last day of its month (its date). A plain task on a real day (daily log or monthly calendar) has no DUE.
+ * An important entry has PRIORITY:1 (the RFC high bucket), whatever its status.
  */
-export function todoShape(entry: Pick<Entry, "type" | "title" | "date"> & { horizon?: Entry["horizon"] }): TodoShape {
+export function todoShape(entry: Pick<Entry, "type" | "title" | "date"> & { horizon?: Entry["horizon"]; important?: boolean }): TodoShape {
   const inMonth = entry.horizon !== undefined && !isDayDated(entry.horizon);
   return {
     summary: entry.title,
     status: statusOf(entry.type),
     due: entry.type === "scheduled" || inMonth ? entry.date : null,
+    important: entry.important === true,
   };
 }
 
@@ -50,16 +54,25 @@ function statusOf(type: EntryType): TodoShape["status"] {
   return type === "dropped" ? "CANCELLED" : "NEEDS-ACTION";
 }
 
-/** A whole new VCALENDAR for an entry. No DTSTART, PRIORITY or CATEGORIES: the tags are not mapped. */
+/** A whole new VCALENDAR for an entry. PRIORITY:1 only when important; no DTSTART or CATEGORIES: the tags are not mapped. */
 export function newTodoFor(shape: TodoShape, uid: string, nowMs: number): string {
-  const todo = { uid, summary: shape.summary, due: shape.due };
+  const todo = { uid, summary: shape.summary, due: shape.due, priority: shape.important ? (1 as const) : null };
   return buildNewTodo({ ...todo, complete: shape.status === "COMPLETED", cancel: shape.status === "CANCELLED" }, nowMs);
 }
 
-/** The edit that turns an existing VTODO into this shape. Everything else on the object stays as it is. */
-export function patchFor(shape: TodoShape): TodoPatch {
+/**
+ * The edit that turns an existing VTODO into this shape. Everything else on the object stays as it is.
+ * Important sets PRIORITY:1, replacing a remote 5 or 9. Not important removes a remote high (1) and leaves a 5 or 9 alone.
+ */
+export function patchFor(shape: TodoShape, remotePriority: Priority | null = null): TodoPatch {
   const status = shape.status === "COMPLETED" ? { complete: true } : shape.status === "CANCELLED" ? { cancel: true } : { reopen: true };
-  return { summary: shape.summary, due: shape.due, ...status };
+  const priority = shape.important ? { priority: 1 as const } : remotePriority === 1 ? { priority: null } : {};
+  return { summary: shape.summary, due: shape.due, ...priority, ...status };
+}
+
+/** The PRIORITY bucket of a VTODO in a calendar text, or null when it has none. */
+export function remotePriorityOf(text: string, uid: string): Priority | null {
+  return parseVTodos(text).find((item) => item.uid === uid)?.priority ?? null;
 }
 
 /** Compares a calendar object read back from the server with what was written. Null when it matches, else what differs. */
@@ -69,6 +82,7 @@ export function readBackMismatch(text: string, uid: string, shape: TodoShape): s
   if (todo.summary !== shape.summary) return mismatchReason("SUMMARY");
   if (todo.status !== shape.status) return mismatchReason("STATUS");
   if ((todo.due?.date ?? null) !== shape.due) return mismatchReason("DUE");
+  if ((todo.priority === 1) !== shape.important) return mismatchReason("PRIORITY");
   return null;
 }
 

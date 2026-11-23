@@ -36,10 +36,24 @@
     else apply(entry, type);
   }
 
-  /** The card of the picker: one option per type, the type of the entry pressed. */
+  /** The important switch: a full-width row under the types, a * and the word. It flips the flag at once and leaves the type alone. */
+  function importantToggle(entry) {
+    var copy = L.copy.important;
+    return h('button', {
+      class: 'important-toggle', type: 'button', 'data-testid': 'important-toggle', 'aria-pressed': entry.important ? 'true' : 'false',
+      onclick: function () {
+        close();
+        L.move.pick.save(entry, { important: !entry.important }).catch(L.move.pick.fail);
+      }
+    }, h('span', { class: 'important-toggle-star', 'aria-hidden': 'true' }, '*'), h('span', { class: 'important-toggle-label' }, copy.toggle),
+    h('span', { class: 'important-toggle-hint' }, copy.hint));
+  }
+
+  /** The card of the picker: one option per type, the type of the entry pressed, then the important switch. */
   function card(entry) {
     return h('div', { class: 'type-chooser', role: 'group', 'aria-label': L.copy.inline.typeChooser, 'data-testid': 'type-chooser' },
-      L.inline.type.order().map(function (type) { return L.inline.type.option(type, entry.type, function () { pick(entry, type); }); }));
+      L.inline.type.order().map(function (type) { return L.inline.type.option(type, entry.type, function () { pick(entry, type); }); }),
+      importantToggle(entry));
   }
 
   /** Opens the picker for the row with this id. */

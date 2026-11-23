@@ -81,7 +81,7 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(body).find((key) => !allowed.includes(key));
 }
 
-const FIELDS = ["date", "horizon", "type", "title", "tags", "time", "body"] as const;
+const FIELDS = ["date", "horizon", "type", "title", "tags", "time", "body", "important"] as const;
 const PATCH_FIELDS = [...FIELDS, "indent"] as const;
 const CREATE_FIELDS = [...FIELDS, "id"] as const;
 /** The shape crypto.randomUUID() makes: 8-4-4-4-12 lowercase hex with dashes. */
@@ -151,6 +151,10 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
     if (!text.ok) return text;
     out.body = text.value;
   }
+  if ("important" in body) {
+    if (typeof body.important !== "boolean") return fail("important must be true or false");
+    out.important = body.important;
+  }
   if ("indent" in body) {
     if (body.indent !== 0 && body.indent !== 1) return fail("indent must be 0 or 1");
     out.indent = body.indent;
@@ -176,8 +180,8 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   if ("id" in body && !isEntryId(body.id)) return fail("id must be a UUID like 3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b");
   const fields = checkFields(body);
   if (!fields.ok) return fields;
-  const { date, horizon = "day", type, title, tags = [], time = null, body: text = null } = fields.value;
-  const entry: NewEntry = { date: date!, horizon, type: type!, title: title!, tags, time, body: text };
+  const { date, horizon = "day", type, title, tags = [], time = null, body: text = null, important = false } = fields.value;
+  const entry: NewEntry = { date: date!, horizon, type: type!, title: title!, tags, time, body: text, important };
   return { ok: true, value: "id" in body ? { id: body.id as string, ...entry } : entry };
 }
 

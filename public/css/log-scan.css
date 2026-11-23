@@ -333,6 +333,19 @@
   pointer-events: none;
 }
 .scan-glyph svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.scan-star {
+  position: absolute;
+  left: 14px;
+  top: 8px;
+  width: 14px;
+  font-family: var(--paper-hand, inherit);
+  font-size: 20px;
+  line-height: 20px;
+  text-align: center;
+  color: var(--paper-ink);
+  pointer-events: none;
+}
+.scan-star[hidden] { display: none; }
 .scan-type {
   position: absolute;
   inset: 0;

@@ -74,6 +74,7 @@
       tag: 'tag',
       checkSpelling: 'check spelling',
       changedInApp: 'also changed in the app',
+      important: 'important',
       was: 'was',
       noTag: 'no tag',
       noTime: 'no time',

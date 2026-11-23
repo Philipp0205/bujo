@@ -9,6 +9,7 @@ import {
   newTodoFor,
   patchFor,
   readBackMismatch,
+  remotePriorityOf,
   syncKind,
   todoShape,
   type SyncKind,
@@ -60,7 +61,7 @@ function todoPlan(entry: Entry): Plan {
   return {
     kind: "todo",
     create: (uid, nowMs) => newTodoFor(shape, uid, nowMs),
-    edit: (text, uid, nowMs) => editTodo(text, uid, patchFor(shape), nowMs),
+    edit: (text, uid, nowMs) => editTodo(text, uid, patchFor(shape, remotePriorityOf(text, uid)), nowMs),
     mismatch: (text, uid) => readBackMismatch(text, uid, shape),
     foreign: () => null,
   };

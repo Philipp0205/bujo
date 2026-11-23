@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-important",
+    "date": "2026-11-23",
+    "title": "Mark what matters with a star",
+    "bullets": [
+      "Hold the bullet of an entry and tap Important to put a handwritten * in the margin, just before the bullet. Tap it again to take it off.",
+      "A * in front of a bullet on a scanned page is read as important, and kept when you apply the scan.",
+      "In Nextcloud an important task is written with priority high. Without the star the priority is left alone."
+    ]
+  },
+  {
     "id": "2026-11-23-one-tap",
     "date": "2026-11-23",
     "title": "One tap to close a task, hold for the type",

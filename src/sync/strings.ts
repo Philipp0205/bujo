@@ -3,7 +3,7 @@
 
 export const SYNC_MESSAGES = {
   conflict: "Nextcloud changed this task at the same moment. Nothing was overwritten. Retry sync to try again.",
-  readBackMismatch: "Nextcloud did not keep what was sent (title, status or due date differ).",
+  readBackMismatch: "Nextcloud did not keep what was sent (title, status, due date or priority differ).",
   gone: "This task is no longer in Nextcloud. It was not created again.",
   unreachable: "Nextcloud did not answer.",
   refused: "Nextcloud refused the sign-in. Check the CalDAV user and password.",

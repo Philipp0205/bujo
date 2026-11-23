@@ -78,6 +78,12 @@
         pills(entry, off)));
   }
 
+  /** The handwritten * in the margin before the bullet of an important entry, or null. It is a drawing only and takes no touches. */
+  function star(entry) {
+    if (!entry.important) return null;
+    return h('span', { class: 'paper-star', 'data-testid': 'important-star', role: 'img', 'aria-label': L.copy.important.mark }, '*');
+  }
+
   /** One entry as a row: the bullet (a done toggle for tasks), the title and inked words that open the edit sheet. A tap anywhere else on the row opens it too, or ticks it while selecting. */
   function entryRow(entry, actions, indent, today) {
     var picking = actions.select.on();
@@ -90,11 +96,13 @@
       'data-sync': entry.sync,
       'data-queued': entry.queued || null,
       'data-on-paper': entry.onPaper ? 'true' : 'false',
+      'data-important': entry.important ? 'true' : null,
       'data-indent': String(indent),
       'aria-selected': picking ? String(ticked) : null,
       onclick: tapOf(entry, actions)
     },
       picking ? ring(ticked) : null,
+      star(entry),
       symbol(entry, actions),
       openButton(entry, L.paper.recent.shows(entry, today)));
   }
