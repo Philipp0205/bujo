@@ -19,10 +19,13 @@ type Loaded = {
     span(today: string): { from: string; to: string };
     lastDay(month: string): string;
     readMonth(text: unknown, today: string): string | null;
-    shifted(month: string, n: number, today: string): string | null;
-    slotOf(view: string, month: string, today: string): { date: string; horizon: string };
+    slotOf(view: string, month: string, today: string, page?: number): { date: string; horizon: string };
     monthDays(entries: Entry[], month: string): Array<{ date: string; entries: Entry[] }>;
+    monthPages(today: string): Array<{ month: string; part: string }>;
+    monthStep(page: { month: string; part: string }, n: number, today: string): { month: string; part: string } | null;
     buckets(entries: Entry[], today: string): Array<{ month: string; cards: Array<{ entry: Entry }> }>;
+    futurePages(entries: Entry[], today: string): Array<Array<{ month: string }>>;
+    futureStep(page: number, n: number): { page: number } | null;
   };
   inline: {
     blank(slot: { date: string; horizon: string }): Line;
@@ -69,15 +72,25 @@ test("horizon: the last day of a month is the date of its month items", () => {
   assert.equal(M.horizon.lastDay("2028-02"), "2028-02-29");
 });
 
-test("horizon: a ?month= link is read only for the six months, and the arrows stop at the ends", () => {
+test("horizon: a ?month= link is read only for the six months", () => {
   assert.equal(M.horizon.readMonth("2027-03", TODAY), "2027-03");
   assert.equal(M.horizon.readMonth("2027-05", TODAY), null);
   assert.equal(M.horizon.readMonth("2026-10", TODAY), null);
   assert.equal(M.horizon.readMonth("2026-13", TODAY), null);
   assert.equal(M.horizon.readMonth(null, TODAY), null);
-  assert.equal(M.horizon.shifted("2026-11", -1, TODAY), null);
-  assert.equal(M.horizon.shifted("2026-11", 1, TODAY), "2026-12");
-  assert.equal(M.horizon.shifted("2027-04", 1, TODAY), null);
+});
+
+test("horizon: the month pages turn calendar, tasks, next month's calendar, and stop at both ends", () => {
+  const pages = plain(M.horizon.monthPages(TODAY));
+  assert.equal(pages.length, 12);
+  assert.deepEqual(pages[0], { month: "2026-11", part: "calendar" });
+  assert.deepEqual(pages[11], { month: "2027-04", part: "tasks" });
+  const step = (month: string, part: string, n: number) => plain(M.horizon.monthStep({ month, part }, n, TODAY));
+  assert.deepEqual(step("2026-11", "calendar", 1), { month: "2026-11", part: "tasks" });
+  assert.deepEqual(step("2026-11", "tasks", 1), { month: "2026-12", part: "calendar" });
+  assert.deepEqual(step("2026-12", "calendar", -1), { month: "2026-11", part: "tasks" });
+  assert.equal(step("2026-11", "calendar", -1), null);
+  assert.equal(step("2027-04", "tasks", 1), null);
 });
 
 test("horizon: a new line goes in a month-task on Month this month, and a future item on Future or a later month", () => {
@@ -86,7 +99,11 @@ test("horizon: a new line goes in a month-task on Month this month, and a future
   assert.deepEqual(plain(M.horizon.slotOf("future", "2026-11", TODAY)), { date: "2026-12-31", horizon: "future" });
 });
 
-test("horizon: the month lists days that have day entries, and never a month item as a day", () => {
+test("horizon: a new line on the second Future page goes under the first month of that page", () => {
+  assert.deepEqual(plain(M.horizon.slotOf("future", "2026-11", TODAY, 1)), { date: "2027-02-28", horizon: "future" });
+});
+
+test("horizon: the month lists every day, empty ones too, and never a month item as a day", () => {
   const entries: Entry[] = [
     { id: "a", date: "2026-11-24", position: 1 },
     { id: "b", date: "2026-11-24", position: 0 },
@@ -94,9 +111,23 @@ test("horizon: the month lists days that have day entries, and never a month ite
     { id: "d", date: "2026-12-02" },
   ];
   const days = plain(M.horizon.monthDays(entries, "2026-11"));
-  assert.deepEqual(days.map((day) => day.date), ["2026-11-24"]);
-  assert.deepEqual(days[0].entries.map((entry) => entry.id), ["b", "a"]);
+  assert.equal(days.length, 30);
+  assert.deepEqual([days[0].date, days[29].date], ["2026-11-01", "2026-11-30"]);
+  assert.deepEqual(days[0].entries, []);
+  assert.deepEqual(days[23].entries.map((entry) => entry.id), ["b", "a"]);
+  assert.deepEqual(days[29].entries, []);
 });
+
+test("horizon: the Future Log is two pages of three months, and its pages stop at both ends", () => {
+  const pages = plain(M.horizon.futurePages([], TODAY));
+  assert.deepEqual(pages.map((page) => page.map((bucket) => bucket.month)), [
+    ["2026-11", "2026-12", "2027-01"], ["2027-02", "2027-03", "2027-04"]
+  ]);
+  assert.deepEqual(plain(M.horizon.futureStep(0, 1)), { page: 1 });
+  assert.equal(M.horizon.futureStep(0, -1), null);
+  assert.equal(M.horizon.futureStep(1, 1), null);
+});
+
 
 test("horizon: six buckets, month-tasks before future items, an upcoming month with nothing stays", () => {
   const entries: Entry[] = [

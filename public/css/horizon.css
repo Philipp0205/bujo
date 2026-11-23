@@ -68,7 +68,7 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
 
 .horizon-section { margin: 0; padding: 0; }
 
-/* The label of a day, the month tasks or a month of the Future Log: small italic ink, on the text column, on the grid. */
+/* The label of the month tasks or a month of the Future Log: small italic ink, on the text column, on the grid. */
 .horizon-label {
   width: fit-content;
   max-width: calc(100% - 40px);
@@ -84,7 +84,7 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   box-shadow: var(--paper-wash);
 }
 
-/* A quiet line for a day-less month or an empty bucket. */
+/* A quiet line for an empty bucket. */
 .horizon-empty {
   width: fit-content;
   margin: 0 0 0 38px;
@@ -92,9 +92,74 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
   box-sizing: border-box;
   min-height: 48px;
   color: var(--paper-muted);
-  font: italic 400 15px/24px var(--font-text);
+  font: italic 15px/24px var(--font-text);
   font-variation-settings: "opsz" 15, "wght" 400;
   font-synthesis: none;
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
 }
+
+/* ----- The Future Log: three months to a page ----- */
+
+/* A thin rule of ink parts a month from the one above it, like the lines drawn across a paper future log. */
+.horizon-bucket { position: relative; }
+.horizon-bucket + .horizon-bucket::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  pointer-events: none;
+}
+
+/* ----- The monthly calendar page ----- */
+
+/* Every day of the month is one ruled line, 24px tall (more when the day has more entries). The block starts half a unit down, so the
+   words of a line sit on the dots like the rest of the log. */
+.month-calendar { padding: 12px 0; }
+
+.cal-day {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-height: 24px;
+}
+.cal-day::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: 1px;
+  background: color-mix(in srgb, var(--paper-ink) 16%, transparent);
+  pointer-events: none;
+}
+
+/* The day on the left of the margin line, "1 M": number and weekday initial, muted italic, right aligned so the numbers line up. */
+.cal-label {
+  flex: none;
+  box-sizing: border-box;
+  width: 32px;
+  padding-right: 6px;
+  color: var(--paper-muted);
+  font: italic 400 14px/24px var(--font-text);
+  font-variation-settings: "opsz" 14, "wght" 450;
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.cal-label > span {
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+
+.cal-entries { flex: 1 1 auto; min-width: 0; }
+
+/* The entries of a day are rows of one line each: the 48px row of the daily page is squeezed to the 24px of the ruled line. */
+.cal-entries .paper-row { min-height: 24px; padding: 0 8px 0 4px; }
+.cal-entries .paper-sym-btn::after { inset: -6px -4px -6px -12px; }
+

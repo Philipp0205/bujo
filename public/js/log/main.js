@@ -18,7 +18,7 @@
   var root = document.getElementById('log');
   var state = {
     status: 'loading', entries: [], server: [], serverTraces: [], traces: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
-    page: null, turn: null, arrival: false, view: 'daily', month: null, loadedKey: null
+    page: null, turn: null, arrival: false, view: 'daily', month: null, part: 'calendar', futurePage: 0, loadedKey: null
   };
   var booted = false;
   var POLL_MS = 800;
@@ -61,18 +61,28 @@
   /** Where a new line goes: the day of the Daily page, or the month on screen (a month-task or a future item). */
   function slot() {
     if (state.view === 'daily') return { date: shownPage().date, horizon: 'day' };
-    return L.horizon.model.slotOf(state.view, shownMonth(), state.today);
+    return L.horizon.model.slotOf(state.view, shownMonth(), state.today, state.futurePage);
+  }
+
+  /** A new line is never typed on the calendar page (its days are written by date): it opens the month's tasks page, where a month task goes. */
+  function openTasksToAdd() {
+    if (state.view !== 'month' || state.part !== 'calendar') return;
+    state.part = 'tasks';
+    state.turn = 'next';
   }
 
   /** The Add tab: a new line in the view on screen. Not while selecting (the select bar owns the page then). */
   function addEntry() {
-    if (!L.select.mode.on()) L.inline.editor.addLine();
+    if (L.select.mode.on()) return;
+    openTasksToAdd();
+    L.inline.editor.addLine();
   }
 
   /** The Add tab from another tab: the Daily log opens on today, the other views stay as they are. The new line goes there. */
   function addFromTab() {
     if (L.select.mode.on()) return;
     if (state.view === 'daily') state.page = null;
+    openTasksToAdd();
     L.inline.editor.addLine();
   }
 
@@ -171,8 +181,8 @@
    * future page the Future view, a day the Daily view even when it is outside the usual window. A month the views do not reach
    * opens the Daily view on its first day instead. */
   function applied(result) {
-    if (result.view === 'future') showHorizon('future', null);
-    else if (result.view === 'month') showMonthOrDay(result.month);
+    if (result.view === 'future') showHorizon('future', null, 'calendar');
+    else if (result.view === 'month') showMonthOrDay(result.month, result.part);
     else showDay(result.date);
     reload();
   }
@@ -184,15 +194,17 @@
     setPage(date);
   }
 
-  /** Points the log at the Future view, or at the Month view on a month. */
-  function showHorizon(view, month) {
+  /** Points the log at the Future view (its first page), or at the Month view on a month and one of its pages (calendar or tasks). */
+  function showHorizon(view, month, part) {
     state.view = view;
     state.month = month && month !== L.pages.model.monthOf(state.today) ? month : null;
+    state.part = part || 'calendar';
+    state.futurePage = 0;
   }
 
   /** The Month view on a month the views reach, else the Daily view on its first day. */
-  function showMonthOrDay(month) {
-    if (L.horizon.model.readMonth(month, state.today)) showHorizon('month', month);
+  function showMonthOrDay(month, part) {
+    if (L.horizon.model.readMonth(month, state.today)) showHorizon('month', month, part);
     else showDay(month + '-01');
   }
 
@@ -204,7 +216,7 @@
 
   /** The cards of the view: a day, a month or the six months. */
   function viewBody(date) {
-    var ctx = { entries: drawn(), today: state.today, actions: actions, month: shownMonth() };
+    var ctx = { entries: drawn(), today: state.today, actions: actions, month: shownMonth(), part: state.part, page: state.futurePage };
     if (state.view === 'month') return L.horizon.screen.monthBody(ctx);
     if (state.view === 'future') return L.horizon.screen.futureBody(ctx);
     return L.view.dayPage(date, ctx.entries, actions, state.today);
@@ -236,20 +248,34 @@
     render();
   }
 
-  /** Shows another month of the Month view (this month is stored as null, so the view keeps following today). */
-  function turnToMonth(month, direction) {
-    if (!canTurn() || month === shownMonth()) return;
-    state.month = month === L.pages.model.monthOf(state.today) ? null : month;
+  /** Shows another page of the Month view: { month, part }. This month is stored as null, so the view keeps following today. */
+  function turnToMonthPage(page, direction) {
+    if (!canTurn()) return;
+    state.month = page.month === L.pages.model.monthOf(state.today) ? null : page.month;
+    state.part = page.part;
     state.turn = direction;
     render();
   }
 
-  /** The arrow, edge tap or swipe: turns to the page or month before or after the one on screen. The ends have none; Future has none. */
+  /** Shows the other page of the Future view (0 or 1). */
+  function turnToFuturePage(page, direction) {
+    if (!canTurn()) return;
+    state.futurePage = page;
+    state.turn = direction;
+    render();
+  }
+
+  /** The arrow, edge tap or swipe: turns to the page before or after the one on screen. A month has two (calendar, tasks), Future has two. The ends have none. */
   function turnBy(direction) {
-    if (state.view === 'future') return;
+    var step = direction === 'next' ? 1 : -1;
+    if (state.view === 'future') {
+      var future = L.horizon.model.futureStep(state.futurePage, step);
+      if (future) turnToFuturePage(future.page, direction);
+      return;
+    }
     if (state.view === 'month') {
-      var month = L.horizon.model.shifted(shownMonth(), direction === 'next' ? 1 : -1, state.today);
-      if (month) turnToMonth(month, direction);
+      var page = L.horizon.model.monthStep({ month: shownMonth(), part: state.part }, step, state.today);
+      if (page) turnToMonthPage(page, direction);
       return;
     }
     var shown = shownPage();
@@ -257,11 +283,12 @@
     if (target) turnTo(target, direction);
   }
 
-  /** The Today jump: back to the page of today, or to this month. */
+  /** The Today jump: back to the page of today, or to the calendar page of this month. */
   function turnHome() {
     if (state.view !== 'month') { turnTo(state.today); return; }
     var here = L.pages.model.monthOf(state.today);
-    turnToMonth(here, here > shownMonth() ? 'next' : 'prev');
+    var later = shownMonth() + state.part > here + 'calendar';
+    turnToMonthPage({ month: here, part: 'calendar' }, later ? 'prev' : 'next');
   }
 
   /** A day picked in the calendar: a page of the loaded days turns at once, a day beyond them is read first (the window stretches to it). */
@@ -303,19 +330,36 @@
     });
   }
 
+  /** Which pages lie before and after the one on screen in Month or Future, as booleans (page 0 must not read as "none"). */
+  function horizonAround(ready) {
+    var none = { prev: false, next: false };
+    if (!ready) return none;
+    if (state.view === 'future') {
+      return { prev: !!L.horizon.model.futureStep(state.futurePage, -1), next: !!L.horizon.model.futureStep(state.futurePage, 1) };
+    }
+    var page = { month: shownMonth(), part: state.part };
+    return { prev: !!L.horizon.model.monthStep(page, -1, state.today), next: !!L.horizon.model.monthStep(page, 1, state.today) };
+  }
+
+  /** The key of the Month or Future page on screen: it lets a redraw keep the scroll and a turn start at the top. */
+  function horizonKey() {
+    return state.view === 'future' ? 'future:' + state.futurePage : shownMonth() + ':' + state.part;
+  }
+
   /** The page of the Month or Future view: the same shell as a day, with its own head. */
   function horizonNode(turn) {
+    var around = horizonAround(state.status === 'ready');
+    var ctx = {
+      ready: state.status === 'ready', locked: locked(), turn: turn, body: body(null), nav: nav, view: state.view, switcher: switcher(),
+      around: around, number: 0
+    };
     var month = shownMonth();
-    var ready = state.status === 'ready';
-    var inMonth = state.view === 'month';
-    var around = inMonth && ready
-      ? { prev: L.horizon.model.shifted(month, -1, state.today), next: L.horizon.model.shifted(month, 1, state.today) }
-      : { prev: null, next: null };
-    var ctx = { ready: ready, locked: locked(), turn: turn, body: body(null), nav: nav, view: state.view, switcher: switcher(), around: around, number: 0 };
-    var head = inMonth
-      ? L.horizon.screen.monthHead({ month: month, isThisMonth: month === L.pages.model.monthOf(state.today), locked: ctx.locked, around: around, nav: nav })
-      : L.horizon.screen.futureHead();
-    return L.pages.view.shell(ctx, inMonth ? month : 'future', head);
+    var head = state.view === 'month'
+      ? L.horizon.screen.monthHead({
+        month: month, atHome: month === L.pages.model.monthOf(state.today) && state.part === 'calendar', locked: ctx.locked, around: around, nav: nav
+      })
+      : L.horizon.screen.futureHead({ locked: ctx.locked, around: around, nav: nav });
+    return L.pages.view.shell(ctx, horizonKey(), head);
   }
 
   /** Opens the "not on paper" list. Marking an entry as written reads the log again, so its row mark goes. */
@@ -357,7 +401,8 @@
   function onPaperTap(event) {
     var target = event.target;
     var bare = target === root || BARE.some(function (name) { return target.classList.contains(name); });
-    if (bare && state.status === 'ready' && !L.select.mode.on()) L.inline.editor.addLine();
+    var calendar = state.view === 'month' && state.part === 'calendar';
+    if (bare && !calendar && state.status === 'ready' && !L.select.mode.on()) L.inline.editor.addLine();
   }
 
   /** Reads the window around today, stretched to the day of the last applied scan or picked day. */

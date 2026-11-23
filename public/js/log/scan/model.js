@@ -230,11 +230,12 @@
     return body;
   }
 
-  /** Where the person should land after an apply: the Daily view on the day, the Future view, or the Month view on the page's month. */
+  /** Where the person should land after an apply: the Daily view on the day, the Future view, or the Month view on the page's month
+   * (a month-task page on its tasks page, a calendar on its calendar page). */
   function landing(state, result) {
     if (state.kind === 'daily') return { view: 'daily', date: result.date || state.date };
     if (state.kind === 'future') return { view: 'future', month: null };
-    return { view: 'month', month: state.month };
+    return { view: 'month', month: state.month, part: state.kind === 'calendar' ? 'calendar' : 'tasks' };
   }
 
   /** The rows in the order the page shows them, with the group each belongs to: [{ item, group }]. Future groups by month, calendar by day. */
