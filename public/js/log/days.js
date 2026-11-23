@@ -7,9 +7,14 @@
 
   var L = window.BujoLog = window.BujoLog || {};
 
-  /** The order of a day: by position, then by creation time for entries that share a position. */
+  /** The page of an entry, or a number past every real page for one not on paper (no page, or cached before pages existed). */
+  function pageRank(entry) {
+    return entry.page == null ? 1e9 : entry.page;
+  }
+
+  /** The order of a day: paper pages first (page, then position), entries not on paper after them all, then by creation time for equal positions. */
   function byPosition(a, b) {
-    return (a.position - b.position) || (a.createdAt - b.createdAt);
+    return (pageRank(a) - pageRank(b)) || (a.position - b.position) || (a.createdAt - b.createdAt);
   }
 
   /** The horizon of an entry. Entries cached before horizons existed have none, and are day entries. */
@@ -82,12 +87,18 @@
     return pills;
   }
 
-  /** The cards of a day: each top-level entry with the entries nested under it. The first entry of a day never nests. */
+  /** The page number a card starts when the card above is an earlier physical page, else null. A card of an entry not on paper never starts a page. */
+  function startsPage(previous, entry) {
+    if (!previous || previous.entry.page == null || entry.page == null) return null;
+    return entry.page > previous.entry.page ? entry.page : null;
+  }
+
+  /** The cards of a day: each top-level entry with the entries nested under it. The first entry of a day never nests. `startsPage` marks a new physical page. */
   function cardsOf(entries) {
     var cards = [];
     entries.forEach(function (entry, index) {
       if (index > 0 && entry.indent === 1) cards[cards.length - 1].children.push(entry);
-      else cards.push({ entry: entry, children: [] });
+      else cards.push({ entry: entry, children: [], startsPage: startsPage(cards[cards.length - 1], entry) });
     });
     return cards;
   }

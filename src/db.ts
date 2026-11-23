@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS migrations (
 `;
 
 const SINGLE_TAGS_MIGRATION = "entry-tags-v1";
+const PAPER_PAGE_MIGRATION = "paper-page-v1";
 
 /** Columns added after the first release of the entries table, with their SQL type. Older databases get them on open. */
 const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
@@ -144,6 +145,8 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["scan_tags", "TEXT"],
   ["scan_time", "TEXT"],
   ["scan_at", "INTEGER"],
+  // The physical page (1, 2, ...) of the day the entry was read from by a scan. Null means not on paper (written in the app): it sorts after every paper line.
+  ["paper_page", "INTEGER"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
@@ -168,8 +171,21 @@ function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
   moveSingleTags(db);
+  placeScannedOnFirstPage(db);
   allowCalendarTraces(db);
   allowDroppedType(db);
+}
+
+/**
+ * Entries a scan touched before pages existed sit on page 1: the paper they came from was the only page. Runs once. The flag is
+ * set in the same transaction, so an entry that later leaves paper (no scan_key, or null page by design) is never put back.
+ */
+function placeScannedOnFirstPage(db: Db): void {
+  if (db.prepare("SELECT 1 FROM migrations WHERE name = ?").get(PAPER_PAGE_MIGRATION)) return;
+  inTransaction(db, () => {
+    db.exec("UPDATE entries SET paper_page = 1 WHERE scan_key IS NOT NULL AND paper_page IS NULL");
+    db.prepare("INSERT INTO migrations (name) VALUES (?)").run(PAPER_PAGE_MIGRATION);
+  });
 }
 
 /**

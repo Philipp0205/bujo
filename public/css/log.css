@@ -339,6 +339,31 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 .paper-trace,
 .paper-trace[data-type="scheduled"] { opacity: 0.55; cursor: default; }
 
+/* Where the next physical page of a day starts: one grid unit with the page number and a faint dashed rule. It sits right of the margin line (40px in),
+   is not a day heading, and takes no touches. */
+.page-break {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  margin: 0 16px 0 40px;
+  color: var(--paper-muted);
+  font: italic 13px/24px var(--font-text);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.page-break-text {
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+.page-break::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--paper-muted);
+  opacity: 0.55;
+}
+
 /* The inked words (tags, time, "not synced", the sync dot, the page mark) flow after the title. Their look is in ink-script.css. */
 .paper-meta { display: inline; }
 

@@ -17,7 +17,7 @@ function entry(id: string, type: EntryType, title: string, over: Over = {}): Sca
   const scan = snap
     ? { key: matchKey(snap.title ?? title), type: snap.type ?? type, title: snap.title ?? title, tags: snap.tags ?? [], time: snap.time ?? null, at: snap.at }
     : null;
-  return { id, date: DAY, horizon: "day", type, title, tags: [], time: null, body: null, important: false, hasPhoto: false, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, onPaper: false, scan, ...rest };
+  return { id, date: DAY, horizon: "day", type, title, tags: [], time: null, body: null, important: false, hasPhoto: false, indent: 0, sync: "local", syncError: null, position: 0, page: null, createdAt: 0, updatedAt: 0, onPaper: false, scan, ...rest };
 }
 
 const paper = (id: string, type: EntryType, title: string, tags: string[] = [], time: string | null = null): Line => ({ id, type, title, tags, time });

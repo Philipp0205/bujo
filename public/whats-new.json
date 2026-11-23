@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-paper-order",
+    "date": "2026-11-23",
+    "title": "The log follows your paper",
+    "bullets": [
+      "Entries now sit in the order of the paper. A scanned page files its lines in page order, and anything you typed in the app and have not written down yet stays at the end of the day.",
+      "A long day can run over several pages. When a day already has paper, the scan asks which page the photo shows: pick an earlier page to rescan it, or the next one to continue the day. A rescan of page 1 never touches page 2.",
+      "Where a new page starts, a quiet dashed line with the page number sits in the log."
+    ]
+  },
+  {
     "id": "2026-11-23-important",
     "date": "2026-11-23",
     "title": "Mark what matters with a star",

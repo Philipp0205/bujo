@@ -92,8 +92,25 @@
       fallbackDate: draft.fallbackDate,
       dateSource: draft.pageDate ? 'page' : 'fallback',
       month: draft.month || monthOfDate(draft.fallbackDate),
+      page: draft.page || 1,
+      pages: (draft.pages || []).slice(),
       items: draft.items.map(fromLine)
     };
+  }
+
+  /** The most pages one day may have (the server's limit). */
+  var MAX_PAGE = 20;
+
+  /** The page choices of a daily review: every page the day has paper for, then the next new one. None while the day has no paper yet. */
+  function pageOptions(state) {
+    if (!state.pages.length) return [];
+    var next = state.pages[state.pages.length - 1] + 1;
+    return state.pages.concat(next <= MAX_PAGE ? [next] : []).map(function (page) { return { page: page }; });
+  }
+
+  /** Sets the physical page the photo shows. */
+  function setPage(state, page) {
+    state.page = page;
   }
 
   /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. */
@@ -106,9 +123,10 @@
     return kind === 'daily' || kind === 'calendar';
   }
 
-  /** Sets the day. The note under it says where it came from: the page, the fallback, or the person. */
+  /** Sets the day. The note under it says where it came from: the page, the fallback, or the person. Another day starts on page 1 again (the check then says which pages it has). */
   function setDate(state, date) {
     state.date = date;
+    state.page = 1;
     if (date === state.pageDate) state.dateSource = 'page';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';
@@ -127,8 +145,9 @@
     return day >= 1 && day <= 31 ? day : null;
   }
 
-  /** Takes the server's answer for a day. A line the person ticked or unticked by hand keeps their choice, except an unchanged one. */
+  /** Takes the server's answer for a day. A line the person ticked or unticked by hand keeps their choice, except an unchanged one. The pages follow the day. */
   function mergeChecks(state, answer) {
+    if (answer.pages) state.pages = answer.pages.slice();
     answer.items.forEach(function (check) {
       var item = state.items.filter(function (candidate) { return candidate.id === check.id; })[0];
       if (!item) return;
@@ -238,10 +257,13 @@
     return body;
   }
 
-  /** The page-level fields of a request: the kind, plus the day (daily) or the month (calendar, month tasks). */
+  /** The page-level fields of a request: the kind, plus the day and physical page (daily) or the month (calendar, month tasks). */
   function pageBody(state) {
     var body = { kind: state.kind };
-    if (state.kind === 'daily') body.date = state.date;
+    if (state.kind === 'daily') {
+      body.date = state.date;
+      body.page = state.page;
+    }
     if (NEEDS_MONTH[state.kind]) body.month = state.month;
     return body;
   }
@@ -321,6 +343,8 @@
     allowsEvent: allowsEvent,
     setDate: setDate,
     setMonth: setMonth,
+    pageOptions: pageOptions,
+    setPage: setPage,
     dayOf: dayOf,
     mergeChecks: mergeChecks,
     matchOf: matchOf,

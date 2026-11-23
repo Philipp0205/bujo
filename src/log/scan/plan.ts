@@ -111,6 +111,15 @@ export function resolveSlots(placed: readonly Placed[], reader: SlotReader): Map
   return out;
 }
 
+/**
+ * A reader that shows only the entries of one physical page plus the ones not on paper. A scan of page 2 then never matches a
+ * line of page 1, and a rescan of page 1 never matches page 2. Traces are not paged.
+ */
+export function pageReader(reader: SlotReader, page: number): SlotReader {
+  const onPage = (entry: ScanEntry): boolean => entry.page === null || entry.page === page;
+  return { entries: (slot) => reader.entries(slot).filter(onPage), traces: (slot) => reader.traces(slot) };
+}
+
 /** A reader over fixed lists, for a pure test or a single-slot check. Entries and traces are filtered to the slot asked for. */
 export function fixedReader(entries: readonly ScanEntry[], traces: readonly Trace[] = []): SlotReader {
   const same = (item: Pick<Entry, "date" | "horizon">, slot: Slot): boolean => item.date === slot.date && item.horizon === slot.horizon;

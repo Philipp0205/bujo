@@ -97,6 +97,10 @@
       mark: 'Important',
       hint: 'A * in the margin, like on paper'
     },
+    paperPage: {
+      /** The quiet break where the next physical page of a day starts, and its spoken name. */
+      break: function (page) { return 'Page ' + page; }
+    },
     migrate: {
       /** The quiet line above today's log while earlier days still hold open tasks. */
       prompt: function (count) { return count === 1 ? '1 open task from earlier days' : count + ' open tasks from earlier days'; },

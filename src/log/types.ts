@@ -33,6 +33,8 @@ export type Entry = {
   /** A short reason for the error state, safe to show. Null in every other state. */
   syncError: string | null;
   position: number;
+  /** The physical page of its day the entry was read from (1, 2, ...), or null when it is not on paper (written in the app). Null sorts after every page. */
+  page: number | null;
   /** 0, or 1 when the line is nested under the entry above it in the same day. */
   indent: number;
   createdAt: number;

@@ -19,6 +19,7 @@ type Row = {
   sync: Entry["sync"];
   sync_error: string | null;
   position: number;
+  paper_page: number | null;
   indent: number;
   created_at: number;
   updated_at: number;
@@ -52,6 +53,11 @@ export type EntryStore = {
    * Does nothing for an unknown entry.
    */
   setScanProvenance(userId: string, id: string, snapshot: ScanSnapshot): void;
+  /**
+   * Files the entries of a scanned page: they get this page and the order of `ids` (the paper's line order), after the earlier pages and
+   * before the later ones. Other entries of that page stay beside their old neighbours, entries not on paper stay at the end. Not an edit: no timestamps, no sync.
+   */
+  placeOnPaper(userId: string, slot: { date: string; horizon: EntryHorizon }, page: number, ids: readonly string[]): void;
   /** Forgets the paper line a scan or a "written" mark left on an entry, so it is not on paper any more. Not an edit: updated_at and sync stay. */
   clearScanProvenance(userId: string, id: string): void;
   get(userId: string, id: string): Entry | undefined;
@@ -87,13 +93,42 @@ export type EntryStore = {
 
 /** The entry columns, the scan provenance (read to derive onPaper, never sent), the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
-  "id, date, horizon, time, type, title, body, important, sync, sync_error, position, indent, created_at, updated_at, " +
+  "id, date, horizon, time, type, title, body, important, sync, sync_error, position, paper_page, indent, created_at, updated_at, " +
   "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, " +
   "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
 
-/** The order of a day: by position, and by creation time for entries that share a position. */
-const DAY_ORDER = "ORDER BY position, created_at, id";
+/** The order inside one day: paper lines by page, then position; entries not on paper (no page) after all of them. */
+const IN_DAY_ORDER = "(paper_page IS NULL), paper_page, position, created_at, id";
+const DAY_ORDER = `ORDER BY ${IN_DAY_ORDER}`;
+
+/**
+ * One page's ids in the scan's line order. An entry of the page the scan did not list (the OCR missed it) stays right after the
+ * entry that sat above it before, so it does not jump to the end. One that sat above every listed entry goes first.
+ */
+function pageSequence(here: readonly string[], ids: readonly string[]): string[] {
+  const listed = new Set(ids);
+  const head: string[] = [];
+  const after = new Map<string, string[]>();
+  let anchor: string | null = null;
+  for (const id of here) {
+    if (listed.has(id)) anchor = id;
+    else if (anchor === null) head.push(id);
+    else after.set(anchor, [...(after.get(anchor) ?? []), id]);
+  }
+  return [...head, ...[...listed].flatMap((id) => [id, ...(after.get(id) ?? [])])];
+}
+
+/** The ids of a day in paper order after a scan: pages ascending, page `page` in the scan's line order, then the entries not on paper. */
+function paperOrder(entries: readonly Entry[], page: number, ids: readonly string[]): string[] {
+  const pages = [...new Set(entries.flatMap((entry) => (entry.page === null ? [] : [entry.page])))].sort((a, b) => a - b);
+  const out: string[] = [];
+  for (const number of pages) {
+    const here = entries.filter((entry) => entry.page === number).map((entry) => entry.id);
+    out.push(...(number === page ? pageSequence(here, ids) : here));
+  }
+  return [...out, ...entries.filter((entry) => entry.page === null).map((entry) => entry.id)];
+}
 
 /** A JSON list of text from the database, or an empty list when it is missing or not one. */
 function parseTags(json: string | null): string[] {
@@ -128,6 +163,7 @@ function toEntry(row: Row): Entry {
     sync: row.sync,
     syncError: row.sync_error,
     position: Number(row.position),
+    page: row.paper_page === null || row.paper_page === undefined ? null : Number(row.paper_page),
     indent: Number(row.indent),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
@@ -205,7 +241,7 @@ export function createEntryStore(db: Db): EntryStore {
   return {
     list(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, horizon, position, created_at, id`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND date >= ? AND date <= ? ORDER BY date, horizon, ${IN_DAY_ORDER}`)
         .all(userId, range.from, range.to) as Row[];
       return rows.map(toEntry);
     },
@@ -221,7 +257,7 @@ export function createEntryStore(db: Db): EntryStore {
 
     listScan(userId, range, horizon = "day") {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND horizon = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND horizon = ? AND date >= ? AND date <= ? ORDER BY date, ${IN_DAY_ORDER}`)
         .all(userId, horizon, range.from, range.to) as Row[];
       return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
     },
@@ -278,7 +314,7 @@ export function createEntryStore(db: Db): EntryStore {
       const position = sameGroup ? current.position : nextPosition(userId, next.date, next.horizon);
       const indent = sameGroup ? next.indent : (patch.indent ?? 0);
       inTransaction(db, () => {
-        db.prepare("UPDATE entries SET date = ?, horizon = ?, time = ?, type = ?, title = ?, body = ?, important = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+        db.prepare("UPDATE entries SET date = ?, horizon = ?, time = ?, type = ?, title = ?, body = ?, important = ?, position = ?, paper_page = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
           next.date,
           next.horizon,
           next.time,
@@ -287,6 +323,8 @@ export function createEntryStore(db: Db): EntryStore {
           next.body,
           next.important ? 1 : 0,
           position,
+          // Another day is another sheet of paper: the entry is not on that page, so it goes to the end as unwritten.
+          sameGroup ? current.page : null,
           indent,
           now,
           userId,
@@ -302,14 +340,24 @@ export function createEntryStore(db: Db): EntryStore {
     move(userId, id, direction) {
       const current = get(userId, id);
       if (!current) return undefined;
-      const ids = groupIds(userId, current.date, current.horizon);
-      const from = ids.indexOf(id);
+      const entries = groupEntries(userId, current.date, current.horizon);
+      const from = entries.findIndex((entry) => entry.id === id);
       const to = direction === "up" ? from - 1 : from + 1;
-      if (to >= 0 && to < ids.length) {
+      // An entry never swaps across a page boundary: the pages are fixed by the paper.
+      if (to >= 0 && to < entries.length && entries[to].page === current.page) {
+        const ids = entries.map((entry) => entry.id);
         [ids[from], ids[to]] = [ids[to], ids[from]];
         inTransaction(db, () => renumber(userId, ids));
       }
       return groupEntries(userId, current.date, current.horizon);
+    },
+
+    placeOnPaper(userId, slot, page, ids) {
+      inTransaction(db, () => {
+        const setPage = db.prepare("UPDATE entries SET paper_page = ? WHERE user_id = ? AND id = ?");
+        ids.forEach((id) => setPage.run(page, userId, id));
+        renumber(userId, paperOrder(groupEntries(userId, slot.date, slot.horizon), page, ids));
+      });
     },
 
     remove(userId, id) {
