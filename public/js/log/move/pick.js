@@ -4,6 +4,7 @@
  * move leaves its trace. Closing the chooser with no pick changes nothing. No fetch of its own.
  * Needs inline/model.js, move/model.js, move/chooser.js, outbox/save.js, toast.js and copy.js.
  * host: entries() the entries on screen, today(), upsert(entry, kind) to take the saved entry, paint() to redraw the page after it.
+ * Every page that shows rows (the log, a collection page) wires its own host; a call goes to the host that holds the entry.
  * The migration review (migrate/sheet.js) uses move(), choose() and drop() too, so a kept or scheduled task takes the same path as a swipe.
  */
 (function () {
@@ -12,15 +13,23 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.move = L.move || {};
 
-  var host = null;
+  var hosts = [];
+
+  /** The wired host that has the entry with this id on screen. Falls back to the first one, so a call never meets "no host". */
+  function hostOf(id) {
+    var found = hosts.filter(function (host) { return host.entries().some(function (entry) { return entry.id === id; }); })[0];
+    return found || hosts[0];
+  }
 
   /** The entry with this id among the ones on screen. */
   function entryOf(id) {
+    var host = hostOf(id);
     return host.entries().filter(function (entry) { return entry.id === id; })[0] || null;
   }
 
   /** The change is saved: the page takes the entry (and the trace a move left). Resolves with the saved entry, rejects when the save is refused. */
   function save(entry, body) {
+    var host = hostOf(entry.id);
     return L.outbox.save.update(entry, body).then(function (next) {
       host.upsert(next, body.trace);
       host.paint();
@@ -50,9 +59,9 @@
   /** Opens the chooser (a paper overlay) for an entry. A pick goes to onPick(place), closing it with no pick calls nothing. noHere leaves out "this day". */
   function choose(entry, kind, onPick, noHere) {
     var line = L.inline.model.fromEntry(entry);
-    var choices = L.move.model.options(line, kind, host.today());
+    var choices = L.move.model.options(line, kind, hostOf(entry.id).today());
     if (noHere) choices.here = false;
-    L.move.chooser.open({ kind: kind, overlay: true, choices: choices, selected: null, today: host.today(), onPick: onPick });
+    L.move.chooser.open({ kind: kind, overlay: true, choices: choices, selected: null, today: hostOf(entry.id).today(), onPick: onPick });
   }
 
   /** Opens the chooser for the entry of a swiped row, in the kind the swipe asked for. */
@@ -72,9 +81,10 @@
     return save(entry, { type: 'dropped' });
   }
 
-  /** Wires the move to its host and starts watching row swipes on the page. select is select mode (its on() says whether it is on). */
+  /** Wires the move to a page's host. The log also watches row swipes (options.root, select is select mode); a collection page has no swipes (swipe: false). */
   function init(options) {
-    host = options.host;
+    hosts.push(options.host);
+    if (options.swipe === false) return;
     L.move.swipe.init({ root: options.root, active: function () { return !options.select.on(); }, onSwipe: open });
   }
 

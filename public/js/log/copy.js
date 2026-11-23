@@ -224,6 +224,8 @@
       untitled: 'Untitled note',
       savedHeading: 'Note',
       savedSub: 'Saved in your log',
+      newHeading: 'New note',
+      newSub: 'Write as many lines as you like.',
       dayHint: 'Tap to change the day',
       title: 'Title',
       date: 'Date',

@@ -59,19 +59,20 @@
     return button;
   }
 
-  /** The head: grabber, title, a line under it, and Cancel when the note is not saved yet. */
+  /** The head: grabber, title, a line under it, and Cancel when the note is not saved yet. mode is 'review' (a scan), 'new' (typed by hand) or 'saved'. */
   function head(options, onCancel) {
     var copy = L.copy.note;
     var scan = L.copy.scan.note;
     var cancel = options.mode === 'review'
       ? h('button', { class: 'note-cancel', type: 'button', 'data-action': 'note-cancel', onclick: onCancel }, scan.cancel)
       : null;
+    var words = { review: [scan.reviewHeading, scan.reviewSub], new: [copy.newHeading, copy.newSub], saved: [copy.savedHeading, copy.savedSub] }[options.mode];
     // The kit's head captures the pointer for its swipe, which would swallow the click of a button inside it.
     if (cancel) cancel.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
     return h('div', { class: 'ak-sheet-head' },
       h('div', { class: 'ak-grabber' }),
-      h('h2', { class: 'sheet-title', id: 'note-title' }, options.mode === 'review' ? scan.reviewHeading : copy.savedHeading),
-      h('p', { class: 'sheet-sub', 'data-testid': 'note-sub' }, options.mode === 'review' ? scan.reviewSub : copy.savedSub),
+      h('h2', { class: 'sheet-title', id: 'note-title' }, words[0]),
+      h('p', { class: 'sheet-sub', 'data-testid': 'note-sub' }, words[1]),
       cancel);
   }
 
@@ -109,7 +110,7 @@
   }
 
   /**
-   * Opens the sheet. options.mode is 'review' (a scan, not saved yet) or 'saved'. options.values come from the model.
+   * Opens the sheet. options.mode is 'review' (a scan, not saved yet), 'new' (a note typed by hand, not saved yet) or 'saved'. options.values come from the model.
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    */
   function open(options) {

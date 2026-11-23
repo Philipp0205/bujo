@@ -3,7 +3,7 @@
  * the log, in the look of the edit sheet's type chooser. Task, done, event and note apply at once (task and done through the done toggle,
  * so ink and haptic match a tap). Moved and Scheduled open the move chooser of a swipe (move/pick.js), so a real move leaves its trace and
  * keeps the id; closing that chooser with no pick changes nothing. A tap on the veil closes the picker with no pick.
- * Needs ak-dom.js, copy.js, glyph.js, inline/type.js (order, option), type/hold.js, move/pick.js and done/toggle.js.
+ * Needs ak-dom.js, copy.js, glyph.js, inline/type.js (order, option), type/hold.js, move/pick.js, done/toggle.js and collections/chooser.js.
  */
 (function () {
   'use strict';
@@ -49,11 +49,31 @@
     h('span', { class: 'important-toggle-hint' }, copy.hint));
   }
 
-  /** The card of the picker: one option per type, the type of the entry pressed, then the important switch. */
+  /** True for a type that moves an entry to another day: a collection page has no days, so its picker leaves these out. */
+  function movesDay(type) {
+    return type === L.move.model.KINDS.migrate || type === L.move.model.KINDS.schedule;
+  }
+
+  /** The collection row under the important switch: opens the collection chooser, which files the entry or takes it back to the daily log. */
+  function collectionRow(entry) {
+    var copy = L.collections.copy;
+    return h('button', {
+      class: 'collection-toggle', type: 'button', 'data-testid': 'collection-toggle',
+      onclick: function () {
+        close();
+        L.collections.chooser.open({ entry: entry, onSaved: function (body) { L.move.pick.save(entry, body).catch(L.move.pick.fail); } });
+      }
+    }, h('span', { class: 'collection-toggle-label' }, copy.pickerLabel),
+    h('span', { class: 'collection-toggle-hint' }, entry.collectionId ? copy.hintMove : copy.hintFile));
+  }
+
+  /** The card of the picker: one option per type, the type of the entry pressed, then the important switch and the collection row. */
   function card(entry) {
+    var types = L.inline.type.order().filter(function (type) { return !(entry.collectionId && movesDay(type)); });
     return h('div', { class: 'type-chooser', role: 'group', 'aria-label': L.copy.inline.typeChooser, 'data-testid': 'type-chooser' },
-      L.inline.type.order().map(function (type) { return L.inline.type.option(type, entry.type, function () { pick(entry, type); }); }),
-      importantToggle(entry));
+      types.map(function (type) { return L.inline.type.option(type, entry.type, function () { pick(entry, type); }); }),
+      importantToggle(entry),
+      collectionRow(entry));
   }
 
   /** Opens the picker for the row with this id. */

@@ -1,4 +1,5 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
+import { createCollectionStore } from "../log/collections.ts";
 import { updateEntry } from "../log/move.ts";
 import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
@@ -30,9 +31,10 @@ function methodNotAllowed(allow: string): never {
  *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet, never a done one (any other onPaper value is a 400)
  *   GET   /api/entries?from=&to=&traces=1   also { traces } for the range: what moves left on the old pages ({ id, entryId, date, horizon, kind, title }), local notes that are never synced
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
+ *   GET   /api/entries?collection=<id>  { collection, entries }: the entries filed on one collection, in page order (they are never in the day lists)
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day. An optional client id (a UUID) makes it idempotent: a repeat answers 200 with the stored entry, an id of another user is a 409
- *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1) or body (the markdown of a free note, null when none). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
+ *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1), body (the markdown of a free note, null when none) or collectionId (a collection id files the entry on that page, null puts it back on the daily log). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
@@ -52,6 +54,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   if (pathname === "/api/entries") {
     if (isRead(method)) {
       if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
+      if (url.searchParams.has("collection")) return listCollection(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
       const entries = store.list(userId, range);
       const shown = onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter(isNotOnPaperCandidate) : entries;
@@ -61,6 +64,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
     const input = valid(checkNewEntry(await readJson(req, { max: ENTRY_BODY_MAX })));
+    requireCollection(ctx, userId, input.collectionId);
     return createEntry(ctx, store, userId, input);
   }
 
@@ -83,6 +87,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   }
   if (method !== "PATCH") methodNotAllowed("PATCH or DELETE");
   const patch = valid(checkEntryPatch(await readJson(req, { max: ENTRY_BODY_MAX })));
+  requireCollection(ctx, userId, patch.collectionId);
   const entry = updateEntry(accounts.db, userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   const unflag = patch.important === false;
@@ -124,6 +129,19 @@ function listNotes(ctx: RouteContext, store: EntryStore, userId: string): boolea
   if (ctx.url.searchParams.get("kind") !== "notes") throw new HttpError(400, "kind must be notes");
   sendJson(ctx.res, 200, { entries: store.listNotes(userId) });
   return true;
+}
+
+/** GET ?collection=<id> lists the entries filed on one of the user's collections, in page order. An unknown collection is a 404. */
+function listCollection(ctx: RouteContext, store: EntryStore, userId: string): boolean {
+  const id = ctx.url.searchParams.get("collection") ?? "";
+  requireCollection(ctx, userId, id);
+  sendJson(ctx.res, 200, { collection: createCollectionStore(ctx.accounts.db).get(userId, id), entries: store.listCollection(userId, id) });
+  return true;
+}
+
+/** A collectionId a request names must be one of the user's collections (null and absent are fine: the daily log). */
+function requireCollection(ctx: RouteContext, userId: string, id: string | null | undefined): void {
+  if (id && !createCollectionStore(ctx.accounts.db).get(userId, id)) throw new HttpError(404, "unknown collection");
 }
 
 /** POST { direction } swaps the entry with its neighbour in the day and answers the day in its new order. Never starts a push. */

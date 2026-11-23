@@ -18,7 +18,9 @@ export function updateEntry(db: Db, userId: string, id: string, change: EntryCha
     const before = store.get(userId, id);
     if (!before) return undefined;
     const after = store.update(userId, id, patch, now);
-    if (!after || (before.date === after.date && before.horizon === after.horizon)) return after;
+    // Filing an entry on a collection (or back on the log) changes its page: the paper line it had no longer matches where it sits.
+    if (after && before.collectionId !== after.collectionId) store.clearScanProvenance(userId, id);
+    if (!after || (before.date === after.date && before.horizon === after.horizon)) return store.get(userId, id);
     traces.clearAt(userId, id, after.date, after.horizon);
     if (!trace) return after;
     traces.record(userId, before, trace, now);

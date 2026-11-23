@@ -1,0 +1,169 @@
+/*
+ * bujo collections: the index rows on the Notes screen, the collection page (its head and the line that adds an entry), the collection row of
+ * the type picker, and the collection chooser. Paper tokens only. Loaded after log.css and notes.css, so the paper tokens, .move-overlay
+ * and .move-chooser are already there. Nothing touches the left 24px of the screen: the phone's Back owns it.
+ */
+
+/* ----- The index on the Notes screen ----- */
+
+.notes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding: 0 24px;
+}
+.notes-actions .paper-link { margin: 0; }
+
+.notes-section { margin: 0; padding: 0; }
+.notes-section + .notes-section { margin-top: 12px; }
+
+.notes-heading {
+  margin: 0;
+  padding: 12px 8px 4px 12px;
+  color: var(--paper-muted);
+  font: italic var(--text-weight) 15px/24px var(--font-text);
+  font-variation-settings: "opsz" 16, "wght" var(--text-weight);
+  font-synthesis: none;
+}
+
+.collection-list { margin: 0; padding: 0; list-style: none; }
+.collection-item { margin: 0; padding: 0; }
+
+.collection-row {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 30%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: var(--text-weight) 18px/24px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.collection-row-name { min-width: 0; overflow-wrap: anywhere; background: var(--paper-bg); box-shadow: var(--paper-wash); }
+.collection-row-count { flex: none; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+html.ak-base .collection-row:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
+
+/* ----- The collection page ----- */
+
+.paper-head .collection-back { align-self: center; min-height: 44px; margin: 0 8px 0 0; padding: 0 4px; }
+
+/* The add line sits in the text column, like the "+ Add entry" row of a day. */
+.collection-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 4px 0 40px;
+}
+.collection-add-input,
+.collection-name {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+}
+.collection-add-input::placeholder,
+.collection-name::placeholder { color: var(--paper-muted); }
+.collection-add-input:focus-visible,
+.collection-name:focus-visible { outline: none; border-bottom-style: solid; border-bottom-color: var(--paper-ink); }
+.collection-add-save,
+.collection-create {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  text-decoration: underline;
+  text-decoration-thickness: 0.75px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ----- The collection row of the type picker ----- */
+
+.collection-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: var(--text-weight) 16px/20px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.collection-toggle-hint { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--paper-muted); font-size: 13px; }
+
+/* ----- The collection chooser ----- */
+
+.collection-title { margin: 0; padding: 0 4px; color: var(--paper-muted); font: italic var(--text-weight) 15px/24px var(--font-text); }
+.collection-note { margin: 0; padding: 0 4px; color: var(--paper-muted); font: italic var(--text-weight) 15px/24px var(--font-text); }
+.collection-note:empty { display: none; }
+
+.collection-choice,
+.collection-leave {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: var(--text-weight) 16px/20px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.collection-choice-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collection-choice-count { flex: none; opacity: 0.7; font-size: 13px; }
+.collection-choice[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
+.collection-leave { color: var(--paper-muted); font-style: italic; }
+
+.collection-form { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 0 4px; }
+.collection-form .collection-note { flex: 1 0 100%; padding: 0; }
+html.ak-base .collection-chooser :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }

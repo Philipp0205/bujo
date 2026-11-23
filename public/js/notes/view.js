@@ -1,6 +1,6 @@
 /*
- * Notes render functions: the header, the two-column grid of ink cards and the quiet states. They build nodes and call back,
- * they never fetch. Needs ak-dom.js, notes/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
+ * Notes render functions: the header, the two ways to start (a note, a collection), the collection rows, the two-column grid of ink cards and the quiet states. They build nodes and call back,
+ * they never fetch. Needs ak-dom.js, notes/copy.js, collections/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
  */
 (function () {
   'use strict';
@@ -48,6 +48,43 @@
     return groups.map(function (group) { return grid(group.cards, onOpen); });
   }
 
+  /** The two ways to start something on this screen: a note written by hand, and a new collection. */
+  function actions(onNote, onCollection) {
+    var copy = L.collections.copy;
+    return h('div', { class: 'notes-actions' },
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'new-note', 'data-testid': 'new-note', onclick: onNote }, copy.newNote),
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'new-collection', 'data-testid': 'new-collection', onclick: onCollection }, copy.newCollection));
+  }
+
+  /** A small italic heading over a section of the index. */
+  function heading(text) {
+    return h('h2', { class: 'notes-heading' }, text);
+  }
+
+  /** One collection as a row: the name, and how many entries it holds. A tap opens its page. */
+  function collectionRow(collection, onOpen) {
+    var copy = L.collections.copy;
+    return h('li', { class: 'collection-item' },
+      h('button', {
+        class: 'collection-row', type: 'button', 'data-testid': 'collection-row', 'data-id': collection.id,
+        'aria-label': copy.openLabel + ': ' + collection.name, onclick: function () { onOpen(collection); }
+      }, h('span', { class: 'collection-row-name' }, collection.name), h('span', { class: 'collection-row-count' }, copy.count(collection.count))));
+  }
+
+  /** The Collections section of the index: its heading and one row per collection. Null when there are none. */
+  function collectionList(collections, onOpen) {
+    if (!collections.length) return null;
+    return h('section', { class: 'notes-section', 'data-testid': 'collection-index' },
+      heading(L.collections.copy.indexHeading),
+      h('ul', { class: 'collection-list' }, collections.map(function (collection) { return collectionRow(collection, onOpen); })));
+  }
+
+  /** The Notes section of the index: the grid, under a heading when collections are listed above it. Null when there are no notes. */
+  function noteSection(groups, onOpen, titled) {
+    if (!groups.length) return null;
+    return h('section', { class: 'notes-section' }, titled ? heading(L.collections.copy.notesHeading) : null, groupList(groups, onOpen));
+  }
+
   /** A quiet line for loading, for an empty list, for no connection and no cached list, and for a failed load with a retry button. */
   function stateNote(kind, onRetry) {
     var copy = B.copy;
@@ -63,5 +100,5 @@
     return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, B.copy.offlineHint);
   }
 
-  B.view = { header: header, groupList: groupList, stateNote: stateNote, offlineHint: offlineHint };
+  B.view = { header: header, noteSection: noteSection, collectionList: collectionList, actions: actions, stateNote: stateNote, offlineHint: offlineHint };
 })();

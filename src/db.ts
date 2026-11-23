@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS entry_tags (
 -- What a move leaves on the old page (a ">" or "<" line). Never an entry: no UID, never synced. It goes with its entry.
 ${TRACES_TABLE}
 
+-- Custom collections: named pages. An entry joins one through entries.collection_id. Local only, never synced.
+CREATE TABLE IF NOT EXISTS collections (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at);
+
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
   name TEXT PRIMARY KEY
@@ -147,6 +156,8 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["scan_at", "INTEGER"],
   // The physical page (1, 2, ...) of the day the entry was read from by a scan. Null means not on paper (written in the app): it sorts after every paper line.
   ["paper_page", "INTEGER"],
+  // The custom collection the entry is filed on (collections.id). Null means the daily log.
+  ["collection_id", "TEXT"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */

@@ -153,9 +153,14 @@
     recount();
   }
 
-  /** Puts a saved entry in the server list, and settles its traces: a move to another page leaves the one asked for (kind) on the old page. */
+  /** Puts a saved entry in the server list, and settles its traces: a move to another page leaves the one asked for (kind) on the old page.
+   * An entry filed on a collection is no longer on any day: it leaves the list. */
   function takeSaved(entry, kind) {
     var at = state.server.findIndex(function (item) { return item.id === entry.id; });
+    if (entry.collectionId) {
+      if (at >= 0) state.server.splice(at, 1);
+      return;
+    }
     if (at >= 0) {
       state.serverTraces = L.move.traces.afterMove(state.serverTraces, state.server[at], entry, kind);
       state.server[at] = entry;

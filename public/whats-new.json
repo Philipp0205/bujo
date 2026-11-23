@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-collections",
+    "date": "2026-11-23",
+    "title": "Notes you write, and collections",
+    "bullets": [
+      "The Notes tab has a New note button: write a note of several lines by hand, no scan needed. It keeps its title and day, and sits on the grid next to your scanned notes.",
+      "A collection is a named page, like books to read. Tap New collection on the Notes tab, give it a name and add entries. They look and work like the daily log: tap the dot to tick, press and hold the dot for the type picker.",
+      "To put a task on a collection, press and hold its dot in the log and tap Collection. The same row takes it back to the daily log. Collections stay in bujo and are not written to Nextcloud."
+    ]
+  },
+  {
     "id": "2026-11-23-fonts",
     "date": "2026-11-23",
     "title": "Pick your paper font",
