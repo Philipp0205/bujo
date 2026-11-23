@@ -99,6 +99,7 @@
       typeMarker: function (label) { return 'Entry type: ' + label; },
       typeChooser: 'Choose an entry type',
       keys: {
+        next: '+ Next',
         tag: 'Tag',
         date: 'Date',
         time: 'Time',

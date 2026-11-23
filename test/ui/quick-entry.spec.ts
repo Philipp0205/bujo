@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   // The install banner would sit over the page, so it is dismissed for the session before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   // The account keeps the seen id between tests, so each one starts with the newest entry seen and no what's new sheet over the log.
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
 });
 
 const sheet = (page: Page) => page.getByTestId("edit-sheet");
@@ -81,8 +81,7 @@ test("a typed entry from Add is saved to today, and Back closes the sheet", asyn
   await title(page).fill("Quick entry from Notes");
   await page.keyboard.press("Enter");
   await expect(page.locator(".paper-row", { hasText: "Quick entry from Notes" })).toHaveAttribute("data-type", "task");
-  // Enter starts the next line; Escape drops that empty one, so the bar is back.
-  await page.keyboard.press("Escape");
+  // Enter saves and closes the sheet, so the bar is back.
   await expect(sheet(page)).toBeHidden();
 
   await addTab(page).click();

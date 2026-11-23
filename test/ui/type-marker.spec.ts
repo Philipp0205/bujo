@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
@@ -182,7 +182,6 @@ test("offline, a type picked from the marker is queued with the entry and shown 
   await marker(page).click();
   await option(page, "note").click();
   await page.keyboard.press("Enter");
-  await page.keyboard.press("Escape");
 
   const queued = row(page, "Marker Offline");
   await expect(queued).toHaveAttribute("data-queued", "create");

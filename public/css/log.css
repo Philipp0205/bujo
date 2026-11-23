@@ -701,6 +701,17 @@ html.ak-base .inline-bar :focus-visible { outline: 1px solid var(--paper-muted);
 .bar-key[aria-expanded="true"] { box-shadow: inset 0 -2px 0 var(--paper-ink); }
 .bar-key[aria-disabled="true"] { opacity: 0.3; cursor: default; }
 .bar-key[data-key="details"] { color: var(--paper-muted); }
+/* The labelled key: words instead of an icon, a little wider, with a hairline before the icon keys. */
+.bar-key-next {
+  width: auto;
+  margin-right: 4px;
+  padding: 0 12px;
+  border-right: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* ----- The popovers of the bar ----- */
 

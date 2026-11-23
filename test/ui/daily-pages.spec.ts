@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-scan-page-kind" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
 });
 
 /** The pages are the days that have entries, so every test starts from an empty log: all entries of the throwaway account go. */
@@ -224,7 +224,6 @@ test("+ Add entry on another page writes to that day and the entry is still ther
   await page.keyboard.type("Neue Zeile");
   await page.keyboard.press("Enter");
   await expect(row(page, "Neue Zeile")).toBeVisible();
-  await page.keyboard.press("Escape");
 
   await expect.poll(() => storedTitles(page, 2)).toEqual(["Schon da", "Neue Zeile"]);
   expect(await storedTitles(page, 0)).toEqual([]);

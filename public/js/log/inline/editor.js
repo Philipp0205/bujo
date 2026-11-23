@@ -10,7 +10,7 @@
  *       replaceGroup(horizon, date, entries) swaps a day or a month's items for the server's list, group(horizon, date) reads one in order,
  *       forget(id) drops the traces of a deleted entry, openSheet(entry) opens the details sheet.
  * The sheet and its input stay in the page while a line is active, so a redraw of the list never moves the focus.
- * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter saves and starts the next.
+ * At most one line is active. Blur and Escape save a non-empty line and drop an empty one. Enter does the same and closes the sheet; the "+ Next" key of the bar saves and starts the next line.
  */
 (function () {
   'use strict';
@@ -174,9 +174,10 @@
     paint();
   }
 
-  /** Leaves editing: no active line, sheet hidden, list drawn from the state. */
+  /** Leaves editing: no active line, the keyboard dismissed, sheet hidden, list drawn from the state. */
   function end() {
     active = null;
+    dismissKeyboard();
     paint();
   }
 
@@ -540,13 +541,20 @@
     focusTitle();
   }
 
-  /** Enter saves a non-empty line and starts the next. Backspace on an empty new line removes it. */
+  /** The "+ Next" key: saves a non-empty line and opens a fresh one in the sheet. An empty line saves nothing and keeps the sheet and focus. */
+  function saveAndNext() {
+    if (!active || active.saving) return;
+    if (!model.hasTitle(active)) { focusTitle(); return; }
+    commit(true);
+  }
+
+  /** Enter saves a non-empty line and closes the sheet; an empty line just closes it. Backspace on an empty new line removes it. */
   function onTitleKey(event) {
     if (active.saving) return;
     if (L.inline.complete.key(event)) return;
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (model.hasTitle(active)) commit(true);
+      commit(false);
     } else if (event.key === 'Backspace' && active.isNew && event.target.value === '') {
       event.preventDefault();
       end();
@@ -627,7 +635,7 @@
     });
     var line = L.inline.row.build(typed, toggleMarker);
     watchCaret(line.querySelector('.paper-edit-input'));
-    sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details }));
+    sheet.mount(line, strip, bar.mount({ toggle: toggle, act: act, details: details, next: saveAndNext }));
     L.suggest.pool.refresh();
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusout', onFocusOut);
