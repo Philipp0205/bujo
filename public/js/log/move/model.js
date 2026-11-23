@@ -55,15 +55,23 @@
     });
   }
 
+  /** The day today as a place for a migration, or null when it is not a migration or the entry is on today's page already. */
+  function todayPlace(line, kind, today) {
+    var place = dayPlace(today);
+    return kind === 'migrate' && place.key !== homeKey(line) ? place : null;
+  }
+
   /**
-   * What the chooser offers for a saved line: { here, next, thisMonth, months }. here is true for a schedule of an entry on a day (the
-   * old "this day": the entry stays and only its type changes). thisMonth is null when the entry is already in this month's list.
+   * What the chooser offers for a saved line: { here, today, next, thisMonth, months }. here is true for a schedule of an entry on a day (the
+   * old "this day": the entry stays and only its type changes). today is the page of today for a migration (not "this day": the entry leaves
+   * its page). thisMonth is null when the entry is already in this month's list.
    */
   function options(line, kind, today) {
     var thisMonth = monthPlace(today.slice(0, 7), today);
     var next = dayPlace(nextDay(line, today));
     return {
       here: kind === 'schedule' && line.homeHorizon === 'day',
+      today: todayPlace(line, kind, today),
       next: next.key === homeKey(line) ? null : next,
       thisMonth: thisMonth.key === homeKey(line) ? null : thisMonth,
       months: months(line, today).filter(function (place) { return place.key !== thisMonth.key; })

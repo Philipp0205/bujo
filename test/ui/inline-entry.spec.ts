@@ -201,8 +201,7 @@ test("type set through the marker, tag, day and time through the bar are saved w
   await page.locator(".bar-key[data-key=tag]").click();
   await page.locator('.inline-pop input[name="tag"]').fill("Gesundheit");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".inline-pop .pop-tag[aria-selected=true]")).toHaveText(["\u2713#Gesundheit"]);
-  await page.keyboard.press("Escape");
+  await expect(page.locator(".sheet-chips .pill")).toHaveText(["Gesundheit"]);
   await expect(page.locator(".inline-pop")).toHaveCount(0);
 
   await page.locator(".bar-key[data-key=time]").click();

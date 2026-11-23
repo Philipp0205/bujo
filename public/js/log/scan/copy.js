@@ -79,7 +79,7 @@
       noTag: 'no tag',
       noTime: 'no time',
       keep: 'Keep this line',
-      drop: 'Skip this line',
+      keepLabel: 'Keep',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
       unchanged: function (count, open) {

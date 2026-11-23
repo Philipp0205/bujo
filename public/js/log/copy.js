@@ -67,6 +67,7 @@
       migrateTitle: 'Move to',
       scheduleTitle: 'Schedule for',
       thisDay: 'This day',
+      today: 'Today',
       nextDay: 'Next day',
       pickDay: 'Pick a day',
       pickDayLabel: 'Day to move to',

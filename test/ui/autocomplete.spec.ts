@@ -167,38 +167,47 @@ test("a numeric day is offered in the canonical form", async ({ page }) => {
   await expect(chips(page)).toHaveText([pillOf(3)]);
 });
 
-test("the tag popover searches, forgives umlaut spellings and keeps several tags selected", async ({ page }) => {
+test("the tag popover searches, forgives umlaut spellings and closes after a tag is picked", async ({ page }) => {
   await seedTagged(page, "Popover Saat", ["Gemüsebeet", "Gemüsegarten", "Rosenbeet"]);
   await newLine(page);
   await page.keyboard.type("Beete umgraben");
 
   await page.locator(".bar-key[data-key=tag]").click();
   const search = page.locator('.inline-pop input[name="tag"]');
+  const pop = page.locator(".inline-pop");
   await expect(search).toBeFocused();
   await search.fill("gemuese");
-  await expect(page.locator(".inline-pop .pop-tag:not(.pop-tag-new) .pop-tag-name")).toHaveText(["#Gemüsebeet", "#Gemüsegarten"]);
+  await expect(pop.locator(".pop-tag:not(.pop-tag-new) .pop-tag-name")).toHaveText(["#Gemüsebeet", "#Gemüsegarten"]);
 
-  await page.locator('.inline-pop .pop-tag[data-tag="Gemüsebeet"]').click();
-  await expect(page.locator('.inline-pop .pop-tag[data-tag="Gemüsebeet"]')).toHaveAttribute("aria-selected", "true");
-  await page.locator('.inline-pop .pop-tag[data-tag="Gemüsegarten"]').click();
-  await expect(chips(page)).toHaveText(["Gemüsebeet", "Gemüsegarten"]);
-  await expect(page.locator(".inline-pop")).toBeVisible();
-
-  await page.locator('.inline-pop .pop-tag[data-tag="Gemüsegarten"]').click();
+  await pop.locator('.pop-tag[data-tag="Gemüsebeet"]').click();
   await expect(chips(page)).toHaveText(["Gemüsebeet"]);
+  await expect(pop).toHaveCount(0);
 
+  await page.locator(".bar-key[data-key=tag]").click();
+  await expect(search).toBeFocused();
+  await search.fill("gemuese");
+  await pop.locator('.pop-tag[data-tag="Gemüsegarten"]').click();
+  await expect(chips(page)).toHaveText(["Gemüsebeet", "Gemüsegarten"]);
+  await expect(pop).toHaveCount(0);
+
+  await page.locator(".bar-key[data-key=tag]").click();
+  await pop.locator('.pop-tag[data-tag="Gemüsegarten"]').click();
+  await expect(chips(page)).toHaveText(["Gemüsebeet"]);
+  await expect(pop).toHaveCount(0);
+
+  await page.locator(".bar-key[data-key=tag]").click();
   await search.fill("rosenbeet");
   await page.keyboard.press("Enter");
   await expect(chips(page)).toHaveText(["Gemüsebeet", "Rosenbeet"]);
-  await expect(search).toHaveValue("");
+  await expect(pop).toHaveCount(0);
 
+  await page.locator(".bar-key[data-key=tag]").click();
   await search.fill("spaltnagelneu");
-  await expect(page.locator(".inline-pop .pop-tag-new")).toHaveText(/#spaltnagelneu/);
+  await expect(pop.locator(".pop-tag-new")).toHaveText(/#spaltnagelneu/);
   await page.keyboard.press("Enter");
   await expect(chips(page)).toHaveText(["Gemüsebeet", "Rosenbeet", "spaltnagelneu"]);
+  await expect(pop).toHaveCount(0);
 
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".inline-pop")).toHaveCount(0);
   await page.keyboard.press("Enter");
   await expect.poll(async () => (await stored(page, 0)).find((entry) => entry.title === "Beete umgraben")?.tags).toEqual(["Gemüsebeet", "Rosenbeet", "spaltnagelneu"]);
 });

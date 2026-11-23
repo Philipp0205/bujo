@@ -387,8 +387,11 @@
   appearance: none;
   -webkit-appearance: none;
   flex: none;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   width: 44px;
   height: 44px;
   margin: 2px 0 0 4px;
@@ -399,6 +402,18 @@
   color: var(--paper-ink);
   cursor: pointer;
 }
+.scan-keep:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+.scan-keep-box {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--paper-ink);
+  border-radius: 6px;
+}
+.scan-keep-box svg { display: block; stroke: currentColor; fill: none; }
+.scan-keep-label { font: 11px/12px var(--font-ui); color: var(--paper-muted); }
 .scan-keep[aria-checked="false"] svg { visibility: hidden; }
 .scan-row[data-status="unchanged"] .scan-keep { visibility: hidden; }
 
