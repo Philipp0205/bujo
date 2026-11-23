@@ -242,3 +242,31 @@ test("sync config: BUJO_SYNC_LIST defaults to bujo-test", () => {
   assert.equal(loadSyncConfig({ BUJO_SYNC_LIST: "  scratch " }).listName, "scratch");
   assert.equal(loadSyncConfig({ BUJO_SYNC_LIST: "" }).listName, "bujo-test");
 });
+
+test("important: a new VTODO carries PRIORITY:1, a plain one has no PRIORITY at all", () => {
+  const important = newTodoFor(todoShape({ ...entry("task"), important: true }), UID, NOW).replace(/\r\n /g, "").split("\r\n");
+  assert.ok(important.includes("PRIORITY:1"));
+  assert.equal(icsOf("task").some((line) => line.startsWith("PRIORITY")), false);
+  const done = newTodoFor(todoShape({ ...entry("done"), important: true }), UID, NOW).split("\r\n");
+  assert.ok(done.includes("PRIORITY:1") && done.includes("STATUS:COMPLETED"));
+  const dropped = newTodoFor(todoShape({ ...entry("dropped"), important: true }), UID, NOW).split("\r\n");
+  assert.ok(dropped.includes("PRIORITY:1") && dropped.includes("STATUS:CANCELLED"));
+});
+
+test("important: an edit sets PRIORITY:1 over a remote 5, and clearing removes a remote 1 but leaves a 5 or 9", () => {
+  const set = editTodo(REMOTE, UID, patchFor(todoShape({ ...entry("task", "Alter Titel"), important: true }), 5), NOW);
+  assert.ok(set.ics.includes("PRIORITY:1") && !set.ics.includes("PRIORITY:5"));
+  const cleared = editTodo(set.ics, UID, patchFor(todoShape(entry("task", "Alter Titel")), 1), NOW + 1000);
+  assert.equal(cleared.ics.includes("PRIORITY"), false);
+  assert.ok(cleared.ics.includes("CATEGORIES:Haushalt"));
+  const kept = editTodo(REMOTE, UID, patchFor(todoShape(entry("task", "Neu")), 5), NOW);
+  assert.ok(kept.ics.includes("PRIORITY:5"));
+});
+
+test("important: readBackMismatch says PRIORITY when the server did not keep it", () => {
+  const shape = todoShape({ ...entry("task"), important: true });
+  const good = newTodoFor(shape, UID, NOW);
+  assert.equal(readBackMismatch(good, UID, shape), null);
+  assert.match(readBackMismatch(good.replace("PRIORITY:1", "PRIORITY:5"), UID, shape)!, /PRIORITY/);
+  assert.match(readBackMismatch(good, UID, todoShape(entry("task")))!, /PRIORITY/);
+});

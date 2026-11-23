@@ -31,6 +31,8 @@ export type ParsedLine = {
   tags: string[];
   /** A time written in the line (HH:MM), or null. It is cut out of the title. */
   time: string | null;
+  /** True when the line starts with the handwritten * signifier (cut out of the title). */
+  important: boolean;
   /** What the OCR read, 0..1. */
   confidence: number;
   /** True for a line with no bullet: it may be a stray mark, so the review leaves it off by default. */
@@ -60,18 +62,29 @@ function findHeader(lines: readonly PageLine[], fallbackDate: string): { date: s
   return null;
 }
 
+/** A leading handwritten * (the important signifier), with a bullet dot that may follow it. A ** or a * inside the text is not one. */
+const IMPORTANT_PREFIX = /^\*(?!\*)\s*(?:[•·]\s*)?/;
+
+/** Splits the important * off the front of a line's text. The bullet type is not touched. */
+function takeImportant(text: string): { text: string; important: boolean } {
+  const rest = text.replace(IMPORTANT_PREFIX, "");
+  return { text: rest, important: rest !== text };
+}
+
 /**
- * One OCR line as an entry draft: the bullet gives the type, known misreadings are corrected, then written #tags and a time
- * are cut out of the title. An "@..." word stays in the title: the review has no date field per line.
+ * One OCR line as an entry draft: the bullet gives the type, a leading * marks it important, known misreadings are corrected,
+ * then written #tags and a time are cut out of the title. An "@..." word stays in the title: the review has no date field per line.
  */
 function toParsedLine(line: PageLine, index: number): ParsedLine {
-  const markup = parseMarkup(correctWords(line.text.trim()), { final: true, dates: false });
+  const { text, important } = takeImportant(line.text.trim());
+  const markup = parseMarkup(correctWords(text), { final: true, dates: false });
   return {
     id: `l${index + 1}`,
     type: SYMBOL_TYPES[line.symbol],
     title: markup.title,
     tags: markup.tags,
     time: markup.time,
+    important,
     confidence: line.confidence,
     noBullet: line.symbol === "none",
   };

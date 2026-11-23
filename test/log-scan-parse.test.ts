@@ -12,7 +12,7 @@ import { line } from "./fake-ocr.ts";
 const TODAY = "2026-11-20";
 
 function entry(id: string, type: Entry["type"], title: string): Entry {
-  return { id, date: TODAY, horizon: "day", type, title, tags: [], body: null, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, onPaper: false };
+  return { id, date: TODAY, horizon: "day", type, title, tags: [], body: null, important: false, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, onPaper: false };
 }
 
 test("header dates: full, year-less with a weekday, OCR noise, and what is no date", () => {
@@ -24,6 +24,39 @@ test("header dates: full, year-less with a weekday, OCR noise, and what is no da
   assert.equal(parseHeaderDate("31.02.", TODAY), null);
   assert.equal(parseHeaderDate("Milch kaufen", TODAY), null);
   assert.equal(parseHeaderDate("Call Mira 12", TODAY), null);
+});
+
+test("parsePage: a leading * is the important signifier and leaves the bullet type alone", () => {
+  const page = parsePage(
+    [
+      line("•", "* Steuer abgeben", 0.9),
+      line("•", "*Steuer #home", 0.9),
+      line("x", "* • Plants", 0.9),
+      line("○", "* Lunch with Mira 14h30", 0.9),
+      line("•", "Brot * Milch", 0.9),
+      line("•", "2 * 3 = 6", 0.9),
+      line("•", "**fett**", 0.9),
+      line("•", "Plain", 0.9),
+    ],
+    TODAY,
+  );
+  assert.deepEqual(page.lines.map((l) => [l.type, l.title, l.important]), [
+    ["task", "Steuer abgeben", true],
+    ["task", "Steuer", true],
+    ["done", "Plants", true],
+    ["event", "Lunch with Mira", true],
+    ["task", "Brot * Milch", false],
+    ["task", "2 * 3 = 6", false],
+    ["task", "**fett**", false],
+    ["task", "Plain", false],
+  ]);
+  assert.deepEqual(page.lines[1].tags, ["home"]);
+  assert.equal(page.lines[3].time, "14:30");
+});
+
+test("parsePage: a bare * line is an important line with no title", () => {
+  const page = parsePage([line("•", "*", 0.5)], TODAY);
+  assert.deepEqual([page.lines[0].type, page.lines[0].title, page.lines[0].important], ["task", "", true]);
 });
 
 test("parsePage: bullets give types, the header is not an entry, ids follow the page order", () => {

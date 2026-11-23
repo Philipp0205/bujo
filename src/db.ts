@@ -132,6 +132,8 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["sync_error", "TEXT"],
   ["body", "TEXT"],
   ["indent", "INTEGER NOT NULL DEFAULT 0"],
+  // The handwritten * before the bullet (0 or 1). Maps to PRIORITY:1 on the sync target.
+  ["important", "INTEGER NOT NULL DEFAULT 0"],
   // day, month-calendar, month-task or future (see src/log/horizon.ts). Older rows are day entries.
   ["horizon", "TEXT NOT NULL DEFAULT 'day'"],
   // Scan provenance: the paper line last applied to the entry (see src/log/scan/). Database only, never in the Entry API.

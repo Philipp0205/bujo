@@ -111,7 +111,7 @@
     var body = item.body;
     return {
       id: item.id, date: body.date, horizon: body.horizon || 'day', time: body.time || null, type: body.type, title: body.title, tags: (body.tags || []).slice(),
-      body: body.body || null, hasPhoto: false, sync: 'local', syncError: null, position: position, indent: item.indent,
+      body: body.body || null, important: body.important === true, hasPhoto: false, sync: 'local', syncError: null, position: position, indent: item.indent,
       createdAt: item.at, updatedAt: item.at, onPaper: false, queued: 'create'
     };
   }

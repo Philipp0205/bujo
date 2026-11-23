@@ -654,6 +654,51 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
   box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
 }
 
+/* The important switch of the picker: a full-width row under the types, a pen star then the word. Pressed is the same inked fill as a chosen type. */
+.important-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 16px/20px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.important-toggle-star { flex: none; width: 16px; padding-top: 8px; font-size: 24px; line-height: 20px; text-align: center; }
+.important-toggle-hint { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--paper-muted); font-size: 13px; }
+.important-toggle[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
+.important-toggle[aria-pressed="true"] .important-toggle-hint { color: var(--paper-bg); opacity: 0.72; }
+
+/* The handwritten * in the margin of an important row, just before the bullet. It takes no touches (the bullet keeps its tap, the swipe and the hold)
+   and starts at 24px from the screen edge, which stays free for the phone's Back. */
+.paper-star {
+  position: absolute;
+  left: 8px;
+  top: 14px;
+  width: 8px;
+  height: 24px;
+  font-size: 24px;
+  line-height: 24px;
+  text-align: center;
+  color: var(--paper-ink);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.paper-row[data-type="done"] .paper-star { color: var(--paper-done); }
+.paper-row[data-type="dropped"] .paper-star { color: var(--paper-muted); }
+
 /* A swiped row follows the finger and the > or < shows in the gap it leaves (js/log/move/swipe.js). The mark is muted until the threshold is passed. */
 .paper-row.is-snapping { transition: transform 0.18s ease-out; }
 .swipe-ink {

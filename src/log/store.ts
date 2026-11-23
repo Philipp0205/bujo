@@ -14,6 +14,7 @@ type Row = {
   title: string;
   tags_json: string;
   body: string | null;
+  important: number;
   has_photo: number;
   sync: Entry["sync"];
   sync_error: string | null;
@@ -86,7 +87,7 @@ export type EntryStore = {
 
 /** The entry columns, the scan provenance (read to derive onPaper, never sent), the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
-  "id, date, horizon, time, type, title, body, sync, sync_error, position, indent, created_at, updated_at, " +
+  "id, date, horizon, time, type, title, body, important, sync, sync_error, position, indent, created_at, updated_at, " +
   "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, " +
   "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
@@ -122,6 +123,7 @@ function toEntry(row: Row): Entry {
     title: row.title,
     tags: parseTags(row.tags_json),
     body: row.body ?? null,
+    important: Number(row.important) === 1,
     hasPhoto: Number(row.has_photo) === 1,
     sync: row.sync,
     syncError: row.sync_error,
@@ -261,8 +263,8 @@ export function createEntryStore(db: Db): EntryStore {
       const placed = settleHorizon(input, horizon);
       inTransaction(db, () => {
         db.prepare(
-          "INSERT INTO entries (id, user_id, date, horizon, time, type, title, body, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        ).run(id, userId, placed.date, horizon, input.time, placed.type, input.title, input.body ?? null, nextPosition(userId, placed.date, horizon), now, now);
+          "INSERT INTO entries (id, user_id, date, horizon, time, type, title, body, important, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ).run(id, userId, placed.date, horizon, input.time, placed.type, input.title, input.body ?? null, input.important ? 1 : 0, nextPosition(userId, placed.date, horizon), now, now);
         writeTags(id, input.tags);
       });
       return get(userId, id)!;
@@ -276,13 +278,14 @@ export function createEntryStore(db: Db): EntryStore {
       const position = sameGroup ? current.position : nextPosition(userId, next.date, next.horizon);
       const indent = sameGroup ? next.indent : (patch.indent ?? 0);
       inTransaction(db, () => {
-        db.prepare("UPDATE entries SET date = ?, horizon = ?, time = ?, type = ?, title = ?, body = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
+        db.prepare("UPDATE entries SET date = ?, horizon = ?, time = ?, type = ?, title = ?, body = ?, important = ?, position = ?, indent = ?, updated_at = ? WHERE user_id = ? AND id = ?").run(
           next.date,
           next.horizon,
           next.time,
           next.type,
           next.title,
           next.body,
+          next.important ? 1 : 0,
           position,
           indent,
           now,

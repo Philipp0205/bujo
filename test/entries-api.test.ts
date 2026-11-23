@@ -283,6 +283,21 @@ test("PATCH indent nests an entry under the one above and clears itself for the 
   });
 });
 
+test("important is a plain boolean: off by default, set on create or PATCH, and anything else is a 400", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const plain = (await api(base, "POST", "/api/entries", { body: NEW, headers })).json.entry;
+    assert.equal(plain.important, false);
+    const starred = (await api(base, "POST", "/api/entries", { body: { ...NEW, important: true }, headers })).json.entry;
+    assert.equal(starred.important, true);
+    const on = await api(base, "PATCH", `/api/entries/${plain.id}`, { body: { important: true }, headers });
+    assert.deepEqual([on.json.entry.important, on.json.entry.title], [true, NEW.title]);
+    const off = await api(base, "PATCH", `/api/entries/${plain.id}`, { body: { important: false }, headers });
+    assert.equal(off.json.entry.important, false);
+    assert.equal((await api(base, "PATCH", `/api/entries/${plain.id}`, { body: { important: "yes" }, headers })).status, 400);
+  });
+});
+
 test("the daily log and the page routes: / and /backlog both need a session", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);

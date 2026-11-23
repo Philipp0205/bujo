@@ -91,6 +91,12 @@
       scheduled: 'Scheduled',
       dropped: 'Dropped'
     },
+    important: {
+      /** The toggle in the long-press type picker, and the spoken name of the * in the margin. */
+      toggle: 'Important',
+      mark: 'Important',
+      hint: 'A * in the margin, like on paper'
+    },
     migrate: {
       /** The quiet line above today's log while earlier days still hold open tasks. */
       prompt: function (count) { return count === 1 ? '1 open task from earlier days' : count + ' open tasks from earlier days'; },

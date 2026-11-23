@@ -17,6 +17,7 @@
     var copy = L.copy.scan.review;
     var parts = [L.scan.model.percent(item) + '%'];
     if (item.time) parts.push(item.time);
+    if (item.important) parts.push(copy.important);
     if (L.scan.model.isLowConfidence(item)) parts.push(copy.checkSpelling);
     if (item.status === 'edited' && item.contested) parts.push(copy.changedInApp);
     return parts.join(' \u00b7 ');
@@ -65,6 +66,7 @@
   /** The type picker: a native select laid transparently over the glyph, so the phone's own picker opens. Events are only offered where the page files on days. */
   function typePicker(item, events, onChange) {
     var glyph = h('span', { class: 'scan-glyph' }, L.glyph.typeGlyph(item.type));
+    var star = h('span', { class: 'scan-star', 'aria-hidden': 'true', 'data-testid': 'scan-star' }, '*');
     var types = L.glyph.TYPES.filter(function (type) { return events || type !== 'event' || item.type === 'event'; });
     var select = h('select', { class: 'scan-type', 'aria-label': L.copy.scan.review.type, 'data-field': 'type' },
       types.map(function (type) {
@@ -76,8 +78,8 @@
       onChange();
     });
     return {
-      node: h('label', { class: 'scan-sym' }, glyph, select),
-      show: function () { glyph.replaceChildren(L.glyph.typeGlyph(item.type)); select.value = item.type; }
+      node: h('label', { class: 'scan-sym' }, star, glyph, select),
+      show: function () { star.hidden = !item.important; glyph.replaceChildren(L.glyph.typeGlyph(item.type)); select.value = item.type; }
     };
   }
 

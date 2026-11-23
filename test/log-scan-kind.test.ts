@@ -30,7 +30,7 @@ const CALENDAR = [
 const MONTH_TASKS = [line("none", "Dezember"), line("•", "Geschenke kaufen"), line("•", "Steuer"), line("○", "Weihnachtsfeier")];
 
 function entry(id: string, over: Partial<Entry>): Entry {
-  return { id, date: NOW, horizon: "day", type: "task", title: "x", tags: [], body: null, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, onPaper: false, ...over };
+  return { id, date: NOW, horizon: "day", type: "task", title: "x", tags: [], body: null, important: false, hasPhoto: false, time: null, indent: 0, sync: "local", syncError: null, position: 0, createdAt: 0, updatedAt: 0, onPaper: false, ...over };
 }
 
 test("month headings: German and English names, umlaut and OCR variants, a year, and what is no heading", () => {

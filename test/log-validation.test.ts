@@ -41,15 +41,15 @@ test("checkRange: a good range, a reversed one, a bad date and the span cap", ()
 
 test("checkNewEntry trims, defaults horizon, tags and time and keeps the rest", () => {
   const checked = checkNewEntry({ date: "2026-11-20", type: "event", title: "  Lunch mit Mira  ", tags: [" Freizeit ", "Mira"], time: "13:00" });
-  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", horizon: "day", type: "event", title: "Lunch mit Mira", tags: ["Freizeit", "Mira"], time: "13:00", body: null } });
+  assert.deepEqual(checked, { ok: true, value: { date: "2026-11-20", horizon: "day", type: "event", title: "Lunch mit Mira", tags: ["Freizeit", "Mira"], time: "13:00", body: null, important: false } });
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "task", title: "Küchengarten ä ö ü ß" }), {
     ok: true,
-    value: { date: "2026-11-20", horizon: "day", type: "task", title: "Küchengarten ä ö ü ß", tags: [], time: null, body: null },
+    value: { date: "2026-11-20", horizon: "day", type: "task", title: "Küchengarten ä ö ü ß", tags: [], time: null, body: null, important: false },
   });
   // An empty tag list and a blank time mean none.
   assert.deepEqual(checkNewEntry({ date: "2026-11-20", type: "note", title: "x", tags: [], time: "" }), {
     ok: true,
-    value: { date: "2026-11-20", horizon: "day", type: "note", title: "x", tags: [], time: null, body: null },
+    value: { date: "2026-11-20", horizon: "day", type: "note", title: "x", tags: [], time: null, body: null, important: false },
   });
 });
 
@@ -101,7 +101,7 @@ test("checkNewEntry allows an id only when it is a lowercase UUID, and keeps it"
   const base = { date: "2026-11-20", type: "task", title: "x" };
   const id = "3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b";
   const good = checkNewEntry({ ...base, id });
-  assert.deepEqual(good, { ok: true, value: { id, date: "2026-11-20", horizon: "day", type: "task", title: "x", tags: [], time: null, body: null } });
+  assert.deepEqual(good, { ok: true, value: { id, date: "2026-11-20", horizon: "day", type: "task", title: "x", tags: [], time: null, body: null, important: false } });
   assert.equal("id" in (checkNewEntry(base) as { value: object }).value, false);
   for (const bad of ["", "abc", id.toUpperCase(), id.replace(/-/g, ""), `${id}0`, " " + id, 7, null, {}]) {
     const checked = checkNewEntry({ ...base, id: bad });

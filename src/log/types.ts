@@ -25,6 +25,8 @@ export type Entry = {
   tags: string[];
   /** The markdown of a free note. Null for a short rapid-log line. */
   body: string | null;
+  /** The handwritten * before the bullet. Maps to PRIORITY:1 on the sync target. */
+  important: boolean;
   /** True when a scan photo is stored with the note. The bytes are at GET /api/entries/:id/photo, never in the list. */
   hasPhoto: boolean;
   sync: SyncState;
@@ -60,6 +62,8 @@ export type NewEntry = {
   tags: string[];
   time: string | null;
   body?: string | null;
+  /** Left out means not important. */
+  important?: boolean;
 };
 
 /**

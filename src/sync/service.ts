@@ -38,7 +38,7 @@ export type SyncService = {
  * entry) the horizon, which decides its DUE. An event also shows its time and tags. `entry` is the entry after the edit.
  */
 export function touchesMapping(patch: EntryPatch, entry: Pick<Entry, "type">): boolean {
-  if ("title" in patch || "type" in patch || "date" in patch || "horizon" in patch) return true;
+  if ("title" in patch || "type" in patch || "date" in patch || "horizon" in patch || "important" in patch) return true;
   return entry.type === "event" && ("time" in patch || "tags" in patch);
 }
 
