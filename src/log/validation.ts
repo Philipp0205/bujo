@@ -1,14 +1,13 @@
 import {
   ENTRY_HORIZONS,
   ENTRY_TYPES,
-  TRACE_KINDS,
+  MOVE_TRACE_KINDS,
   type Checked,
   type DateRange,
   type EntryChange,
   type EntryPatch,
   type EntryType,
   type NewEntry,
-  type TraceKind,
 } from "./types.ts";
 import { isEntryHorizon } from "./horizon.ts";
 
@@ -196,10 +195,10 @@ export function checkEntryPatch(body: Record<string, unknown>): Checked<EntryCha
   if (Object.keys(rest).length === 0) return fail("nothing to change");
   const fields = checkFields(rest);
   if (!fields.ok || trace === undefined) return fields;
-  if (!isTraceKind(trace)) return fail(`trace must be one of ${TRACE_KINDS.join(", ")}`);
+  if (!isMoveTraceKind(trace)) return fail(`trace must be one of ${MOVE_TRACE_KINDS.join(", ")}`);
   return { ok: true, value: { ...fields.value, trace } };
 }
 
-function isTraceKind(value: unknown): value is TraceKind {
-  return typeof value === "string" && (TRACE_KINDS as readonly string[]).includes(value);
+function isMoveTraceKind(value: unknown): value is EntryChange["trace"] {
+  return typeof value === "string" && (MOVE_TRACE_KINDS as readonly string[]).includes(value);
 }

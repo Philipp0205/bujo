@@ -9,9 +9,10 @@
   var B = window.BujoNotes = window.BujoNotes || {};
   var L = window.BujoLog;
 
-  /** The page header: the italic title only. The tab bar does the navigation. */
-  function header() {
-    return h('div', { class: 'paper-head' }, h('h1', null, B.copy.title));
+  /** The page header: the italic title, and the "New collection" button that starts one without a scan. The tab bar does the navigation. */
+  function header(onNew) {
+    return h('div', { class: 'paper-head' }, h('h1', null, B.copy.title),
+      h('button', { class: 'paper-link note-new', type: 'button', 'data-action': 'new-collection', onclick: onNew }, B.copy.newCollection));
   }
 
   /** The stand-in for a note without a photo: a few dotted-paper lines, so the card keeps its shape. */

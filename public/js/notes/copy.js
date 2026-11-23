@@ -15,6 +15,7 @@
     offlineEmpty: 'You\u2019re offline. Your notes show up here when you are back.',
     offlineHint: 'You\u2019re offline. These are your notes from the last visit.',
     noPhoto: 'No photo',
-    openLabel: 'Open note'
+    openLabel: 'Open note',
+    newCollection: 'New collection'
   };
 })();

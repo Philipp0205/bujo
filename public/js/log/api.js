@@ -98,5 +98,12 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  /** Moves an entry into a collection (an existing one by id, or a new one with a title and day). Resolves with the collection. The entry is gone from the log after. */
+  function collect(id, target) {
+    return call('POST', '/api/entries/' + encodeURIComponent(id) + '/collect', target).then(function (body) {
+      return body.collection;
+    });
+  }
+
+  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, collect: collect, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

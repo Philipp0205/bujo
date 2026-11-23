@@ -9,7 +9,7 @@ export type TraceStore = {
   list(userId: string, range: DateRange): Trace[];
   /** Leaves a trace of an entry on the page it is leaving: its date, horizon and title as they are now. */
   record(userId: string, entry: Entry, kind: TraceKind, now: number): Trace;
-  /** Takes the traces of an entry off one page (the entry came back to it, so the page holds the entry itself). */
+  /** Takes the moved and scheduled traces of an entry off one page (the entry came back to it, so the page holds the entry itself). A collected trace stays: it belongs to a collection, not to a moving entry. */
   clearAt(userId: string, entryId: string, date: string, horizon: EntryHorizon): void;
 };
 
@@ -43,7 +43,7 @@ export function createTraceStore(db: Db): TraceStore {
     },
 
     clearAt(userId, entryId, date, horizon) {
-      db.prepare("DELETE FROM entry_traces WHERE user_id = ? AND entry_id = ? AND date = ? AND horizon = ?").run(userId, entryId, date, horizon);
+      db.prepare("DELETE FROM entry_traces WHERE user_id = ? AND entry_id = ? AND date = ? AND horizon = ? AND kind <> 'collected'").run(userId, entryId, date, horizon);
     },
   };
 }

@@ -9,6 +9,7 @@ import type { Checked, Entry, NewEntry } from "../log/types.ts";
 import { readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
+import { handleCollect } from "./collect.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
 
 /** Room for a free note: BODY_MAX characters can take up to four bytes each in JSON. */
@@ -37,6 +38,7 @@ function methodNotAllowed(allow: string): never {
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  *   POST  /api/entries/:id/written mark the entry as written on paper (stamps its current fields, not an edit), answers { entry } with onPaper true
+ *   POST  /api/entries/:id/collect { collectionId } or { title, date } (a new collection): appends "- title" to the collection's body, leaves a "collected" trace on the old page and removes the entry; a task in Nextcloud is set to CANCELLED first. Answers { collection }
  *   GET   /api/entries/:id/photo   the scan photo of a free note (JPEG), 404 when it has none
  *   POST  /api/entries/:id/photo   store the scan photo of a note (a JPEG as the raw body), replacing an earlier one
  * A task entry answers with sync "pending" and is pushed to Nextcloud after the answer is sent.
@@ -64,10 +66,11 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return createEntry(ctx, store, userId, input);
   }
 
-  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written)?$/.exec(pathname);
+  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written|\/collect)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
   const id = decodeId(match[1]);
   if (match[2] === "/photo") return handlePhoto(ctx, userId, id);
+  if (match[2] === "/collect") return handleCollect(ctx, store, userId, id);
   if (match[2] === "/move") return handleMove(ctx, store, userId, id);
   if (match[2] === "/written") return handleWritten(ctx, store, userId, id);
   if (match[2]) {

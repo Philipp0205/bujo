@@ -1,7 +1,7 @@
 /*
  * The entry details sheet: a bottom sheet to change every field of a saved entry, see its sync state and retry a failed
  * sync. New entries are typed in the log (inline/), never here. Needs ak-dom.js, ak-sheet.js, nav/overlays.js,
- * copy.js, dates.js, glyph.js and api.js. The caller gets onSaved(entry) after a successful save.
+ * copy.js, dates.js, glyph.js and api.js (and collect/picker.js for Move to collection). The caller gets onSaved(entry) after a successful save.
  */
 (function () {
   'use strict';
@@ -111,7 +111,7 @@
   }
 
   /** The form: type grid, title, tag, date, time and the sync block (not for notes). Returns the node and a reader of the values. */
-  function buildForm(values, onSubmit, onRetry) {
+  function buildForm(values, onSubmit, onRetry, onCollect) {
     var sync = syncSlot(values, onRetry);
     var grid = typeGrid(values.type, sync.show);
     var controls = inputs(values);
@@ -124,8 +124,15 @@
       field(L.copy.sheet.tag, controls.tag),
       field(L.copy.sheet.date, controls.date),
       field(L.copy.sheet.time, controls.time),
-      sync.node);
+      sync.node,
+      collectLink(values, onCollect));
     return { node: node, controls: controls, read: function () { return readValues(controls, grid, values); } };
+  }
+
+  /** The entry sheet's link to the collection picker. Null for a free note itself (it is a collection already). */
+  function collectLink(entry, onPick) {
+    if (L.note.model.isNote(entry)) return null;
+    return h('button', { class: 'paper-link collect-link', type: 'button', 'data-action': 'move-to-collection', onclick: onPick }, L.copy.sheet.moveToCollection);
   }
 
   /** The head of the sheet: grabber, title and the date under it. */
@@ -144,7 +151,13 @@
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var save = h('button', { class: 'ak-btn ak-btn-accent', type: 'submit', form: FORM_ID, 'data-action': 'save' }, L.copy.sheet.save);
     var sheet = null;
-    var form = buildForm(values, submit, retry);
+    var form = buildForm(values, submit, retry, collect);
+
+    /** Hands the entry to the collection picker: this sheet closes first (one sheet at a time), and a move reloads the log like a save. */
+    function collect() {
+      sheet.close();
+      L.collect.picker.open({ entry: entry, today: options.today, onMoved: options.onSaved });
+    }
 
     function showError(message) {
       Bujo.say(slot, message);

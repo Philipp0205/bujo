@@ -786,6 +786,7 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .migrate-choice svg { display: block; flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; }
 .migrate-choice-text { display: flex; flex-direction: column; min-width: 0; }
 .migrate-choice-hint { color: var(--paper-muted); font: italic 14px/18px var(--font-text); }
+.detail-form .collect-link { justify-self: start; margin: 24px 0 0 var(--text-col); }
 .sheet-migrate .ak-sheet-dock { display: flex; flex-direction: column; gap: 8px; }
 .sheet-migrate .ak-sheet-dock .ak-btn.ak-btn-quiet {
   background: transparent;

@@ -11,6 +11,8 @@ export const SYNC_MESSAGES = {
   interrupted: "The sync was interrupted. Retry sync.",
   retryNotNeeded: "Only an entry with a failed sync can be retried.",
   notSetUp: "Sync to Nextcloud is not set up.",
+  eventStays: "An event stays in the calendar, so it cannot be moved into a collection.",
+  cancelFailed: "Could not cancel the task in Nextcloud, so it was not moved. It is marked dropped. Retry sync, then move it again.",
 } as const;
 
 /** The messages that name the thing being synced: a task (VTODO) or an event (VEVENT). */

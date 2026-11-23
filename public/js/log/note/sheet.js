@@ -59,10 +59,19 @@
     return button;
   }
 
-  /** The head: grabber, title, a line under it, and Cancel when the note is not saved yet. */
-  function head(options, onCancel) {
+  /** The heading and the line under it for a mode: a scan to review, a new note written here, or a saved one. */
+  function words(mode) {
     var copy = L.copy.note;
     var scan = L.copy.scan.note;
+    if (mode === 'review') return { heading: scan.reviewHeading, sub: scan.reviewSub };
+    if (mode === 'new') return { heading: copy.newHeading, sub: copy.newSub };
+    return { heading: copy.savedHeading, sub: copy.savedSub };
+  }
+
+  /** The head: grabber, title, a line under it, and Cancel when the note is not saved yet. */
+  function head(options, onCancel) {
+    var scan = L.copy.scan.note;
+    var text = words(options.mode);
     var cancel = options.mode === 'review'
       ? h('button', { class: 'note-cancel', type: 'button', 'data-action': 'note-cancel', onclick: onCancel }, scan.cancel)
       : null;
@@ -70,8 +79,8 @@
     if (cancel) cancel.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
     return h('div', { class: 'ak-sheet-head' },
       h('div', { class: 'ak-grabber' }),
-      h('h2', { class: 'sheet-title', id: 'note-title' }, options.mode === 'review' ? scan.reviewHeading : copy.savedHeading),
-      h('p', { class: 'sheet-sub', 'data-testid': 'note-sub' }, options.mode === 'review' ? scan.reviewSub : copy.savedSub),
+      h('h2', { class: 'sheet-title', id: 'note-title' }, text.heading),
+      h('p', { class: 'sheet-sub', 'data-testid': 'note-sub' }, text.sub),
       cancel);
   }
 
@@ -109,7 +118,7 @@
   }
 
   /**
-   * Opens the sheet. options.mode is 'review' (a scan, not saved yet) or 'saved'. options.values come from the model.
+   * Opens the sheet. options.mode is 'review' (a scan, not saved yet), 'new' (written from scratch, no photo) or 'saved'. options.values come from the model.
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    */
   function open(options) {

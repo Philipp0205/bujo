@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS entry_traces (
   entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   horizon TEXT NOT NULL CHECK (horizon IN ('day', 'month-calendar', 'month-task', 'future')),
-  kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled')),
+  kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled', 'collected')),
   title TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
@@ -211,10 +211,10 @@ function allowDroppedType(db: Db): void {
   }
 }
 
-/** A traces table made before month-calendar existed refuses that horizon in its CHECK, so it is rebuilt once with the new list. Rows are kept. */
+/** A traces table made before month-calendar or the collected kind existed refuses them in its CHECK, so it is rebuilt once with the new lists. Rows are kept. */
 function allowCalendarTraces(db: Db): void {
   const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'entry_traces'").get() as { sql: string } | undefined;
-  if (!row || row.sql.includes("month-calendar")) return;
+  if (!row || (row.sql.includes("month-calendar") && row.sql.includes("'collected'"))) return;
   inTransaction(db, () => {
     db.exec("DROP INDEX IF EXISTS idx_entry_traces_user_date; DROP INDEX IF EXISTS idx_entry_traces_entry;");
     db.exec("ALTER TABLE entry_traces RENAME TO entry_traces_old");

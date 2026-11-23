@@ -65,7 +65,7 @@
     },
     move: {
       /** The accessible name of a trace row's glyph: what the line on this page says happened to the entry. */
-      traceLabel: { migrated: 'Moved', scheduled: 'Scheduled' },
+      traceLabel: { migrated: 'Moved', scheduled: 'Scheduled', collected: 'Moved to a collection' },
       chooserLabel: 'Choose where the entry goes',
       migrateTitle: 'Move to',
       scheduleTitle: 'Schedule for',
@@ -209,7 +209,27 @@
       save: 'Save',
       saving: 'Saving\u2026',
       retrySync: 'Retry sync',
-      syncErrorFallback: 'The sync did not finish.'
+      syncErrorFallback: 'The sync did not finish.',
+      moveToCollection: 'Move to collection'
+    },
+    collect: {
+      title: 'Move to collection',
+      listLabel: 'Choose a collection',
+      newCollection: 'New collection',
+      newHint: 'Start one with this entry',
+      loading: 'Looking for your collections\u2026',
+      loadFailed: 'Could not load your collections. Try again.',
+      none: 'No collections yet.',
+      cancel: 'Cancel',
+      back: 'Back',
+      move: 'Move',
+      moving: 'Moving\u2026',
+      titleLabel: 'Collection title',
+      dateLabel: 'Day',
+      titleRequired: 'Give the collection a title.',
+      dateRequired: 'Pick a day.',
+      failed: 'Could not move the entry. Try again.',
+      moved: function (title) { return 'Moved to \u201c' + title + '\u201d'; }
     },
     errors: {
       titleRequired: 'Give the entry a title.',
@@ -221,6 +241,8 @@
     },
     note: {
       untitled: 'Untitled note',
+      newHeading: 'New collection',
+      newSub: 'Write it here, no photo needed',
       savedHeading: 'Note',
       savedSub: 'Saved in your log',
       dayHint: 'Tap to change the day',

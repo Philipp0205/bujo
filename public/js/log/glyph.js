@@ -9,7 +9,7 @@
   var NS = 'http://www.w3.org/2000/svg';
 
   var TYPES = ['task', 'note', 'event', 'done', 'migrated', 'scheduled'];
-  /** TYPES are the bullets a person writes. dropped has a symbol too, but is only set by the migration review. */
+  /** TYPES are the bullets a person writes. dropped has a symbol too, but is only set by the migration review. collected is the mark of a trace only. */
   var SYMBOLS = {
     task: 'g-task',
     note: 'g-note',
@@ -17,7 +17,8 @@
     done: 'g-done',
     migrated: 'g-moved',
     scheduled: 'g-sched',
-    dropped: 'g-dropped'
+    dropped: 'g-dropped',
+    collected: 'g-collected'
   };
 
   /** An <svg> that draws one symbol of the sprite. attrs are set on the svg. */

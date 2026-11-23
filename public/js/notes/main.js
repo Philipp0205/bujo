@@ -22,8 +22,13 @@
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. */
   function draw() {
-    root.replaceChildren(B.view.header(), AppKit.h('div', { class: 'paper-page' }, body()));
+    root.replaceChildren(B.view.header(newCollection), AppKit.h('div', { class: 'paper-page' }, body()));
     L.ink.decorate.notes(root);
+  }
+
+  /** Opens the note sheet empty (title, today, markdown): a collection written here, with no photo. After a save the list is read again. */
+  function newCollection() {
+    L.note.sheet.open({ mode: 'new', values: L.note.model.blank(L.dates.todayIso()), onSaved: reload });
   }
 
   /** Opens the sheet of one note. After a save or a delete the list is read again. */

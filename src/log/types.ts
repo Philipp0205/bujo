@@ -95,8 +95,10 @@ export type EntryPatch = Partial<Omit<NewEntry, "id">> & {
   indent?: number;
 };
 
-/** Why an entry left a page: moved on (migrated, ">") or scheduled ahead ("<"). */
-export const TRACE_KINDS = ["migrated", "scheduled"] as const;
+/** The traces an edit can ask for: moved on (migrated, ">") or scheduled ahead ("<"). */
+export const MOVE_TRACE_KINDS = ["migrated", "scheduled"] as const;
+/** Why an entry left a page: moved on, scheduled ahead, or filed into a collection (its entry id is the collection's, its title the collection's). */
+export const TRACE_KINDS = [...MOVE_TRACE_KINDS, "collected"] as const;
 export type TraceKind = (typeof TRACE_KINDS)[number];
 
 /**
@@ -115,7 +117,7 @@ export type Trace = {
 };
 
 /** A checked edit that may also ask for a trace on the old page. The trace is only left when the edit moves the entry to another page. */
-export type EntryChange = EntryPatch & { trace?: TraceKind };
+export type EntryChange = EntryPatch & { trace?: (typeof MOVE_TRACE_KINDS)[number] };
 
 export type DateRange = { from: string; to: string };
 
