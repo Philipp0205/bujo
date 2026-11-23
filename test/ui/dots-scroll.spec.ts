@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -132,21 +132,60 @@ async function checkTravels(page: Page, scroller: Locator, row: Locator): Promis
   expect(apart(phase(after, rowAfter), phase(before, rowBefore))).toBeLessThanOrEqual(1);
 }
 
+/** The sheet that scrolls the whole log page: the title, the switcher, the date row and the rows. */
+const sheet = (page: Page) => page.locator("#log");
+
+/** The y below which the tab bar starts (the bar is 84px tall at 390x844): dots are read above it. */
+const ABOVE_BAR = 760;
+
+/** The distance of every pair of neighbouring dots in a column is 24px: the grid is one unbroken piece. */
+function expectUnbroken(dots: number[]): void {
+  expect(dots.length).toBeGreaterThan(8);
+  for (let i = 1; i < dots.length; i++) expect(Math.abs(dots[i] - dots[i - 1] - 24)).toBeLessThanOrEqual(1);
+}
+
 test("on a long Daily page the dots scroll with the rows", async ({ page }) => {
   await seedMany(page, 0);
   await openLog(page);
-  const body = page.getByTestId("page-body");
-  await checkTravels(page, body, page.locator(".paper-row").first());
+  await checkTravels(page, sheet(page), page.locator(".paper-row").first());
 });
 
-test("the log keeps one grid: the bands above the body line up with the body's dots, and the log itself paints none", async ({ page }) => {
-  await seedMany(page, 0, 6);
+test("the log keeps one grid: it is painted once, on the scrolling sheet, and runs unbroken from the top of the screen through the header into the rows", async ({ page }) => {
+  await seedMany(page, 0);
   await openLog(page);
-  const body = (await page.getByTestId("page-body").boundingBox())!;
-  const dots = await dotYs(page, 4, 0, body.y + 240);
-  expect(dots.length).toBeGreaterThan(8);
-  for (let i = 1; i < dots.length; i++) expect(Math.abs(dots[i] - dots[i - 1] - 24)).toBeLessThanOrEqual(1);
-  expect(await page.locator("#log").evaluate((el) => getComputedStyle(el).backgroundImage)).toBe("none");
+  const rowTop = (await page.locator(".paper-row").first().boundingBox())!.y;
+  expectUnbroken(await dotYs(page, 4, 0, rowTop + 240));
+
+  // The bands paint no dots of their own, and the page-turning unit paints none either, so nothing keeps still while the sheet moves.
+  for (const selector of [".paper-head", ".view-switcher", ".page-head", ".page-body", ".paper-page"]) {
+    expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).backgroundImage), selector).toBe("none");
+  }
+  const own = await sheet(page).evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { image: style.backgroundImage, attachment: style.backgroundAttachment, size: style.backgroundSize };
+  });
+  expect(own.image).toContain("radial-gradient");
+  expect(own.attachment).toBe("local");
+  expect(own.size).toContain("24px 24px");
+
+  // After a scroll that is not a multiple of the grid the header is gone, and the dots still run unbroken over the whole screen.
+  await scrollTo(page, sheet(page), 301);
+  expect(await page.getByTestId("page-head").boundingBox().then((box) => box!.y + box!.height)).toBeLessThan(0);
+  expectUnbroken(await dotYs(page, 4, 0, ABOVE_BAR));
+});
+
+test("the dots run on through the status-bar inset, with no seam above the title", async ({ page }) => {
+  await seedMany(page, 0);
+  await page.addInitScript(() => {
+    const style = document.createElement("style");
+    style.textContent = ":root { --ak-safe-top: 40px !important; }";
+    document.addEventListener("DOMContentLoaded", () => document.head.appendChild(style));
+  });
+  await openLog(page);
+  expect(await sheet(page).evaluate((el) => getComputedStyle(el).paddingTop)).toBe("40px");
+  expectUnbroken(await dotYs(page, 4, 0, 400));
+  await scrollTo(page, sheet(page), 101);
+  expectUnbroken(await dotYs(page, 4, 0, ABOVE_BAR));
 });
 
 test("in Month the dots scroll with the rows", async ({ page }) => {
@@ -154,7 +193,26 @@ test("in Month the dots scroll with the rows", async ({ page }) => {
   await openLog(page);
   await page.getByTestId("view-month").click();
   await expect(page.getByTestId("month-heading")).toBeVisible();
-  await checkTravels(page, page.getByTestId("page-body"), page.locator(".paper-row").first());
+  await checkTravels(page, sheet(page), page.locator(".paper-row").first());
+});
+
+test("with rows selected the pinned bar keeps the dots of the sheet under it, with no seam", async ({ page }) => {
+  await seedMany(page, 0);
+  await openLog(page);
+  await scrollTo(page, sheet(page), 301);
+  const box = (await page.locator(".paper-row", { hasText: "Zeile 15" }).first().boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  const bar = page.getByTestId("select-bar");
+  await expect(bar).toBeVisible();
+  await scrollTo(page, sheet(page), 301);
+  expect((await bar.boundingBox())!.y).toBe(0);
+  // The bar's own hairline (y 95) is not a dot: read the dots of the bar and of the rows below it as one column.
+  const above = await dotYs(page, 4, 0, 94);
+  const below = await dotYs(page, 4, 97, ABOVE_BAR);
+  expectUnbroken([...above, ...below]);
 });
 
 test("in Not on paper the dots scroll with the rows", async ({ page }) => {

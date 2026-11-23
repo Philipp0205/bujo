@@ -1,70 +1,74 @@
 /*
- * bujo daily pages: the log is a notebook, one day per page. The log fills the screen above the tab bar, the date row stays put, and
- * a long day scrolls inside its page (.page-body), so the last row and "+ Add entry" always end above the bar. Also the page turn, the
- * edge turn targets and the day picker. Everything is ink on paper, in the paper tokens. Loaded after log.css and tabs.css.
+ * bujo daily pages: the log is one sheet of paper, one day (or month) per page. #log is the scroller and fills the screen: the title,
+ * the view switcher, the date row and the rows all scroll away together over one dot grid, so a long day ends above the tab bar with
+ * the last row and "+ Add entry" clear of it. Also the page turn, the edge turn targets and the day picker. Everything is ink on
+ * paper, in the paper tokens. Loaded after log.css and tabs.css.
  */
 
-/* ----- The page fills the screen ----- */
+/* ----- The sheet fills the screen and scrolls ----- */
 
-/* The log is paper-coloured only. The dots are painted by the bands (.paper-head, the switcher, the date row) and by the scrolling
-   body (.page-body), never behind both, so the grid always moves with the rows it belongs to. */
+/* #log paints the one grid, attached to its content (local), from the very top including the status-bar inset (the padding),
+   so the dots travel with the rows, the date and the title alike. Its position is the one of .paper (paper.css): the shift
+   plus the inset. Notes keeps the grid of .paper: its page scrolls the window. */
 #log.paper {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
-  background-image: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  background-attachment: local;
 }
 /* An id selector beats the router's own rule for a hidden tab page. */
 #log.paper[hidden] { display: none; }
-html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
 
-/* The fixed bands above the body carry their own grid, on the same 24px rhythm and shift, so the sheet reads as one page. Each band
-   starts a whole number of grid units below the one before it (96 + 48 + 48), so the dots run on unbroken from band to body.
-   The body's grid is attached to its content (local), so it scrolls with the rows. Notes keeps the grid of .paper: its page scrolls the window. */
+/* The title row and the select bar keep their height whatever the page below is: the sheet scrolls, nothing is squeezed. */
 #log .paper-head,
+#log .select-bar { flex: none; }
+
+/* The select bar pins to the top of the screen while selecting, so Copy and Cancel stay reachable. It needs paper under its words that
+   hides the rows passing behind it, so it paints the grid itself, moved up by the scroll of the sheet (--sheet-scroll, set by
+   js/log/pages/scroll.js): it sits one safe-top inset below the screen edge when pinned, so the dots stay where the sheet's are.
+   Its ::before covers the status-bar inset above it the same way. At scroll 0 the shift is 0 and it is the sheet's own grid. */
 #log .select-bar,
-#log .view-switcher,
-#log .page-head,
-#log .page-body {
+#log .select-bar::before {
   background-image: var(--paper-dot-image);
   background-size: var(--grid) var(--grid);
-  background-position: 0 var(--grid-shift);
   background-repeat: repeat;
 }
-#log .page-body { background-attachment: local; }
-
-/* The status-bar inset is padding on #log, so it would be bare paper without a grid of its own. This strip continues
-   the same 24px rhythm into that inset (height 0 when safe-top is 0). */
-#log.paper::before {
+#log .select-bar { background-position: 0 calc(var(--grid-shift) - var(--sheet-scroll, 0px)); }
+#log .select-bar::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  height: var(--ak-safe-top);
-  background-image: var(--paper-dot-image);
-  background-size: var(--grid) var(--grid);
-  background-position: 0 calc(var(--grid-shift) + var(--ak-safe-top));
-  background-repeat: repeat;
-  pointer-events: none;
+  bottom: 100%;
+  height: var(--ak-safe-top, 0px);
+  background-color: var(--paper-bg);
+  background-position: 0 calc(var(--grid-shift) + var(--ak-safe-top, 0px) - var(--sheet-scroll, 0px));
 }
 
+/* The page is the turning unit: the switcher, the date row, the rows and the edge strips. It fills the screen at least, so a short day
+   still has paper to tap. It paints nothing of its own, so the grid under it never moves with the slide. The foot leaves room for the tab bar. */
 .paper-page.daily-page {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: 0 16px;
-  /* A vertical drag scrolls the page body; a horizontal one is a page turn or the swipe-to-done gesture (js/log/pages/turn.js). */
+  padding: 0 16px 24px;
+  /* A vertical drag scrolls the sheet; a horizontal one is a page turn or the swipe-to-done gesture (js/log/pages/turn.js). */
   touch-action: pan-y;
 }
+html.has-tabbar .paper-page.daily-page { padding-bottom: calc(var(--ak-tab, 0px) + 24px); }
+/* While a line is typed, the page ends high enough that the last row can scroll above the edit sheet. */
+html.is-editing .paper-page.daily-page { padding-bottom: 320px; }
 
 /* ----- The date row ----- */
 
-/* The date row is as wide as the screen (it cancels the page's side padding and gives it back), so its grid meets the body's at the edge. */
+/* The date row is as wide as the screen (it cancels the page's side padding and gives it back), so its words sit on the same sheet as the rows. */
 .page-head {
   flex: none;
   display: flex;
@@ -171,31 +175,23 @@ html.has-tabbar #log.paper { padding-bottom: var(--ak-tab, 0px); }
 html.ak-base .page-head :focus-visible,
 html.ak-base .day-picker :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
 
-/* ----- The leaf: the scrolling body of the day ----- */
+/* ----- The leaf: the rows of the day ----- */
 
 .page-leaf {
   position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
-/* The body is wider than the page by the page's own padding, so nothing is clipped at its edge. The first row starts 16px down, so its
-   words land on the dots of the grid (the header and the date row are three grid units tall together). */
+/* The rows are as wide as the screen (the page's own padding is cancelled and given back), so nothing is clipped at their edge. The first
+   row starts 16px down, so its words land on the dots of the grid (the title, the switcher and the date row are four grid units tall together).
+   The body does not scroll: the sheet (#log) does. */
 .page-body {
   flex: 1 1 auto;
-  min-height: 0;
   margin: 0 -16px;
-  padding: 16px 16px 24px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+  padding: 16px 16px 0;
 }
-/* While a line is typed, the page ends high enough that the last row can scroll above the edit sheet. */
-html.is-editing .page-body { padding-bottom: 320px; }
 
 /* The edge targets: a narrow strip down each side that turns the page with one tap. They sit in the page margin, over no content. */
 .page-edge {
@@ -212,7 +208,8 @@ html.is-editing .page-body { padding-bottom: 320px; }
 
 /* ----- The page turn ----- */
 
-/* The new leaf slides in from the side it comes from, on a soft paper shadow that fades as it settles. */
+/* The whole page (switcher, date row, rows) slides in from the side it comes from, on a soft paper shadow that fades as it settles.
+   The page paints no dots, so the one grid of the sheet stays put under it and nothing in the slide can fall out of step. */
 @keyframes leaf-in-next {
   from { transform: translateX(36px); opacity: 0.4; box-shadow: -14px 0 26px rgba(20, 14, 10, 0.26); }
   to { transform: none; opacity: 1; box-shadow: -14px 0 26px rgba(20, 14, 10, 0); }
@@ -221,10 +218,10 @@ html.is-editing .page-body { padding-bottom: 320px; }
   from { transform: translateX(-36px); opacity: 0.4; box-shadow: 14px 0 26px rgba(20, 14, 10, 0.26); }
   to { transform: none; opacity: 1; box-shadow: 14px 0 26px rgba(20, 14, 10, 0); }
 }
-.page-leaf[data-turn="next"] { animation: leaf-in-next 220ms ease-out both; }
-.page-leaf[data-turn="prev"] { animation: leaf-in-prev 220ms ease-out both; }
+.paper-page[data-turn="next"] { animation: leaf-in-next 220ms ease-out both; }
+.paper-page[data-turn="prev"] { animation: leaf-in-prev 220ms ease-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .page-leaf[data-turn] { animation: none; }
+  .paper-page[data-turn] { animation: none; }
 }
 
 /* ----- The day picker ----- */

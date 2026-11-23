@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -63,6 +63,8 @@ async function seed(page: Page, entries: Seed[]): Promise<void> {
 const switcher = (page: Page) => page.getByTestId("view-switcher");
 const tab = (page: Page, name: "future" | "month" | "daily") => page.getByTestId(`view-${name}`);
 const body = (page: Page) => page.getByTestId("page-body");
+/** The sheet that scrolls the whole log page: #log, with the title, the switcher and the date row on it. */
+const sheet = (page: Page) => page.locator("#log");
 const row = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
 
@@ -198,17 +200,28 @@ test("a month-task is a task even when the line was an event, because an event n
   await expect(row(page, "Konferenz")).toHaveAttribute("data-type", "task");
 });
 
-test("a long month ends above the tab bar: the last row and Add sit fully above it", async ({ page }) => {
+test("a long month scrolls as one sheet: the title, the switcher and the month row go up with the rows, and the last row and Add sit above the tab bar", async ({ page }) => {
   const entries: Seed[] = Array.from({ length: 14 }, (_, i) => ({ date: lastDay(0), title: `Monatsaufgabe ${i + 1}`, horizon: "month-task" }));
   await seed(page, entries);
   await openLog(page, "?view=month");
+  await expect(page.getByTestId("month-heading")).toBeInViewport();
 
-  await body(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await sheet(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const bar = (await mainBar(page).boundingBox())!;
   const last = (await row(page, "Monatsaufgabe 14").boundingBox())!;
   const add = (await page.locator("[data-action=add-entry]").boundingBox())!;
   expect(last.y + last.height).toBeLessThanOrEqual(bar.y);
   expect(add.y + add.height).toBeLessThanOrEqual(bar.y);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  for (const id of ["view-switcher", "page-head"]) {
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.y + box.height, id).toBeLessThanOrEqual(0);
+  }
+  expect((await page.locator(".paper-head h1").boundingBox())!.y).toBeLessThan(0);
+
+  await sheet(page).evaluate((node) => { node.scrollTop = 0; });
+  await expect(switcher(page)).toBeInViewport();
+  await expect(page.getByTestId("month-heading")).toBeInViewport();
 });
 
 test("a long Future Log ends above the tab bar too", async ({ page }) => {
@@ -216,7 +229,7 @@ test("a long Future Log ends above the tab bar too", async ({ page }) => {
   await seed(page, entries);
   await openLog(page, "?view=future");
 
-  await body(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await sheet(page).evaluate((node) => { node.scrollTop = node.scrollHeight; });
   const bar = (await mainBar(page).boundingBox())!;
   const add = (await page.locator("[data-action=add-entry]").boundingBox())!;
   expect(add.y + add.height).toBeLessThanOrEqual(bar.y);
