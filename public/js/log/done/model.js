@@ -15,9 +15,9 @@
     return Object.prototype.hasOwnProperty.call(NEXT, type) ? NEXT[type] : null;
   }
 
-  /** True for a day entry whose bullet is a done toggle. Month and future items have no toggle, so none of the gestures act on them. */
+  /** True for an entry on a real day (the daily log or the monthly calendar) whose bullet is a done toggle. Month-task and future items have no toggle, so none of the gestures act on them. */
   function canToggle(entry) {
-    return (entry.horizon || 'day') === 'day' && next(entry.type) !== null;
+    return L.days.hasDay(L.days.horizonOf(entry)) && next(entry.type) !== null;
   }
 
   L.done.model = { next: next, canToggle: canToggle };

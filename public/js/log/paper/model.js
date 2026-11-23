@@ -25,13 +25,13 @@
   function groups(entries) {
     var seen = {};
     entries.forEach(function (entry) {
-      var month = L.days.horizonOf(entry) !== 'day';
+      var month = !L.days.hasDay(L.days.horizonOf(entry));
       seen[(month ? 'm' : 'd') + entry.date] = { date: entry.date, month: month };
     });
     return Object.keys(seen).map(function (key) { return seen[key]; }).sort(function (a, b) {
       return a.date < b.date ? -1 : a.date > b.date ? 1 : Number(a.month) - Number(b.month);
     }).map(function (group) {
-      return { date: group.date, month: group.month, entries: group.month ? monthItems(entries, group.date) : L.days.dayEntries(entries, group.date) };
+      return { date: group.date, month: group.month, entries: group.month ? monthItems(entries, group.date) : L.days.dayItems(entries, group.date) };
     });
   }
 

@@ -321,6 +321,47 @@ test("list gives a dated day entry and the month items of the same month togethe
   assert.equal(list.filter((e) => e.title === "dentist").length, 1, "no second copy");
 });
 
+test("a month-calendar entry keeps its day, is its own group on that day, and is not a daily-log row", () => {
+  const { store } = setup();
+  const daily = store.create(USER, entry({ date: "2026-12-15", title: "daily" }), 1);
+  const calendar = store.create(USER, entry({ date: "2026-12-15", horizon: "month-calendar", type: "event", time: "10:00", title: "dentist" }), 2);
+  const second = store.create(USER, entry({ date: "2026-12-15", horizon: "month-calendar", title: "call" }), 3);
+  assert.deepEqual([calendar.date, calendar.horizon, calendar.type, calendar.position], ["2026-12-15", "month-calendar", "event", 0]);
+  assert.equal(second.position, 1);
+  assert.equal(daily.position, 0, "the daily entry of that day keeps its own order");
+  assert.deepEqual(store.list(USER, DEC).map((e) => e.horizon), ["day", "month-calendar", "month-calendar"]);
+  assert.equal(store.update(USER, calendar.id, { type: "task" }, 4)!.horizon, "month-calendar");
+});
+
+test("a traces table made before month-calendar is rebuilt on open with its rows kept, and then takes that horizon", () => {
+  const dir = mkdtempSync(join(tmpdir(), "bujo-traces-"));
+  try {
+    const file = join(dir, "bujo.db");
+    const first = openDb(file);
+    first.prepare("INSERT INTO users (id, name, recovery_hash, created_at) VALUES (?, ?, ?, ?)").run(USER, "Philipp", "hash", 1);
+    const made = createEntryStore(first).create(USER, entry(), 1);
+    first.exec("DROP TABLE entry_traces");
+    first.exec(`CREATE TABLE entry_traces (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE, date TEXT NOT NULL,
+      horizon TEXT NOT NULL CHECK (horizon IN ('day', 'month-task', 'future')),
+      kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled')), title TEXT NOT NULL, created_at INTEGER NOT NULL)`);
+    const insert = (id: string, horizon: string) => first.prepare("INSERT INTO entry_traces VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, USER, made.id, "2026-11-20", horizon, "migrated", "t", 1);
+    insert("t1", "day");
+    assert.throws(() => insert("t2", "month-calendar"));
+    first.close();
+
+    const reopened = openDb(file);
+    assert.deepEqual(reopened.prepare("SELECT id FROM entry_traces").all().map((r) => r.id), ["t1"]);
+    assert.doesNotThrow(() => reopened.prepare("INSERT INTO entry_traces VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("t3", USER, made.id, "2026-11-20", "month-calendar", "migrated", "t", 2));
+    assert.equal((reopened.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'entry_traces_old'").get() as { n: number }).n, 0);
+    reopened.close();
+    assert.doesNotThrow(() => openDb(file).close(), "a second open leaves the rebuilt table alone");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("moving a row to another month puts it at the end of that group and renumbers the old one", () => {
   const { store } = setup();
   const a = store.create(USER, entry({ date: "2026-12-05", horizon: "month-task", title: "a" }), 1);

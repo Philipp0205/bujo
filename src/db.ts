@@ -4,6 +4,22 @@ import { DatabaseSync } from "node:sqlite";
 
 export type Db = DatabaseSync;
 
+/** The traces table and its indexes: shared by the schema and by the rebuild of a table made before month-calendar existed. */
+const TRACES_TABLE = `
+CREATE TABLE IF NOT EXISTS entry_traces (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  horizon TEXT NOT NULL CHECK (horizon IN ('day', 'month-calendar', 'month-task', 'future')),
+  kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled')),
+  title TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_entry_traces_user_date ON entry_traces(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_entry_traces_entry ON entry_traces(entry_id);
+`;
+
 /**
  * Accounts, sessions, mail links and agent tokens. Every secret is stored as a sha256 hash.
  *
@@ -98,18 +114,7 @@ CREATE TABLE IF NOT EXISTS entry_tags (
 );
 
 -- What a move leaves on the old page (a ">" or "<" line). Never an entry: no UID, never synced. It goes with its entry.
-CREATE TABLE IF NOT EXISTS entry_traces (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
-  date TEXT NOT NULL,
-  horizon TEXT NOT NULL CHECK (horizon IN ('day', 'month-task', 'future')),
-  kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled')),
-  title TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_entry_traces_user_date ON entry_traces(user_id, date);
-CREATE INDEX IF NOT EXISTS idx_entry_traces_entry ON entry_traces(entry_id);
+${TRACES_TABLE}
 
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
@@ -127,7 +132,7 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["sync_error", "TEXT"],
   ["body", "TEXT"],
   ["indent", "INTEGER NOT NULL DEFAULT 0"],
-  // day, month-task or future (see src/log/horizon.ts). Older rows are day entries.
+  // day, month-calendar, month-task or future (see src/log/horizon.ts). Older rows are day entries.
   ["horizon", "TEXT NOT NULL DEFAULT 'day'"],
   // Scan provenance: the paper line last applied to the entry (see src/log/scan/). Database only, never in the Entry API.
   ["scan_key", "TEXT"],
@@ -156,11 +161,25 @@ function addMissingColumns(
   }
 }
 
-/** Brings tables of older databases up to date: the sync columns, body, indent and scan provenance of entries, the seen id of users, the tag list. */
+/** Brings tables of older databases up to date: the sync columns, body, indent and scan provenance of entries, the seen id of users, the tag list, the trace horizons. */
 function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
   moveSingleTags(db);
+  allowCalendarTraces(db);
+}
+
+/** A traces table made before month-calendar existed refuses that horizon in its CHECK, so it is rebuilt once with the new list. Rows are kept. */
+function allowCalendarTraces(db: Db): void {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'entry_traces'").get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("month-calendar")) return;
+  inTransaction(db, () => {
+    db.exec("DROP INDEX IF EXISTS idx_entry_traces_user_date; DROP INDEX IF EXISTS idx_entry_traces_entry;");
+    db.exec("ALTER TABLE entry_traces RENAME TO entry_traces_old");
+    db.exec(TRACES_TABLE);
+    db.exec("INSERT INTO entry_traces SELECT id, user_id, entry_id, date, horizon, kind, title, created_at FROM entry_traces_old");
+    db.exec("DROP TABLE entry_traces_old");
+  });
 }
 
 /**

@@ -6,10 +6,12 @@ import vm from "node:vm";
 
 const PUBLIC_DIR = path.join(import.meta.dirname, "..", "public");
 
-/** Loads public/js/log/done/model.js into a sandbox and returns what it adds to window.BujoLog.done. */
+/** Loads public/js/log/days.js and done/model.js into a sandbox and returns what the latter adds to window.BujoLog.done. */
 function loadModel(): { next(type: string): string | null; canToggle(entry: { type: string }): boolean } {
   const window: Record<string, any> = {};
-  vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, "js", "log", "done", "model.js"), "utf8"), { window });
+  for (const file of ["days.js", path.join("done", "model.js")]) {
+    vm.runInNewContext(fs.readFileSync(path.join(PUBLIC_DIR, "js", "log", file), "utf8"), { window });
+  }
   return window.BujoLog.done.model;
 }
 
@@ -29,9 +31,10 @@ test("done model: event, note, moved and scheduled never toggle, and neither doe
   assert.equal(model.canToggle({ type: "done" }), true);
 });
 
-test("done model: only a day entry toggles, a month-task or future item never does", () => {
+test("done model: a day or calendar entry toggles, a month-task or future item never does", () => {
   const model = loadModel();
   assert.equal(model.canToggle({ type: "task", horizon: "day" } as { type: string }), true);
+  assert.equal(model.canToggle({ type: "task", horizon: "month-calendar" } as { type: string }), true);
   assert.equal(model.canToggle({ type: "task", horizon: "month-task" } as { type: string }), false);
   assert.equal(model.canToggle({ type: "done", horizon: "future" } as { type: string }), false);
 });

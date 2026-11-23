@@ -17,17 +17,27 @@
     return entry.horizon || 'day';
   }
 
-  /** The entries of one day (day horizon only, a month or future item has its own list), in the order the server keeps them. Traces are not entries: see tracesOf. */
+  /** True for a horizon dated by a real day: the daily log ('day') and the monthly calendar ('month-calendar'). Month tasks and future items sit on a month's last day. */
+  function hasDay(horizon) {
+    return horizon === 'day' || horizon === 'month-calendar';
+  }
+
+  /** The entries of one day (day horizon only, the monthly calendar, a month and the future have their own lists), in the order the server keeps them. Traces are not entries: see tracesOf. */
   function dayEntries(entries, date) {
     return entries.filter(function (entry) { return !entry.isTrace && entry.date === date && horizonOf(entry) === 'day'; }).sort(byPosition);
   }
 
-  /** The entries of one group in server order: a day, or the month-task or future items filed under a month's last day. */
+  /** The entries of one group in server order: a day, a day of the monthly calendar, or the month-task or future items filed under a month's last day. */
   function groupEntries(entries, horizon, date) {
     return entries.filter(function (entry) { return !entry.isTrace && entry.date === date && horizonOf(entry) === horizon; }).sort(byPosition);
   }
 
-  /** The traces one move left on a page (a day, or a month lane), in the order they were left. They sit after the entries of the page. */
+  /** Everything written on one real day, for the clipboard and the "not on paper" list: the daily log entries, then the monthly calendar's entries of that day. */
+  function dayItems(entries, date) {
+    return dayEntries(entries, date).concat(groupEntries(entries, 'month-calendar', date));
+  }
+
+  /** The traces one move left on a page (a day, a calendar day, or a month lane), in the order they were left. They sit after the entries of the page. */
   function tracesOf(entries, horizon, date) {
     return entries.filter(function (entry) { return entry.isTrace === true && entry.date === date && horizonOf(entry) === horizon; })
       .sort(function (a, b) { return a.createdAt - b.createdAt; });
@@ -62,9 +72,9 @@
     var pills = [];
     var horizon = line.horizon || 'day';
     var home = line.homeHorizon || 'day';
-    if (horizon !== 'day' && (line.date !== line.home || horizon !== home)) {
+    if (!hasDay(horizon) && (line.date !== line.home || horizon !== home)) {
       pills.push({ kind: 'date', text: L.copy.horizon.chip(line.date.slice(0, 7), line.home.slice(0, 4)) });
-    } else if (horizon === 'day' && (line.date !== line.home || home !== 'day')) {
+    } else if (hasDay(horizon) && (line.date !== line.home || horizon !== home)) {
       pills.push({ kind: 'date', text: line.date.slice(8, 10) + '.' + line.date.slice(5, 7) });
     }
     pills = pills.concat(tagPills(line.tags));
@@ -83,7 +93,8 @@
   }
 
   L.days = {
-    horizonOf: horizonOf, dayEntries: dayEntries, groupEntries: groupEntries, tracesOf: tracesOf, cardsOf: cardsOf, showsSync: showsSync, showsMark: showsMark,
+    horizonOf: horizonOf, hasDay: hasDay, dayEntries: dayEntries, groupEntries: groupEntries, dayItems: dayItems, tracesOf: tracesOf, cardsOf: cardsOf,
+    showsSync: showsSync, showsMark: showsMark,
     entryPills: entryPills, editPills: editPills
   };
 })();

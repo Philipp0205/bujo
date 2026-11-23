@@ -1,7 +1,7 @@
 /*
  * The long press on a log row: hold for about half a second without moving to start selecting. Mouse and touch both work
  * (pointer events). A press that moves more than a few pixels is a scroll or a drag, so it is dropped. The click that follows
- * a long press is swallowed, so letting go never opens the editor. Needs nothing but the DOM.
+ * a long press is swallowed, so letting go never opens the editor. Needs days.js (hasDay) and the DOM.
  * options: root (the page node), onHold(id) with the data-id of the pressed row.
  */
 (function () {
@@ -19,10 +19,10 @@
   var press = null;
   var swallow = null;
 
-  /** The log row of a day under an event, or null. Only the rows of the day cards count: month and future rows do not select, and never the line in the edit sheet. */
+  /** The log row of a day or calendar day under an event, or null. Only the rows of the day cards count: month-task and future rows do not select, and never the line in the edit sheet. */
   function rowOf(event) {
     var row = event.target.closest && event.target.closest('.paper-row');
-    return row && row.closest('.entry-card, .card-child') && row.getAttribute('data-horizon') === 'day' ? row : null;
+    return row && row.closest('.entry-card, .card-child') && L.days.hasDay(row.getAttribute('data-horizon')) ? row : null;
   }
 
   /** Drops the press in progress. */

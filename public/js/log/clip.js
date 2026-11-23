@@ -46,7 +46,7 @@
   function groupsOf(entries) {
     var seen = {};
     entries.forEach(function (entry) {
-      var month = L.days.horizonOf(entry) !== 'day';
+      var month = !L.days.hasDay(L.days.horizonOf(entry));
       seen[(month ? 'm' : 'd') + entry.date] = { date: entry.date, month: month };
     });
     return Object.keys(seen).map(function (key) { return seen[key]; }).sort(function (a, b) {
@@ -54,7 +54,7 @@
     }).map(function (group) {
       var items = group.month
         ? L.days.groupEntries(entries, 'month-task', group.date).concat(L.days.groupEntries(entries, 'future', group.date))
-        : L.days.dayEntries(entries, group.date);
+        : L.days.dayItems(entries, group.date);
       return { date: group.date, month: group.month, entries: items };
     });
   }

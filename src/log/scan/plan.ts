@@ -32,11 +32,11 @@ const monthDate = (month: string): string => lastDayOfMonth(`${month}-01`);
 /** True for a YYYY-MM string that is a real month. */
 export const isMonth = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}$/.test(value) && isValidDate(`${value}-01`);
 
-/** The day entry a calendar day names in a month, or null when the month has no such day. */
+/** The month-calendar slot a calendar day names in a month, or null when the month has no such day. A calendar page never files into the daily log. */
 function calendarSlot(month: string | null, day: number | null | undefined): Slot | null {
   if (!isMonth(month) || !day) return null;
   const date = `${month}-${String(day).padStart(2, "0")}`;
-  return isValidDate(date) ? { horizon: "day", date } : null;
+  return isValidDate(date) ? { horizon: "month-calendar", date } : null;
 }
 
 /** The slot a line files in, by the page kind: a day, a day of the month, the month's task lane or a future month's lane. */

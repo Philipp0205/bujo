@@ -88,10 +88,10 @@
   function readValues(controls, grid, values) {
     var horizon = values.horizon || 'day';
     var date = controls.date.value;
-    // A new day on a month or future item moves it to the daily log. A month-only event stays a task until it has a day.
-    if (horizon !== 'day' && date && date !== values.date) horizon = 'day';
+    // A new day on a month-task or future item moves it to the daily log. A month-only event stays a task until it has a day.
+    if (!L.days.hasDay(horizon) && date && date !== values.date) horizon = 'day';
     var type = grid.value();
-    if (type === 'event' && horizon !== 'day') type = 'task';
+    if (type === 'event' && !L.days.hasDay(horizon)) type = 'task';
     var next = {
       date: date,
       type: type,

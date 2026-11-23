@@ -82,17 +82,19 @@ test("scan: a month task page files as month-task entries with a month-end date,
   });
 });
 
-test("scan: a calendar page files day entries on their day, empty days add nothing", async () => {
+test("scan: a calendar page files month-calendar entries on their day, empty days add nothing, and the daily log gets none", async () => {
   await withLogScan(async (ctx) => {
     const { review } = await scan(ctx, CALENDAR);
     assert.deepEqual([review.kind, review.month], ["calendar", "2026-12"]);
     assert.deepEqual(review.items.map((i: any) => [i.day, i.type, i.title]), [[2, "event", "Lunch mit Mira"], [4, "event", "Konzert"], [7, "event", "Team"]]);
     assert.equal((await post(ctx, review.id, "apply", bodyOf(review))).status, 200);
-    assert.deepEqual((await allEntries(ctx, "2026-12-01", "2026-12-31")).map((e) => [e.horizon, e.date, e.type, e.title]), [
-      ["day", "2026-12-02", "event", "Lunch mit Mira"],
-      ["day", "2026-12-04", "event", "Konzert"],
-      ["day", "2026-12-07", "event", "Team"],
+    const filed = await allEntries(ctx, "2026-12-01", "2026-12-31");
+    assert.deepEqual(filed.map((e) => [e.horizon, e.date, e.type, e.title]), [
+      ["month-calendar", "2026-12-02", "event", "Lunch mit Mira"],
+      ["month-calendar", "2026-12-04", "event", "Konzert"],
+      ["month-calendar", "2026-12-07", "event", "Team"],
     ]);
+    assert.deepEqual(filed.filter((e) => e.horizon === "day"), []);
   });
 });
 

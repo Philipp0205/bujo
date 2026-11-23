@@ -2,10 +2,11 @@ export const ENTRY_TYPES = ["task", "note", "event", "done", "migrated", "schedu
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
 /**
- * How far ahead an entry looks. A day entry sits on its day. A month-task or future entry sits on the last day of its
- * month (which is also its DUE) and is listed by that month, not by a day.
+ * How far ahead an entry looks. A day entry sits on its day in the daily log. A month-calendar entry sits on a real day
+ * too, but belongs to the monthly calendar page, not the daily log. A month-task or future entry sits on the last day of
+ * its month (which is also its DUE) and is listed by that month, not by a day.
  */
-export const ENTRY_HORIZONS = ["day", "month-task", "future"] as const;
+export const ENTRY_HORIZONS = ["day", "month-calendar", "month-task", "future"] as const;
 export type EntryHorizon = (typeof ENTRY_HORIZONS)[number];
 
 export const SYNC_STATES = ["local", "pending", "synced", "error"] as const;
@@ -15,7 +16,7 @@ export type SyncState = (typeof SYNC_STATES)[number];
 export type Entry = {
   id: string;
   date: string;
-  /** "day" for an ordinary entry. For the other two, date is the last day of the month the entry belongs to. */
+  /** "day" for a daily-log entry, "month-calendar" for one on the monthly calendar (both dated by a real day). For month-task and future, date is the last day of the month the entry belongs to. */
   horizon: EntryHorizon;
   time: string | null;
   type: EntryType;

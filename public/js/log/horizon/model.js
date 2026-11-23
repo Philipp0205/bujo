@@ -56,10 +56,11 @@
     return { date: lastDay(target), horizon: target <= here ? 'month-task' : 'future' };
   }
 
-  /** Every day of a month in date order: [{ date, entries, traces }]. The paper calendar writes out all of them, so a day with nothing on it is listed too. */
+  /** Every day of a month in date order: [{ date, entries, traces }]. The paper calendar writes out all of them, so a day with nothing on it is listed too.
+   * Only the calendar's own entries and traces are listed (month-calendar): the daily log is a separate page and never shows here. */
   function monthDays(entries, month) {
     return L.dates.daysOfMonth(month).map(function (date) {
-      return { date: date, entries: L.days.dayEntries(entries, date), traces: L.days.tracesOf(entries, 'day', date) };
+      return { date: date, entries: L.days.groupEntries(entries, 'month-calendar', date), traces: L.days.tracesOf(entries, 'month-calendar', date) };
     });
   }
 

@@ -103,12 +103,13 @@ test("horizon: a new line on the second Future page goes under the first month o
   assert.deepEqual(plain(M.horizon.slotOf("future", "2026-11", TODAY, 1)), { date: "2027-02-28", horizon: "future" });
 });
 
-test("horizon: the month lists every day, empty ones too, and never a month item as a day", () => {
+test("horizon: the month lists every day, empty ones too, only its own calendar entries, never a daily or month item", () => {
   const entries: Entry[] = [
-    { id: "a", date: "2026-11-24", position: 1 },
-    { id: "b", date: "2026-11-24", position: 0 },
+    { id: "a", date: "2026-11-24", horizon: "month-calendar", position: 1 },
+    { id: "b", date: "2026-11-24", horizon: "month-calendar", position: 0 },
+    { id: "day", date: "2026-11-24", position: 0 },
     { id: "c", date: "2026-11-30", horizon: "month-task" },
-    { id: "d", date: "2026-12-02" },
+    { id: "d", date: "2026-12-02", horizon: "month-calendar" },
   ];
   const days = plain(M.horizon.monthDays(entries, "2026-11"));
   assert.equal(days.length, 30);
@@ -116,6 +117,11 @@ test("horizon: the month lists every day, empty ones too, and never a month item
   assert.deepEqual(days[0].entries, []);
   assert.deepEqual(days[23].entries.map((entry) => entry.id), ["b", "a"]);
   assert.deepEqual(days[29].entries, []);
+});
+
+test("horizon: a day with only daily-log entries is an empty calendar line", () => {
+  const days = plain(M.horizon.monthDays([{ id: "x", date: "2026-11-10" }, { id: "y", date: "2026-11-10", horizon: "day" }], "2026-11"));
+  assert.deepEqual(days[9].entries, []);
 });
 
 test("horizon: the Future Log is two pages of three months, and its pages stop at both ends", () => {

@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-month-own-entries",
+    "date": "2026-11-23",
+    "title": "The month calendar is its own page",
+    "bullets": [
+      "The Month calendar no longer shows your daily log. Daily entries stay on their day in the Daily view and are not copied onto the calendar.",
+      "The calendar has its own entries. A scanned calendar page now files onto the calendar, and no longer adds lines to the daily log.",
+      "Entries that were already in your daily log stay there, even if they came from an earlier calendar scan."
+    ]
+  },
+  {
     "id": "2026-11-23-fuzzy-scan-match",
     "date": "2026-11-23",
     "title": "Scans forgive bad reading",

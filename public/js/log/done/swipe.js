@@ -2,7 +2,7 @@
  * Swipe right on a task or done row to flip it, like a tap on its bullet. A clear gesture only: far enough, mostly horizontal,
  * and not from the left screen edge (that is the phone's own Back). A vertical move is a scroll (the rows allow pan-y only), a
  * press that ends in a swipe never opens the row (its click is swallowed), and select mode and long presses are left alone.
- * Mouse and touch both work (pointer events). Needs nothing but the DOM.
+ * Mouse and touch both work (pointer events). Needs days.js (hasDay) and the DOM.
  * options: root (the page node), active() true while the swipe may act, onSwipe(id) with the data-id of the row.
  */
 (function () {
@@ -20,11 +20,11 @@
   var start = null;
   var swallowUntil = 0;
 
-  /** The swipeable row under an event: a task or done row of a day card, never a month or future row, never the line in the edit sheet. */
+  /** The swipeable row under an event: a task or done row of a day or calendar card, never a month-task or future row, never the line in the edit sheet. */
   function rowOf(event) {
     var row = event.target.closest && event.target.closest('.paper-row');
     if (!row || !row.closest('.entry-card, .card-child')) return null;
-    if (row.getAttribute('data-horizon') !== 'day') return null;
+    if (!L.days.hasDay(row.getAttribute('data-horizon'))) return null;
     var type = row.getAttribute('data-type');
     return type === 'task' || type === 'done' ? row : null;
   }

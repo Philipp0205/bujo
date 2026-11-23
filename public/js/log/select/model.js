@@ -1,5 +1,5 @@
 /*
- * The selection of the rapid log: which entries are ticked, and the day of the one ticked last. Pure: no DOM, no strings.
+ * The selection of the rapid log: which entries are ticked, and the page (day and horizon) of the one ticked last. Pure: no DOM, no strings.
  * Entries are kept by id, so a parent and its nested entries are ticked on their own and a redraw never loses the choice.
  */
 (function () {
@@ -10,29 +10,36 @@
 
   var ids = {};
   var lastDate = null;
+  var lastHorizon = null;
 
   /** True when the entry is ticked. */
   function has(id) {
     return ids[id] === true;
   }
 
-  /** Ticks an entry (one that is already ticked stays). The day of this entry is the one "select day" works on. */
+  /** Remembers the page of the entry ticked last: "select day" works on it. A daily log day and a calendar day are two pages. */
+  function remember(entry) {
+    lastDate = entry.date;
+    lastHorizon = entry.horizon || 'day';
+  }
+
+  /** Ticks an entry (one that is already ticked stays). */
   function add(entry) {
     ids[entry.id] = true;
-    lastDate = entry.date;
+    remember(entry);
   }
 
   /** Ticks an entry that is off and unticks one that is on. */
   function toggle(entry) {
     if (has(entry.id)) delete ids[entry.id];
     else ids[entry.id] = true;
-    lastDate = entry.date;
+    remember(entry);
   }
 
-  /** Ticks every day entry of the day of the one toggled last, nested ones too. */
+  /** Ticks every entry of the page of the one toggled last (its day in the daily log, or its day on the calendar), nested ones too. */
   function addDay(entries) {
     entries.forEach(function (entry) {
-      if (entry.date === lastDate && (entry.horizon || 'day') === 'day') ids[entry.id] = true;
+      if (entry.date === lastDate && (entry.horizon || 'day') === lastHorizon && L.days.hasDay(lastHorizon)) ids[entry.id] = true;
     });
   }
 
@@ -41,10 +48,11 @@
     return entries.filter(function (entry) { return has(entry.id); });
   }
 
-  /** Unticks everything and forgets the day. */
+  /** Unticks everything and forgets the page. */
   function clear() {
     ids = {};
     lastDate = null;
+    lastHorizon = null;
   }
 
   L.select.model = { has: has, add: add, toggle: toggle, addDay: addDay, pick: pick, clear: clear };
