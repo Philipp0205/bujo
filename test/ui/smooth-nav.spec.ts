@@ -49,13 +49,13 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   const title = await seedNote(page, "Kitchen garden");
   await page.goto(app.baseUrl);
   await expect(heading(page, "Daily Log")).toBeVisible();
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Collections", "Add", "Scan", "Account"]);
   const barNode = await bar(page).elementHandle();
   await markDocument(page);
 
   await tab(page, "notes").click();
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
-  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(heading(page, "Collections")).toBeVisible();
   await expect(card(page, title)).toHaveCount(1);
   await expect(tab(page, "notes")).toHaveAttribute("aria-current", "page");
   await expect(tab(page, "add")).not.toHaveAttribute("aria-current", "page");
@@ -66,13 +66,13 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await expect(heading(page, "Settings")).toBeVisible();
   await expect(page.locator("[data-section=theme]")).toBeVisible();
   await expect(tab(page, "account")).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("main", { name: "Notes" })).toBeHidden();
+  await expect(page.getByRole("main", { name: "Collections" })).toBeHidden();
 
   await tab(page, "log").click();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
   await expect(heading(page, "Daily Log")).toBeVisible();
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Collections", "Add", "Scan", "Account"]);
 
   // One document the whole time, and one bar that was never replaced.
   expect(await sameDocument(page)).toBe(true);
@@ -103,7 +103,7 @@ test("Back from Notes lands on the log and stays in the app, in the same documen
   await page.goto(app.baseUrl);
   await markDocument(page);
   await tab(page, "notes").click();
-  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(heading(page, "Collections")).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
@@ -139,7 +139,7 @@ test("an open note sheet closes on the first Back and Notes stays, the second Ba
   await page.goBack();
   await expect(noteSheet(page)).toHaveCount(0);
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
-  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(heading(page, "Collections")).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
@@ -177,7 +177,7 @@ async function openFirst(page: Page, path: string): Promise<Page> {
   return first;
 }
 
-for (const [path, name] of [["/settings", "Settings"], ["/notes", "Notes"]] as const) {
+for (const [path, name] of [["/settings", "Settings"], ["/notes", "Collections"]] as const) {
   test(`${path} opened first sends Back to the log instead of closing the app, without a new document`, async ({ page }) => {
     const first = await openFirst(page, path);
     await expect(heading(first, name)).toBeVisible();
@@ -219,12 +219,12 @@ test("a warm switch to an empty Notes shows the empty note, not the loading line
   }
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
-  await expect(page.getByText("No notes yet.")).toBeVisible();
+  await expect(page.getByText("No collections yet.")).toBeVisible();
   await tab(page, "log").click();
 
   await watchLoadingLine(page);
   await tab(page, "notes").click();
-  await expect(page.getByText("No notes yet.")).toBeVisible({ timeout: 500 });
+  await expect(page.getByText("No collections yet.")).toBeVisible({ timeout: 500 });
   expect(await page.evaluate(() => (window as unknown as { __loadingSeen: boolean }).__loadingSeen)).toBe(false);
 });
 
@@ -275,7 +275,7 @@ test("a reload of Notes paints the cached grid before the list arrives", async (
 test("the page fades in on a switch: no slide, and no cross-document view transition", async ({ page }) => {
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
-  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(heading(page, "Collections")).toBeVisible();
   const transform = await page.locator("#notes").evaluate((node) => getComputedStyle(node).transform);
   expect(transform).toBe("none");
   await expect(page.locator("link[href*=ak-view-transitions]")).toHaveCount(0);

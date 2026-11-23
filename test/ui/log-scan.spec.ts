@@ -59,7 +59,7 @@ const bar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 
 test("the header of the log has no camera and no settings icon, and the bar has Scan right of the raised, centred Add, neither ever the current page", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Collections", "Add", "Scan", "Account"]);
   await expect(page.locator("[data-action=scan]")).toHaveCount(0);
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.locator(".paper-head").getByText("Scan a page")).toHaveCount(0);
@@ -237,7 +237,7 @@ test("the camera screen has the title, frame, toggle, shutter, and close", async
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
   await expect(screen.getByRole("button", { name: "Log page" })).toHaveAttribute("aria-pressed", "true");
-  const note = screen.getByRole("button", { name: "Free note" });
+  const note = screen.getByRole("button", { name: "Collection" });
   await expect(note).not.toHaveAttribute("aria-disabled");
   await expect(note).toHaveAttribute("aria-pressed", "false");
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();

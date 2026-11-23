@@ -117,7 +117,7 @@ test("Notes keeps its last grid and says it is offline", async ({ page }) => {
   await bar.locator("[data-tab=log]").click();
   await expect(page.getByTestId("offline-hint")).toBeVisible();
   await bar.locator("[data-tab=notes]").click();
-  const notes = page.getByRole("main", { name: "Notes" });
+  const notes = page.getByRole("main", { name: "Collections" });
   await expect(notes.getByTestId("note-grid")).toBeVisible();
   await expect(notes.getByTestId("offline-hint")).toBeVisible();
   await expect(notes.locator("[data-state=error]")).toHaveCount(0);
