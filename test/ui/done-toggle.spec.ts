@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-month-own-entries" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-row-swipes" } });
 });
 
 /** The entries this spec made in its own throwaway database, removed after each test so every test starts from an empty log. */
@@ -98,31 +98,27 @@ test("a tap on the title still opens the entry, and the bullet of an event or a 
   await expect(row(page, "Aufgabe")).toHaveAttribute("data-type", "task");
 });
 
-test("a swipe right flips a task and does not open it; a short or a vertical drag does nothing", async ({ page }) => {
+test("a swipe right on an open task no longer marks it done: it opens the migrate chooser instead", async ({ page }) => {
   const id = await seed(page, "task", "Wischen");
   await openLog(page);
 
-  await swipeRight(page, "Wischen", 30);
-  await expect(row(page, "Wischen")).toHaveAttribute("data-type", "task");
-  await swipeRight(page, "Wischen", 80, 90);
-  await expect(row(page, "Wischen")).toHaveAttribute("data-type", "task");
-
   await swipeRight(page, "Wischen");
-  await expect(row(page, "Wischen")).toHaveAttribute("data-type", "done");
-  await expect.poll(() => serverType(page, id)).toBe("done");
+  await expect(page.getByTestId("move-chooser")).toHaveAttribute("data-kind", "migrate");
+  await expect(row(page, "Wischen")).toHaveAttribute("data-type", "task");
+  expect(await serverType(page, id)).toBe("task");
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
-
-  await swipeRight(page, "Wischen");
-  await expect(row(page, "Wischen")).toHaveAttribute("data-type", "task");
-  await expect.poll(() => serverType(page, id)).toBe("task");
 });
 
-test("a swipe on an event row does nothing", async ({ page }) => {
+test("a swipe on a done row or an event row does nothing", async ({ page }) => {
+  const done = await seed(page, "done", "Fertig");
   const id = await seed(page, "event", "Konzert");
   await openLog(page);
+  await swipeRight(page, "Fertig");
   await swipeRight(page, "Konzert");
+  await expect(page.getByTestId("move-chooser")).toHaveCount(0);
   await expect(row(page, "Konzert")).toHaveAttribute("data-type", "event");
   expect(await serverType(page, id)).toBe("event");
+  expect(await serverType(page, done)).toBe("done");
 });
 
 test("a toggle made offline shows at once and is sent when the connection is back", async ({ page }) => {

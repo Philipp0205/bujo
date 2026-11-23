@@ -26,7 +26,7 @@ Until `package.json` exists, those steps are placeholders and the script reports
 
 ## OpenCode
 
-Use OpenCode with the litellm provider.
+Use OpenCode with the global default model (currently github-copilot/claude-sonnet-5.5); don't pass -m.
 
 ## Style
 

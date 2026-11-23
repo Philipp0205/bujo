@@ -1,8 +1,9 @@
 /*
  * The move chooser: the compact paper card that opens when the type marker is set to Moved (>) or Scheduled (<). It lists the places
  * the entry can go (this day, the next day, a day of your choice, this month, one of the later months) and calls back with the pick.
- * It lives in the edit sheet like the type chooser, so a press on it keeps the title focused. It builds nodes and calls back,
- * it never changes a line. Needs ak-dom.js, copy.js, glyph.js, edit-sheet.js and move/model.js.
+ * It lives in the edit sheet like the type chooser, so a press on it keeps the title focused, or, with spec.overlay, on a paper
+ * overlay over the log (a row swipe, no sheet). It builds nodes and calls back, it never changes a line.
+ * Needs ak-dom.js, copy.js, glyph.js, edit-sheet.js and move/model.js.
  */
 (function () {
   'use strict';
@@ -12,6 +13,7 @@
   L.move = L.move || {};
 
   var node = null;
+  var overlay = null;
 
   /** One quick option: a labelled button for a place (or for "this day", with no place). */
   function option(label, key, selected, onPick) {
@@ -56,22 +58,30 @@
       choices.months.map(function (place) { return chip(place, selected, today, onPick); }));
   }
 
+  /** Hosts the chooser on the log, for a closed row: a paper backdrop over the page, and a tap on it closes the chooser with no pick. */
+  function host(card) {
+    overlay = h('div', { class: 'move-overlay', 'data-testid': 'move-overlay', onclick: function (event) { if (event.target === overlay) close(); } }, card);
+    document.body.appendChild(overlay);
+  }
+
   /** True while the chooser is open. */
   function isOpen() {
     return node !== null;
   }
 
-  /** Closes the chooser, if one is open. */
+  /** Closes the chooser, if one is open (and the overlay that hosts it on the log). */
   function close() {
+    if (overlay) overlay.remove();
     if (node) node.remove();
     node = null;
+    overlay = null;
     var marker = document.querySelector('.type-marker');
     if (marker) marker.setAttribute('aria-expanded', 'false');
   }
 
   /**
    * Opens the chooser above the sheet. spec: kind ('migrate' or 'schedule'), choices (L.move.model.options), selected (the key of the
-   * place the line is filed in already, or null), today, onPick(place or null).
+   * place the line is filed in already, or null), today, onPick(place or null), overlay (true to host it on the log, not in the sheet).
    */
   function open(spec) {
     close();
@@ -80,7 +90,8 @@
       class: 'move-chooser', role: 'group', 'aria-label': L.copy.move.chooserLabel, 'data-testid': 'move-chooser', 'data-kind': spec.kind
     }, h('div', { class: 'move-heading' }, L.glyph.typeGlyph(L.move.model.KINDS[spec.kind]), h('span', null, title)),
     quick(spec.choices, spec.selected, spec.onPick), monthGrid(spec.choices, spec.selected, spec.today, spec.onPick));
-    L.inline.editSheet.element().appendChild(node);
+    if (spec.overlay) host(node);
+    else L.inline.editSheet.element().appendChild(node);
     var marker = document.querySelector('.type-marker');
     if (marker) marker.setAttribute('aria-expanded', 'true');
   }

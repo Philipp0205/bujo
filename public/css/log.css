@@ -117,7 +117,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  /* A vertical drag scrolls the log; a horizontal one reaches the swipe-to-done gesture (js/log/done/swipe.js). */
+  /* A vertical drag scrolls the log; a horizontal one reaches the row swipe (js/log/move/swipe.js). */
   touch-action: pan-y;
   /* A long press selects the entry, so the browser's own text selection and callout stay out of it. */
   -webkit-user-select: none;
@@ -590,6 +590,52 @@ html.ak-base .type-chooser :focus-visible { outline: 1px solid var(--paper-muted
   font: 14px/20px var(--font-ui);
 }
 html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
+
+/* The move chooser of a row swipe sits on a paper veil over the log, centred, with no sheet under it. A tap on the veil closes it. */
+.move-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--paper-bg) 72%, transparent);
+}
+.move-overlay > .move-chooser {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(366px, calc(100% - 24px));
+  max-height: min(420px, 80vh);
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper-bg);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
+}
+
+/* A swiped row follows the finger and the > or < shows in the gap it leaves (js/log/move/swipe.js). The mark is muted until the threshold is passed. */
+.paper-row.is-snapping { transition: transform 0.18s ease-out; }
+.swipe-ink {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  color: var(--paper-muted);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.swipe-ink svg { display: block; width: 20px; height: 20px; stroke: currentColor; fill: none; }
+.swipe-ink-migrate { right: 100%; }
+.swipe-ink-schedule { left: 100%; }
+.swipe-ink.is-ready { color: var(--paper-ink); opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .paper-row.is-snapping { transition: none; } }
 
 .sheet-chips {
   display: flex;

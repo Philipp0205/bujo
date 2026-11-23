@@ -1,9 +1,9 @@
 /*
- * The one-tap done toggle of the daily log: the bullet of a task (or a swipe right on its row) turns it done, and again turns it
+ * The one-tap done toggle of the daily log: the bullet of a task turns it done, and again turns it
  * back into a task. The row flips at once, then the change goes through the outbox (a PATCH of { type }), which queues it when
  * the device is offline. A refusal puts the row back and says so. Select mode is left alone. Event, note, moved and scheduled
  * entries never toggle.
- * Needs done/model.js, done/flip.js, done/swipe.js, outbox/save.js, paper/recent.js, toast.js and copy.js.
+ * Needs done/model.js, done/flip.js, outbox/save.js, paper/recent.js, toast.js and copy.js.
  * host: entries() the entries on screen, today(), upsert(entry) to take the saved entry, paint() redraws the page.
  */
 (function () {
@@ -52,11 +52,10 @@
     L.outbox.save.update(entry, { type: type }).then(function (next) { saved(id, next); }, function () { refused(entry); });
   }
 
-  /** Wires the toggle to its host and starts watching swipes on the page. select is select mode (its on() says whether it is on). */
+  /** Wires the toggle to its host. select is select mode (its on() says whether it is on). */
   function init(options) {
     host = options.host;
     selecting = options.select.on;
-    L.done.swipe.init({ root: options.root, active: function () { return !selecting(); }, onSwipe: toggle });
   }
 
   L.done.toggle = { init: init, toggle: toggle };
