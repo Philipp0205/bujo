@@ -74,5 +74,5 @@
     marker.setAttribute('aria-expanded', 'true');
   }
 
-  L.inline.type = { build: build, patch: patch, open: open, close: close, isOpen: isOpen };
+  L.inline.type = { build: build, patch: patch, open: open, close: close, isOpen: isOpen, order: order, option: option };
 })();

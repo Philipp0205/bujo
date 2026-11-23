@@ -12,6 +12,7 @@ Hybrid paper + digital bullet journal.
 ## Gates
 
 Before reporting a change done, run `scripts/check.sh` from the repo root. It must pass. It runs `npm ci`, `npm run typecheck`, `npm test`, and `npm run test:ui`, and stops at the first failure.
+If the full run is red only on UI specs that your change doesn't touch and that pass when rerun alone (`npx playwright test test/ui/<name>.spec.ts`), report each one as a flake by name and stop. Start another full `scripts/check.sh` only after you changed code to fix a real failure.
 
 Until `package.json` exists, those steps are placeholders and the script reports an ok line for each.
 

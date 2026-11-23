@@ -6,7 +6,7 @@ const app = useBujo();
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-migration-review" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-tap" } });
 });
 
 const made: string[] = [];
