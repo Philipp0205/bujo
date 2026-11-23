@@ -329,7 +329,7 @@
     L.pages.address.sync({ view: state.view, month: shownMonth(), date: shownPage().date, today: state.today });
   }
 
-  /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. A redraw keeps the scroll of a long page, a turn starts at the top. */
+  /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. A redraw keeps the scroll of the sheet, a turn starts at the top. */
   function draw() {
     var seen = L.pages.scroll.capture(root);
     var turn = state.turn;
@@ -511,6 +511,7 @@
       host: { entries: host.entries, today: host.today, upsert: upsert, paint: render }
     });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
+    L.pages.scroll.init(root);
     root.addEventListener('click', onPaperTap);
     L.paper.count.init(root, openPaperList);
     var linked = arriveAtView() || arriveAtDay();

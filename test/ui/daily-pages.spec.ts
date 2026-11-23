@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-enter-closes-sheet" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-one-sheet-scroll" } });
 });
 
 /** The pages are the days that have entries, so every test starts from an empty log: all entries of the throwaway account go. */
@@ -292,18 +292,78 @@ test("a ?day= link to a day without a page, or to nonsense, falls back to today"
   await expect(body(page)).toHaveAttribute("data-date", day(0));
 });
 
-test("a long page scrolls inside itself and its last row sits clear of the tab bar", async ({ page }) => {
+/** The sheet is the scroller: #log holds the title, the switcher, the date row and the rows, and the window never scrolls. */
+const sheet = (page: Page) => page.locator("#log");
+
+/** Scrolls the sheet by a distance and waits two frames for the paint. */
+async function scrollSheet(page: Page, top: number | "end"): Promise<void> {
+  await sheet(page).evaluate((node, to) => { node.scrollTop = to === "end" ? node.scrollHeight : to; }, top);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
+/** True when a node is wholly above the top of the screen (scrolled away with the sheet). */
+async function offScreenTop(node: ReturnType<Page["getByTestId"]>): Promise<boolean> {
+  const box = (await node.boundingBox())!;
+  return box.y + box.height <= 0;
+}
+
+test("a long page scrolls as one sheet: its last row sits clear of the tab bar and the header went up with the rows", async ({ page }) => {
   const titles = Array.from({ length: 24 }, (_, index) => `Zeile ${String(index + 1).padStart(2, "0")}`);
   await seed(page, titles.map((title) => ({ offset: 0, title })));
   await openLog(page);
 
-  const scroller = body(page);
-  await scroller.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await scrollSheet(page, "end");
   const last = (await row(page, "Zeile 24").boundingBox())!;
   const add = (await page.locator("[data-action=add-entry]").boundingBox())!;
   const bar = (await page.getByRole("navigation", { name: "Main" }).boundingBox())!;
   expect(last.y + last.height).toBeLessThanOrEqual(bar.y);
   expect(add.y + add.height).toBeLessThanOrEqual(bar.y);
-  // The window itself does not scroll: the head stays where it is.
+  // The window itself does not scroll: the sheet inside it does, and the header is gone with the rows.
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(await offScreenTop(page.getByTestId("view-switcher"))).toBe(true);
+  expect(await offScreenTop(page.getByTestId("page-head"))).toBe(true);
+});
+
+test("a mid-page scroll moves the switcher and the date row off the screen with the rows, and they come back at the top", async ({ page }) => {
+  const titles = Array.from({ length: 24 }, (_, index) => `Zeile ${String(index + 1).padStart(2, "0")}`);
+  await seed(page, titles.map((title) => ({ offset: 0, title })));
+  await openLog(page);
+
+  const switcherTop = (await page.getByTestId("view-switcher").boundingBox())!.y;
+  const dateTop = (await page.getByTestId("page-head").boundingBox())!.y;
+  const rowTop = (await row(page, "Zeile 01").boundingBox())!.y;
+  await scrollSheet(page, 300);
+  expect(await sheet(page).evaluate((node) => node.scrollTop)).toBe(300);
+  expect((await page.getByTestId("view-switcher").boundingBox())!.y).toBe(switcherTop - 300);
+  expect((await page.getByTestId("page-head").boundingBox())!.y).toBe(dateTop - 300);
+  expect((await row(page, "Zeile 01").boundingBox())!.y).toBe(rowTop - 300);
+  expect(await offScreenTop(page.getByTestId("view-switcher"))).toBe(true);
+  expect(await offScreenTop(page.getByTestId("page-head"))).toBe(true);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+  await scrollSheet(page, 0);
+  await expect(page.getByTestId("view-switcher")).toBeInViewport();
+  await expect(page.getByTestId("page-date")).toBeInViewport();
+});
+
+test("a page turn from mid-page starts the new page at the top with its header visible, a redraw of the same day keeps the scroll", async ({ page }) => {
+  const titles = Array.from({ length: 24 }, (_, index) => `Zeile ${String(index + 1).padStart(2, "0")}`);
+  await seed(page, [...titles.map((title) => ({ offset: 0, title })), { offset: 1, title: "Morgen" }]);
+  await openLog(page);
+
+  await scrollSheet(page, 300);
+  // A redraw of the same day (the editor opens and closes) keeps the place.
+  await row(page, "Zeile 10").click();
+  await expect(page.getByTestId("edit-sheet")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  expect(await sheet(page).evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+
+  // The edge strip is on screen though the arrows are not: one tap turns the page.
+  await page.mouse.click(382, 400);
+  await expect(body(page)).toHaveAttribute("data-date", day(1));
+  expect(await sheet(page).evaluate((node) => node.scrollTop)).toBe(0);
+  await expect(page.getByTestId("view-switcher")).toBeInViewport();
+  await expect(page.getByTestId("page-date")).toBeInViewport();
+  await expect(row(page, "Morgen")).toBeVisible();
 });

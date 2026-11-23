@@ -24,14 +24,14 @@
     sheet.style.setProperty('--sheet-safe', gap > 0 ? '0px' : 'var(--ak-safe-bottom, 0px)');
   }
 
-  /** Scrolls the page body (the inner scroller of a daily page, else the window) just enough that the node ends above the sheet, so the sheet never covers what is being edited. */
+  /** Scrolls the sheet (#log, the scroller of the log), else the window, just enough that the node ends above the sheet, so the sheet never covers what is being edited. */
   function reveal(node, sheet) {
     var vv = window.visualViewport;
     var floor = (vv ? vv.offsetTop + vv.height : window.innerHeight) - sheet.offsetHeight - MARGIN;
     var over = node.getBoundingClientRect().bottom - floor;
     if (over <= 0) return;
-    var body = node.closest('.page-body');
-    if (body) body.scrollTop += over;
+    var scroller = node.closest('#log');
+    if (scroller) scroller.scrollTop += over;
     else window.scrollBy(0, over);
   }
 

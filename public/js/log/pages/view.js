@@ -1,5 +1,5 @@
 /*
- * Render functions of one daily page: the date row (heading, Today jump, arrows, page number), the scrolling body and the edge
+ * Render functions of one daily page: the date row (heading, Today jump, arrows, page number), the body of rows and the edge
  * turn targets. They build nodes and call back, they never fetch and know nothing of the state. Needs ak-dom.js, copy.js, dates.js,
  * glyph.js and view.js (the Today mark). The cards of the day come in as the body.
  * page(ctx): date, ready, isToday, number, around { prev, next }, locked (selecting or editing), turn ('next' | 'prev' | null), body (nodes),
@@ -66,18 +66,21 @@
     });
   }
 
-  /** The leaf: the scrolling body and the two edge strips. The incoming leaf of a turn slides in (log pages.css). */
+  /** The leaf: the rows of the page and the two edge strips. It does not scroll: the sheet (#log) does. */
   function leaf(ctx, key) {
-    return h('div', { class: 'page-leaf', 'data-turn': ctx.turn },
+    return h('div', { class: 'page-leaf' },
       h('div', { class: 'page-body', 'data-date': key, 'data-testid': 'page-body' }, ctx.body),
       edge('prev', ctx),
       edge('next', ctx));
   }
 
-  /** The shell of every view: the switcher row, the head row, then the scrolling leaf. key is the day, the month or "future" (it lets a redraw keep the scroll). */
+  /** The shell of every view: the switcher row, the head row, then the leaf. key is the day, the month or "future" (it lets a redraw keep the scroll).
+   * The whole page is the unit that slides in after a turn (log pages.css), so the header travels with the rows and the one grid under them stays still. */
   function shell(ctx, key, headNode) {
-    return h('div', { class: 'paper-page daily-page', 'data-date': key, 'data-view': ctx.view || 'daily', 'data-page': ctx.number ? String(ctx.number) : null },
-      ctx.switcher || null, headNode, leaf(ctx, key));
+    return h('div', {
+      class: 'paper-page daily-page', 'data-date': key, 'data-view': ctx.view || 'daily', 'data-page': ctx.number ? String(ctx.number) : null,
+      'data-turn': ctx.turn
+    }, ctx.switcher || null, headNode, leaf(ctx, key));
   }
 
   /** One page of the notebook for a day. */

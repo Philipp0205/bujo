@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-23-one-sheet-scroll",
+    "date": "2026-11-23",
+    "title": "One sheet of paper",
+    "bullets": [
+      "The Daily, Month and Future pages now scroll as one sheet: the title, the Future | Month | Daily switcher and the date move up with the rows and the dots.",
+      "The dots run in one piece from the top of the screen, and a page turn slides the whole page, header included."
+    ]
+  },
+  {
     "id": "2026-11-23-enter-closes-sheet",
     "date": "2026-11-23",
     "title": "Enter closes the sheet",

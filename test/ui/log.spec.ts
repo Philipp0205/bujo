@@ -199,21 +199,22 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
   expect(Math.round(barBox.y + barBox.height)).toBe(844);
 });
 
-test("the paper is the page colour, never white, and its dot grid is on the scrolling body", async ({ page }, testInfo) => {
+test("the paper is the page colour, never white, and its dot grid is on the scrolling sheet", async ({ page }, testInfo) => {
   await page.goto(app.baseUrl);
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
   const dark = testInfo.project.name === "phone-dark";
   const grid = (selector: string) => page.locator(selector).first().evaluate((el) => {
     const style = getComputedStyle(el);
-    return { bg: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize, attachment: style.backgroundAttachment };
+    return { bg: style.backgroundColor, image: style.backgroundImage, size: style.backgroundSize, attachment: style.backgroundAttachment, overflow: style.overflowY };
   });
   const paper = await grid("#log.paper");
   expect(paper.bg).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
-  expect(paper.image).toBe("none");
-  const body = await grid("[data-testid=page-body]");
-  expect(body.image).toContain("radial-gradient");
-  expect(body.size).toContain("24px 24px");
-  expect(body.attachment).toBe("local");
+  expect(paper.image).toContain("radial-gradient");
+  expect(paper.size).toContain("24px 24px");
+  expect(paper.attachment).toBe("local");
+  expect(paper.overflow).toBe("auto");
+  // The body of rows paints nothing of its own: the sheet's one grid runs under it.
+  expect((await grid("[data-testid=page-body]")).image).toBe("none");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
