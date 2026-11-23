@@ -33,8 +33,14 @@
     },
     add: function () { L.inline.editor.addLine(); },
     toggleDone: function (entry) { L.done.toggle.toggle(entry.id); },
+    migrate: function () { L.inline.editor.settle(openMigrate); },
     select: L.select.mode
   };
+
+  /** Opens the migration review of the open tasks from earlier days. */
+  function openMigrate() {
+    L.migrate.sheet.open({ entries: host.entries, today: host.today });
+  }
 
   /** What the pages draw: the live entries and, after them, the traces that moves left (a day with only a trace is still a page). */
   function drawn() {
@@ -565,7 +571,7 @@
     L.move.pick.init({
       root: root,
       select: L.select.mode,
-      host: { entries: host.entries, today: host.today, upsert: upsert }
+      host: { entries: host.entries, today: host.today, upsert: upsert, paint: render }
     });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
     L.pages.scroll.init(root);

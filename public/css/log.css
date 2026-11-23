@@ -321,6 +321,15 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 .paper-row[data-type="done"] .paper-sym { color: var(--paper-done); }
 .paper-row[data-type="migrated"] { opacity: 0.55; }
 
+/* A dropped task is struck through and muted: it stays on its day, but it is no longer open (and no x: it was not done). */
+.paper-row[data-type="dropped"] .paper-title {
+  color: var(--paper-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--paper-muted);
+}
+.paper-row[data-type="dropped"] .paper-sym { color: var(--paper-muted); }
+
 /* A trace is what a move left on the page it came from: a muted ">" or "<" line with the old title. It is no entry, so it does not react to a tap. */
 .paper-trace,
 .paper-trace[data-type="scheduled"] { opacity: 0.55; cursor: default; }
@@ -349,7 +358,8 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 .sheet-chips .pill-date { color: var(--paper-ink); }
 
 /* The quiet "+ Add entry" line: its text starts in the text column. The wash hugs the words, not the full width. */
-.paper-add {
+.paper-add,
+.paper-migrate {
   appearance: none;
   -webkit-appearance: none;
   display: block;
@@ -365,14 +375,22 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   text-align: left;
   cursor: pointer;
 }
-.paper-add-text {
+.paper-add-text,
+.paper-migrate-text {
   background: var(--paper-bg);
   box-shadow: var(--paper-wash);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 html.ak-base .paper-open:focus-visible,
-html.ak-base .paper-add:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
+html.ak-base .paper-add:focus-visible,
+html.ak-base .paper-migrate:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
+
+/* The quiet migrate prompt keeps the add row's look, a touch darker, with its action underlined like a pen rule.
+   Unlike the Add row it hugs its words, so the empty paper beside it still starts a line. */
+.paper-migrate { width: auto; max-width: 100%; }
+.paper-migrate-prompt { color: var(--paper-ink); }
+.paper-migrate-go { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 
 /* ----- The edit sheet ----- */
 
@@ -595,7 +613,7 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .move-overlay {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -636,6 +654,55 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .swipe-ink-schedule { left: 100%; }
 .swipe-ink.is-ready { color: var(--paper-ink); opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .paper-row.is-snapping { transition: none; } }
+
+/* ----- The migration review sheet (sheet.css gives the paper shell) ----- */
+
+.migrate-day,
+.migrate-title,
+.migrate-empty,
+.migrate-tally { margin: 0; padding: 0 16px 0 var(--text-col); }
+.migrate-day { color: var(--paper-muted); font: italic 16px/24px var(--font-text); }
+.migrate-title {
+  margin-bottom: 24px;
+  font-size: 22px;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+  font-variation-settings: "opsz" 22, "wght" 400;
+  font-synthesis: none;
+}
+.migrate-empty { color: var(--paper-muted); font: italic 18px/24px var(--font-text); }
+.migrate-tally { list-style: none; font-size: 20px; line-height: 48px; }
+.migrate-choices { display: flex; flex-direction: column; gap: 8px; padding: 0 0 0 var(--text-col); }
+.migrate-choice {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 8px;
+  background: var(--paper-bg);
+  color: var(--paper-ink);
+  font: 17px/22px var(--font-text);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.migrate-choice:disabled { opacity: 0.5; cursor: default; }
+.migrate-choice svg { display: block; flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.migrate-choice-text { display: flex; flex-direction: column; min-width: 0; }
+.migrate-choice-hint { color: var(--paper-muted); font: italic 14px/18px var(--font-text); }
+.sheet-migrate .ak-sheet-dock { display: flex; flex-direction: column; gap: 8px; }
+.sheet-migrate .ak-sheet-dock .ak-btn.ak-btn-quiet {
+  background: transparent;
+  color: var(--paper-ink);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+}
 
 .sheet-chips {
   display: flex;

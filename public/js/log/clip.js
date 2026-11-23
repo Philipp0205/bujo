@@ -18,6 +18,7 @@
     done: 'x',
     migrated: '>',
     scheduled: '<',
+    dropped: '~',
     event: '\u25cb',
     note: '\u2013'
   };

@@ -88,7 +88,32 @@
       event: 'Event',
       done: 'Done',
       migrated: 'Moved',
-      scheduled: 'Scheduled'
+      scheduled: 'Scheduled',
+      dropped: 'Dropped'
+    },
+    migrate: {
+      /** The quiet line above today's log while earlier days still hold open tasks. */
+      prompt: function (count) { return count === 1 ? '1 open task from earlier days' : count + ' open tasks from earlier days'; },
+      promptAction: 'Migrate',
+      /** The always-there line under the entries of a daily page. */
+      link: 'Review earlier tasks',
+      title: 'Migrate',
+      progress: function (at, total) { return 'Task ' + at + ' of ' + total; },
+      empty: 'Nothing to migrate. Every earlier task is dealt with.',
+      emptySub: 'Nothing left to review',
+      doneSub: 'Review finished',
+      choicesLabel: 'What to do with this task',
+      keep: 'Keep',
+      keepHint: 'Move it to today',
+      schedule: 'Schedule',
+      scheduleHint: 'Pick a later day or month',
+      drop: 'Drop',
+      dropHint: 'Not relevant any more',
+      keepAll: 'Keep all remaining',
+      close: 'Close',
+      kept: function (count) { return count + ' kept'; },
+      scheduled: function (count) { return count + ' scheduled'; },
+      dropped: function (count) { return count + ' dropped'; }
     },
     sync: {
       local: 'Not synced',

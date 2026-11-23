@@ -62,8 +62,17 @@ test("a month or future task, done or migrated entry has DUE = the last day of i
   assert.equal(todoShape({ type: "scheduled", title: "t", date: "2026-12-14", horizon: "month-calendar" }).due, "2026-12-14");
 });
 
+test("dropped: STATUS:CANCELLED as a VTODO, no COMPLETED, no DUE on a day", () => {
+  const lines = icsOf("dropped");
+  assert.ok(lines.includes("STATUS:CANCELLED"));
+  assert.ok(lines.includes(`UID:${UID}`));
+  assert.equal(lines.some((line) => line.startsWith("DUE") || line.startsWith("COMPLETED") || line.startsWith("PERCENT-COMPLETE") || line === "STATUS:COMPLETED"), false);
+  assert.equal(todoShape(entry("dropped")).status, "CANCELLED");
+  assert.equal(syncKind("dropped"), "todo");
+});
+
 test("a new VTODO never has DTSTART, PRIORITY or CATEGORIES, whatever the type", () => {
-  for (const type of ["task", "done", "migrated", "scheduled"] as const) {
+  for (const type of ["task", "done", "migrated", "scheduled", "dropped"] as const) {
     const lines = icsOf(type);
     for (const name of ["DTSTART", "PRIORITY", "CATEGORIES"]) assert.equal(lines.some((line) => line.startsWith(name)), false, `${type} wrote ${name}`);
     assert.equal(lines.filter((line) => line === "BEGIN:VTODO").length, 1);
@@ -71,14 +80,14 @@ test("a new VTODO never has DTSTART, PRIORITY or CATEGORIES, whatever the type",
   }
 });
 
-test("task, event, done, migrated and scheduled sync: notes do not", () => {
+test("task, event, done, migrated, scheduled and dropped sync: notes do not", () => {
   assert.deepEqual(
-    (["task", "note", "event", "done", "migrated", "scheduled"] as const).filter(isSyncable),
-    ["task", "event", "done", "migrated", "scheduled"],
+    (["task", "note", "event", "done", "migrated", "scheduled", "dropped"] as const).filter(isSyncable),
+    ["task", "event", "done", "migrated", "scheduled", "dropped"],
   );
   assert.equal(syncKind("event"), "event");
   assert.equal(syncKind("note"), null);
-  for (const type of ["task", "done", "migrated", "scheduled"] as const) assert.equal(syncKind(type), "todo", type);
+  for (const type of ["task", "done", "migrated", "scheduled", "dropped"] as const) assert.equal(syncKind(type), "todo", type);
 });
 
 test("umlauts survive in SUMMARY, through folding and a parse", () => {
@@ -138,6 +147,28 @@ test("an edit to done completes it, and back to task reopens it and drops COMPLE
   assert.equal(reopened.ics.includes("COMPLETED:"), false);
   assert.equal(reopened.ics.includes("PERCENT-COMPLETE"), false);
   assert.ok(reopened.ics.includes("X-OTHER-FLAG;X-P=1:keep me"));
+});
+
+test("an edit to dropped cancels it (not COMPLETED), keeps the other properties, and back to task reopens it", () => {
+  const done = editTodo(REMOTE, UID, patchFor(todoShape(entry("done", "Alter Titel"))), NOW);
+  const dropped = editTodo(done.ics, UID, patchFor(todoShape(entry("dropped", "Alter Titel"))), NOW + 1000);
+  assert.equal(dropped.changed, true);
+  assert.ok(dropped.ics.includes("STATUS:CANCELLED"));
+  assert.equal(dropped.ics.includes("STATUS:COMPLETED"), false);
+  assert.equal(dropped.ics.includes("COMPLETED:"), false);
+  assert.equal(dropped.ics.includes("PERCENT-COMPLETE"), false);
+  assert.ok(dropped.ics.includes("X-OTHER-FLAG;X-P=1:keep me"));
+  assert.equal(editTodo(dropped.ics, UID, patchFor(todoShape(entry("dropped", "Alter Titel"))), NOW + 2000).changed, false);
+  const reopened = editTodo(dropped.ics, UID, patchFor(todoShape(entry("task", "Alter Titel"))), NOW + 3000);
+  assert.ok(reopened.ics.includes("STATUS:NEEDS-ACTION"));
+});
+
+test("readBackMismatch says STATUS when a dropped entry reads back as open or completed", () => {
+  const shape = todoShape(entry("dropped"));
+  const good = newTodoFor(shape, UID, NOW);
+  assert.equal(readBackMismatch(good, UID, shape), null);
+  assert.match(readBackMismatch(good.replace("CANCELLED", "COMPLETED"), UID, shape)!, /STATUS/);
+  assert.match(readBackMismatch(good.replace("CANCELLED", "NEEDS-ACTION"), UID, shape)!, /STATUS/);
 });
 
 test("an edit that changes nothing reports changed: false, so no write goes out", () => {

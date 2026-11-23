@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS entries (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   time TEXT,
-  type TEXT NOT NULL CHECK (type IN ('task', 'note', 'event', 'done', 'migrated', 'scheduled')),
+  type TEXT NOT NULL CHECK (type IN ('task', 'note', 'event', 'done', 'migrated', 'scheduled', 'dropped')),
   title TEXT NOT NULL,
   tag TEXT,
   sync TEXT NOT NULL DEFAULT 'local' CHECK (sync IN ('local', 'pending', 'synced', 'error')),
@@ -167,6 +167,30 @@ function migrate(db: Db): void {
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
   moveSingleTags(db);
   allowCalendarTraces(db);
+  allowDroppedType(db);
+}
+
+/**
+ * An entries table made before the dropped type refuses it in its CHECK, so it is rebuilt once with the new list, from its own
+ * definition (every column it has stays). Foreign keys are off meanwhile, or dropping the old table would cascade to the tags,
+ * traces and photos of its entries. Rows are kept. A table with no CHECK on the type is left alone.
+ */
+function allowDroppedType(db: Db): void {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'entries'").get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("'dropped'") || !row.sql.includes("'scheduled')")) return;
+  const next = row.sql.replace(/^CREATE TABLE\s+"?entries"?/i, "CREATE TABLE entries_new").replace("'scheduled')", "'scheduled', 'dropped')");
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    inTransaction(db, () => {
+      db.exec(next);
+      db.exec("INSERT INTO entries_new SELECT * FROM entries");
+      db.exec("DROP TABLE entries");
+      db.exec("ALTER TABLE entries_new RENAME TO entries");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, date, position)");
+    });
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
 }
 
 /** A traces table made before month-calendar existed refuses that horizon in its CHECK, so it is rebuilt once with the new list. Rows are kept. */

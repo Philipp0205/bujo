@@ -93,7 +93,7 @@
   }
 
   L.days = {
-    horizonOf: horizonOf, hasDay: hasDay, dayEntries: dayEntries, groupEntries: groupEntries, dayItems: dayItems, tracesOf: tracesOf, cardsOf: cardsOf,
+    horizonOf: horizonOf, hasDay: hasDay, compare: byPosition, dayEntries: dayEntries, groupEntries: groupEntries, dayItems: dayItems, tracesOf: tracesOf, cardsOf: cardsOf,
     showsSync: showsSync, showsMark: showsMark,
     entryPills: entryPills, editPills: editPills
   };

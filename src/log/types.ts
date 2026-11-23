@@ -1,4 +1,4 @@
-export const ENTRY_TYPES = ["task", "note", "event", "done", "migrated", "scheduled"] as const;
+export const ENTRY_TYPES = ["task", "note", "event", "done", "migrated", "scheduled", "dropped"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
 /**
