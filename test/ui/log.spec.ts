@@ -233,7 +233,7 @@ test("each entry is a borderless row: the symbol shares the title's line, the ta
   const sym = (await short.locator(".paper-sym").boundingBox())!;
   const title = (await short.locator(".paper-title").boundingBox())!;
   const meta = (await short.locator(".paper-meta").boundingBox())!;
-  expect(Math.abs(sym.y - title.y)).toBeLessThan(4);
+  expect(Math.abs(sym.y + sym.height / 2 - (title.y + title.height / 2))).toBeLessThan(4);
   expect(title.x).toBeGreaterThan(sym.x + sym.width - 1);
   // The tag is on the title's own line, after the title, not under it.
   expect(meta.x).toBeGreaterThanOrEqual(title.x + title.width - 1);

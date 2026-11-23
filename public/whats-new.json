@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-23-spacing",
+    "date": "2026-11-23",
+    "title": "More room between lines",
+    "bullets": [
+      "Entries that wrap onto a second or third line now have more air between the lines."
+    ]
+  },
+  {
     "id": "2026-11-23-collections",
     "date": "2026-11-23",
     "title": "Notes you write, and collections",

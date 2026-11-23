@@ -85,7 +85,7 @@
   padding: 0 2px;
   overflow-wrap: anywhere;
   font-size: 17px;
-  line-height: 22px;
+  line-height: calc(var(--text-leading) * 0.75);
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 17, "wght" var(--text-weight);
   font-synthesis: none;
