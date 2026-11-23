@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-month-own-entries" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-row-swipes" } });
 });
 
 /** The pages are the days that have entries, so every test starts from an empty log: all entries of the throwaway account go. */
@@ -258,7 +258,7 @@ test("+ Add entry on another page writes to that day and the entry is still ther
   await expect(row(page, "Schon da")).toBeVisible();
 });
 
-test("a tap on a bullet and a swipe right on a row mark it done and do not turn the page", async ({ page }) => {
+test("a tap on a bullet marks a task done, and a swipe right on a row opens the migrate chooser and does not turn the page", async ({ page }) => {
   await seed(page, [{ offset: 0, title: "Erste Aufgabe" }, { offset: 0, title: "Zweite Aufgabe" }, { offset: 2, title: "Spaeter" }]);
   await openLog(page);
 
@@ -267,7 +267,8 @@ test("a tap on a bullet and a swipe right on a row mark it done and do not turn 
   await expect(body(page)).toHaveAttribute("data-date", day(0));
 
   await swipeRowRight(page, "Zweite Aufgabe");
-  await expect(row(page, "Zweite Aufgabe")).toHaveAttribute("data-type", "done");
+  await expect(page.getByTestId("move-chooser")).toHaveAttribute("data-kind", "migrate");
+  await expect(row(page, "Zweite Aufgabe")).toHaveAttribute("data-type", "task");
   await expect(body(page)).toHaveAttribute("data-date", day(0));
   await expect(page.getByTestId("page-next")).toBeEnabled();
 });

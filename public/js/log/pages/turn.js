@@ -2,7 +2,7 @@
  * The page turn by swipe: a swipe left shows the next page, a swipe right the previous one. A clear gesture only: far enough, mostly
  * horizontal, and not from the left screen edge (that is the phone's own Back). A vertical move is a scroll. A swipe that turns a page
  * eats the click that follows it, so it never also starts a line. Mouse and touch both work (pointer events). Needs only the DOM.
- * The split with the done swipe (js/log/done/swipe.js): a swipe that begins on a row is the done gesture, any other start is a page turn.
+ * The split with the row swipe (js/log/move/swipe.js): a swipe that begins on a row is the row gesture, any other start is a page turn.
  * options: root (the page node), active() true while turning is allowed, onTurn('next' | 'prev').
  */
 (function () {

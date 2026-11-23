@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-row-swipes",
+    "date": "2026-11-23",
+    "title": "Swipe a task to move it",
+    "bullets": [
+      "Swipe an open task to the right to move it (>), or to the left to schedule it (<). A chooser asks where it goes.",
+      "Let go early and the row snaps back, nothing changes. Tap the bullet to mark a task done.",
+      "Swiping empty paper still turns the page."
+    ]
+  },
+  {
     "id": "2026-11-23-month-own-entries",
     "date": "2026-11-23",
     "title": "The month calendar is its own page",

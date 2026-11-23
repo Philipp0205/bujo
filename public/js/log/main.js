@@ -562,6 +562,11 @@
       select: L.select.mode,
       host: { entries: host.entries, today: host.today, upsert: upsert, paint: render }
     });
+    L.move.pick.init({
+      root: root,
+      select: L.select.mode,
+      host: { entries: host.entries, today: host.today, upsert: upsert }
+    });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
     L.pages.scroll.init(root);
     root.addEventListener('click', onPaperTap);
