@@ -76,9 +76,17 @@
     L.inline.editor.addLine();
   }
 
-  /** Starts the scan flow with the phone camera opening at once. Runs inside the tap on the Scan tab, so the chooser may open. */
+  /** The day a scanned page falls back to when it names none: today, or the first of the month on screen when that is another month. */
+  function scanDay() {
+    if (state.view === 'daily') return state.today;
+    var month = shownMonth();
+    return month === L.pages.model.monthOf(state.today) ? state.today : month + '-01';
+  }
+
+  /** Starts the scan flow with the phone camera opening at once. Runs inside the tap on the Scan tab, so the chooser may open.
+   * The open view goes along as a hint for the kind of page. */
   function startScan() {
-    L.scan.flow.start({ day: state.today, onApplied: applied, autoCapture: true });
+    L.scan.flow.start({ day: scanDay(), view: state.view, onApplied: applied, autoCapture: true });
   }
 
   /** Arriving with ?scan=1 (a shared link): drops the query so a refresh does not reopen the camera.
@@ -152,12 +160,33 @@
     recount();
   }
 
-  /** After a scan is applied or a note saved: show the day it landed on in the Daily view, even when it is outside the usual window. */
+  /** After a scan is applied or a note saved: show where it landed. Month tasks and a calendar open the Month view on their month, a
+   * future page the Future view, a day the Daily view even when it is outside the usual window. A month the views do not reach
+   * opens the Daily view on its first day instead. */
   function applied(result) {
-    state.view = 'daily';
-    state.focus = result.date;
-    setPage(result.date);
+    if (result.view === 'future') showHorizon('future', null);
+    else if (result.view === 'month') showMonthOrDay(result.month);
+    else showDay(result.date);
     reload();
+  }
+
+  /** Points the log at a day of the Daily view. */
+  function showDay(date) {
+    state.view = 'daily';
+    state.focus = date;
+    setPage(date);
+  }
+
+  /** Points the log at the Future view, or at the Month view on a month. */
+  function showHorizon(view, month) {
+    state.view = view;
+    state.month = month && month !== L.pages.model.monthOf(state.today) ? month : null;
+  }
+
+  /** The Month view on a month the views reach, else the Daily view on its first day. */
+  function showMonthOrDay(month) {
+    if (L.horizon.model.readMonth(month, state.today)) showHorizon('month', month);
+    else showDay(month + '-01');
   }
 
   /** The body of the page for the current status: the cards of the view on screen, with a quiet hint above them while offline. */

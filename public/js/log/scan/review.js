@@ -33,11 +33,12 @@
     return parts;
   }
 
-  /** The type picker: a native select laid transparently over the glyph, so the phone's own picker opens. */
-  function typePicker(item, onChange) {
+  /** The type picker: a native select laid transparently over the glyph, so the phone's own picker opens. Events are only offered where the page files on days. */
+  function typePicker(item, events, onChange) {
     var glyph = h('span', { class: 'scan-glyph' }, L.glyph.typeGlyph(item.type));
+    var types = L.glyph.TYPES.filter(function (type) { return events || type !== 'event' || item.type === 'event'; });
     var select = h('select', { class: 'scan-type', 'aria-label': L.copy.scan.review.type, 'data-field': 'type' },
-      L.glyph.TYPES.map(function (type) {
+      types.map(function (type) {
         return h('option', { value: type, selected: type === item.type }, L.copy.typeLabels[type]);
       }));
     select.value = item.type;
@@ -78,16 +79,17 @@
   }
 
   /** One line of the page as an editable row. Returns its node and a refresh that redraws the changing parts. hooks.showUnchanged() says whether unchanged rows are open. */
-  function row(item, hooks) {
+  function row(state, item, hooks) {
     var meta = h('span', { class: 'scan-meta' });
     var was = h('div', { class: 'scan-was', 'data-role': 'was' });
-    var picker = typePicker(item, function () { hooks.changed(true); });
+    var picker = typePicker(item, L.scan.model.allowsEvent(state.kind), function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
+    var place = L.scan.kind.placeField(state, item, hooks.moved);
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag)),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), place.node),
       keep.node);
 
     function refresh() {
@@ -100,6 +102,7 @@
       was.replaceChildren.apply(was, parts || []);
       meta.textContent = metaText(item);
       picker.show();
+      place.show();
       keep.show();
     }
     refresh();
@@ -142,46 +145,108 @@
     };
   }
 
-  /** Opens the sheet. handlers.check(state) and handlers.apply(state) return promises, handlers.done(result) runs after a save. */
+  /** The rows of the page and their group headings. relayout() puts them in page order again, rebuild() makes them anew for a kind. */
+  function rowsView(state, hooks) {
+    var node = h('div', { class: 'scan-rows', 'data-testid': 'scan-rows' });
+    var rows = [];
+
+    function build() {
+      rows = state.items.map(function (item) { return { item: item, view: row(state, item, hooks) }; });
+      relayout();
+    }
+
+    /** Puts the rows in order, with a heading above each group (a month or a day), and moves nothing else. */
+    function relayout() {
+      var nodes = [];
+      var last = null;
+      L.scan.model.ordered(state).forEach(function (entry) {
+        if (entry.group !== last && (state.kind === 'future' || state.kind === 'calendar')) nodes.push(L.scan.kind.groupHeading(state, entry.group));
+        last = entry.group;
+        nodes.push(rows.filter(function (candidate) { return candidate.item === entry.item; })[0].view.node);
+      });
+      node.replaceChildren.apply(node, nodes);
+    }
+
+    function refresh() { rows.forEach(function (entry) { entry.view.refresh(); }); }
+    build();
+    return { node: node, refresh: refresh, relayout: relayout, rebuild: build };
+  }
+
+  /** The words under the sheet title: the page (a day, a month, or the future log) and what will be written. */
+  function subtitleText(state, counts) {
+    var copy = L.copy.scan.review;
+    var page = { daily: function () { return L.dates.dayHeading(state.date); }, future: function () { return copy.futureSubject; } }[state.kind];
+    return (page ? page() : copy.monthLabel(state.month)) + ' \u00b7 ' + copy.writes(counts);
+  }
+
+  /** The trouble line for a problem key ('' says nothing). */
+  function problemText(problem) {
+    var errors = L.copy.scan.errors;
+    return { title: errors.titleRequired, day: errors.dayRequired, month: errors.monthRequired }[problem] || '';
+  }
+
+  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save. */
   function open(state, handlers) {
     var copy = L.copy.scan.review;
     var subtitle = h('p', { class: 'sheet-sub', 'data-testid': 'scan-sub' });
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var apply = h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-action': 'apply' });
     var date = dateRow(state, function () { recheck(); });
+    var month = L.scan.kind.monthRow(state, function () { recheck(); });
+    var kinds = L.scan.kind.kindSwitch(state, switchTo);
     var unchangedOpen = false;
     var note = unchangedNote(function () { unchangedOpen = !unchangedOpen; refreshAll(); });
-    var rows = state.items.map(function (item) {
-      return row(item, {
-        changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
-        showUnchanged: function () { return unchangedOpen; }
-      });
+    var rows = rowsView(state, {
+      changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
+      moved: function () { rows.relayout(); recheck(); },
+      showUnchanged: function () { return unchangedOpen; }
     });
     var busy = false;
     var sheet = null;
 
     function say(message) { Bujo.say(slot, message); }
 
-    /** Redraws the counts, the rows, the day and the apply button from the state. */
+    /** Redraws the counts, the rows, the period and the apply button from the state. */
     function refreshAll() {
       var counts = L.scan.model.counts(state);
       var problem = L.scan.model.problem(state);
-      subtitle.textContent = L.dates.dayHeading(state.date) + ' \u00b7 ' + copy.writes(counts);
+      subtitle.textContent = subtitleText(state, counts);
       apply.textContent = busy ? copy.applying : copy.apply(counts);
       apply.disabled = busy || problem !== '';
-      say(problem === 'title' ? L.copy.scan.errors.titleRequired : '');
+      say(problemText(problem));
+      kinds.show(busy);
+      date.node.hidden = state.kind !== 'daily';
+      month.node.hidden = state.kind !== 'calendar' && state.kind !== 'month-task';
       date.refresh();
+      month.refresh();
       note.show(L.scan.model.unchangedItems(state).length, unchangedOpen);
-      rows.forEach(function (entry) { entry.refresh(); });
+      rows.refresh();
     }
 
-    /** Asks the server about the day and the edited lines, then redraws. A failed check keeps what is on screen. */
+    /** Asks the server about the page and the edited lines, then redraws. A failed check keeps what is on screen. */
     function recheck() {
       refreshAll();
       handlers.check(state).then(function (answer) {
         L.scan.model.mergeChecks(state, answer);
         refreshAll();
       }, function () { /* the apply step checks again, so a missed hint is harmless */ });
+    }
+
+    /** Reads the page again as another kind. The rows are made anew, so edits to the old reading are gone. */
+    function switchTo(kind) {
+      if (busy) return;
+      busy = true;
+      refreshAll();
+      handlers.setKind(state, kind).then(function (draft) {
+        L.scan.model.replaceDraft(state, draft);
+        busy = false;
+        rows.rebuild();
+        refreshAll();
+      }, function (error) {
+        busy = false;
+        refreshAll();
+        say(error && error.message ? error.message : L.copy.scan.errors.kindFailed);
+      });
     }
 
     function submit() {
@@ -201,7 +266,7 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
-      h('div', { class: 'ak-sheet-scroll' }, slot, date.node, note.node, h('div', { class: 'scan-rows' }, rows.map(function (entry) { return entry.node; }))),
+      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, month.node, note.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});

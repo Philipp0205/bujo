@@ -1,24 +1,25 @@
 import { HttpError } from "../../app-kit/http.ts";
 import { inTransaction, type Db } from "../../db.ts";
+import { settleHorizon } from "../horizon.ts";
 import type { EntryStore } from "../store.ts";
 import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
 import type { LogDraft } from "./draft.ts";
 import { snapshotOf } from "./fields.ts";
-import { toLine, type SentItem, type SentReview } from "./request.ts";
-import { resolveLines } from "./resolve.ts";
-import type { Resolution } from "./types.ts";
+import { resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
+import { placeReview, type SentItem, type SentReview } from "./request.ts";
+import type { Slot } from "./types.ts";
 
 /** What one kept line did to the log: it added an entry or changed one. Lines that change nothing are not listed. */
 export type ApplyOutcome = { id: string; outcome: "created" | "updated"; entry: Entry };
 
-/** A sent line with what the matcher decided about it, read against the day as it is now. */
-type Planned = { item: SentItem; index: number; resolution: Resolution };
+/** A sent line with its slot and what the matcher decided about it, read against that slot as it is now. */
+type Planned = { item: SentItem; index: number; slot: Slot | null; resolution: Resolved };
 
-/** The line's fields checked like POST /api/entries, or null when they do not pass. */
-function validFields(item: SentItem, date: string): { ok: true; entry: NewEntry } | { ok: false; error: string } {
-  const result = checkNewEntry({ date, type: item.type, title: item.title, tags: item.tags, time: item.time });
-  return result.ok ? { ok: true, entry: result.value } : { ok: false, error: result.error };
+/** The line's fields checked like POST /api/entries, as the slot stores them (a month entry has no event type), or the error. */
+function validFields(item: SentItem, slot: Slot): { ok: true; entry: NewEntry } | { ok: false; error: string } {
+  const result = checkNewEntry({ date: slot.date, horizon: slot.horizon, type: item.type, title: item.title, tags: item.tags, time: item.time });
+  return result.ok ? { ok: true, entry: settleHorizon(result.value, slot.horizon) } : { ok: false, error: result.error };
 }
 
 /** True for a kept line that would add or change an entry. */
@@ -26,24 +27,26 @@ function isWrite({ item, resolution }: Planned): boolean {
   return item.include && (resolution.status === "new" || resolution.status === "edited");
 }
 
-/** Reads the day again and decides every sent line, skipped ones too, so a skipped line still holds its entry as in the check. */
-function planReview(store: EntryStore, userId: string, review: SentReview): Planned[] {
-  const existing = store.listScan(userId, { from: review.date, to: review.date });
-  const resolved = resolveLines(review.items.map(toLine), existing);
-  return review.items.map((item, index) => ({ item, index, resolution: resolved.get(item.id)! }));
+/** Reads every slot again and decides every sent line, skipped ones too, so a skipped line still holds its entry as in the check. */
+function planReview(reader: SlotReader, review: SentReview, fallbackDate: string): Planned[] {
+  const placed = placeReview(review, fallbackDate);
+  const resolved = resolveSlots(placed, reader);
+  return review.items.map((item, index) => ({ item, index, slot: placed[index].slot, resolution: resolved.get(item.id)! }));
 }
 
-/** A bad title, tags or time on a kept line is a 400 that names the line. Throws before anything is written. */
-function checkKept(plan: readonly Planned[], date: string): void {
-  for (const { item, index } of plan) {
-    const result = item.include ? validFields(item, date) : null;
-    if (result && !result.ok) throw new HttpError(400, `items[${index}]: ${result.error}`);
+/** A bad title, tags or time on a kept line is a 400 that names the line, and so is a kept line with no real day or month. Throws before anything is written. */
+function checkKept(plan: readonly Planned[]): void {
+  for (const { item, index, slot } of plan) {
+    if (!item.include) continue;
+    if (!slot) throw new HttpError(400, `items[${index}]: needs a real day or month`);
+    const result = validFields(item, slot);
+    if (!result.ok) throw new HttpError(400, `items[${index}]: ${result.error}`);
   }
 }
 
-/** Adds a new entry at the end of the day, or changes the four scanned fields of the matched one. Never touches date, indent, position or body. */
-function writeOne(store: EntryStore, userId: string, date: string, now: number, { item, resolution }: Planned): ApplyOutcome {
-  const paper = validFields(item, date);
+/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent, position or body. */
+function writeOne(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): ApplyOutcome {
+  const paper = validFields(item, slot!);
   if (!paper.ok) throw new HttpError(400, paper.error);
   if (resolution.status === "edited" && resolution.target && resolution.after) {
     const { type, title, tags, time } = resolution.after;
@@ -59,35 +62,38 @@ function writeOne(store: EntryStore, userId: string, date: string, now: number, 
 /**
  * Records the paper line on a matched entry that did not change, so the next scan knows its key. It writes no content and
  * leaves updated_at and sync alone. An entry the person changed in the app is not stamped: a stamp would hide that edit.
+ * A line that matched a trace has no entry and is not stamped.
  */
-function stampUnchanged(store: EntryStore, userId: string, date: string, now: number, { item, resolution }: Planned): void {
-  if (resolution.status !== "unchanged" || !resolution.target || resolution.protectedEdit) return;
-  const paper = validFields(item, date);
+function stampUnchanged(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): void {
+  if (resolution.status !== "unchanged" || !resolution.target || resolution.protectedEdit || !slot) return;
+  const paper = validFields(item, slot);
   if (paper.ok) store.setScanProvenance(userId, resolution.target.id, snapshotOf(paper.entry, now));
 }
 
 /**
  * Writes what the person kept from a draft into the log, sync state local (the route then queues the push). Kept new lines add
  * entries, kept edited lines change their entry's type, title, tags or time, and nothing is ever deleted. Unchanged lines are
- * recorded (key only) and change no content, even when ticked. The whole request is checked first, the day is read again here
- * (the client's status is not trusted), and the writes share one transaction: all or nothing. A draft can be applied once.
+ * recorded (key only) and change no content, even when ticked. Each line files in its own slot (a day, or a month's lane) and
+ * matches only the entries of that slot. The whole request is checked first, the slots are read again here (the client's status
+ * is not trusted), and the writes share one transaction: all or nothing. A draft can be applied once.
  * Throws 409 when it was applied, 400 for a bad request or when no kept line would add or change anything.
  */
 export function applyLogDraft(
   db: Db,
   store: EntryStore,
+  reader: SlotReader,
   userId: string,
   draft: LogDraft,
   review: SentReview,
   now: number,
 ): ApplyOutcome[] {
   if (draft.applied) throw new HttpError(409, "This scan was already applied.");
-  const plan = planReview(store, userId, review);
-  checkKept(plan, review.date);
+  const plan = planReview(reader, review, draft.fallbackDate);
+  checkKept(plan);
   if (!plan.some(isWrite)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
   const outcomes = inTransaction(db, () => {
-    plan.forEach((planned) => stampUnchanged(store, userId, review.date, now, planned));
-    return plan.filter(isWrite).map((planned) => writeOne(store, userId, review.date, now, planned));
+    plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
+    return plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
   });
   draft.applied = true;
   return outcomes;

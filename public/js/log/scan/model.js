@@ -59,20 +59,47 @@
       after: line.after,
       contested: line.contested,
       include: line.include,
+      month: line.month || null,
+      dayText: line.day ? String(line.day) : '',
       touched: false
     };
   }
 
-  /** The review state of a draft the server sent. */
+  var NEEDS_MONTH = { calendar: true, 'month-task': true };
+
+  /** The month (YYYY-MM) a day belongs to. */
+  function monthOfDate(date) {
+    return date.slice(0, 7);
+  }
+
+  /** Where the kind came from: the detection when the kind is still the detected one, else the person. */
+  function kindSourceOf(draft) {
+    return draft.kind === draft.detected.kind ? draft.detected.source : 'picked';
+  }
+
+  /** The review state of a draft the server sent (or sent again for another kind). A page with no month reads as the month of the fallback day. */
   function fromDraft(draft) {
     return {
       id: draft.id,
+      kind: draft.kind,
+      kindSource: kindSourceOf(draft),
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
       dateSource: draft.pageDate ? 'page' : 'fallback',
+      month: draft.month || monthOfDate(draft.fallbackDate),
       items: draft.items.map(fromLine)
     };
+  }
+
+  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. */
+  function replaceDraft(state, draft) {
+    Object.assign(state, fromDraft(draft));
+  }
+
+  /** True when the kind files lines on days of the log (events are allowed there). */
+  function allowsEvent(kind) {
+    return kind === 'daily' || kind === 'calendar';
   }
 
   /** Sets the day. The note under it says where it came from: the page, the fallback, or the person. */
@@ -81,6 +108,19 @@
     if (date === state.pageDate) state.dateSource = 'page';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';
+  }
+
+  /** Sets the month of a calendar or month-task page. */
+  function setMonth(state, month) {
+    state.month = month;
+  }
+
+  /** A calendar line's day as a whole number 1 to 31, else null. */
+  function dayOf(item) {
+    var text = String(item.dayText || '').trim();
+    if (!/^\d{1,2}$/.test(text)) return null;
+    var day = Number(text);
+    return day >= 1 && day <= 31 ? day : null;
   }
 
   /** Takes the server's answer for a day. A line the person ticked or unticked by hand keeps their choice, except an unchanged one. */
@@ -119,10 +159,24 @@
     return state.items.filter(function (item) { return item.status === 'unchanged'; });
   }
 
-  /** 'title' when a kept line has no title, 'none' when nothing is kept, else ''. */
+  /** True when a calendar day exists in the month of the page (no 30 February). */
+  function dayFits(state, day) {
+    return day !== null && day <= Number(L.horizon.model.lastDay(state.month).slice(8));
+  }
+
+  /** The first kept line that cannot be filed for the kind, as a key: 'day' (calendar), 'month' (future), else ''. */
+  function placeProblem(state, kept) {
+    if (state.kind === 'calendar' && kept.some(function (item) { return !dayFits(state, dayOf(item)); })) return 'day';
+    if (state.kind === 'future' && kept.some(function (item) { return !item.month; })) return 'month';
+    return '';
+  }
+
+  /** 'title' when a kept line has no title, 'day' or 'month' when a kept line has no place, 'none' when nothing is kept, else ''. */
   function problem(state) {
     var kept = keptItems(state);
     if (kept.some(function (item) { return item.title.trim() === ''; })) return 'title';
+    var place = placeProblem(state, kept);
+    if (place) return place;
     return kept.length ? '' : 'none';
   }
 
@@ -139,26 +193,71 @@
     return L.tags.fromField(item.tagText, item.tags);
   }
 
-  function lineBody(item) {
-    return { id: item.id, type: item.type, title: item.title.trim(), tags: tagsOf(item), time: item.time };
+  /** One line as the server reads it. A calendar line carries its day and a future line its month. */
+  function lineBody(state, item) {
+    var body = { id: item.id, type: item.type, title: item.title.trim(), tags: tagsOf(item), time: item.time };
+    if (state.kind === 'calendar') body.day = dayOf(item);
+    if (state.kind === 'future') body.month = item.month;
+    return body;
+  }
+
+  /** The page-level fields of a request: the kind, plus the day (daily) or the month (calendar, month tasks). */
+  function pageBody(state) {
+    var body = { kind: state.kind };
+    if (state.kind === 'daily') body.date = state.date;
+    if (NEEDS_MONTH[state.kind]) body.month = state.month;
+    return body;
   }
 
   /** The body of a check: every line, edits included. */
   function checkBody(state) {
-    return { date: state.date, items: state.items.map(lineBody) };
+    var body = pageBody(state);
+    body.items = state.items.map(function (item) { return lineBody(state, item); });
+    return body;
   }
 
   /**
-   * The body of an apply: the day and every line. Unchanged lines go as skipped (include false), so the server can record
-   * their keys without changing them. Skipped lines go too, so the server matches the day exactly as the check did.
+   * The body of an apply: the page and every line. Unchanged lines go as skipped (include false), so the server can record
+   * their keys without changing them. Skipped lines go too, so the server matches the page exactly as the check did.
    */
   function applyBody(state) {
-    var items = state.items.map(function (item) {
-      var body = lineBody(item);
-      body.include = item.include && item.status !== 'unchanged';
-      return body;
+    var body = pageBody(state);
+    body.items = state.items.map(function (item) {
+      var line = lineBody(state, item);
+      line.include = item.include && item.status !== 'unchanged';
+      return line;
     });
-    return { date: state.date, items: items };
+    return body;
+  }
+
+  /** Where the person should land after an apply: the Daily view on the day, the Future view, or the Month view on the page's month. */
+  function landing(state, result) {
+    if (state.kind === 'daily') return { view: 'daily', date: result.date || state.date };
+    if (state.kind === 'future') return { view: 'future', month: null };
+    return { view: 'month', month: state.month };
+  }
+
+  /** The rows in the order the page shows them, with the group each belongs to: [{ item, group }]. Future groups by month, calendar by day. */
+  function ordered(state) {
+    var grouped = state.kind === 'future' || state.kind === 'calendar';
+    var rows = state.items.map(function (item, index) { return { item: item, group: grouped ? groupKey(state, item) : '', index: index }; });
+    if (grouped) rows.sort(function (a, b) { return compareGroups(a.group, b.group) || a.index - b.index; });
+    return rows;
+  }
+
+  /** The key of the group a line sits in: its month (future) or its day, zero padded (calendar). Empty when it has none yet. */
+  function groupKey(state, item) {
+    if (state.kind === 'future') return item.month || '';
+    var day = dayOf(item);
+    return day === null ? '' : (day < 10 ? '0' : '') + day;
+  }
+
+  /** Orders group keys, those without a place last. */
+  function compareGroups(a, b) {
+    if (a === b) return 0;
+    if (a === '') return 1;
+    if (b === '') return -1;
+    return a < b ? -1 : 1;
   }
 
   /** What the "was" row shows of an edited line: the old type and title, plus the old tags or time when the paper writes different ones. */
@@ -180,7 +279,11 @@
     uploadable: uploadable,
     defaultInclude: defaultInclude,
     fromDraft: fromDraft,
+    replaceDraft: replaceDraft,
+    allowsEvent: allowsEvent,
     setDate: setDate,
+    setMonth: setMonth,
+    dayOf: dayOf,
     mergeChecks: mergeChecks,
     keptItems: keptItems,
     counts: counts,
@@ -190,6 +293,8 @@
     percent: percent,
     checkBody: checkBody,
     applyBody: applyBody,
+    landing: landing,
+    ordered: ordered,
     changedFields: changedFields
   };
 })();

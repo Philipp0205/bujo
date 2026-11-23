@@ -75,8 +75,9 @@ def test_post_ocr_returns_the_json_shape(service, encode, content_type):
     fixture = make_page(cream=True, grid=True)
     status, body = call(service, "POST", "/ocr", encode(fixture.png), content_type)
     assert status == 200
-    assert set(body) == {"lines", "date", "width", "height", "ms"}
+    assert set(body) == {"lines", "date", "kind", "period", "width", "height", "ms"}
     assert body["date"] is None
+    assert body["kind"] is None and body["period"] is None
     assert body["width"] == fixture.width and body["height"] == fixture.height
     assert isinstance(body["ms"], int)
     assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]

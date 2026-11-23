@@ -351,11 +351,14 @@ test("move and remove work inside one group and leave the day entries of the sam
   assert.equal(store.get(USER, day.id)?.position, 0);
 });
 
-test("listScan sees day entries only, so a scan never touches a month item", () => {
+test("listScan sees day entries unless asked for a horizon, so a day scan never touches a month item", () => {
   const { store } = setup();
   store.create(USER, entry({ date: "2026-12-31", title: "day" }), 1);
   store.create(USER, entry({ date: "2026-12-31", horizon: "month-task", title: "month" }), 2);
+  store.create(USER, entry({ date: "2026-12-31", horizon: "future", title: "later" }), 3);
   assert.deepEqual(store.listScan(USER, DEC).map((e) => e.title), ["day"]);
+  assert.deepEqual(store.listScan(USER, DEC, "month-task").map((e) => e.title), ["month"]);
+  assert.deepEqual(store.listScan(USER, DEC, "future").map((e) => e.title), ["later"]);
 });
 
 test("an old database without the horizon column gets it on open and its entries are day entries", () => {

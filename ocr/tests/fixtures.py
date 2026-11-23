@@ -23,6 +23,28 @@ DEFAULT_LINES: list[tuple[str, str]] = [
     ("–", "Idee für Wochenende"),
 ]
 
+# Month-level pages, as the LLM is asked to return them: a heading line with no symbol, then the lines.
+FUTURE_LINES: list[tuple[str, str]] = [
+    ("none", "Future log 2027"),
+    ("none", "Januar"),
+    ("•", "Steuer machen"),
+    ("○", "15 Zahnarzt"),
+    ("none", "Februar"),
+    ("•", "Urlaub buchen"),
+]
+CALENDAR_LINES: list[tuple[str, str]] = [
+    ("none", "Dezember 2026"),
+    ("none", "2 Mi Lunch mit Mira"),
+    ("none", "4 Fr Konzert"),
+    ("none", "7 Mo Team Meeting"),
+]
+MONTH_TASK_LINES: list[tuple[str, str]] = [
+    ("none", "Dezember"),
+    ("•", "Geschenke kaufen"),
+    ("•", "Steuer"),
+    ("–", "Weihnachtsfeier planen"),
+]
+
 # Dark enough that the detector's ink threshold catches the dots, so the size filter has real work to do.
 GRID_GREY = (125, 125, 125)
 

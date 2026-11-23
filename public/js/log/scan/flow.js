@@ -21,11 +21,11 @@
     return Promise.resolve(L.scan.model.uploadable(file));
   }
 
-  /** Reads one rapid-log photo. Resolves with the draft, or rejects with a message for the camera screen. */
-  function readPhoto(file, day) {
+  /** Reads one log-page photo. view is the open log view (a hint for the kind). Resolves with the draft, or rejects with a message for the camera screen. */
+  function readPhoto(file, day, view) {
     var errors = L.copy.scan.errors;
     return checkedPhoto(file).then(function (photo) {
-      return L.scan.api.scan(photo, day).then(function (draft) {
+      return L.scan.api.scan(photo, day, view).then(function (draft) {
         if (!draft.items.length) throw new Error(L.copy.scan.review.noLines);
         return draft;
       }, function (error) {
@@ -47,13 +47,18 @@
     });
   }
 
-  /** Swaps the camera for the review. The camera goes first: the kit shows one sheet at a time. */
+  /** Swaps the camera for the review. The camera goes first: the kit shows one sheet at a time. A save reports where the lines landed. */
   function showReview(camera, draft, options) {
     camera.close();
     var state = L.scan.model.fromDraft(draft);
     L.scan.review.open(state, {
       check: function (current) { return L.scan.api.check(draft.id, L.scan.model.checkBody(current)); },
-      apply: function (current) { return L.scan.api.apply(draft.id, L.scan.model.applyBody(current)); },
+      setKind: function (current, kind) { return L.scan.api.setKind(draft.id, kind); },
+      apply: function (current) {
+        return L.scan.api.apply(draft.id, L.scan.model.applyBody(current)).then(function (result) {
+          return L.scan.model.landing(current, result);
+        });
+      },
       done: options.onApplied
     });
   }
@@ -65,7 +70,7 @@
       mode: 'review',
       values: L.note.model.fromSuggestion(read.note, L.copy.note.untitled),
       photo: read.photo,
-      onSaved: function (entry) { options.onApplied({ date: entry.date }); }
+      onSaved: function (entry) { options.onApplied({ view: 'daily', date: entry.date }); }
     });
   }
 
@@ -74,11 +79,12 @@
     if (mode === 'note') {
       return readNote(file, options.day).then(function (read) { if (!isClosed()) showNote(camera, read, options); });
     }
-    return readPhoto(file, options.day).then(function (draft) { if (!isClosed()) showReview(camera, draft, options); });
+    return readPhoto(file, options.day, options.view).then(function (draft) { if (!isClosed()) showReview(camera, draft, options); });
   }
 
   /**
-   * Opens the camera screen. options.day is the day open in the log, options.onApplied({ date }) runs after a save.
+   * Opens the camera screen. options.day is the day to use when a page names none, options.view the open log view ('daily', 'future'
+   * or 'month', a hint for the page kind), options.onApplied({ view, date, month }) runs after a save and says where the lines landed.
    * options.autoCapture opens the phone camera at once, so the tab needs no second tap. Closing the screen while a photo is read
    * drops the late answer: no review opens and no error shows.
    */

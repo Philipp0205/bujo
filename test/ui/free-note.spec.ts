@@ -48,9 +48,9 @@ async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
 test("the Free note toggle works: pressed state and title follow it, and back again", async ({ page }) => {
   await page.goto(app.baseUrl);
   await openScan(page);
-  const rapid = screen(page).getByRole("button", { name: "Daily log" });
+  const rapid = screen(page).getByRole("button", { name: "Log page" });
   const note = screen(page).getByRole("button", { name: "Free note" });
-  await expect(screen(page).getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
+  await expect(screen(page).getByRole("heading", { name: "Align the log page" })).toBeVisible();
 
   await note.click();
   await expect(note).toHaveAttribute("aria-pressed", "true");
@@ -60,7 +60,7 @@ test("the Free note toggle works: pressed state and title follow it, and back ag
 
   await rapid.click();
   await expect(rapid).toHaveAttribute("aria-pressed", "true");
-  await expect(screen(page).getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
+  await expect(screen(page).getByRole("heading", { name: "Align the log page" })).toBeVisible();
   await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-guide");
 });
 

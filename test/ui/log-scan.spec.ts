@@ -128,7 +128,7 @@ test("tapping the Scan tab opens the file chooser in the same tap, from Notes an
   expect(await chooser.element().getAttribute("id")).toBe("scan-file");
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the log page" })).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(addTab(page)).not.toHaveAttribute("aria-current", "page");
@@ -230,13 +230,13 @@ test("the camera screen has the title, frame, toggle, shutter, and close", async
   await openScan(page);
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the daily log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the log page" })).toBeVisible();
   await expect(screen.locator(".scan-frame")).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-file")).toHaveAttribute("accept", "image/*");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
-  await expect(screen.getByRole("button", { name: "Daily log" })).toHaveAttribute("aria-pressed", "true");
+  await expect(screen.getByRole("button", { name: "Log page" })).toHaveAttribute("aria-pressed", "true");
   const note = screen.getByRole("button", { name: "Free note" });
   await expect(note).not.toHaveAttribute("aria-disabled");
   await expect(note).toHaveAttribute("aria-pressed", "false");

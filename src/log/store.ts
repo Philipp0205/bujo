@@ -44,8 +44,8 @@ export type EntryStore = {
   list(userId: string, range: DateRange): Entry[];
   /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. */
   listNotes(userId: string): Entry[];
-  /** Like list, with the scan provenance of each entry (plus onPaper, like every entry). For the scan routes only: the snapshot never reaches the public API. */
-  listScan(userId: string, range: DateRange): ScanEntry[];
+  /** Like list for one horizon (day unless told otherwise), with the scan provenance of each entry (plus onPaper, like every entry). For the scan routes only: the snapshot never reaches the public API. */
+  listScan(userId: string, range: DateRange, horizon?: EntryHorizon): ScanEntry[];
   /**
    * Records the paper line a scan last applied to an entry. Not an edit: updated_at and sync stay as they are.
    * Does nothing for an unknown entry.
@@ -217,10 +217,10 @@ export function createEntryStore(db: Db): EntryStore {
 
     get,
 
-    listScan(userId, range) {
+    listScan(userId, range, horizon = "day") {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND horizon = 'day' AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
-        .all(userId, range.from, range.to) as Row[];
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND horizon = ? AND date >= ? AND date <= ? ORDER BY date, position, created_at, id`)
+        .all(userId, horizon, range.from, range.to) as Row[];
       return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
     },
 

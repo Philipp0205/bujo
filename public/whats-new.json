@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-scan-page-kind",
+    "date": "2026-11-23",
+    "title": "Scan more than a day",
+    "bullets": [
+      "Scan a Future log, a calendar page or a month task list, not only a daily page. The app reads which kind it is, and you can change it in the review.",
+      "Future items go under their months, and calendar days go under their day. You can fix a month or a day on any line before you apply.",
+      "Scanned from the Future or Month view, the page is read as that kind first. After you apply, the log opens on where the lines landed."
+    ]
+  },
+  {
     "id": "2026-11-22-cross-log",
     "date": "2026-11-22",
     "title": "Move entries between your logs",
