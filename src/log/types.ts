@@ -25,6 +25,8 @@ export type Entry = {
   tags: string[];
   /** The markdown of a free note. Null for a short rapid-log line. */
   body: string | null;
+  /** The custom collection (a named page) the entry is filed on, or null when it sits on the daily log. A collection entry is not on any day page. */
+  collectionId: string | null;
   /** The handwritten * before the bullet. Maps to PRIORITY:1 on the sync target. */
   important: boolean;
   /** True when a scan photo is stored with the note. The bytes are at GET /api/entries/:id/photo, never in the list. */
@@ -64,6 +66,8 @@ export type NewEntry = {
   tags: string[];
   time: string | null;
   body?: string | null;
+  /** The collection to file the entry on. Left out or null means the daily log. A collection entry always has the "day" horizon. */
+  collectionId?: string | null;
   /** Left out means not important. */
   important?: boolean;
 };
@@ -80,6 +84,9 @@ export type ScanSnapshot = {
   time: string | null;
   at: number;
 };
+
+/** A custom collection: a named page of entries (like "books to read"). `count` is how many entries are filed on it. */
+export type Collection = { id: string; name: string; count: number; createdAt: number };
 
 /** One tag in use, for the autocomplete: how many entries carry it and when one of them last changed. */
 export type TagUse = { tag: string; count: number; lastUsed: number };

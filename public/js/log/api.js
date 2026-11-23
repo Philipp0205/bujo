@@ -46,6 +46,25 @@
     });
   }
 
+  /** Every collection (a named page) with its entry count, in the order they were made. */
+  function listCollections() {
+    return call('GET', '/api/collections').then(function (body) {
+      return body.collections;
+    });
+  }
+
+  /** A new collection with this name. Resolves with it (the one that exists already when the name is taken). */
+  function createCollection(name) {
+    return call('POST', '/api/collections', { name: name }).then(function (body) {
+      return body.collection;
+    });
+  }
+
+  /** One collection and the entries filed on it, in page order: { collection, entries }. */
+  function listCollection(id) {
+    return call('GET', '/api/entries?collection=' + encodeURIComponent(id));
+  }
+
   function create(values) {
     return call('POST', '/api/entries', values).then(function (body) {
       return body.entry;
@@ -98,5 +117,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

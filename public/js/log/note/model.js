@@ -15,6 +15,11 @@
     return { id: null, title: suggestion.title || fallbackTitle, date: suggestion.date, body: suggestion.body };
   }
 
+  /** The sheet values for a note written by hand: nothing typed yet, on this day. */
+  function blank(today) {
+    return { id: null, title: '', date: today, body: '' };
+  }
+
   /** The sheet values for a saved note. */
   function fromEntry(entry) {
     return { id: entry.id, title: entry.title, date: entry.date, body: entry.body || '', hasPhoto: !!entry.hasPhoto };
@@ -40,5 +45,5 @@
     return fields;
   }
 
-  L.note.model = { fromSuggestion: fromSuggestion, fromEntry: fromEntry, isNote: isNote, problem: problem, payload: payload };
+  L.note.model = { blank: blank, fromSuggestion: fromSuggestion, fromEntry: fromEntry, isNote: isNote, problem: problem, payload: payload };
 })();

@@ -9,6 +9,9 @@ import { fakeEnv, startFakeCalDav, SYNC_SETTINGS, syncEnv, type FakeCalDav } fro
 import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
+/** The id of the newest what's-new entry. Specs that mark everything as seen use this, so a new entry bumps one line. */
+export const WHATS_NEW_NEWEST = "2026-11-23-collections";
+
 /** Opens the details sheet of a saved row: tap the row to type in it, then Details in the accessory bar. */
 export async function openDetails(page: Page, title: string): Promise<void> {
   await page.locator(".paper-row", { hasText: title }).click();

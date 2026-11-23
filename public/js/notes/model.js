@@ -1,7 +1,7 @@
 /*
  * Notes model: turns the entries of GET /api/entries?kind=notes into cards, and cards into groups. Pure functions, no DOM,
- * so they can be tested alone. Groups exist so notebooks can be added later: a card with a notebookId lands in a group of
- * its own, and today every card has none, which makes one group without a heading. Needs log/paper/recent.js (the paper window).
+ * so they can be tested alone. Groups follow the collection a note is filed on (entry.collectionId, the card's notebookId): a note
+ * on none is in the group without a heading, which comes first. Needs log/paper/recent.js (the paper window).
  */
 (function () {
   'use strict';
@@ -9,7 +9,7 @@
   var B = window.BujoNotes = window.BujoNotes || {};
 
   /**
-   * One card per note: what the grid shows (title, whether a photo is stored), the notebook it will belong to (none yet), and
+   * One card per note: what the grid shows (title, whether a photo is stored), the collection it is filed on (as notebookId), and
    * whether it carries the "not on paper" mark: not on paper and dated inside the paper window (log/paper/recent.js).
    */
   function cards(entries, today) {
@@ -18,7 +18,7 @@
         id: entry.id,
         title: entry.title,
         hasPhoto: !!entry.hasPhoto,
-        notebookId: entry.notebookId || null,
+        notebookId: entry.collectionId || null,
         onPaper: !!entry.onPaper,
         date: entry.date,
         unwritten: window.BujoLog.paper.recent.shows(entry, today)

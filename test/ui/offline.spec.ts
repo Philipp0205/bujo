@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { addTab } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-fonts" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });
