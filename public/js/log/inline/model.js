@@ -53,7 +53,7 @@
     });
   }
 
-  /** Files the line under a day: its horizon is day. A move to another group takes the line out of any nesting. */
+  /** Files the line under a day: its horizon is day (the daily log). A move to another group takes the line out of any nesting. */
   function setDay(line, date) {
     if (date !== line.date || line.horizon !== 'day') line.indent = 0;
     line.date = date;
@@ -113,9 +113,9 @@
     return line.tags.length >= L.tags.TAGS_MAX;
   }
 
-  /** All the fields of a line, as the API wants them. An empty tag list or a null time clears it on an edit. An event needs a day, so a month line is a task. */
+  /** All the fields of a line, as the API wants them. An empty tag list or a null time clears it on an edit. An event needs a real day, so a month-task or future line is a task. */
   function values(line) {
-    var type = line.type === 'event' && line.horizon !== 'day' ? 'task' : line.type;
+    var type = line.type === 'event' && !L.days.hasDay(line.horizon) ? 'task' : line.type;
     return { date: line.date, horizon: line.horizon, type: type, title: line.title.trim(), tags: line.tags.slice(), time: line.time };
   }
 

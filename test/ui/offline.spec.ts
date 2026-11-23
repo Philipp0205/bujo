@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-fuzzy-scan-match" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-month-own-entries" } });
 });
 
 const title = (page: Page) => page.getByRole("textbox", { name: "Entry title" });

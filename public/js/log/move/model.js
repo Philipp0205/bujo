@@ -1,8 +1,9 @@
 /*
  * Pure model of a move across the logs: which places an entry can go to, and what a pick does to a line. No DOM, no fetch, no words.
  * A place is { key, horizon, date }: a day ('day:YYYY-MM-DD') or a whole month ('month:YYYY-MM', dated by its last day, a month-task for
- * this month and a future item for a later one). A line is the model of inline/model.js. A move is "migrate" (the > mark, an entry
- * goes on to another page) or "schedule" (the < mark, an entry is set for a later day or month). Needs dates.js and horizon/model.js.
+ * this month and a future item for a later one). An entry on the monthly calendar sits in its own place ('calendar:YYYY-MM-DD'), which the
+ * chooser never offers as a target. A line is the model of inline/model.js. A move is "migrate" (the > mark, an entry
+ * goes on to another page) or "schedule" (the < mark, an entry is set for a later day or month). Needs dates.js, days.js and horizon/model.js.
  */
 (function () {
   'use strict';
@@ -14,9 +15,10 @@
   /** The types a move turns into a plain task (or, for a schedule onto a day, into a scheduled one). */
   var MOVABLE = ['task', 'migrated', 'scheduled'];
 
-  /** The key of a place a line (or an entry) sits in: its day, or its month. */
+  /** The key of a place a line (or an entry) sits in: its day, its day on the monthly calendar, or its month. */
   function groupKey(horizon, date) {
-    return horizon === 'day' ? 'day:' + date : 'month:' + date.slice(0, 7);
+    if (horizon === 'day') return 'day:' + date;
+    return horizon === 'month-calendar' ? 'calendar:' + date : 'month:' + date.slice(0, 7);
   }
 
   /** A day as a place. */
@@ -43,7 +45,7 @@
   /** The day after the one an entry is on, but never a day already gone: from a month the next day is tomorrow. */
   function nextDay(line, today) {
     var tomorrow = L.dates.addDays(today, 1);
-    if (line.homeHorizon !== 'day') return tomorrow;
+    if (!L.days.hasDay(line.homeHorizon)) return tomorrow;
     var after = L.dates.addDays(line.home, 1);
     return after < today ? today : after;
   }
@@ -70,7 +72,7 @@
     var thisMonth = monthPlace(today.slice(0, 7), today);
     var next = dayPlace(nextDay(line, today));
     return {
-      here: kind === 'schedule' && line.homeHorizon === 'day',
+      here: kind === 'schedule' && L.days.hasDay(line.homeHorizon),
       today: todayPlace(line, kind, today),
       next: next.key === homeKey(line) ? null : next,
       thisMonth: thisMonth.key === homeKey(line) ? null : thisMonth,

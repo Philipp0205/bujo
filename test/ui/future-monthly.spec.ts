@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-fuzzy-scan-match" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-month-own-entries" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -113,9 +113,10 @@ test("the log opens on Daily, and the switcher shows Future, Month and Daily in 
   expect(above.y + above.height).toBeLessThanOrEqual(date.y + 1);
 });
 
-test("Month opens on a calendar page: every day of the month on a line like \"1 M\", empty days too, entries beside their day", async ({ page }) => {
+test("Month opens on a calendar page: every day of the month on a line like \"1 M\", empty days too, its own entries beside their day", async ({ page }) => {
   await seed(page, [
-    { date: day(0), title: "Heute erledigen" },
+    { date: day(0), title: "Heute erledigen", horizon: "month-calendar" },
+    { date: day(0), title: "Nur im Tag" },
     { date: lastDay(0), title: "Monatsaufgabe", horizon: "month-task" },
   ]);
   await openLog(page);
@@ -130,8 +131,10 @@ test("Month opens on a calendar page: every day of the month on a line like \"1 
   const today = new Date().getDate();
   const line = page.locator(`.cal-day[data-date="${day(0)}"]`);
   await expect(line.getByTestId("month-day-label")).toHaveText(dayText(0, today));
-  await expect(line.locator(".paper-row", { hasText: "Heute erledigen" })).toHaveAttribute("data-horizon", "day");
+  await expect(line.locator(".paper-row", { hasText: "Heute erledigen" })).toHaveAttribute("data-horizon", "month-calendar");
   await expect(row(page, "Heute erledigen")).toHaveCount(1);
+  // A daily-log entry of the same day is not on the calendar.
+  await expect(row(page, "Nur im Tag")).toHaveCount(0);
   await expect(page.locator(".cal-day[data-date$='-01'] .paper-row")).toHaveCount(today === 1 ? 1 : 0);
   await expect(row(page, "Monatsaufgabe")).toHaveCount(0);
   await expect(page.getByTestId("month-tasks")).toHaveCount(0);
@@ -140,9 +143,10 @@ test("Month opens on a calendar page: every day of the month on a line like \"1 
   expect(new URL(page.url()).searchParams.get("month")).toBeNull();
   await expect(row(page, "Heute erledigen").getByTestId("toggle-done")).toHaveCount(1);
 
-  // The same entry stays on its Daily page, with no copy of it elsewhere.
+  // Daily lists only the daily log: the calendar entry is not copied there.
   await tab(page, "daily").click();
-  await expect(row(page, "Heute erledigen")).toHaveCount(1);
+  await expect(row(page, "Nur im Tag")).toHaveCount(1);
+  await expect(row(page, "Heute erledigen")).toHaveCount(0);
   await expect(row(page, "Monatsaufgabe")).toHaveCount(0);
 });
 
@@ -309,7 +313,7 @@ test("a long month scrolls as one sheet: the title, the switcher and the month r
 });
 
 test("a long calendar page ends above the tab bar, with the last day of the month on its own line", async ({ page }) => {
-  const entries: Seed[] = Array.from({ length: 6 }, (_, i) => ({ date: lastDay(0), title: `Termin ${i + 1}`, horizon: "day" }));
+  const entries: Seed[] = Array.from({ length: 6 }, (_, i) => ({ date: lastDay(0), title: `Termin ${i + 1}`, horizon: "month-calendar" }));
   await seed(page, entries);
   await openLog(page, "?view=month");
 

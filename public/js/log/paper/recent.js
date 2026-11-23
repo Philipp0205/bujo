@@ -19,10 +19,10 @@
   /**
    * Whether a day is today, up to PAPER_WINDOW_DAYS back, or ahead (upcoming days are never old leftovers).
    * A month-task or future entry has no day: its date is the last day of its month, and it counts while that month is
-   * this month or later, which is the same as that last day not being before today.
+   * this month or later, which is the same as that last day not being before today. A month-calendar entry has a real day, like a day entry.
    */
   function contains(date, today, horizon) {
-    if (horizon && horizon !== 'day') return date >= today;
+    if (horizon && horizon !== 'day' && horizon !== 'month-calendar') return date >= today;
     return date >= first(today);
   }
 

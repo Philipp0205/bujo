@@ -167,8 +167,10 @@ test("startReview: a future page matches per month, a calendar page per day, and
   assert.deepEqual(startReview(future, futureReader).items.map((i) => [i.title, i.status]), [["Steuer machen", "unchanged"], ["15 Zahnarzt", "unchanged"], ["Urlaub buchen", "new"]], "Urlaub is in Februar, not Januar");
 
   const calendar = buildLogDraft({ ocr: { lines: CALENDAR, width: 1, height: 1, ms: 1 }, fallbackDate: NOW, now: 0, ttlMs: 10 });
-  const calendarReader = fixedReader([entry("c1", { date: "2026-12-02", type: "event", title: "Lunch mit Mira" })]);
+  const calendarReader = fixedReader([entry("c1", { horizon: "month-calendar", date: "2026-12-02", type: "event", title: "Lunch mit Mira" })]);
   assert.deepEqual(startReview(calendar, calendarReader).items.map((i) => [i.day, i.status]), [[2, "unchanged"], [4, "new"], [7, "new"]]);
+  const dailyReader = fixedReader([entry("d1", { date: "2026-12-02", type: "event", title: "Lunch mit Mira" })]);
+  assert.deepEqual(startReview(calendar, dailyReader).items.map((i) => [i.day, i.status]), [[2, "new"], [4, "new"], [7, "new"]], "a daily-log entry is not the calendar entry");
 });
 
 test("startReview: a > line that a trace on the same page answers is unchanged with no target, a plain new > line is not", () => {

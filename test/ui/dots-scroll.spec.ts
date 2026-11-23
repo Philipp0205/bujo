@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
-  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-fuzzy-scan-match" } });
+  await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: "2026-11-23-month-own-entries" } });
 });
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -25,10 +25,10 @@ test.afterEach(async ({ page }) => {
   for (const entry of (await response.json()).entries as Array<{ id: string }>) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 
-/** Thirty fake tasks on the given day, enough to scroll a phone screen. Never a real list. */
-async function seedMany(page: Page, offset: number, titles = 30): Promise<void> {
+/** Thirty fake tasks on the given day, enough to scroll a phone screen. Never a real list. Pass a horizon to file them elsewhere than the daily log. */
+async function seedMany(page: Page, offset: number, titles = 30, horizon = "day"): Promise<void> {
   for (let i = 1; i <= titles; i++) {
-    const response = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day(offset), type: "task", title: `Zeile ${i}` } });
+    const response = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day(offset), horizon, type: "task", title: `Zeile ${i}` } });
     expect(response.status()).toBe(201);
   }
 }
@@ -189,7 +189,7 @@ test("the dots run on through the status-bar inset, with no seam above the title
 });
 
 test("in Month the dots scroll with the rows", async ({ page }) => {
-  await seedMany(page, 0);
+  await seedMany(page, 0, 30, "month-calendar");
   await openLog(page);
   await page.getByTestId("view-month").click();
   await expect(page.getByTestId("month-heading")).toBeVisible();

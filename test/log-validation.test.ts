@@ -53,9 +53,9 @@ test("checkNewEntry trims, defaults horizon, tags and time and keeps the rest", 
   });
 });
 
-test("checkNewEntry and checkEntryPatch take a horizon: day, month-task or future, nothing else", () => {
+test("checkNewEntry and checkEntryPatch take a horizon: day, month-calendar, month-task or future, nothing else", () => {
   const base = { date: "2026-12-31", type: "task", title: "x" };
-  for (const horizon of ["day", "month-task", "future"]) {
+  for (const horizon of ["day", "month-calendar", "month-task", "future"]) {
     const checked = checkNewEntry({ ...base, horizon });
     assert.equal(checked.ok && checked.value.horizon, horizon, horizon);
   }

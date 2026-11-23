@@ -56,6 +56,10 @@ test("a month or future task, done or migrated entry has DUE = the last day of i
     assert.equal(todoShape({ type, title: "t", date: "2026-12-31" }).due, null, `no horizon ${type}`);
   }
   assert.equal(todoShape({ type: "scheduled", title: "t", date: "2026-12-14", horizon: "day" }).due, "2026-12-14");
+  for (const type of ["task", "done", "migrated"] as const) {
+    assert.equal(todoShape({ type, title: "t", date: "2026-12-14", horizon: "month-calendar" }).due, null, `month-calendar ${type}`);
+  }
+  assert.equal(todoShape({ type: "scheduled", title: "t", date: "2026-12-14", horizon: "month-calendar" }).due, "2026-12-14");
 });
 
 test("a new VTODO never has DTSTART, PRIORITY or CATEGORIES, whatever the type", () => {

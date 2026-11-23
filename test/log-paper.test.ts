@@ -71,6 +71,9 @@ test("inPaperWindow: a month or future item counts while its month is this month
   }
   assert.equal(inPaperWindow("2026-11-10", today, "day"), true, "a day item keeps the 14 day window");
   assert.equal(inPaperWindow("2026-11-07", today, "day"), false);
+  assert.equal(inPaperWindow("2026-11-10", today, "month-calendar"), true, "a calendar entry keeps the 14 day window of its day");
+  assert.equal(inPaperWindow("2026-11-07", today, "month-calendar"), false);
+  assert.equal(inPaperWindow("2026-12-25", today, "month-calendar"), true);
 });
 
 test("the browser twin of the window (public/js/log/paper/recent.js) uses the same number and the same boundary", () => {
@@ -84,6 +87,9 @@ test("the browser twin of the window (public/js/log/paper/recent.js) uses the sa
   }
   for (const date of ["2026-10-31", "2026-11-21", "2026-11-30", "2027-03-31"]) {
     assert.equal(recent.contains(date, "2026-11-22", "month-task"), inPaperWindow(date, "2026-11-22", "month-task"), `month ${date}`);
+  }
+  for (const date of ["2026-11-22", "2026-11-08", "2026-11-07", "2026-12-25"]) {
+    assert.equal(recent.contains(date, "2026-11-22", "month-calendar"), inPaperWindow(date, "2026-11-22", "month-calendar"), `calendar ${date}`);
   }
   assert.equal(recent.shows({ onPaper: false, date: "2026-10-31", horizon: "month-task" }, "2026-11-22"), false, "a past month is old");
   assert.equal(recent.shows({ onPaper: false, date: "2026-11-30", horizon: "month-task" }, "2026-11-22"), true, "this month counts");

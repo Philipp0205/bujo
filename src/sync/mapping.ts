@@ -1,5 +1,6 @@
 import { buildNewTodo, parseVTodos, type TodoPatch } from "../caldav/ics.ts";
 import { buildNewEvent, eventDifferences, parseVEvents, type EventFields } from "../caldav/vevent.ts";
+import { isDayDated } from "../log/horizon.ts";
 import type { Entry, EntryType } from "../log/types.ts";
 import { mismatchReason } from "./strings.ts";
 
@@ -32,10 +33,10 @@ export type TodoShape = {
 
 /**
  * The VTODO an entry stands for. done is finished. scheduled has a DUE day. A task, done or migrated entry of a month or
- * the future has DUE = the last day of its month (its date). A plain daily task has no DUE.
+ * the future has DUE = the last day of its month (its date). A plain task on a real day (daily log or monthly calendar) has no DUE.
  */
 export function todoShape(entry: Pick<Entry, "type" | "title" | "date"> & { horizon?: Entry["horizon"] }): TodoShape {
-  const inMonth = entry.horizon !== undefined && entry.horizon !== "day";
+  const inMonth = entry.horizon !== undefined && !isDayDated(entry.horizon);
   return {
     summary: entry.title,
     status: entry.type === "done" ? "COMPLETED" : "NEEDS-ACTION",
