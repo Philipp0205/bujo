@@ -133,12 +133,12 @@ test("the mark also shows after switching from the log to Notes", async ({ page 
 
 test("the log has the bar with Daily log active, and Notes leads to the notes screen", async ({ page }) => {
   await page.goto(app.baseUrl);
-  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
+  await expect(bar(page).locator(".ak-tab")).toHaveText(["Daily log", "Collections", "Add", "Scan", "Account"]);
   await expect(tab(page, "log")).toHaveAttribute("aria-current", "page");
 
   await tab(page, "notes").click();
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
-  await expect(page.getByRole("heading", { name: "Notes", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Collections", level: 1 })).toBeVisible();
   await expect(tab(page, "notes")).toHaveAttribute("aria-current", "page");
   await expect(tab(page, "log")).not.toHaveAttribute("aria-current", "page");
 });
@@ -223,7 +223,7 @@ test("notes opened first sends Back to the log", async ({ page }) => {
     page.waitForEvent("popup"),
     page.evaluate((url) => { window.open(url); }, `${app.baseUrl}/notes`),
   ]);
-  await expect(first.getByRole("heading", { name: "Notes", level: 1 })).toBeVisible();
+  await expect(first.getByRole("heading", { name: "Collections", level: 1 })).toBeVisible();
   expect(await first.evaluate(() => history.length)).toBe(2);
 
   await first.goBack();

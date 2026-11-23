@@ -220,8 +220,8 @@
       retryFailed: 'Could not retry the sync. Try again.'
     },
     note: {
-      untitled: 'Untitled note',
-      savedHeading: 'Note',
+      untitled: 'Untitled collection',
+      savedHeading: 'Collection',
       savedSub: 'Saved in your log',
       dayHint: 'Tap to change the day',
       title: 'Title',
@@ -235,11 +235,11 @@
       photoAlt: 'Photo of the scanned page',
       photoOpen: 'Open the photo full size',
       photoClose: 'Close the photo',
-      photoFailed: 'The note is saved, but its photo could not be stored. Tap Save to try again.',
-      titleRequired: 'Give the note a title.',
+      photoFailed: 'The collection is saved, but its photo could not be stored. Tap Save to try again.',
+      titleRequired: 'Give the collection a title.',
       dateRequired: 'Pick a date.',
-      bodyRequired: 'Write something in the note.',
-      saveFailed: 'Could not save the note. Try again.',
+      bodyRequired: 'Write something in the collection.',
+      saveFailed: 'Could not save the collection. Try again.',
       save: 'Save'
     }
   };

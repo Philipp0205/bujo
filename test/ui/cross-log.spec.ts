@@ -306,7 +306,7 @@ test("an entry moved with > to a day beyond the loaded days is on that day's log
 
   // Straight after the move, and again after another tab and back (which reads the log again), the next arrow reaches the new day.
   await expect(page.getByTestId("page-next")).toBeEnabled();
-  await page.getByRole("navigation", { name: "Main" }).getByText("Notes").click();
+  await page.getByRole("navigation", { name: "Main" }).getByText("Collections").click();
   await page.getByRole("navigation", { name: "Main" }).getByText("Daily log").click();
   await expect(switcher(page)).toBeVisible();
   await expect(page.getByTestId("page-next")).toBeEnabled();

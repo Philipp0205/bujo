@@ -11,10 +11,10 @@
     camera: {
       close: 'Close',
       title: 'Align the log page',
-      titleNote: 'Align the note page',
+      titleNote: 'Align the collection page',
       modes: 'What to scan',
       rapid: 'Log page',
-      note: 'Free note',
+      note: 'Collection',
       shutter: 'Take a photo',
       gallery: 'Choose from gallery'
     },
@@ -28,9 +28,9 @@
       }
     },
     note: {
-      reviewHeading: 'Free note',
+      reviewHeading: 'Collection',
       reviewSub: 'Scanned just now',
-      save: 'Save note',
+      save: 'Save collection',
       cancel: 'Cancel',
       noText: 'No text was read from this page.'
     },

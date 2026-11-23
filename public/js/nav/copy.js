@@ -10,7 +10,7 @@
     barLabel: 'Main',
     tabs: {
       log: 'Daily log',
-      notes: 'Notes',
+      notes: 'Collections',
       add: 'Add',
       scan: 'Scan',
       account: 'Account'

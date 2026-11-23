@@ -58,7 +58,7 @@ test("an empty log shows today with its mark and the add row, the tab bar with S
   await expect(page.locator(".paper-head [data-nav=settings]")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
   const tabs = page.getByRole("navigation", { name: "Main" });
-  await expect(tabs.locator(".ak-tab")).toHaveText(["Daily log", "Notes", "Add", "Scan", "Account"]);
+  await expect(tabs.locator(".ak-tab")).toHaveText(["Daily log", "Collections", "Add", "Scan", "Account"]);
   await expect(tabs.getByRole("button", { name: "Add" })).toBeEnabled();
   await expect(tabs.getByRole("button", { name: "Scan" })).toBeEnabled();
   await expect(tabs.locator("[data-tab=log]")).toHaveAttribute("aria-current", "page");

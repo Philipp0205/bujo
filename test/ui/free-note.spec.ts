@@ -35,7 +35,7 @@ const screen = (page: Page) => page.getByTestId("scan-screen");
 async function openNoteCamera(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
   await openScan(page);
-  await screen(page).getByRole("button", { name: "Free note" }).click();
+  await screen(page).getByRole("button", { name: "Collection" }).click();
 }
 
 /** Scans a photo in free-note mode, through the given input. The review sheet is up after this. */
@@ -45,17 +45,17 @@ async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
   await expect(sheet(page)).toBeVisible();
 }
 
-test("the Free note toggle works: pressed state and title follow it, and back again", async ({ page }) => {
+test("the Collection toggle works: pressed state and title follow it, and back again", async ({ page }) => {
   await page.goto(app.baseUrl);
   await openScan(page);
   const rapid = screen(page).getByRole("button", { name: "Log page" });
-  const note = screen(page).getByRole("button", { name: "Free note" });
+  const note = screen(page).getByRole("button", { name: "Collection" });
   await expect(screen(page).getByRole("heading", { name: "Align the log page" })).toBeVisible();
 
   await note.click();
   await expect(note).toHaveAttribute("aria-pressed", "true");
   await expect(rapid).toHaveAttribute("aria-pressed", "false");
-  await expect(screen(page).getByRole("heading", { name: "Align the note page" })).toBeVisible();
+  await expect(screen(page).getByRole("heading", { name: "Align the collection page" })).toBeVisible();
   await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-prose");
 
   await rapid.click();
@@ -67,7 +67,7 @@ test("the Free note toggle works: pressed state and title follow it, and back ag
 test("a free-note photo reaches the review with the transcribed markdown, and nothing is written yet", async ({ page }) => {
   await scanNote(page);
   await expect(page.getByTestId("scan-screen")).toHaveCount(0);
-  await expect(sheet(page).getByRole("heading", { name: "Free note" })).toBeVisible();
+  await expect(sheet(page).getByRole("heading", { name: "Collection" })).toBeVisible();
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Küchengarten, Frühjahr");
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(MARKDOWN);
   await expect(sheet(page).locator('[data-field="date"]')).not.toHaveValue("");
@@ -150,18 +150,18 @@ test("a note needs a title and some text", async ({ page }) => {
   await scanNote(page);
   await sheet(page).locator('[data-field="title"]').fill("");
   await sheet(page).locator('[data-action="save-note"]').click();
-  await expect(sheet(page).getByRole("alert")).toContainText("Give the note a title.");
+  await expect(sheet(page).getByRole("alert")).toContainText("Give the collection a title.");
   await sheet(page).locator('[data-field="title"]').fill("Titel");
   await sheet(page).locator('[data-field="body"]').fill("  ");
   await sheet(page).locator('[data-action="save-note"]').click();
-  await expect(sheet(page).getByRole("alert")).toContainText("Write something in the note.");
+  await expect(sheet(page).getByRole("alert")).toContainText("Write something in the collection.");
   await expect(sheet(page)).toBeVisible();
 });
 
-test("a page with no usable first line gets the Untitled note title", async ({ page }) => {
+test("a page with no usable first line gets the Untitled collection title", async ({ page }) => {
   app.ocr.setLines([line("none", "#"), line("none", "zweite Zeile")]);
   await scanNote(page);
-  await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Untitled note");
+  await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Untitled collection");
 });
 
 /** A solid grey PNG of the given size, made here so no real page photo is ever used. */

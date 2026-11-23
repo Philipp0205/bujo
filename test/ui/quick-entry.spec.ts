@@ -40,7 +40,7 @@ test("Add on the log opens the new entry sheet with the title focused, as a task
   await expect(page.locator(".ak-tabbar [data-tab=add]")).not.toHaveAttribute("aria-current", "page");
 });
 
-for (const [path, name] of [["/notes", "Notes"], ["/settings", "Account"]] as const) {
+for (const [path, name] of [["/notes", "Collections"], ["/settings", "Account"]] as const) {
   test(`Add from ${name} swaps to the log in place, opens the sheet and focuses the title inside the tap`, async ({ page }) => {
     await page.goto(`${app.baseUrl}${path}`);
     await logIsWarm(page);
