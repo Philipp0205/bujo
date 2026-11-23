@@ -2,7 +2,7 @@
  * Sends the queued entries to the server, oldest first, one at a time. Needs outbox/model.js, outbox/queue.js and api.js.
  * Every send is safe to repeat: a create carries its client id (the server answers a repeat with the stored entry), an update
  * is a PATCH of fixed fields. So a lost answer, a second tab or a retry never makes a second entry.
- * hooks: sent(entry) after one item went through, dropped(item, error) when the server will never take it, finished(sentAny).
+ * hooks: sent(entry, item) after one item went through, dropped(item, error) when the server will never take it, finished(sentAny).
  * It stops at the first item that cannot be sent now (no network, a server error) and tries again later.
  */
 (function () {
@@ -36,10 +36,10 @@
     timer = window.setTimeout(function () { timer = null; flush(); }, RETRY_MS);
   }
 
-  /** The item went through: it leaves the queue (or keeps what changed meanwhile) and the page learns the saved entry. */
+  /** The item went through: it leaves the queue (or keeps what changed meanwhile) and the page learns the saved entry and the item that made it. */
   function sentOne(item, entry) {
     return L.outbox.queue.update(function (items) { return L.outbox.model.afterSent(items, item); }).then(function () {
-      hooks.sent(entry);
+      hooks.sent(entry, item);
     });
   }
 

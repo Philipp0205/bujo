@@ -114,10 +114,28 @@
       }));
   }
 
-  /** The entries of one day: a card per top-level entry, then the add row (not while selecting). The date heading is on the page's date row. */
+  /**
+   * What a move left on a page: a muted row with the ">" or "<" glyph and the title as it was. It is no entry: no id, no toggle, no tap,
+   * so the swipe, the long press and the page turn leave it alone, and it has no sync state.
+   */
+  function traceRow(trace) {
+    return h('div', {
+      class: 'paper-row paper-trace', 'data-type': trace.type, 'data-horizon': trace.horizon || 'day', 'data-testid': 'trace-row', 'data-trace': trace.type
+    },
+      h('span', { class: 'paper-sym', 'aria-label': L.copy.move.traceLabel[trace.type], role: 'img' }, L.glyph.typeGlyph(trace.type)),
+      h('span', { class: 'paper-body' }, h('span', { class: 'paper-title' }, trace.title)));
+  }
+
+  /** The traces of a page as quiet rows after its cards. Null when there are none. */
+  function traceList(traces) {
+    return traces.length ? h('div', { class: 'paper-traces' }, traces.map(traceRow)) : null;
+  }
+
+  /** The entries of one day: a card per top-level entry, the traces of moves, then the add row (not while selecting). The date heading is on the page's date row. */
   function dayPage(date, entries, actions, today) {
     return h('section', { class: 'paper-day-group', 'data-date': date },
       L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return entryCard(card, actions, today); }),
+      traceList(L.days.tracesOf(entries, 'day', date)),
       actions.select.on() ? null : addRow(actions.add));
   }
 
@@ -136,6 +154,7 @@
   }
 
   L.view = {
-    header: header, todayMark: todayMark, dayPage: dayPage, stateNote: stateNote, offlineHint: offlineHint, entryCard: entryCard, addRow: addRow
+    header: header, todayMark: todayMark, dayPage: dayPage, stateNote: stateNote, offlineHint: offlineHint, entryCard: entryCard, addRow: addRow,
+    traceList: traceList
   };
 })();

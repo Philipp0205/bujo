@@ -321,6 +321,10 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 .paper-row[data-type="done"] .paper-sym { color: var(--paper-done); }
 .paper-row[data-type="migrated"] { opacity: 0.55; }
 
+/* A trace is what a move left on the page it came from: a muted ">" or "<" line with the old title. It is no entry, so it does not react to a tap. */
+.paper-trace,
+.paper-trace[data-type="scheduled"] { opacity: 0.55; cursor: default; }
+
 /* The inked words (tags, time, "not synced", the sync dot, the page mark) flow after the title. Their look is in ink-script.css. */
 .paper-meta { display: inline; }
 
@@ -516,6 +520,76 @@ html.ak-base .type-marker:focus-visible { outline: 1px solid var(--paper-muted);
 .type-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .type-option[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
 html.ak-base .type-chooser :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
+
+/* The move chooser: the same paper card as the type chooser, above the sheet. A quick row, then the later months as chips; it scrolls when short of room. */
+.edit-sheet > .move-chooser {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% + 8px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(366px, calc(100% - 24px));
+  max-height: min(320px, 46vh);
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper-bg);
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(20, 14, 10, 0.28);
+}
+.move-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  color: var(--paper-muted);
+  font: italic 15px/24px var(--font-text);
+}
+.move-heading svg { display: block; flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.move-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.move-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.move-option,
+.move-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 16px/20px var(--font-text);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.move-chip { justify-content: center; padding: 0 4px; text-align: center; }
+.move-option[aria-pressed="true"],
+.move-chip[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
+.move-day { gap: 6px; }
+.move-day-label { flex: none; }
+.move-date {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 14px/20px var(--font-ui);
+}
+html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -3px; }
 
 .sheet-chips {
   display: flex;

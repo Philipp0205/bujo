@@ -1,7 +1,9 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
+import { updateEntry } from "../log/move.ts";
 import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
 import { createEntryStore, EntryIdTaken, type EntryStore } from "../log/store.ts";
+import { createTraceStore } from "../log/trace.ts";
 import { checkEntryPatch, checkNewEntry, checkRange } from "../log/validation.ts";
 import type { Checked, Entry, NewEntry } from "../log/types.ts";
 import { readPhoto } from "../scan/photo.ts";
@@ -26,10 +28,11 @@ function methodNotAllowed(allow: string): never {
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
  *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet, never a done one (any other onPaper value is a 400)
+ *   GET   /api/entries?from=&to=&traces=1   also { traces } for the range: what moves left on the old pages ({ id, entryId, date, horizon, kind, title }), local notes that are never synced
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day. An optional client id (a UUID) makes it idempotent: a repeat answers 200 with the stored entry, an id of another user is a 409
- *   PATCH /api/entries/:id         change date, type, title, tags (a list, empty when none), time, indent (0 or 1) or body (the markdown of a free note, null when none)
+ *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1) or body (the markdown of a free note, null when none). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
@@ -51,7 +54,9 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
       if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
       const entries = store.list(userId, range);
-      sendJson(res, 200, { entries: onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter(isNotOnPaperCandidate) : entries });
+      const shown = onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter(isNotOnPaperCandidate) : entries;
+      const traces = url.searchParams.get("traces") === "1" ? { traces: createTraceStore(accounts.db).list(userId, range) } : {};
+      sendJson(res, 200, { entries: shown, ...traces });
       return true;
     }
     if (method !== "POST") methodNotAllowed("GET or POST");
@@ -78,7 +83,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
   }
   if (method !== "PATCH") methodNotAllowed("PATCH or DELETE");
   const patch = valid(checkEntryPatch(await readJson(req, { max: ENTRY_BODY_MAX })));
-  const entry = store.update(userId, id, patch, accounts.now());
+  const entry = updateEntry(accounts.db, userId, id, patch, accounts.now());
   if (!entry) throw new HttpError(404, "unknown entry");
   sendJson(res, 200, { entry: ctx.sync && touchesMapping(patch, entry) ? ctx.sync.enqueue(userId, entry) : entry });
   return true;

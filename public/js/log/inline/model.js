@@ -14,7 +14,7 @@
   function blank(slot) {
     return {
       id: null, isNew: true, home: slot.date, homeHorizon: slot.horizon, date: slot.date, horizon: slot.horizon, type: 'task',
-      title: '', tags: [], time: null, indent: 0, edited: false, original: null, error: '', saving: null
+      title: '', tags: [], time: null, indent: 0, trace: null, edited: false, original: null, error: '', saving: null
     };
   }
 
@@ -33,6 +33,7 @@
       tags: (entry.tags || []).slice(),
       time: entry.time || null,
       indent: entry.indent || 0,
+      trace: null,
       edited: false,
       original: entry,
       error: '',
@@ -129,7 +130,7 @@
     return line.original[key] === undefined ? null : line.original[key];
   }
 
-  /** The fields to send: everything for a new line, only what differs from the saved entry for an edit. */
+  /** The fields to send: everything for a new line, only what differs from the saved entry for an edit. A move that asked for a trace says which. */
   function changes(line) {
     var next = values(line);
     if (line.isNew) return next;
@@ -137,6 +138,7 @@
     FIELDS.forEach(function (key) {
       if (!unchanged(key, savedValue(line, key), next[key])) out[key] = next[key];
     });
+    if (line.trace && moved(line)) out.trace = line.trace;
     return out;
   }
 

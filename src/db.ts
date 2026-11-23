@@ -97,6 +97,20 @@ CREATE TABLE IF NOT EXISTS entry_tags (
   PRIMARY KEY (entry_id, position)
 );
 
+-- What a move leaves on the old page (a ">" or "<" line). Never an entry: no UID, never synced. It goes with its entry.
+CREATE TABLE IF NOT EXISTS entry_traces (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  horizon TEXT NOT NULL CHECK (horizon IN ('day', 'month-task', 'future')),
+  kind TEXT NOT NULL CHECK (kind IN ('migrated', 'scheduled')),
+  title TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_entry_traces_user_date ON entry_traces(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_entry_traces_entry ON entry_traces(entry_id);
+
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
   name TEXT PRIMARY KEY

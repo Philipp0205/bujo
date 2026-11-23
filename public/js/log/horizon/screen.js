@@ -59,14 +59,15 @@
     return h('p', { class: 'horizon-empty', 'data-testid': testid }, text);
   }
 
-  /** One day with entries: its heading, then its cards. */
+  /** One day with entries: its heading, its cards, then the traces of moves. */
   function dayBlock(day, ctx) {
     return h('section', { class: 'horizon-section horizon-day', 'data-date': day.date },
       h('h3', { class: 'horizon-label', 'data-testid': 'month-day-label' }, L.dates.dayHeading(day.date)),
-      cards(L.days.cardsOf(day.entries), ctx));
+      cards(L.days.cardsOf(day.entries), ctx),
+      L.view.traceList(day.traces));
   }
 
-  /** The body of the Month view: the days that have entries, then the month tasks and the add row (not while selecting). */
+  /** The body of the Month view: the days that have entries, then the month tasks (and the traces of moves out of them) and the add row (not while selecting). */
   function monthBody(ctx) {
     var days = L.horizon.model.monthDays(ctx.entries, ctx.month);
     var tasks = L.horizon.model.monthCards(ctx.entries, ctx.month);
@@ -75,15 +76,17 @@
       h('section', { class: 'horizon-section horizon-tasks', 'data-testid': 'month-tasks' },
         h('h3', { class: 'horizon-label' }, L.copy.horizon.monthTasks),
         cards(tasks, ctx),
+        L.view.traceList(L.horizon.model.monthTraces(ctx.entries, ctx.month)),
         ctx.actions.select.on() ? null : L.view.addRow(ctx.actions.add))
     ];
   }
 
-  /** One month of the Future Log: its heading and its items, or a quiet line when it has none. */
+  /** One month of the Future Log: its heading and its items and traces, or a quiet line when it has neither. */
   function bucket(item, ctx) {
+    var any = item.cards.length > 0 || item.traces.length > 0;
     return h('section', { class: 'horizon-section horizon-bucket', 'data-month': item.month, 'data-testid': 'future-bucket' },
       h('h3', { class: 'horizon-label', 'data-testid': 'future-bucket-label' }, L.copy.horizon.monthName(item.month)),
-      item.cards.length ? cards(item.cards, ctx) : empty(L.copy.horizon.bucketEmpty, null));
+      any ? [cards(item.cards, ctx), L.view.traceList(item.traces)] : empty(L.copy.horizon.bucketEmpty, null));
   }
 
   /** The body of the Future view: six month buckets, then one add row at the end. */

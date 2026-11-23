@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-22-cross-log",
+    "date": "2026-11-22",
+    "title": "Move entries between your logs",
+    "bullets": [
+      "Set an entry to Moved (>) to carry it to the next day, a day you pick, this month or a later month. It keeps its place in your log and leaves a quiet > line on the page it came from.",
+      "Set an entry to Scheduled (<) to put it on a day or in a later month. Choose This day to keep it where it is.",
+      "The Future and Month views show what you moved there, and moves made offline are sent when you are back."
+    ]
+  },
+  {
     "id": "2026-11-22-dots-contrast",
     "date": "2026-11-22",
     "title": "Dots that move with the page",
