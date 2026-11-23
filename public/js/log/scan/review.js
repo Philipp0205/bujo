@@ -12,14 +12,43 @@
 
   var ICON = { viewBox: '0 0 16 16', width: 16, height: 16 };
 
-  /** The words under a row title: confidence, a spelling hint when it is low, and what the apply does to the day. */
+  /** The words under a row title: confidence, a spelling hint when it is low, and a note when the app also changed the entry. */
   function metaText(item) {
     var copy = L.copy.scan.review;
     var parts = [L.scan.model.percent(item) + '%'];
     if (item.time) parts.push(item.time);
     if (L.scan.model.isLowConfidence(item)) parts.push(copy.checkSpelling);
-    if (item.status === 'edited') parts.push(item.contested ? copy.changedInApp : copy.updatesEntry);
+    if (item.status === 'edited' && item.contested) parts.push(copy.changedInApp);
     return parts.join(' \u00b7 ');
+  }
+
+  /** The faint words of the match line: what the line matches and what applying does to it, or that it was un-matched. */
+  function matchText(item) {
+    var copy = L.copy.scan.review;
+    var match = L.scan.model.matchOf(item);
+    if (item.unmatched) return item.wasMatch ? copy.notMatched(item.wasMatch.title) : '';
+    if (!match) return '';
+    if (match.kind === 'trace') return copy.matchesTrace + ' \u00b7 ' + copy.traceChange;
+    return copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
+  }
+
+  /** The un-match control: turns a matched line into a new entry, or a line that was un-matched back into a match. */
+  function matchToggle(item, onToggle) {
+    var copy = L.copy.scan.review;
+    var button = h('button', { class: 'scan-unmatch', type: 'button', 'data-field': 'unmatch', onclick: function () {
+      if (item.unmatched) L.scan.model.rematch(item);
+      else L.scan.model.unmatch(item);
+      onToggle();
+    } });
+    return {
+      node: button,
+      show: function (visible) {
+        button.hidden = !visible;
+        button.textContent = item.unmatched ? copy.rematch : copy.unmatch;
+        var was = item.wasMatch;
+        button.setAttribute('aria-label', item.unmatched ? copy.rematchLabel : copy.unmatchLabel(was ? was.title : (item.target && item.target.title)));
+      }
+    };
   }
 
   /** The "was" line of an edited row: the old glyph and title, then the old tag or time when those changed. */
@@ -82,6 +111,8 @@
   function row(state, item, hooks) {
     var meta = h('span', { class: 'scan-meta' });
     var was = h('div', { class: 'scan-was', 'data-role': 'was' });
+    var matched = h('div', { class: 'scan-match', 'data-role': 'match' });
+    var unmatch = matchToggle(item, function () { hooks.changed(true); });
     var picker = typePicker(item, L.scan.model.allowsEvent(state.kind), function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var place = L.scan.kind.placeField(state, item, hooks.moved);
@@ -89,17 +120,21 @@
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), place.node),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, place.node),
       keep.node);
 
     function refresh() {
       var parts = wasLine(item);
+      var text = matchText(item);
       node.setAttribute('data-include', item.include ? 'true' : 'false');
       node.setAttribute('data-status', item.status);
+      node.setAttribute('data-match', item.unmatched ? 'unmatched' : (L.scan.model.matchOf(item) ? 'matched' : 'none'));
       node.setAttribute('data-low', L.scan.model.isLowConfidence(item) ? 'true' : 'false');
-      node.hidden = item.status === 'unchanged' && !hooks.showUnchanged() && !node.contains(document.activeElement);
       was.hidden = !parts;
       was.replaceChildren.apply(was, parts || []);
+      matched.hidden = text === '';
+      matched.textContent = text;
+      unmatch.show(text !== '');
       meta.textContent = metaText(item);
       picker.show();
       place.show();
@@ -128,19 +163,6 @@
         day.textContent = L.dates.dayHeading(state.date);
         source.textContent = { page: copy.dateFromPage, fallback: copy.dateFallback, picked: copy.datePicked }[state.dateSource];
         input.value = state.date;
-      }
-    };
-  }
-
-  /** The collapsed note for lines the day already holds: a count that opens the lines to look at. Opening never ticks them. */
-  function unchangedNote(onToggle) {
-    var button = h('button', { class: 'scan-unchanged', type: 'button', 'data-testid': 'scan-unchanged', 'aria-expanded': 'false', onclick: onToggle });
-    return {
-      node: button,
-      show: function (count, open) {
-        button.hidden = count === 0;
-        button.setAttribute('aria-expanded', open ? 'true' : 'false');
-        button.textContent = L.copy.scan.review.unchanged(count, open);
       }
     };
   }
@@ -194,12 +216,9 @@
     var date = dateRow(state, function () { recheck(); });
     var month = L.scan.kind.monthRow(state, function () { recheck(); });
     var kinds = L.scan.kind.kindSwitch(state, switchTo);
-    var unchangedOpen = false;
-    var note = unchangedNote(function () { unchangedOpen = !unchangedOpen; refreshAll(); });
     var rows = rowsView(state, {
       changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
-      moved: function () { rows.relayout(); recheck(); },
-      showUnchanged: function () { return unchangedOpen; }
+      moved: function () { rows.relayout(); recheck(); }
     });
     var busy = false;
     var sheet = null;
@@ -219,7 +238,6 @@
       month.node.hidden = state.kind !== 'calendar' && state.kind !== 'month-task';
       date.refresh();
       month.refresh();
-      note.show(L.scan.model.unchangedItems(state).length, unchangedOpen);
       rows.refresh();
     }
 
@@ -266,7 +284,7 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
-      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, month.node, note.node, rows.node),
+      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, month.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});

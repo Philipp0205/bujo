@@ -58,6 +58,9 @@
       before: line.before,
       after: line.after,
       contested: line.contested,
+      traced: line.traced === true,
+      unmatched: false,
+      wasMatch: null,
       include: line.include,
       month: line.month || null,
       dayText: line.day ? String(line.day) : '',
@@ -133,6 +136,7 @@
       item.before = check.before;
       item.after = check.after;
       item.contested = check.contested;
+      item.traced = check.traced === true;
       if (item.status === 'unchanged') {
         item.include = false;
         item.touched = false;
@@ -140,6 +144,41 @@
         item.include = defaultInclude(item);
       }
     });
+  }
+
+  /** What a line is matched to: { kind: 'entry', title }, { kind: 'trace' } or null. An un-matched line is matched to nothing. */
+  function matchOf(item) {
+    if (item.unmatched) return null;
+    if (item.target && item.status !== 'new') return { kind: 'entry', title: item.target.title };
+    return item.traced ? { kind: 'trace', title: '' } : null;
+  }
+
+  /** The copy key of what applying does to the matched item: 'same' (only marked on paper), a new type, or 'fields' for a title, tag or time. */
+  function changeKey(item) {
+    if (item.status !== 'edited' || !item.before || !item.after) return 'same';
+    return item.after.type !== item.before.type ? item.after.type : 'fields';
+  }
+
+  /** Turns a matched line into a new one: the person says it is not the item it matched. The server is asked again for the rest. */
+  function unmatch(item) {
+    var match = matchOf(item);
+    if (!match) return;
+    item.wasMatch = match;
+    item.unmatched = true;
+    item.status = 'new';
+    item.target = null;
+    item.before = null;
+    item.after = null;
+    item.contested = false;
+    item.traced = false;
+    item.touched = false;
+    item.include = defaultInclude(item);
+  }
+
+  /** Lets a line match again. The next check says what it matches. */
+  function rematch(item) {
+    item.unmatched = false;
+    item.touched = false;
   }
 
   /** The lines that will be written: kept, and new or edited. An unchanged line writes nothing. */
@@ -152,11 +191,6 @@
     var kept = keptItems(state);
     var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
     return { created: kept.length - updated, updated: updated };
-  }
-
-  /** The lines the server found unchanged. The review folds them into one count. */
-  function unchangedItems(state) {
-    return state.items.filter(function (item) { return item.status === 'unchanged'; });
   }
 
   /** True when a calendar day exists in the month of the page (no 30 February). */
@@ -193,11 +227,12 @@
     return L.tags.fromField(item.tagText, item.tags);
   }
 
-  /** One line as the server reads it. A calendar line carries its day and a future line its month. */
+  /** One line as the server reads it. A calendar line carries its day and a future line its month. An un-matched line says so. */
   function lineBody(state, item) {
     var body = { id: item.id, type: item.type, title: item.title.trim(), tags: tagsOf(item), time: item.time };
     if (state.kind === 'calendar') body.day = dayOf(item);
     if (state.kind === 'future') body.month = item.month;
+    if (item.unmatched) body.unmatched = true;
     return body;
   }
 
@@ -286,9 +321,12 @@
     setMonth: setMonth,
     dayOf: dayOf,
     mergeChecks: mergeChecks,
+    matchOf: matchOf,
+    changeKey: changeKey,
+    unmatch: unmatch,
+    rematch: rematch,
     keptItems: keptItems,
     counts: counts,
-    unchangedItems: unchangedItems,
     problem: problem,
     isLowConfidence: isLowConfidence,
     percent: percent,

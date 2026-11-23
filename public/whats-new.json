@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-23-fuzzy-scan-match",
+    "date": "2026-11-23",
+    "title": "Scans forgive bad reading",
+    "bullets": [
+      "A scanned line that is at least 70% like an item already on that day or page is now the same item. Reading slips no longer add a second copy.",
+      "The scan review shows each matched line with \"matches: ...\" and what applying will do to it, such as marking it done or migrated.",
+      "If a match is wrong, tap Not the same and the line becomes a new entry."
+    ]
+  },
+  {
     "id": "2026-11-23-paper-month-future",
     "date": "2026-11-23",
     "title": "Month and Future like the paper",

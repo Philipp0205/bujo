@@ -72,19 +72,39 @@ function fuzzyCandidates(slot: Slot, pool: Pool): Array<{ entry: ScanEntry; scor
   return scored.sort((a, b) => b.score - a.score);
 }
 
-/** The fuzzy pass: a line binds its best entry unless a second one scores about as well, then it stays new. */
+/** Every line and free entry that clear the threshold, best score first, ties in page order. */
+function fuzzyPairs(slots: readonly Slot[], pool: Pool): Array<{ slot: Slot; entry: ScanEntry; score: number }> {
+  const pairs = slots.flatMap((slot) => fuzzyCandidates(slot, pool).map(({ entry, score }) => ({ slot, entry, score })));
+  return pairs.sort((a, b) => b.score - a.score || a.slot.index - b.slot.index);
+}
+
+/** True when another unbound line ranks this entry first: it is that line's pick, so it is no rival for this one. */
+function isPickOfOther(entry: ScanEntry, slot: Slot, slots: readonly Slot[], pool: Pool): boolean {
+  return slots.some((other) => other !== slot && !pool.bound.has(other.line.id) && fuzzyCandidates(other, pool)[0]?.entry.id === entry.id);
+}
+
+/** True when a line's two best free entries score about the same, so neither is clearly the one. */
+function isAmbiguous(slot: Slot, slots: readonly Slot[], pool: Pool): boolean {
+  const [best, ...rest] = fuzzyCandidates(slot, pool);
+  const rival = rest.find((item) => !isPickOfOther(item.entry, slot, slots, pool));
+  return !!best && !!rival && best.score - rival.score < AMBIGUOUS_GAP;
+}
+
+/**
+ * The fuzzy pass: pairs bind best first, so a line prefers its best entry and does not lose it to an earlier line that
+ * scores lower on it. A line whose two best free entries score about the same stays new, unless the other entry is the
+ * clear pick of another line.
+ */
 function fuzzyPass(slots: readonly Slot[], pool: Pool): void {
-  for (const slot of slots) {
-    if (pool.bound.has(slot.line.id)) continue;
-    const [best, second] = fuzzyCandidates(slot, pool);
-    if (!best || (second && best.score - second.score < AMBIGUOUS_GAP)) continue;
-    bind(pool, slot, best.entry);
+  for (const { slot, entry } of fuzzyPairs(slots, pool)) {
+    if (pool.bound.has(slot.line.id) || pool.claimed.has(entry.id) || isAmbiguous(slot, slots, pool)) continue;
+    bind(pool, slot, entry);
   }
 }
 
 /**
- * Binds each line of a day, in page order, to at most one entry of that day, and each entry to at most one line.
- * Passes: the stored scan key, the exact title, then a fuzzy title (a ranking, so an ambiguous line binds nothing).
+ * Binds each line of a day to at most one entry of that day, and each entry to at most one line.
+ * Passes: the stored scan key, the exact title, then a fuzzy title (best pair first, an ambiguous line binds nothing).
  * A line with an empty title binds nothing. Pure: it reads, it never writes. Lines with no entry are absent from the result.
  */
 export function alignLines(lines: readonly Line[], existing: readonly ScanEntry[]): Map<string, ScanEntry> {

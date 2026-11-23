@@ -28,8 +28,11 @@ export type ScanStatus = "new" | "edited" | "unchanged";
 /** The four fields a scan can set on an entry. */
 export type Fields = { type: EntryType; title: string; tags: string[]; time: string | null };
 
-/** One paper line as the matcher reads it. Tags or a time left out or empty mean the paper does not say them. */
-export type Line = { id: string; type: EntryType; title: string; tags?: string[]; time?: string | null };
+/**
+ * One paper line as the matcher reads it. Tags or a time left out or empty mean the paper does not say them.
+ * `unmatched` is the person saying "not the same item": the line matches no entry and no trace, so it is new.
+ */
+export type Line = { id: string; type: EntryType; title: string; tags?: string[]; time?: string | null; unmatched?: boolean };
 
 /** What the matcher decided for one line. */
 export type Resolution = {

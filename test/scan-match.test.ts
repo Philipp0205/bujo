@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { correctWords, levenshtein, matchKey, matchLine, MATCH_THRESHOLD, normalise, similarity } from "../src/scan/match.ts";
+import { correctWords, levenshtein, matchKey, matchLine, MATCH_THRESHOLD, normalise, sameWords, similarity } from "../src/scan/match.ts";
 import { CORRECTIONS } from "../src/scan/wordlist.ts";
 
 const task = (uid: string, summary: string, list = "Aufgaben") => ({ list, uid, summary });
@@ -118,4 +118,32 @@ test("similarity is symmetric enough and bounded", () => {
     assert.ok(s >= 0 && s <= 1, `${a} ${b} ${s}`);
   }
   assert.ok(similarity("task 1", "task 2") < MATCH_THRESHOLD);
+});
+
+test("the threshold is 70 percent, in one named constant", () => {
+  assert.equal(MATCH_THRESHOLD, 0.7);
+});
+
+test("bullets and punctuation never keep two equal titles apart", () => {
+  for (const bullet of ["•", "–", "○", "x", ">", "<", "* ", "- "]) {
+    assert.equal(matchKey(`${bullet} Zahnarzt anrufen!`), matchKey("zahnarzt  ANRUFEN"), bullet);
+  }
+  assert.equal(similarity(matchKey("x Mueller anrufen"), matchKey("• Müller anrufen")), 1);
+  assert.equal(matchKey("x"), "x", "a lone x is the whole title, not a bullet");
+});
+
+test("typo-level OCR noise is a match and a different title is not, around the threshold", () => {
+  const score = (a: string, b: string) => similarity(matchKey(a), matchKey(b));
+  assert.ok(score("Zahnarzt anrufen", "Zahnarst anrufcn") >= MATCH_THRESHOLD, "two wrong letters");
+  assert.ok(score("Brot kaufen", "Brot holen") < MATCH_THRESHOLD, "another task");
+  assert.ok(score("Gartentor streichen", "Gartentor putzen") < MATCH_THRESHOLD, "same start, another task");
+  assert.ok(score("Brot kaufen", "Milch trinken") < MATCH_THRESHOLD, "unrelated");
+});
+
+test("sameWords: noise is the same words, a reworded or renumbered title is not", () => {
+  assert.equal(sameWords("Zahnarst anrufen", "Zahnarzt anrufen"), true);
+  assert.equal(sameWords("MÜLLER anrufen", "Mueller anrufen"), true);
+  assert.equal(sameWords("Brot kaufen und Milch", "Brot kaufen"), false);
+  assert.equal(sameWords("Task 1", "Task 2"), false);
+  assert.equal(sameWords("", "Brot"), false);
 });

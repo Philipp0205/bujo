@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Entry } from "../src/log/types.ts";
-import { buildLogDraft, startReview } from "../src/log/scan/draft.ts";
+import { buildLogDraft, checkPlaced, startReview } from "../src/log/scan/draft.ts";
 import { detectKind } from "../src/log/scan/kind.ts";
 import { parseHeading } from "../src/log/scan/months.ts";
 import { parsePage } from "../src/log/scan/parse.ts";
@@ -180,4 +180,17 @@ test("startReview: a > line that a trace on the same page answers is unchanged w
     ["Etwas anderes", "new", undefined, null, true],
     ["Umzug planen", "new", undefined, null, true],
   ]);
+});
+
+test("trace: OCR noise still matches the trace, and an un-matched line does not", () => {
+  const draft = buildLogDraft({ ocr: { lines: [line("none", "20.11.2026"), line(">", "Umzug plamen"), line("<", "Zahnarzt anrufen")], width: 1, height: 1, ms: 1 }, fallbackDate: NOW, now: 0, ttlMs: 10 });
+  const traces = [
+    { id: "t1", entryId: "e9", date: NOW, horizon: "day" as const, kind: "migrated" as const, title: "Umzug planen", createdAt: 1 },
+    { id: "t2", entryId: "e8", date: NOW, horizon: "day" as const, kind: "scheduled" as const, title: "Zahnarzt anrufen", createdAt: 1 },
+  ];
+  const review = startReview(draft, fixedReader([], traces));
+  assert.deepEqual(review.items.map((i) => [i.status, i.traced]), [["unchanged", true], ["unchanged", true]]);
+  const asked = review.items.map((i, index) => ({ line: { id: i.id, type: i.type, title: i.title, unmatched: index === 0 }, slot: { horizon: "day" as const, date: NOW } }));
+  const checks = checkPlaced(asked, fixedReader([], traces));
+  assert.deepEqual(checks.map((c) => [c.status, c.traced]), [["new", undefined], ["unchanged", true]]);
 });

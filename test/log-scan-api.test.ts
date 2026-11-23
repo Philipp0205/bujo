@@ -318,6 +318,66 @@ test("apply: a bad request writes nothing at all", async () => {
   });
 });
 
+/** The entries of the day as the public API lists them, with whether each is on paper. */
+const storedOf = async (ctx: Ctx) =>
+  (await api(ctx.base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers: ctx.signed.headers })).json.entries as Array<{ id: string; type: string; title: string; onPaper: boolean }>;
+
+test("fuzzy: a line with OCR noise is the same item, so apply adds no row and the entry keeps its own title and goes on paper", async () => {
+  await withLogScan(async (ctx) => {
+    await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Zahnarzt anrufen" }, headers: ctx.signed.headers });
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Zahnarst anrufcn"), line("•", "Milch")]);
+    assert.deepEqual(draft.items.map((i: any) => [i.title, i.status, i.target?.title ?? null]), [["Zahnarst anrufcn", "unchanged", "Zahnarzt anrufen"], ["Milch", "new", null]]);
+    const applied = await applyTo(ctx, draft, [{ id: "l2", type: "task", title: "Zahnarst anrufcn", include: false }, { id: "l3", type: "task", title: "Milch" }]);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["created"]);
+    const rows = await storedOf(ctx);
+    assert.deepEqual(rows.map((e) => [e.title, e.onPaper]), [["Zahnarzt anrufen", true], ["Milch", true]]);
+  });
+});
+
+test("fuzzy: x over a task in the app marks that item done, misspelled title and all, with no second row", async () => {
+  await withLogScan(async (ctx) => {
+    const seeded = await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Zahnarzt anrufen" }, headers: ctx.signed.headers });
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Zahnarst anrufen")]);
+    assert.deepEqual([draft.items[0].status, draft.items[0].after.type, draft.items[0].after.title], ["edited", "done", "Zahnarzt anrufen"]);
+    const applied = await applyTo(ctx, draft, [{ id: "l2", type: "done", title: "Zahnarst anrufen" }]);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["updated"]);
+    const rows = await storedOf(ctx);
+    assert.deepEqual(rows.map((e) => [e.id, e.type, e.title, e.onPaper]), [[seeded.json.entry.id, "done", "Zahnarzt anrufen", true]]);
+  });
+});
+
+test("fuzzy: > and < over a task apply the migration and the schedule to the same item", async () => {
+  await withLogScan(async (ctx) => {
+    await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Zahnarzt anrufen" }, headers: ctx.signed.headers });
+    await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Brot kaufen" }, headers: ctx.signed.headers });
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line(">", "Zahnarzt anrufcn"), line("<", "Brot kaufn")]);
+    assert.deepEqual(draft.items.map((i: any) => [i.status, i.after.type]), [["edited", "migrated"], ["edited", "scheduled"]]);
+    const applied = await applyTo(ctx, draft, draft.items.map((i: any) => ({ id: i.id, type: i.type, title: i.title })));
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["updated", "updated"]);
+    assert.deepEqual((await storedOf(ctx)).map((e) => [e.type, e.title]), [["migrated", "Zahnarzt anrufen"], ["scheduled", "Brot kaufen"]]);
+  });
+});
+
+test("un-match: a kept line the person un-matched is created as a new entry and the matched item is left alone", async () => {
+  await withLogScan(async (ctx) => {
+    await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Zahnarzt anrufen" }, headers: ctx.signed.headers });
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Zahnarst anrufen")]);
+    const checked = await api(ctx.base, "POST", `/api/log/scan/${draft.id}/check`, { body: { date: DAY, items: [{ id: "l2", type: "done", title: "Zahnarst anrufen", unmatched: true }] }, headers: ctx.signed.headers });
+    assert.deepEqual([checked.json.items[0].status, checked.json.items[0].target], ["new", null]);
+    const applied = await applyTo(ctx, draft, [{ id: "l2", type: "done", title: "Zahnarst anrufen", unmatched: true }]);
+    assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["created"]);
+    assert.deepEqual((await storedOf(ctx)).map((e) => [e.type, e.title]), [["task", "Zahnarzt anrufen"], ["done", "Zahnarst anrufen"]]);
+  });
+});
+
+test("un-match: unmatched must be true or false", async () => {
+  await withLogScan(async (ctx) => {
+    const draft = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+    const bad = await applyTo(ctx, draft, [{ id: "l2", type: "task", title: "Brot kaufen", unmatched: "yes" }]);
+    assert.equal(bad.status, 400);
+  });
+});
+
 test("apply: an unknown draft is a 404, signed-out is a 401, an unknown step is a 404 and a GET is a 405", async () => {
   await withLogScan(async ({ base, ocr, signed }) => {
     ocr.setLines(PAGE);
