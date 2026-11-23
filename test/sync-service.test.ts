@@ -606,3 +606,25 @@ test("API: deleting a synced entry removes the local row only and never sends a 
     assert.equal(ctx.fake.names(BOX).length, 1, "the VTODO stays on the server");
   });
 });
+
+test("priority: a title edit keeps a PRIORITY:2 set in another app, and only an explicit unflag removes it", async () => {
+  await withSync(async (ctx) => {
+    const created = make(ctx);
+    ctx.service.enqueue(USER_ID, created);
+    await ctx.service.idle();
+    assert.equal(stored(ctx.fake).includes("PRIORITY"), false, "a not-important create writes no PRIORITY");
+    ctx.fake.touch(BOX, "uid-1.ics", stored(ctx.fake).replace("END:VTODO", "PRIORITY:2\r\nEND:VTODO"));
+
+    const renamed = ctx.entries.update(USER_ID, created.id, { title: "Neuer Titel" }, NOW)!;
+    ctx.service.enqueue(USER_ID, renamed, { unflag: false });
+    await ctx.service.idle();
+    assert.equal(reread(ctx, created.id).sync, "synced");
+    assert.ok(stored(ctx.fake).includes("PRIORITY:2") && stored(ctx.fake).includes("Neuer Titel"));
+
+    const unflagged = ctx.entries.update(USER_ID, created.id, { important: false }, NOW)!;
+    ctx.service.enqueue(USER_ID, unflagged, { unflag: true });
+    await ctx.service.idle();
+    assert.equal(reread(ctx, created.id).sync, "synced");
+    assert.equal(stored(ctx.fake).includes("PRIORITY"), false);
+  });
+});

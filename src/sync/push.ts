@@ -55,14 +55,14 @@ type Plan = {
   foreign(text: string, uid: string): string | null;
 };
 
-/** The plan for a VTODO: the part of the entry the task sync owns. */
-function todoPlan(entry: Entry): Plan {
+/** The plan for a VTODO: the part of the entry the task sync owns. `unflag` is true only after an explicit unflag in bujo. */
+function todoPlan(entry: Entry, unflag: boolean): Plan {
   const shape = todoShape(entry);
   return {
     kind: "todo",
     create: (uid, nowMs) => newTodoFor(shape, uid, nowMs),
-    edit: (text, uid, nowMs) => editTodo(text, uid, patchFor(shape, remotePriorityOf(text, uid)), nowMs),
-    mismatch: (text, uid) => readBackMismatch(text, uid, shape),
+    edit: (text, uid, nowMs) => editTodo(text, uid, patchFor(shape, remotePriorityOf(text, uid), unflag), nowMs),
+    mismatch: (text, uid) => readBackMismatch(text, uid, shape, unflag),
     foreign: () => null,
   };
 }
@@ -159,11 +159,11 @@ async function startingLink(deps: PushDeps, entry: Entry, link: RemoteLink | und
   return usable ?? (await findEventLink(deps, entry.id));
 }
 
-/** Pushes one entry: creates its VTODO or VEVENT the first time, updates it after. Returns the link to store. */
-export async function pushEntry(deps: PushDeps, entry: Entry, link: RemoteLink | undefined): Promise<RemoteLink> {
+/** Pushes one entry: creates its VTODO or VEVENT the first time, updates it after. `unflag` removes a remote PRIORITY 1-4. Returns the link to store. */
+export async function pushEntry(deps: PushDeps, entry: Entry, link: RemoteLink | undefined, unflag = false): Promise<RemoteLink> {
   const kind = syncKind(entry.type);
   if (!kind) throw new SyncFailure(messagesFor("todo").unexpected, undefined, "type does not sync");
-  const plan = kind === "event" ? eventPlan(entry) : todoPlan(entry);
+  const plan = kind === "event" ? eventPlan(entry) : todoPlan(entry, unflag);
   try {
     const start = kind === "event" ? await startingLink(deps, entry, link) : usableLink(deps, kind, link);
     return start ? await updateRemote(deps, plan, start) : await createRemote(deps, plan);

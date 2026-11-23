@@ -29,7 +29,7 @@ export type TodoShape = {
   status: "NEEDS-ACTION" | "COMPLETED" | "CANCELLED";
   /** YYYY-MM-DD for DUE;VALUE=DATE, or null for no DUE. */
   due: string | null;
-  /** True writes PRIORITY:1. False leaves PRIORITY unset. */
+  /** True writes PRIORITY:1. False writes none on create and leaves a remote PRIORITY alone. */
   important: boolean;
 };
 
@@ -62,11 +62,14 @@ export function newTodoFor(shape: TodoShape, uid: string, nowMs: number): string
 
 /**
  * The edit that turns an existing VTODO into this shape. Everything else on the object stays as it is.
- * Important sets PRIORITY:1, replacing a remote 5 or 9. Not important removes a remote high (1) and leaves a 5 or 9 alone.
+ * Important sets PRIORITY:1, replacing a remote 5 or 9 (a remote 2 is already in the high band and may stay).
+ * Not important never removes a remote 1-4: no mark means "not marked", not "unmark". Only an explicit unflag does.
+ * A remote 5 to 9 is left alone either way.
  */
-export function patchFor(shape: TodoShape, remotePriority: Priority | null = null): TodoPatch {
+export function patchFor(shape: TodoShape, remotePriority: Priority | null = null, unflag = false): TodoPatch {
   const status = shape.status === "COMPLETED" ? { complete: true } : shape.status === "CANCELLED" ? { cancel: true } : { reopen: true };
-  const priority = shape.important ? { priority: 1 as const } : remotePriority === 1 ? { priority: null } : {};
+  const clear = unflag && remotePriority === 1 ? { priority: null } : {};
+  const priority = shape.important ? { priority: 1 as const } : clear;
   return { summary: shape.summary, due: shape.due, ...priority, ...status };
 }
 
@@ -75,14 +78,28 @@ export function remotePriorityOf(text: string, uid: string): Priority | null {
   return parseVTodos(text).find((item) => item.uid === uid)?.priority ?? null;
 }
 
-/** Compares a calendar object read back from the server with what was written. Null when it matches, else what differs. */
-export function readBackMismatch(text: string, uid: string, shape: TodoShape): string | null {
+/** True when a raw PRIORITY is in the RFC high band 1-4, which bujo reads as important. */
+function isHighBand(raw: number | null): boolean {
+  return raw !== null && raw >= 1 && raw <= 4;
+}
+
+/** True when the VTODO in a calendar text has a PRIORITY of 1 to 4 (read as important). */
+export function remoteImportantOf(text: string, uid: string): boolean {
+  return isHighBand(parseVTodos(text).find((item) => item.uid === uid)?.rawPriority ?? null);
+}
+
+/**
+ * Compares a calendar object read back from the server with what was written. Null when it matches, else what differs.
+ * An entry that is not important accepts a remote 1-4 that was left in place, unless it was explicitly unflagged.
+ */
+export function readBackMismatch(text: string, uid: string, shape: TodoShape, unflag = false): string | null {
   const todo = parseVTodos(text).find((item) => item.uid === uid);
   if (!todo) return mismatchReason("UID");
   if (todo.summary !== shape.summary) return mismatchReason("SUMMARY");
   if (todo.status !== shape.status) return mismatchReason("STATUS");
   if ((todo.due?.date ?? null) !== shape.due) return mismatchReason("DUE");
-  if ((todo.priority === 1) !== shape.important) return mismatchReason("PRIORITY");
+  const high = isHighBand(todo.rawPriority);
+  if (shape.important ? !high : unflag && high) return mismatchReason("PRIORITY");
   return null;
 }
 
