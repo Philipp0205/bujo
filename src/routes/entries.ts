@@ -6,7 +6,7 @@ import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
 import { createEntryStore, EntryIdTaken, type EntryStore } from "../log/store.ts";
 import { createTraceStore } from "../log/trace.ts";
-import { checkEntryPatch, checkNewEntry, checkRange } from "../log/validation.ts";
+import { checkEntryPatch, checkNewEntry, checkRange, isValidDate } from "../log/validation.ts";
 import type { Checked, Entry, NewEntry } from "../log/types.ts";
 import { readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
@@ -31,6 +31,7 @@ function methodNotAllowed(allow: string): never {
  *   GET   /api/entries?from=&to=   entries of a date range, by date then position
  *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet, never a done one (any other onPaper value is a 400)
  *   GET   /api/entries?from=&to=&traces=1   also { traces } for the range: what moves left on the old pages ({ id, entryId, date, horizon, kind, title }), local notes that are never synced
+ *   GET   /api/entries?openBefore=<day>  every open task of the daily log from a day before that day, any age, oldest first (no range cap; for the migration review)
  *   GET   /api/entries?kind=notes  every free note (a non-empty body) of any day, newest first
  *   GET   /api/entries?collection=<id>  { collection, entries }: the entries filed on one collection, in page order (they are never in the day lists)
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
@@ -57,6 +58,7 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     if (isRead(method)) {
       if (url.searchParams.has("kind")) return listNotes(ctx, store, userId);
       if (url.searchParams.has("collection")) return listCollection(ctx, store, userId);
+      if (url.searchParams.has("openBefore")) return listOpenBefore(ctx, store, userId);
       const range = valid(checkRange(url.searchParams.get("from"), url.searchParams.get("to")));
       const entries = store.list(userId, range);
       const shown = onPaperFilter(url.searchParams.get("onPaper")) ? entries.filter(isNotOnPaperCandidate) : entries;
@@ -165,6 +167,14 @@ function listTags(ctx: RouteContext): boolean {
 function listNotes(ctx: RouteContext, store: EntryStore, userId: string): boolean {
   if (ctx.url.searchParams.get("kind") !== "notes") throw new HttpError(400, "kind must be notes");
   sendJson(ctx.res, 200, { entries: store.listNotes(userId) });
+  return true;
+}
+
+/** GET ?openBefore=<day> lists every open task of the daily log from a day before that day, however old (the migration review). A bad day is a 400. */
+function listOpenBefore(ctx: RouteContext, store: EntryStore, userId: string): boolean {
+  const day = ctx.url.searchParams.get("openBefore");
+  if (!isValidDate(day)) throw new HttpError(400, "openBefore must be a date like 2026-11-20");
+  sendJson(ctx.res, 200, { entries: store.listOpenBefore(userId, day) });
   return true;
 }
 

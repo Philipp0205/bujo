@@ -34,6 +34,11 @@ test("the review asks about open daily tasks of days before today, oldest day fi
   assert.deepEqual(ids(M.open(list, TODAY)), ["a", "b", "late"]);
 });
 
+test("there is no day cap: a task a month or a year old is reviewed too", () => {
+  const list = [item("month", "2026-10-20"), item("year", "2025-11-23"), item("week", "2026-11-16")];
+  assert.deepEqual(ids(M.open(list, TODAY)), ["year", "month", "week"]);
+});
+
 test("done, notes, events, moved, scheduled and dropped marks, traces, calendar rows, month tasks and future items are not reviewed", () => {
   const earlier = "2026-11-20";
   const list = [

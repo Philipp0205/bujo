@@ -17,7 +17,7 @@
   var L = window.BujoLog = window.BujoLog || {};
   var root = document.getElementById('log');
   var state = {
-    status: 'loading', entries: [], server: [], serverTraces: [], traces: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
+    status: 'loading', entries: [], overdue: [], server: [], serverTraces: [], traces: [], offline: false, today: L.dates.todayIso(), focus: null, version: 0, drawnToday: null,
     page: null, turn: null, arrival: false, view: 'daily', month: null, part: 'calendar', futurePage: 0, loadedKey: null
   };
   var booted = false;
@@ -39,7 +39,33 @@
 
   /** Opens the migration review of the open tasks from earlier days. */
   function openMigrate() {
-    L.migrate.sheet.open({ entries: host.entries, today: host.today });
+    L.migrate.sheet.open({ entries: reviewEntries, today: host.today });
+  }
+
+  /** The entries the review and its prompt read: the days on screen, plus the open tasks of older days the store reported (any age). */
+  function reviewEntries() {
+    var known = {};
+    state.entries.forEach(function (entry) { known[entry.id] = true; });
+    return state.entries.concat(state.overdue.filter(function (entry) { return !known[entry.id]; }));
+  }
+
+  /** Reads the open daily tasks from before today (no day cap, unlike the window) and redraws when the prompt count may have changed. */
+  function refreshOverdue() {
+    var seen = state.version;
+    var today = state.today;
+    return L.api.listOpenBefore(today).then(function (entries) {
+      if (seen !== state.version || state.view !== 'daily') return;
+      var same = JSON.stringify(entries) === JSON.stringify(state.overdue);
+      state.overdue = entries;
+      if (!same && state.status === 'ready') render();
+    }, function () {});
+  }
+
+  /** An entry left the older open tasks (it was saved or removed); returns it, or null when it was not one of them. */
+  function takeOverdue(id) {
+    var old = state.overdue.filter(function (entry) { return entry.id === id; })[0] || null;
+    if (old) state.overdue = state.overdue.filter(function (entry) { return entry.id !== id; });
+    return old;
   }
 
   /** What the pages draw: the live entries and, after them, the traces that moves left (a day with only a trace is still a page). */
@@ -147,6 +173,7 @@
   /** An entry left the log for good (filed into a note): it goes from the server list and its traces with it.
    * A note that took it as a line, if on screen, is swapped for its saved version so a later edit starts from the new body. */
   function leave(id, note) {
+    takeOverdue(id);
     state.server = state.server.filter(function (entry) { return entry.id !== id; }).map(function (entry) { return note && entry.id === note.id ? note : entry; });
     forget(id);
     state.status = 'ready';
@@ -165,18 +192,27 @@
 
   /** Puts a saved entry in the server list, and settles its traces: a move to another page leaves the one asked for (kind) on the old page.
    * An entry filed on a collection is no longer on any day: it leaves the list. */
-  function takeSaved(entry, kind) {
+  function takeSaved(entry, kind, old) {
     var at = state.server.findIndex(function (item) { return item.id === entry.id; });
     if (entry.collectionId) {
       if (at >= 0) state.server.splice(at, 1);
       return;
     }
+    if (at < 0 && old) { takeFromOlder(entry, kind, old); return; }
     if (at >= 0) {
       state.serverTraces = L.move.traces.afterMove(state.serverTraces, state.server[at], entry, kind);
       state.server[at] = entry;
     } else {
       state.server.push(entry);
     }
+  }
+
+  /** A saved entry that was an older open task, held outside the loaded days: it joins the days only when it landed in them, and its
+   * trace shows only when its old day is loaded (the server holds the trace either way). */
+  function takeFromOlder(entry, kind, old) {
+    var range = L.dates.windowWith(state.today, state.focus);
+    if (L.pages.model.within(range, old.date)) state.serverTraces = L.move.traces.afterMove(state.serverTraces, old, entry, kind);
+    if (L.pages.model.within(range, entry.date)) state.server.push(entry);
   }
 
   /** A saved entry on a day beyond the usual window stretches the window to that day, so a later read still holds it (its page stays reachable). */
@@ -190,7 +226,8 @@
    * kind is the trace the save asked for, if any. The version bump makes a read that was already in flight start over, so it cannot hide the saved entry. */
   function upsert(entry, kind) {
     if (kind) keepInWindow(entry);
-    if (!entry.queued) takeSaved(entry, kind);
+    var old = takeOverdue(entry.id);
+    if (!entry.queued) takeSaved(entry, kind, old);
     rebuild();
     state.status = 'ready';
     state.version += 1;
@@ -240,7 +277,7 @@
     var ctx = { entries: drawn(), today: state.today, actions: actions, month: shownMonth(), part: state.part, page: state.futurePage };
     if (state.view === 'month') return L.horizon.screen.monthBody(ctx);
     if (state.view === 'future') return L.horizon.screen.futureBody(ctx);
-    return L.view.dayPage(date, ctx.entries, actions, state.today);
+    return L.view.dayPage(date, ctx.entries, actions, state.today, reviewEntries());
   }
 
   /** The top of the page: the select bar while selecting, otherwise the italic title header (with "Not on paper" when entries wait). */
@@ -497,6 +534,7 @@
       var was = state.offline;
       state.offline = false;
       if (accept(entries, seen, true, source.key) || was) render();
+      if (state.view === 'daily') refreshOverdue();
     };
     var failed = function (error) {
       if (L.outbox.model.isNetworkMiss(error, navigator.onLine)) { showOffline(); return; }
@@ -586,7 +624,7 @@
     L.move.pick.init({
       root: root,
       select: L.select.mode,
-      host: { entries: host.entries, today: host.today, upsert: upsert, remove: leave, paint: render }
+      host: { entries: reviewEntries, today: host.today, upsert: upsert, remove: leave, paint: render }
     });
     L.type.picker.init({ root: root, select: L.select.mode });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
