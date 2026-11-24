@@ -1,11 +1,23 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
-/** The catalog ids in public/whats-new.json, newest first. */
+type Entry = { id: string; date: string; title: string };
+
+/** The shipped catalog, newest first, so counts and the newest entry never need hand edits. */
+const CATALOG: Entry[] = JSON.parse(readFileSync(new URL("../../public/whats-new.json", import.meta.url), "utf8"));
 const NEWEST = WHATS_NEW_NEWEST;
-const OLDEST = "2026-11-21-scan-gallery";
+const OLDEST = CATALOG[CATALOG.length - 1].id;
+const UNSEEN_COUNT = CATALOG.length - 1;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Mirrors AppKit.whatsNew.formatEntryDate ("2026-11-05" becomes "5 Nov 2026"), which the sheet uses. */
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]} ${y}`;
+}
 const SEEN_API = "/api/whats-new/seen";
 
 test.beforeEach(async ({ page }) => {
@@ -41,6 +53,10 @@ async function visitSettings(page: Page): Promise<void> {
   await expect(page.locator("[data-action=open-whats-new]")).toBeVisible();
 }
 
+test("the harness newest id is the first catalog entry", () => {
+  expect(CATALOG[0].id).toBe(NEWEST);
+});
+
 test("a new sign-up skips the history: no sheet on the first visit", async ({ page }) => {
   await visit(page, "/");
   await expect(page.locator(".paper-page")).toBeVisible();
@@ -56,43 +72,12 @@ test("unseen entries show once in a sheet, and not again after close, on reload 
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "unseen");
-  // Forty-six entries are newer than the oldest one. The oldest is not shown again.
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(48);
+  // Every entry newer than the oldest is shown. The oldest is not shown again.
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(UNSEEN_COUNT);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toHaveCount(0);
-  await expect(sheet.locator(`[data-entry-id="${NEWEST}"] .wn-date`)).toHaveText("24 Nov 2026");
-  await expect(sheet).toContainText("Mark important from the edit sheet");
-  await expect(sheet).toContainText("Rename or delete a collection");
-  await expect(sheet).toContainText("A little less air between lines");
-  await expect(sheet).toContainText("Add a task to a note");
-  await expect(sheet).toContainText("More room between lines");
-  await expect(sheet).toContainText("Notes you write, and collections");
-  await expect(sheet).toContainText("Pick your paper font");
-  await expect(sheet).toContainText("Mark what matters with a star");
-  await expect(sheet).toContainText("One tap to close a task");
-  await expect(sheet).toContainText("Migrate your open tasks");
-  await expect(sheet).toContainText("Swipe a task to move it");
-  await expect(sheet).toContainText("The month calendar is its own page");
-  await expect(sheet).toContainText("Scans forgive bad reading");
-  await expect(sheet).toContainText("Month and Future like the paper");
-  await expect(sheet).toContainText("Quick fixes");
-  await expect(sheet).toContainText("One sheet of paper");
-  await expect(sheet).toContainText("Scan more than a day");
-  await expect(sheet).toContainText("Move entries between your logs");
-  await expect(sheet).toContainText("Dots that move with the page");
-  await expect(sheet).toContainText("Future and Month views");
-  await expect(sheet).toContainText("A page that reads like handwriting");
-  await expect(sheet).toContainText("One day per page");
-  await expect(sheet).toContainText("Pick the type from the marker");
-  await expect(sheet).toContainText("Tap to tick, and a calmer page");
-  await expect(sheet).toContainText("Write entries without a connection");
-  await expect(sheet).toContainText("Add an entry in one tap");
-  await expect(sheet).toContainText("Clearer rescans, fewer false marks");
-  await expect(sheet).toContainText("Tabs that switch at once");
-  await expect(sheet).toContainText("See what is not on paper yet");
-  await expect(sheet).toContainText("Copy entries as paper lines");
-  await expect(sheet).toContainText("Scan from the bottom bar");
-  await expect(sheet).toContainText("Tags and days that complete themselves");
-  await expect(sheet).toContainText("Settings on paper, and a theme choice");
+  const newest = sheet.locator(`[data-entry-id="${NEWEST}"]`);
+  await expect(newest.locator(".wn-date")).toHaveText(formatDate(CATALOG[0].date));
+  await expect(newest).toContainText(CATALOG[0].title);
 
   await closeAndWaitForStore(page);
   expect(await page.evaluate(() => localStorage.getItem("bujo-whats-new-seen"))).toBe(NEWEST);
@@ -128,7 +113,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "all");
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(49);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(CATALOG.length);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toBeVisible();
 
   await closeAndWaitForStore(page);
@@ -137,7 +122,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
 
   // Everything is seen now and the list can still be opened again.
   await page.locator("[data-action=open-whats-new]").click();
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(49);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(CATALOG.length);
 });
 
 test("entry text is shown as text, never as markup", async ({ page }) => {
