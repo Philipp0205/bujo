@@ -1,7 +1,8 @@
 /*
  * The collection chooser: a paper overlay (the look of the move chooser) that lists the collections, files an entry on the one tapped,
  * names a new one on the spot, and (for an entry already on a page) takes it back to the daily log. askName() is the same naming form
- * alone, for the Notes index. A tap on the veil closes it with no pick. No saving of its own: a pick goes to options.onSaved(body).
+ * alone, for the Notes index; askRename() and confirmDelete() serve the collection page. A tap on the veil closes it with no pick.
+ * No saving of its own for a pick: it goes to options.onSaved(body).
  * Needs ak-dom.js, copy.js (the collection copy), collections/model.js, dates.js and api.js.
  */
 (function () {
@@ -29,24 +30,31 @@
     document.body.appendChild(overlay);
   }
 
-  /** The naming form: one input and a Create button. onCreated(collection) runs once the server has the new page. */
-  function nameForm(onCreated) {
+  /** The naming form: one input and a button. send(name) saves the name and answers a promise; onDone(result) runs once the server has it. fail(error) words a refusal. */
+  function nameForm(form) {
     var copy = L.collections.copy;
     var input = h('input', {
       class: 'collection-name', type: 'text', maxlength: 60, autocomplete: 'off', 'data-testid': 'collection-name',
-      placeholder: copy.namePlaceholder, 'aria-label': copy.nameLabel
+      placeholder: copy.namePlaceholder, 'aria-label': copy.nameLabel, value: form.initial || ''
     });
     var note = h('p', { class: 'collection-note', role: 'status', 'data-testid': 'collection-note' });
-    var form = h('form', { class: 'collection-form', novalidate: true }, input, h('button', { class: 'collection-create', type: 'submit', 'data-action': 'create-collection' }, copy.nameCreate), note);
-    form.addEventListener('submit', function (event) {
+    var node = h('form', { class: 'collection-form', novalidate: true }, input, h('button', { class: 'collection-create', type: 'submit', 'data-action': form.action }, form.button), note);
+    node.addEventListener('submit', function (event) {
       event.preventDefault();
       var name = L.collections.model.cleanName(input.value);
       if (!name) { note.textContent = copy.nameRequired; return; }
       note.textContent = '';
-      L.api.createCollection(name).then(onCreated, function () { note.textContent = copy.nameFailed; });
+      form.send(name).then(form.onDone, function (error) { note.textContent = form.fail(error); });
     });
-    return form;
+    return node;
   }
+
+  /** The form that makes a new collection. */
+  function createForm(onCreated) {
+    var copy = L.collections.copy;
+    return nameForm({ action: 'create-collection', button: copy.nameCreate, send: L.api.createCollection, onDone: onCreated, fail: function () { return copy.nameFailed; } });
+  }
+
 
   /** One collection as a button: its name and how many entries it holds. The page the entry is on is marked pressed. */
   function choice(collection, entry, onPick) {
@@ -70,7 +78,7 @@
       h('p', { class: 'collection-title' }, copy.chooserTitle),
       collections.length ? collections.map(function (collection) { return choice(collection, options.entry, pick); }) : h('p', { class: 'collection-note' }, copy.chooserEmpty),
       options.entry.collectionId ? leaveRow(leave) : null,
-      nameForm(pick));
+      createForm(pick));
   }
 
   /** Opens the chooser for options.entry. The list is read when it opens, so a collection made elsewhere is there. */
@@ -88,9 +96,38 @@
     var copy = L.collections.copy;
     show(h('div', { class: 'move-chooser collection-chooser', role: 'dialog', 'aria-label': copy.nameTitle, 'data-testid': 'collection-ask' },
       h('p', { class: 'collection-title' }, copy.nameTitle),
-      nameForm(function (collection) { close(); onCreated(collection); })));
+      createForm(function (collection) { close(); onCreated(collection); })));
     overlay.querySelector('input').focus();
   }
 
-  L.collections.chooser = { open: open, askName: askName, close: close };
+  /** Opens the naming form filled with the page's name. onRenamed(collection) runs once the server has the new name. A taken name says so. */
+  function askRename(collection, onRenamed) {
+    var copy = L.collections.copy;
+    var form = nameForm({
+      action: 'rename-collection', button: copy.renameSave, initial: collection.name,
+      send: function (name) { return L.api.renameCollection(collection.id, name); },
+      onDone: function (renamed) { close(); onRenamed(renamed); },
+      fail: function (error) { return error && error.status === 409 ? copy.nameTaken : copy.renameFailed; }
+    });
+    show(h('div', { class: 'move-chooser collection-chooser', role: 'dialog', 'aria-label': copy.renameTitle, 'data-testid': 'collection-rename' }, h('p', { class: 'collection-title' }, copy.renameTitle), form));
+    overlay.querySelector('input').focus();
+  }
+
+  /** Opens the delete confirm: says the page goes and its entries stay in the log. onConfirm runs on Delete; Cancel (or the veil) leaves everything as it is. */
+  function confirmDelete(collection, onConfirm) {
+    var copy = L.collections.copy;
+    var note = h('p', { class: 'collection-note', role: 'alert', 'data-testid': 'collection-note' });
+    var remove = h('button', { class: 'collection-leave collection-delete', type: 'button', 'data-action': 'confirm-delete', 'data-testid': 'collection-delete-confirm' }, copy.deleteConfirm);
+    remove.addEventListener('click', function () {
+      note.textContent = '';
+      onConfirm().catch(function () { note.textContent = copy.deleteFailed; });
+    });
+    var cancel = h('button', { class: 'collection-leave', type: 'button', 'data-action': 'cancel-delete', 'data-testid': 'collection-delete-cancel', onclick: close }, copy.deleteCancel);
+    show(h('div', { class: 'move-chooser collection-chooser', role: 'dialog', 'aria-label': copy.deleteTitle(collection.name), 'data-testid': 'collection-confirm' },
+      h('p', { class: 'collection-title' }, copy.deleteTitle(collection.name)),
+      h('p', { class: 'collection-warning' }, copy.deleteBody),
+      remove, cancel, note));
+  }
+
+  L.collections.chooser = { open: open, askName: askName, askRename: askRename, confirmDelete: confirmDelete, close: close };
 })();

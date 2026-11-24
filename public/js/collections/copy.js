@@ -39,6 +39,18 @@
     nameLabel: 'Collection name',
     nameCreate: 'Create',
     nameRequired: 'Give the collection a name.',
-    nameFailed: 'Could not create the collection. Try again.'
+    nameFailed: 'Could not create the collection. Try again.',
+
+    rename: 'Rename',
+    renameTitle: 'Rename collection',
+    renameSave: 'Save',
+    nameTaken: 'Another collection already has that name.',
+    renameFailed: 'Could not rename the collection. Try again.',
+    delete: 'Delete page',
+    deleteTitle: function (name) { return 'Delete \u201c' + name + '\u201d?'; },
+    deleteBody: 'This page will be removed. Its entries are not deleted: they stay in the log, on their days.',
+    deleteConfirm: 'Delete page',
+    deleteCancel: 'Cancel',
+    deleteFailed: 'Could not delete the page. Try again.'
   };
 })();

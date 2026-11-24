@@ -60,6 +60,18 @@
     });
   }
 
+  /** Renames a collection. Resolves with it; rejects with status 409 when another collection has the name. */
+  function renameCollection(id, name) {
+    return call('PATCH', '/api/collections/' + encodeURIComponent(id), { name: name }).then(function (body) {
+      return body.collection;
+    });
+  }
+
+  /** Deletes a collection. Its entries stay in the log, back on their days. */
+  function deleteCollection(id) {
+    return call('DELETE', '/api/collections/' + encodeURIComponent(id));
+  }
+
   /** One collection and the entries filed on it, in page order: { collection, entries }. */
   function listCollection(id) {
     return call('GET', '/api/entries?collection=' + encodeURIComponent(id));
@@ -122,5 +134,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, renameCollection: renameCollection, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();
