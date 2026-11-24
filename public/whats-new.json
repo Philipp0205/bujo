@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-not-synced-wrap",
+    "date": "2026-11-24",
+    "title": "\"not synced\" stays in one piece",
+    "bullets": [
+      "The quiet \"not synced\" mark no longer splits across lines, and its dots stay right next to it."
+    ]
+  },
+  {
     "id": "2026-11-24-two-line-grid",
     "date": "2026-11-24",
     "title": "Wrapped rows stay on the dot grid",
