@@ -1,5 +1,6 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
 import { createCollectionStore } from "../log/collections.ts";
+import { checkFiling, commitFiling } from "../log/into-note.ts";
 import { updateEntry } from "../log/move.ts";
 import { markWritten } from "../log/paper.ts";
 import { createPhotoStore } from "../log/photo-store.ts";
@@ -38,6 +39,7 @@ function methodNotAllowed(allow: string): never {
  *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
+ *   POST  /api/entries/:id/into-note { noteId } add a task's title as a new last line of a free-form note (a bullet when the note is a list) and take the task off the log. A task on Nextcloud is pushed as dropped (CANCELLED) first, never deleted there. Answers { note, entries } (the task's old day). 400 for a non-task or a target without a body or a body that would pass BODY_MAX, 404 for an unknown entry or note, 502 when the cancel push fails
  *   POST  /api/entries/:id/written mark the entry as written on paper (stamps its current fields, not an edit), answers { entry } with onPaper true
  *   GET   /api/entries/:id/photo   the scan photo of a free note (JPEG), 404 when it has none
  *   POST  /api/entries/:id/photo   store the scan photo of a note (a JPEG as the raw body), replacing an earlier one
@@ -68,9 +70,10 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     return createEntry(ctx, store, userId, input);
   }
 
-  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written)?$/.exec(pathname);
+  const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written|\/into-note)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
   const id = decodeId(match[1]);
+  if (match[2] === "/into-note") return handleIntoNote(ctx, store, userId, id);
   if (match[2] === "/photo") return handlePhoto(ctx, userId, id);
   if (match[2] === "/move") return handleMove(ctx, store, userId, id);
   if (match[2] === "/written") return handleWritten(ctx, store, userId, id);
@@ -114,6 +117,40 @@ function createEntry(ctx: RouteContext, store: EntryStore, userId: string, input
   }
   sendJson(ctx.res, 201, { entry: ctx.sync ? ctx.sync.enqueue(userId, created) : created });
   return true;
+}
+
+/**
+ * POST { noteId } files a task into a free-form note as a new last line and takes it off the log (local delete, the VTODO is never deleted).
+ * A task that is on Nextcloud is pushed as dropped first (STATUS CANCELLED), so the list shows it handled. If that push fails, nothing is filed.
+ * Answers { note, entries } with the note and what is left of the task's old day (or page).
+ */
+async function handleIntoNote(ctx: RouteContext, store: EntryStore, userId: string, id: string): Promise<boolean> {
+  if (ctx.method !== "POST") methodNotAllowed("POST");
+  const noteId = (await readJson(ctx.req)).noteId;
+  if (typeof noteId !== "string" || !noteId) throw new HttpError(400, "noteId must be a note id");
+  const filing = checkFiling(store, userId, id, noteId);
+  if (!filing.ok) throw new HttpError(filing.status, filing.error);
+  const refusal = await settleRemote(ctx, store, userId, filing.entry);
+  if (refusal) throw new HttpError(502, refusal);
+  const done = commitFiling(ctx.accounts.db, userId, filing, ctx.accounts.now());
+  sendJson(ctx.res, 200, { note: done.note, entries: done.day });
+  return true;
+}
+
+/**
+ * Makes the remote object of a task match "handled" before the entry leaves the log. A task on Nextcloud (or one still being pushed)
+ * is set to dropped and pushed, so its VTODO ends CANCELLED; a done task is already COMPLETED. Resolves with a message when the push failed.
+ */
+async function settleRemote(ctx: RouteContext, store: EntryStore, userId: string, entry: Entry): Promise<string | null> {
+  const sync = ctx.sync;
+  if (!sync || !(store.getRemote(userId, entry.id) || entry.sync === "pending")) return null;
+  if (entry.type !== "done") {
+    const dropped = updateEntry(ctx.accounts.db, userId, entry.id, { type: "dropped" }, ctx.accounts.now());
+    if (dropped) sync.enqueue(userId, dropped);
+  }
+  await sync.idle();
+  const after = store.get(userId, entry.id);
+  return after?.sync === "error" ? (after.syncError ?? SYNC_MESSAGES.unexpected) : null;
 }
 
 /** GET /api/tags answers the tags the log uses, for the autocomplete. Rapid-log tags only, not the backlog's. */

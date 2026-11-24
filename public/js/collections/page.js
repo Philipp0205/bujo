@@ -88,6 +88,11 @@
     state.entries.sort(function (a, b) { return a.position - b.position; });
   }
 
+  /** An entry that left the page (filed into a note) is forgotten; a note that took it, if on this page, is swapped for its saved version. The page is drawn by the caller. */
+  function remove(id, note) {
+    state.entries = state.entries.filter(function (item) { return item.id !== id; }).map(function (item) { return note && item.id === note.id ? note : item; });
+  }
+
   /** Reads the page from the server. */
   function reload() {
     return L.api.listCollection(state.collection.id).then(function (result) {
@@ -105,7 +110,7 @@
   function wire() {
     if (wired) return;
     wired = true;
-    var host = { entries: function () { return state.entries; }, today: L.dates.todayIso, upsert: upsert, paint: function () { if (state.collection) draw(); } };
+    var host = { entries: function () { return state.entries; }, today: L.dates.todayIso, upsert: upsert, remove: remove, paint: function () { if (state.collection) draw(); } };
     L.done.toggle.init({ root: root, select: NO_SELECT, host: host });
     L.move.pick.init({ root: root, select: NO_SELECT, host: host, swipe: false });
     L.type.picker.init({ root: root, select: NO_SELECT });

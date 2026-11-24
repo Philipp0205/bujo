@@ -3,7 +3,7 @@
  * on the entry the way a pick in the editor does: the model puts the place on a line, the change is saved through the outbox, and a real
  * move leaves its trace. Closing the chooser with no pick changes nothing. No fetch of its own.
  * Needs inline/model.js, move/model.js, move/chooser.js, outbox/save.js, toast.js and copy.js.
- * host: entries() the entries on screen, today(), upsert(entry, kind) to take the saved entry, paint() to redraw the page after it.
+ * host: entries() the entries on screen, today(), upsert(entry, kind) to take the saved entry, remove(id, note) to forget one that left (note is the note that took it, to refresh), paint() to redraw the page after it.
  * Every page that shows rows (the log, a collection page) wires its own host; a call goes to the host that holds the entry.
  * The migration review (migrate/sheet.js) uses move(), choose() and drop() too, so a kept or scheduled task takes the same path as a swipe.
  */
@@ -81,6 +81,13 @@
     return save(entry, { type: 'dropped' });
   }
 
+  /** The entry left its page for good (filed into a note): the host that holds it forgets it (and refreshes the note that took it) and the page is redrawn. */
+  function gone(id, note) {
+    var host = hostOf(id);
+    host.remove(id, note);
+    host.paint();
+  }
+
   /** Wires the move to a page's host. The log also watches row swipes (options.root, select is select mode); a collection page has no swipes (swipe: false). */
   function init(options) {
     hosts.push(options.host);
@@ -88,5 +95,5 @@
     L.move.swipe.init({ root: options.root, active: function () { return !options.select.on(); }, onSwipe: open });
   }
 
-  L.move.pick = { init: init, move: move, choose: choose, chooseMove: chooseMove, save: save, drop: drop, fail: fail, entryOf: entryOf };
+  L.move.pick = { init: init, move: move, choose: choose, chooseMove: chooseMove, save: save, drop: drop, gone: gone, fail: fail, entryOf: entryOf };
 })();
