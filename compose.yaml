@@ -31,8 +31,8 @@ services:
   ocr:
     build: ./ocr
     environment:
-      OCR_LLM_BASE: ${OCR_LLM_BASE:-}
-      OCR_LLM_KEY: ${OCR_LLM_KEY:-}
+      OCR_LLM_BASE: ${OCR_LLM_BASE:?set OCR_LLM_BASE for the OCR service}
+      OCR_LLM_KEY: ${OCR_LLM_KEY:?set OCR_LLM_KEY for the OCR service}
       OCR_LLM_MODEL: ${OCR_LLM_MODEL:-}
       OCR_LLM_TIMEOUT: ${OCR_LLM_TIMEOUT:-}
     expose:

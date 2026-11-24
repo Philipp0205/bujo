@@ -62,7 +62,7 @@ Matching a scanned line to an existing VTODO still prefers a stored UID, then a 
 ## What carries over
 
 - **Auth.** Full app-kit auth, the single account, recovery code, email via Resend, sessions, and hashed agent tokens created in Settings.
-- **Scan pipeline / OCR service.** The self-hosted `ocr/` container (`OCR_URL`), in-memory photo upload, mandatory review before any apply. The symbol detector (OpenCV) plus TrOCR small handwritten, with Tesseract as fallback. Real page photos stay out of git and are not written to disk.
+- **Scan pipeline / OCR service.** The self-hosted `ocr/` container (`OCR_URL`), in-memory photo upload, mandatory review before any apply. A vision LLM reads the page (the OCR service needs `OCR_LLM_BASE` and `OCR_LLM_KEY`); the symbol detector (OpenCV) only supplies line boxes. Real page photos stay out of git and are not written to disk.
 - **CalDAV client.** The existing client and write/read-back discipline, pointed at `bujo-test` until live lists are okayed, and later at events only after the calendar-bot conventions are agreed.
 - **Agent API / MCP.** Versioned `/api/v1` and the streamable-HTTP MCP server, with the same bearer tokens. These need to grow from "tasks in Nextcloud" to "entries in the app DB, plus sync". Scan apply stays a signed-in-session action unless he later changes that. No deletes without a yes.
 
