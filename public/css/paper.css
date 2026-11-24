@@ -55,8 +55,8 @@
   --font-ui: "IBM Plex Sans", system-ui, sans-serif;
   /* Journal text runs a step heavier than the regular 400. Each face below sets its own step. */
   --text-weight: 500;
-  /* Line height of wrapped journal text: 1.5 grid units, so a one-line row stays 48px and the words keep their dots. */
-  --text-leading: 36px;
+  /* Line height of wrapped journal text: 30px, so a one-line row with 9px padding stays 48px and the words keep their dots. */
+  --text-leading: 30px;
   --paper-dot-image: radial-gradient(circle at center, var(--paper-dot) 1.1px, transparent 1.25px);
   --paper-margin-image: linear-gradient(
     to right,
