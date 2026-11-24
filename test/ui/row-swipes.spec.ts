@@ -97,7 +97,35 @@ test("a short drag, a mostly vertical drag and a release below the threshold do 
   await drag(page, "Kurz", -50);
   await expect(chooser(page)).toHaveCount(0);
   await expect(row(page, "Kurz")).toHaveAttribute("data-type", "task");
-  await expect(row(page, "Kurz")).toHaveCSS("transform", "none");
+  await expect(row(page, "Kurz")).toHaveCSS("margin-left", "0px");
+  expect(await row(page, "Kurz").evaluate((el) => el.getAttribute("style") ?? "")).not.toContain("width");
+});
+
+const LONG = "Wrapping title that is long enough to run over three lines on a phone, so the swipe must not push any of its words off the screen";
+
+test("a wrapping title stays on screen mid-swipe in both directions and after the snap back", async ({ page }) => {
+  await seed(page, "task", LONG);
+  await openLog(page);
+  const target = row(page, "Wrapping title");
+  const width = page.viewportSize()!.width;
+  const rest = (await target.locator(".paper-title").boundingBox())!;
+  for (const dx of [-80, 80]) {
+    await drag(page, "Wrapping title", dx, 0, true);
+    await expect(target.locator(".swipe-ink")).toHaveCount(1);
+    const box = (await target.boundingBox())!;
+    const title = (await target.locator(".paper-title").boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(title.x).toBeGreaterThanOrEqual(0);
+    expect(title.x + title.width).toBeLessThanOrEqual(box.x + box.width);
+    await page.mouse.up();
+    await expect(target.locator(".swipe-ink")).toHaveCount(0);
+    await expect(chooser(page)).toHaveCount(1);
+    await page.getByTestId("move-overlay").click({ position: { x: 4, y: 4 } });
+    await expect(chooser(page)).toHaveCount(0);
+  }
+  await expect.poll(async () => (await target.locator(".paper-title").boundingBox())!.height).toBe(rest.height);
+  await expect.poll(async () => (await target.locator(".paper-title").boundingBox())!.x).toBe(rest.x);
 });
 
 test("the row follows the finger while held and snaps back on a cancelled release", async ({ page }) => {
@@ -105,7 +133,7 @@ test("the row follows the finger while held and snaps back on a cancelled releas
   await openLog(page);
   await drag(page, "Halten", 40, 0, true);
   await expect(row(page, "Halten").locator(".swipe-ink-migrate")).toHaveCount(1);
-  await expect(row(page, "Halten")).not.toHaveCSS("transform", "none");
+  await expect(row(page, "Halten")).toHaveCSS("margin-left", "40px");
   await page.mouse.up();
   await expect(chooser(page)).toHaveCount(0);
   await expect(row(page, "Halten").locator(".swipe-ink")).toHaveCount(0);

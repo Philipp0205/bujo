@@ -51,7 +51,10 @@
     return ink;
   }
 
-  /** The row follows the finger (up to MAX_PULL) and the mark under it sharpens once the threshold is passed. */
+  /**
+ * The row follows the finger (up to MAX_PULL) and the mark in the gap sharpens once the threshold is passed. The row narrows instead of sliding,
+ * so its text re-wraps inside the screen and a long title is never pushed off the edge.
+ */
   function pull(dx) {
     var shown = Math.max(-MAX_PULL, Math.min(MAX_PULL, dx));
     var kind = kindOf(dx);
@@ -61,7 +64,9 @@
       start.row.appendChild(start.ink);
       start.kind = kind;
     }
-    start.row.style.transform = 'translateX(' + shown + 'px)';
+    var gap = Math.abs(shown);
+    start.row.style.width = 'calc(100% - ' + gap + 'px)';
+    start.row.style.marginLeft = shown > 0 ? shown + 'px' : '';
     start.ink.classList.toggle('is-ready', Math.abs(dx) >= MIN_DX);
   }
 
@@ -69,7 +74,8 @@
   function settle() {
     if (!start || !start.locked) return;
     start.row.classList.add('is-snapping');
-    start.row.style.transform = '';
+    start.row.style.width = '';
+    start.row.style.marginLeft = '';
     if (start.ink) start.ink.remove();
     var row = start.row;
     window.setTimeout(function () { row.classList.remove('is-snapping'); }, 200);
