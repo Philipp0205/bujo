@@ -726,7 +726,7 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .paper-row[data-type="dropped"] .paper-star { color: var(--paper-muted); }
 
 /* A swiped row follows the finger and the > or < shows in the gap it leaves (js/log/move/swipe.js). The mark is muted until the threshold is passed. */
-.paper-row.is-snapping { transition: transform 0.18s ease-out; }
+.paper-row.is-snapping { transition: width 0.18s ease-out, margin-left 0.18s ease-out; }
 .swipe-ink {
   position: absolute;
   top: 0;

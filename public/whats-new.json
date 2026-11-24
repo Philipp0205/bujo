@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-swipe-clip",
+    "date": "2026-11-24",
+    "title": "Long titles stay visible when you swipe",
+    "bullets": [
+      "Swipe a task to move it and the whole title stays on screen, even when it runs over several lines."
+    ]
+  },
+  {
     "id": "2026-11-24-important-edit",
     "date": "2026-11-24",
     "title": "Mark important from the edit sheet",
