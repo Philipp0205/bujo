@@ -704,6 +704,7 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .important-toggle-hint { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--paper-muted); font-size: 13px; }
 .important-toggle[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
 .important-toggle[aria-pressed="true"] .important-toggle-hint { color: var(--paper-bg); opacity: 0.72; }
+.detail-form .important-toggle { margin-bottom: 16px; }
 
 /* The handwritten * in the margin of an important row, just before the bullet. It takes no touches (the bullet keeps its tap, the swipe and the hold)
    and starts at 24px from the screen edge, which stays free for the phone's Back. */

@@ -5,7 +5,7 @@ import { loadCalDavConfig } from "../src/caldav/config.ts";
 import { openDb, type Db } from "../src/db.ts";
 import { createOcrClient } from "../src/scan/ocr-client.ts";
 import { createSyncService } from "../src/sync/service.ts";
-import { SYNC_SETTINGS, startFakeCalDav, syncEnv } from "./fake-caldav.ts";
+import { LIST_PATHS, SYNC_SETTINGS, startFakeCalDav, syncEnv } from "./fake-caldav.ts";
 import { line, startFakeOcr, type FakeOcr } from "./fake-ocr.ts";
 import { api, makeToken, signUp, withApp, type Signed } from "./helpers.ts";
 
@@ -290,6 +290,57 @@ test("rescan: an update queues a sync push like a create does", async () => {
     await fake.close();
     await ocr.close();
   }
+});
+
+test("apply: a paper line without * keeps a remote PRIORITY, and only an explicit important:false from the review removes it", async () => {
+  const ocr = await startFakeOcr([]);
+  const fake = await startFakeCalDav();
+  const db = openDb(":memory:");
+  const service = createSyncService({ db, caldav: loadCalDavConfig(syncEnv(fake))!, sync: { ...SYNC_SETTINGS }, log: () => undefined });
+  const box = LIST_PATHS["bujo-test"];
+  const remote = () => fake.names(box).map((name) => fake.read(box, name)!).join("\n");
+  try {
+    await withApp(demoSource(), async ({ base }) => {
+      const signed = await signUp(base);
+      const ctx: Ctx = { base, ocr, signed, db };
+      const made = await api(base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Brot kaufen", important: true }, headers: signed.headers });
+      await service.idle();
+      assert.ok(remote().includes("PRIORITY:1"), "marking important writes PRIORITY:1");
+
+      const plain = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
+      await applyTo(ctx, plain, [{ id: "l2", type: "done", title: "Brot kaufen" }]);
+      await service.idle();
+      assert.ok(remote().includes("PRIORITY:1"), "a line with no * and no explicit off leaves the remote priority");
+      assert.equal((await entriesOf(base, signed))[0].id, made.json.entry.id);
+
+      const off = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+      const applied = await applyTo(ctx, off, [{ id: "l2", type: "task", title: "Brot kaufen", important: false }]);
+      assert.equal(applied.json.results[0].entry.important, false);
+      assert.equal("unflag" in applied.json.results[0], false, "the unflag marker is not sent to the browser");
+      await service.idle();
+      assert.equal(remote().includes("PRIORITY"), false, "an explicit off removes the remote priority");
+    }, { db, sync: service, ocr: createOcrClient(ocr.url, { timeoutMs: 1500 }) });
+  } finally {
+    await service.idle();
+    await fake.close();
+    await ocr.close();
+  }
+});
+
+test("apply: a paper line without * leaves an important entry important, and important:false clears it", async () => {
+  await withLogScan(async (ctx) => {
+    await api(ctx.base, "POST", "/api/entries", { body: { date: DAY, type: "task", title: "Brot kaufen", important: true }, headers: ctx.signed.headers });
+    const flagOf = async () => ((await entriesOf(ctx.base, ctx.signed))[0] as { important?: boolean }).important;
+    const plain = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
+    await applyTo(ctx, plain, [{ id: "l2", type: "done", title: "Brot kaufen", important: false }]);
+    assert.equal(await flagOf(), false, "an explicit false clears it");
+    const again = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "* Brot kaufen")]);
+    await applyTo(ctx, again, [{ id: "l2", type: "task", title: "Brot kaufen", important: true }]);
+    assert.equal(await flagOf(), true);
+    const last = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
+    await applyTo(ctx, last, [{ id: "l2", type: "done", title: "Brot kaufen" }]);
+    assert.equal(await flagOf(), true, "no mention of important keeps it");
+  });
 });
 
 test("apply: a bad request writes nothing at all", async () => {

@@ -40,6 +40,21 @@
     return { node: node, value: function () { return chosen; } };
   }
 
+  /** The important switch of the sheet: a * and the word, pressed while on. Returns the node and a getter of the chosen state. */
+  function importantSwitch(initial) {
+    var copy = L.copy.important;
+    var on = initial === true;
+    var button = h('button', {
+      class: 'important-toggle', type: 'button', 'data-testid': 'sheet-important', 'aria-pressed': on ? 'true' : 'false',
+      onclick: function () {
+        on = !on;
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    }, h('span', { class: 'important-toggle-star', 'aria-hidden': 'true' }, '*'), h('span', { class: 'important-toggle-label' }, copy.toggle),
+    h('span', { class: 'important-toggle-hint' }, copy.hint));
+    return { node: h('div', { class: 'ak-field' }, button), value: function () { return on; } };
+  }
+
   /** The read-only sync line: the state in words and its ink dot. */
   function syncLine(sync) {
     return h('div', { class: 'ak-field' },
@@ -85,7 +100,7 @@
   }
 
   /** The values to send, from the controls. An empty tag list or a blank time clears it on an edit. A field left as shown keeps its tags. */
-  function readValues(controls, grid, values) {
+  function readValues(controls, grid, values, star) {
     var horizon = values.horizon || 'day';
     var date = controls.date.value;
     // A new day on a month-task or future item moves it to the daily log. A month-only event stays a task until it has a day.
@@ -100,6 +115,8 @@
       time: controls.time.value || null
     };
     if (horizon !== (values.horizon || 'day')) next.horizon = horizon;
+    // Only a changed flag is sent, so an untouched save never unflags a remote priority. An explicit off sends false.
+    if (star.value() !== (values.important === true)) next.important = star.value();
     return next;
   }
 
@@ -115,17 +132,19 @@
     var sync = syncSlot(values, onRetry);
     var grid = typeGrid(values.type, sync.show);
     var controls = inputs(values);
+    var star = importantSwitch(values.important);
     var node = h('form', { class: 'detail-form', id: FORM_ID, novalidate: true, onsubmit: function (event) {
       event.preventDefault();
       onSubmit();
     } },
       grid.node,
+      star.node,
       field(L.copy.sheet.title, controls.title),
       field(L.copy.sheet.tag, controls.tag),
       field(L.copy.sheet.date, controls.date),
       field(L.copy.sheet.time, controls.time),
       sync.node);
-    return { node: node, controls: controls, read: function () { return readValues(controls, grid, values); } };
+    return { node: node, controls: controls, read: function () { return readValues(controls, grid, values, star); } };
   }
 
   /** The head of the sheet: grabber, title and the date under it. */

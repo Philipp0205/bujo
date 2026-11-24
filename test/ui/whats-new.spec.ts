@@ -56,10 +56,11 @@ test("unseen entries show once in a sheet, and not again after close, on reload 
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "unseen");
-  // Forty-five entries are newer than the oldest one. The oldest is not shown again.
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(46);
+  // Forty-six entries are newer than the oldest one. The oldest is not shown again.
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(47);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toHaveCount(0);
   await expect(sheet.locator(`[data-entry-id="${NEWEST}"] .wn-date`)).toHaveText("24 Nov 2026");
+  await expect(sheet).toContainText("Mark important from the edit sheet");
   await expect(sheet).toContainText("Rename or delete a collection");
   await expect(sheet).toContainText("A little less air between lines");
   await expect(sheet).toContainText("Add a task to a note");
@@ -127,7 +128,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
   const sheet = page.locator("[data-testid=whats-new-sheet]");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveAttribute("data-mode", "all");
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(47);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(48);
   await expect(sheet.locator(`[data-entry-id="${OLDEST}"]`)).toBeVisible();
 
   await closeAndWaitForStore(page);
@@ -136,7 +137,7 @@ test("settings reopens the full list, and closing it stores the newest id", asyn
 
   // Everything is seen now and the list can still be opened again.
   await page.locator("[data-action=open-whats-new]").click();
-  await expect(sheet.locator("[data-entry-id]")).toHaveCount(47);
+  await expect(sheet.locator("[data-entry-id]")).toHaveCount(48);
 });
 
 test("entry text is shown as text, never as markup", async ({ page }) => {

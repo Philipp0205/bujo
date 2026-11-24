@@ -79,6 +79,8 @@
       checkSpelling: 'check spelling',
       changedInApp: 'also changed in the app',
       important: 'important',
+      importantToggle: 'Important',
+      importantLabel: 'Mark this line important',
       was: 'was',
       noTag: 'no tag',
       noTime: 'no time',

@@ -10,8 +10,8 @@ import { pageReader, resolveSlots, type Planned as Resolved, type SlotReader } f
 import { placeReview, type SentItem, type SentReview } from "./request.ts";
 import type { Slot } from "./types.ts";
 
-/** What one kept line did to the log: it added an entry or changed one. Lines that change nothing are not listed. */
-export type ApplyOutcome = { id: string; outcome: "created" | "updated"; entry: Entry };
+/** What one kept line did to the log: it added an entry or changed one. Lines that change nothing are not listed. `unflag` is set when the review explicitly turned important off. */
+export type ApplyOutcome = { id: string; outcome: "created" | "updated"; entry: Entry; unflag?: boolean };
 
 /** A sent line with its slot and what the matcher decided about it, read against that slot as it is now. */
 type Planned = { item: SentItem; index: number; slot: Slot | null; resolution: Resolved };
@@ -50,12 +50,12 @@ function writeOne(store: EntryStore, userId: string, now: number, { item, slot, 
   if (!paper.ok) throw new HttpError(400, paper.error);
   if (resolution.status === "edited" && resolution.target && resolution.after) {
     const { type, title, tags, time } = resolution.after;
-    // A * on the paper turns important on. A line without one never clears it.
-    const mark = item.important ? { important: true } : {};
+    // A * on the paper (or turned on in the review) sets important. A line without one never clears it, unless the review turned it off.
+    const mark = item.important ? { important: true } : item.unflag ? { important: false } : {};
     const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...mark }, now)!;
     // The paper state is what the entry now says: a title the paper only misspelled stays as the entry has it.
     store.setScanProvenance(userId, updated.id, snapshotOf(updated, now));
-    return { id: item.id, outcome: "updated", entry: updated };
+    return { id: item.id, outcome: "updated", entry: updated, unflag: item.unflag && !item.important };
   }
   const created = store.create(userId, paper.entry, now);
   store.setScanProvenance(userId, created.id, snapshotOf(paper.entry, now));
