@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-24-scan-dropped",
+    "date": "2026-11-24",
+    "title": "Scan reads struck-through tasks",
+    "bullets": [
+      "A task struck through on paper shows up in the scan review as dropped, and you can change it there.",
+      "Applying the scan marks it dropped; nothing is deleted."
+    ]
+  },
+  {
     "id": "2026-11-24-migration-lookback",
     "date": "2026-11-24",
     "title": "Older open tasks reach the review",

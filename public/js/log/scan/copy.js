@@ -99,6 +99,7 @@
         done: 'will be marked done',
         migrated: 'will be marked migrated',
         scheduled: 'will be marked scheduled',
+        dropped: 'will be marked dropped',
         task: 'will be set to a task',
         note: 'will be set to a note',
         event: 'will be set to an event',

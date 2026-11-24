@@ -35,8 +35,9 @@ MAX_SIDE = 2000
 JPEG_QUALITY = 90
 MAX_TOKENS = 4096
 
-SYMBOLS = ("•", "x", ">", "<", "○", "–", "none")
+SYMBOLS = ("•", "x", ">", "<", "○", "–", "~", "none")
 _SYMBOL_ALIASES = {
+    "∼": "~", "˜": "~",
     "*": "•", "·": "•", "●": "•",
     "-": "–", "—": "–",
     "o": "○", "O": "○", "◯": "○", "°": "○",
@@ -48,7 +49,8 @@ KINDS = ("daily", "future", "calendar", "month-task")
 SYSTEM_PROMPT = (
     "You read a photo of one handwritten bullet-journal log page, written in German and English. "
     "For each written line, in reading order, return: symbol, the bullet at the start of the line, one of "
-    "• (task), x (done task), > (migrated), < (scheduled), ○ (event), – (note), or none when the line has no bullet; "
+    "• (task), x (done task), > (migrated), < (scheduled), ○ (event), – (note), ~ (dropped: a task struck through with a line, or a ~ bullet; an x is done, never dropped), "
+    "or none when the line has no bullet; "
     "text, exactly as written without the bullet, keeping umlauts, ß, #tags and times; "
     "tags, the #tags in the line without the #; "
     "time, a time written in the line as HH:MM, or null; "

@@ -67,7 +67,7 @@
   function typePicker(item, events, onChange) {
     var glyph = h('span', { class: 'scan-glyph' }, L.glyph.typeGlyph(item.type));
     var star = h('span', { class: 'scan-star', 'aria-hidden': 'true', 'data-testid': 'scan-star' }, '*');
-    var types = L.glyph.TYPES.filter(function (type) { return events || type !== 'event' || item.type === 'event'; });
+    var types = L.glyph.SCAN_TYPES.filter(function (type) { return events || type !== 'event' || item.type === 'event'; });
     var select = h('select', { class: 'scan-type', 'aria-label': L.copy.scan.review.type, 'data-field': 'type' },
       types.map(function (type) {
         return h('option', { value: type, selected: type === item.type }, L.copy.typeLabels[type]);

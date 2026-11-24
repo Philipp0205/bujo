@@ -589,3 +589,20 @@ test("the scan screen and the review use paper colours, never the kit pink", asy
   expect(screen.accent.toLowerCase()).toBe(paperInk.toLowerCase());
   for (const pink of KIT_PINK) expect(screen.used).not.toContain(pink);
 });
+
+test("a struck-through line shows as dropped, can be corrected, and apply writes dropped on a matched task and a new line", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "task", title: "Fenster putzen" }]);
+  await scanPage(page, [headerLine(day(0)), line("~", "Fenster putzen", 0.9, 1), line("~", "Alte Idee", 0.8, 2), line("~", "Nur ein Strich", 0.7, 3)]);
+
+  await expect(rows(page).nth(0).locator('[data-field="type"]')).toHaveValue("dropped");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Fenster putzen \u00b7 will be marked dropped");
+  await expect(rows(page).nth(1).locator(".scan-glyph use")).toHaveAttribute("href", "#g-dropped");
+  await rows(page).nth(2).locator('[data-field="type"]').selectOption("task");
+  await expect(rows(page).nth(2).locator(".scan-glyph use")).toHaveAttribute("href", "#g-task");
+
+  await review(page).locator("[data-action=apply]").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(logRow(page, "Fenster putzen")).toHaveAttribute("data-type", "dropped");
+  await expect(logRow(page, "Alte Idee")).toHaveAttribute("data-type", "dropped");
+  await expect(logRow(page, "Nur ein Strich")).toHaveAttribute("data-type", "task");
+});
