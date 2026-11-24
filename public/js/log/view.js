@@ -22,11 +22,10 @@
   /** The inked words after a title: tags, time, "not synced", then the sync dot (local or failed only) and the not-on-paper page mark. Null when there is nothing to show. */
   function pills(entry, off) {
     var items = L.days.entryPills(entry).map(L.glyph.pill);
-    var mark = L.days.showsMark(entry) ? L.glyph.syncMark(entry.sync) : null;
-    var page = off ? L.paper.view.rowMark() : null;
-    var words = items.concat(mark || [], page || []);
-    if (!words.length) return null;
-    return h('span', { class: 'paper-meta' }, spaced(words));
+    var marks = [L.days.showsMark(entry) ? L.glyph.syncMark(entry.sync) : null, off ? L.paper.view.rowMark() : null].filter(Boolean);
+    if (!items.length && !marks.length) return null;
+    var last = items.pop();
+    return h('span', { class: 'paper-meta' }, spaced(items), ' ', h('span', { class: 'paper-tail' }, last || null, spaced(marks)));
   }
 
   /** A plain space before each word, so the words can wrap onto the next line one by one (margins give no break). */

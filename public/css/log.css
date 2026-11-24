@@ -370,6 +370,8 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
 
 /* The inked words (tags, time, "not synced", the sync dot, the page mark) flow after the title. Their look is in ink-script.css. */
 .paper-meta { display: inline; }
+/* The last word and the small marks after it are one piece: they wrap to the next line together and never split. */
+.paper-tail { display: inline; white-space: nowrap; }
 
 /* A mark in the edit sheet's chip row keeps the small pen-outlined chip: no fill, its outline is an ink stroke in its own colour. */
 .sheet-chips .pill {
