@@ -92,8 +92,8 @@ test("a long title wraps and its tags wrap with it, none cut off and none wider 
 
   const rowBox = (await line.boundingBox())!;
   expect(rowBox.height).toBeGreaterThan(72);
-  // A line is 36px (1.5 grid units) plus 12px of padding, so a wrapped row is a multiple of half a grid unit.
-  expect(rowBox.height % 12).toBe(0);
+  // A line is 30px plus 18px of padding, so a wrapped row is 18px plus a multiple of 30px.
+  expect((rowBox.height - 18) % 30).toBe(0);
   for (const pill of await line.locator(".pill").all()) {
     const box = (await pill.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(rowBox.x + rowBox.width);

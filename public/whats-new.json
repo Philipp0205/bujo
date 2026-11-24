@@ -1,10 +1,19 @@
 [
   {
+    "id": "2026-11-24-leading",
+    "date": "2026-11-24",
+    "title": "A little less air between lines",
+    "bullets": [
+      "Wrapped lines sit a little closer than yesterday, still with more room than before."
+    ]
+  },
+  {
     "id": "2026-11-24-note-line",
     "date": "2026-11-24",
     "title": "Add a task to a note",
     "bullets": [
       "Press and hold a task's dot in the log and tap Note to add the task as a new line at the end of a note. The task then leaves the log."
+
     ]
   },
   {

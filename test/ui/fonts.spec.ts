@@ -88,8 +88,8 @@ test("the journal text is a step heavier than 400 in every face, and the log use
       return { family: s.fontFamily, variation: s.fontVariationSettings, leading: s.lineHeight };
     });
     expect(style.family).toContain(family);
-    // Wrapped lines sit 1.5 grid units apart in every face.
-    expect(style.leading).toBe("36px");
+    // Wrapped lines sit 30px apart in every face.
+    expect(style.leading).toBe("30px");
     const weight = Number(/"wght" ([\d.]+)/.exec(style.variation)?.[1]);
     expect(weight).toBeGreaterThan(400);
     expect(weight).toBeLessThan(600);
