@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { demoSource } from "../src/caldav/source.ts";
 import { openDb } from "../src/db.ts";
+import { createCollectionStore } from "../src/log/collections.ts";
 import { createEntryStore } from "../src/log/store.ts";
 import { eventFieldsFor, newEventFor, newTodoFor, todoShape } from "../src/sync/mapping.ts";
 import { touchesMapping } from "../src/sync/service.ts";
@@ -119,6 +120,78 @@ test("an unknown, foreign or malformed collection is refused", async () => {
     assert.equal((await api(base, "GET", `/api/entries?collection=${missing}`, { headers: signed.headers })).status, 404);
     const task = await addTask(base, signed, "x");
     assert.equal((await api(base, "PATCH", `/api/entries/${task.id}`, { headers: signed.headers, body: { collectionId: missing } })).status, 404);
+  });
+});
+
+// --- Rename and delete: local only, entries stay. ---
+
+test("a collection is renamed: listed under the new name, a case-only change is fine, a clash or a bad name is refused", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const signed = await signUp(base);
+    const id = await makeCollection(base, signed, "books");
+    await makeCollection(base, signed, "films");
+    const patch = (target: string, body: unknown) => api(base, "PATCH", `/api/collections/${target}`, { headers: signed.headers, body });
+
+    const renamed = await patch(id, { name: "  Books  to read " });
+    assert.equal(renamed.status, 200);
+    assert.equal(renamed.json.collection.name, "Books to read");
+    assert.equal((await patch(id, { name: "BOOKS TO READ" })).json.collection.name, "BOOKS TO READ", "a case-only change of its own name is allowed");
+    assert.equal((await patch(id, { name: "FILMS" })).status, 409, "another page's name is refused ignoring case");
+    assert.equal((await patch(id, { name: "   " })).status, 400);
+    assert.equal((await patch(id, {})).status, 400);
+    assert.equal((await patch(id, { name: "x".repeat(61) })).status, 400);
+    assert.equal((await patch(id, { name: "two\u0001lines" })).status, 400);
+    assert.equal((await patch("3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b", { name: "new" })).status, 404);
+
+    const list = await api(base, "GET", "/api/collections", { headers: signed.headers });
+    assert.deepEqual(list.json.collections.map((c: { name: string }) => c.name), ["BOOKS TO READ", "films"]);
+  });
+});
+
+test("another user's collection can be neither renamed nor deleted (the store is scoped to one user)", async () => {
+  await withApp(demoSource(), async ({ base, db }) => {
+    const mine = await signUp(base);
+    const id = await makeCollection(base, mine, "mine");
+    const store = createCollectionStore(db);
+    assert.equal(store.rename("someone-else", id, "stolen"), undefined);
+    assert.equal(store.remove("someone-else", id), false);
+    assert.equal((await api(base, "GET", "/api/collections", { headers: mine.headers })).json.collections[0].name, "mine");
+  });
+});
+
+test("deleting a collection keeps its entries: collectionId cleared, same day and fields, listed on their day", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const signed = await signUp(base);
+    const id = await makeCollection(base, signed, "books");
+    await addTask(base, signed, "already here");
+    const first = await addTask(base, signed, "Dune", { collectionId: id });
+    const second = await addTask(base, signed, "Emma", { collectionId: id, date: "2026-11-01", type: "note", important: true });
+
+    const gone = await api(base, "DELETE", `/api/collections/${id}`, { headers: signed.headers });
+    assert.equal(gone.status, 200);
+    assert.deepEqual(gone.json, { ok: true });
+    assert.deepEqual((await api(base, "GET", "/api/collections", { headers: signed.headers })).json.collections, []);
+    assert.equal((await api(base, "GET", `/api/entries?collection=${id}`, { headers: signed.headers })).status, 404);
+
+    const day = await api(base, "GET", `/api/entries?from=2026-11-01&to=${DAY}`, { headers: signed.headers });
+    const byId = new Map<string, { collectionId: string | null; date: string; type: string; title: string; important: boolean; position: number }>(
+      day.json.entries.map((entry: { id: string }) => [entry.id, entry]),
+    );
+    assert.equal(day.json.entries.length, 3);
+    assert.deepEqual([byId.get(first.id)!.collectionId, byId.get(first.id)!.date, byId.get(first.id)!.title], [null, DAY, "Dune"]);
+    assert.deepEqual([byId.get(second.id)!.collectionId, byId.get(second.id)!.date, byId.get(second.id)!.type, byId.get(second.id)!.important], [null, "2026-11-01", "note", true]);
+    const sameDay = day.json.entries.filter((entry: { date: string }) => entry.date === DAY).map((entry: { position: number }) => entry.position);
+    assert.deepEqual(sameDay, [0, 1], "the freed entry goes to the end of its day, no position collides");
+    assert.equal((await api(base, "DELETE", `/api/collections/${id}`, { headers: signed.headers })).status, 404);
+  });
+});
+
+test("an empty collection can be deleted", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const signed = await signUp(base);
+    const id = await makeCollection(base, signed, "empty");
+    assert.equal((await api(base, "DELETE", `/api/collections/${id}`, { headers: signed.headers })).status, 200);
+    assert.deepEqual((await api(base, "GET", "/api/collections", { headers: signed.headers })).json.collections, []);
   });
 });
 

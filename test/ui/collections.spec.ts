@@ -110,3 +110,52 @@ test("a task of the log is filed on a collection from its type picker, and leave
   await page.getByTestId("collection-row").filter({ hasText: "garden jobs" }).click();
   await expect(rowOf(page, "Prune roses")).toBeVisible();
 });
+
+test("a collection is renamed from its page: the title and the index row change, a clash is refused", async ({ page }) => {
+  await page.request.post(`${app.baseUrl}/api/collections`, { data: { name: "films" } });
+  await openNotes(page);
+  await createCollection(page, "recipes");
+
+  await page.getByTestId("collection-rename-open").click();
+  const input = page.getByTestId("collection-name");
+  await expect(input).toHaveValue("recipes");
+  await input.fill("FILMS");
+  await page.locator("[data-action=rename-collection]").click();
+  await expect(page.getByTestId("collection-note")).toHaveText("Another collection already has that name.");
+
+  await input.fill("Baking recipes");
+  await page.locator("[data-action=rename-collection]").click();
+  await expect(page.getByTestId("collection-rename")).toHaveCount(0);
+  await expect(page.getByTestId("collection-title")).toHaveText("Baking recipes");
+
+  await page.locator("[data-action=collection-back]").click();
+  const index = page.getByTestId("collection-index");
+  await expect(index.getByTestId("collection-row").filter({ hasText: "Baking recipes" })).toBeVisible();
+  await expect(index.getByTestId("collection-row").filter({ hasText: /^recipes/ })).toHaveCount(0);
+});
+
+test("deleting a collection asks first: cancel keeps the page, confirm removes it and its entry is back on the log", async ({ page }) => {
+  const made = await page.request.post(`${app.baseUrl}/api/collections`, { data: { name: "herb beds" } });
+  const collection = (await made.json()).collection as { id: string };
+  const task = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: today(), type: "task", title: "Sow basil", collectionId: collection.id } });
+  expect(task.status()).toBe(201);
+
+  await openNotes(page);
+  await page.getByTestId("collection-row").filter({ hasText: "herb beds" }).click();
+  await page.getByTestId("collection-delete-open").click();
+  await expect(page.getByTestId("collection-confirm")).toContainText("they stay in the log");
+  await page.getByTestId("collection-delete-cancel").click();
+  await expect(page.getByTestId("collection-confirm")).toHaveCount(0);
+  await expect(page.getByTestId("collection-title")).toHaveText("herb beds");
+  await expect(rowOf(page, "Sow basil")).toBeVisible();
+
+  await page.getByTestId("collection-delete-open").click();
+  await page.getByTestId("collection-delete-confirm").click();
+  await expect(page.getByTestId("new-collection")).toBeVisible();
+  await expect(page.getByTestId("collection-row").filter({ hasText: "herb beds" })).toHaveCount(0);
+
+  await page.goto(app.baseUrl);
+  await expect(rowOf(page, "Sow basil")).toBeVisible();
+  const entry = (await (await page.request.get(`${app.baseUrl}/api/entries?from=${today()}&to=${today()}`)).json()).entries as Array<{ title: string; collectionId: string | null }>;
+  expect(entry.find((item) => item.title === "Sow basil")?.collectionId).toBeNull();
+});

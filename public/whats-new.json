@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-collection-edit",
+    "date": "2026-11-24",
+    "title": "Rename or delete a collection",
+    "bullets": [
+      "Open a collection in Notes to rename it, or to delete the page. Its entries are not deleted: they stay in the log."
+    ]
+  },
+  {
     "id": "2026-11-24-leading",
     "date": "2026-11-24",
     "title": "A little less air between lines",

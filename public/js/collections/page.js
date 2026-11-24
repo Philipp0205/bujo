@@ -34,6 +34,32 @@
       h('button', { class: 'paper-link collection-back', type: 'button', 'data-action': 'collection-back', 'aria-label': copy.backLabel, onclick: back }, copy.back));
   }
 
+  /** The two controls that manage the page: rename it, or delete it (after a confirm). Small paper links under the title. */
+  function tools() {
+    var copy = L.collections.copy;
+    return h('div', { class: 'collection-tools' },
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'collection-rename', 'data-testid': 'collection-rename-open', onclick: rename }, copy.rename),
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'collection-delete', 'data-testid': 'collection-delete-open', onclick: confirmRemove }, copy.delete));
+  }
+
+  /** Asks for a new name, then shows it as the title. */
+  function rename() {
+    L.collections.chooser.askRename(state.collection, function (renamed) {
+      state.collection = renamed;
+      draw();
+    });
+  }
+
+  /** Asks to confirm, then deletes the page (its entries stay in the log) and goes back to the index. */
+  function confirmRemove() {
+    L.collections.chooser.confirmDelete(state.collection, function () {
+      return L.api.deleteCollection(state.collection.id).then(function () {
+        L.collections.chooser.close();
+        back();
+      });
+    });
+  }
+
   /** The line at the bottom of the page that adds an entry: type it and press Enter (or Add). It is a task unless the line says otherwise. */
   function addLine() {
     var copy = L.collections.copy;
@@ -61,7 +87,7 @@
 
   /** The loading and error notes, or the rows with the add line. */
   function body() {
-    if (state.status === 'ready') return h('section', { class: 'paper-day-group', 'data-testid': 'collection-page' }, rows(), addLine());
+    if (state.status === 'ready') return h('section', { class: 'paper-day-group', 'data-testid': 'collection-page' }, tools(), rows(), addLine());
     var copy = L.collections.copy;
     var failed = state.status === 'error';
     var note = h('p', { class: 'paper-state', 'data-state': state.status, role: failed ? 'alert' : 'status' }, failed ? copy.loadFailed : copy.loading);

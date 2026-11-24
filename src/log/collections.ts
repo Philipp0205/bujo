@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { Db } from "../db.ts";
+import { inTransaction, type Db } from "../db.ts";
 import type { Checked, Collection } from "./types.ts";
 
 /** The longest collection name, in characters. */
@@ -14,6 +14,13 @@ export type CollectionStore = {
   get(userId: string, id: string): Collection | undefined;
   /** A new, empty collection. A name the user already has (ignoring case) answers that collection and makes no second one. */
   create(userId: string, name: string, now: number): Collection;
+  /** Renames a collection. Undefined for an unknown id; "taken" when a different collection has that name (ignoring case). */
+  rename(userId: string, id: string, name: string): Collection | "taken" | undefined;
+  /**
+   * Deletes a collection. Its entries stay: each goes back to the end of its own day on the daily log (date and the rest untouched).
+   * False for an unknown id. One transaction, local only.
+   */
+  remove(userId: string, id: string): boolean;
 };
 
 /** Checks a name: one line of text, trimmed, within the limit. */
@@ -28,6 +35,17 @@ export function checkCollectionName(value: unknown): Checked<string> {
 
 function toCollection(row: Row): Collection {
   return { id: row.id, name: row.name, count: Number(row.count), createdAt: Number(row.created_at) };
+}
+
+/** Clears collection_id on every entry of a page, in page order, each at the end of its own day group so positions never collide. */
+function unfileEntries(db: Db, userId: string, id: string): void {
+  const rows = db.prepare("SELECT id, date, horizon FROM entries WHERE user_id = ? AND collection_id = ? ORDER BY position, created_at, id").all(userId, id) as Array<{ id: string; date: string; horizon: string | null }>;
+  const top = db.prepare("SELECT MAX(position) AS top FROM entries WHERE user_id = ? AND collection_id IS NULL AND date = ? AND horizon IS ?");
+  const write = db.prepare("UPDATE entries SET collection_id = NULL, position = ?, indent = 0 WHERE user_id = ? AND id = ?");
+  for (const row of rows) {
+    const last = (top.get(userId, row.date, row.horizon) as { top: number | null }).top;
+    write.run(last === null ? 0 : Number(last) + 1, userId, row.id);
+  }
 }
 
 /** The collections table, always scoped to one user. */
@@ -52,6 +70,23 @@ export function createCollectionStore(db: Db): CollectionStore {
       const id = crypto.randomUUID();
       db.prepare("INSERT INTO collections (id, user_id, name, created_at) VALUES (?, ?, ?, ?)").run(id, userId, name, now);
       return get(userId, id)!;
+    },
+
+    rename(userId, id, name) {
+      if (!get(userId, id)) return undefined;
+      const same = db.prepare("SELECT id FROM collections WHERE user_id = ? AND lower(name) = lower(?) AND id <> ?").get(userId, name, id);
+      if (same) return "taken";
+      db.prepare("UPDATE collections SET name = ? WHERE user_id = ? AND id = ?").run(name, userId, id);
+      return get(userId, id)!;
+    },
+
+    remove(userId, id) {
+      if (!get(userId, id)) return false;
+      inTransaction(db, () => {
+        unfileEntries(db, userId, id);
+        db.prepare("DELETE FROM collections WHERE user_id = ? AND id = ?").run(userId, id);
+      });
+      return true;
     },
   };
 }
