@@ -3,7 +3,7 @@
  * the log, in the look of the edit sheet's type chooser. Task, done, event and note apply at once (task and done through the done toggle,
  * so ink and haptic match a tap). Moved and Scheduled open the move chooser of a swipe (move/pick.js), so a real move leaves its trace and
  * keeps the id; closing that chooser with no pick changes nothing. A tap on the veil closes the picker with no pick.
- * Needs ak-dom.js, copy.js, glyph.js, inline/type.js (order, option), type/hold.js, move/pick.js, done/toggle.js and collections/chooser.js.
+ * Needs ak-dom.js, copy.js, glyph.js, inline/type.js (order, option), type/hold.js, move/pick.js, done/toggle.js, collections/chooser.js, note/model.js and note/into.js.
  */
 (function () {
   'use strict';
@@ -67,13 +67,28 @@
     h('span', { class: 'collection-toggle-hint' }, entry.collectionId ? copy.hintMove : copy.hintFile));
   }
 
-  /** The card of the picker: one option per type, the type of the entry pressed, then the important switch and the collection row. */
+  /** True for an entry of the task family, the only ones that can be filed into a note as a line. */
+  function fileable(entry) {
+    return ['task', 'done', 'migrated', 'scheduled'].indexOf(entry.type) >= 0 && !L.note.model.isNote(entry);
+  }
+
+  /** The note row under the collection row: opens the note chooser, which adds the task as a line on a free-form note and takes it off the log. */
+  function noteRow(entry) {
+    var copy = L.copy.into;
+    return h('button', {
+      class: 'collection-toggle', type: 'button', 'data-testid': 'into-note-toggle',
+      onclick: function () { close(); L.note.into.open(entry); }
+    }, h('span', { class: 'collection-toggle-label' }, copy.pickerLabel), h('span', { class: 'collection-toggle-hint' }, copy.pickerHint));
+  }
+
+  /** The card of the picker: one option per type, the type of the entry pressed, then the important switch, the collection row and the note row. */
   function card(entry) {
     var types = L.inline.type.order().filter(function (type) { return !(entry.collectionId && movesDay(type)); });
     return h('div', { class: 'type-chooser', role: 'group', 'aria-label': L.copy.inline.typeChooser, 'data-testid': 'type-chooser' },
       types.map(function (type) { return L.inline.type.option(type, entry.type, function () { pick(entry, type); }); }),
       importantToggle(entry),
-      collectionRow(entry));
+      collectionRow(entry),
+      fileable(entry) ? noteRow(entry) : null);
   }
 
   /** Opens the picker for the row with this id. */

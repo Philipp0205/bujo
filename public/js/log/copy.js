@@ -220,6 +220,17 @@
       actionFailed: 'Could not do that. Try again.',
       retryFailed: 'Could not retry the sync. Try again.'
     },
+    into: {
+      pickerLabel: 'Note',
+      pickerHint: 'add as a line',
+      title: 'Add as a line on a note',
+      loading: 'Looking for your notes\u2026',
+      empty: 'No free-form notes yet. Write a new note first, then add the task to it.',
+      newNote: 'New note',
+      loadFailed: 'Could not load your notes.',
+      added: 'Added to the note',
+      failed: 'Could not add it to the note. Try again.'
+    },
     note: {
       untitled: 'Untitled note',
       savedHeading: 'Note',

@@ -98,6 +98,11 @@
     });
   }
 
+  /** Adds a task as a new last line of a free-form note and takes it off the log. Resolves with { note, entries } (the note, the task's old day). */
+  function fileIntoNote(id, noteId) {
+    return call('POST', '/api/entries/' + encodeURIComponent(id) + '/into-note', { noteId: noteId });
+  }
+
   /** Asks the server to push an entry again after a failed sync. Resolves with the entry as it is now (pending). */
   function retrySync(id) {
     return call('POST', '/api/entries/' + encodeURIComponent(id) + '/sync').then(function (body) {
@@ -117,5 +122,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

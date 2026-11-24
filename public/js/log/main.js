@@ -144,6 +144,16 @@
     rebuild();
   }
 
+  /** An entry left the log for good (filed into a note): it goes from the server list and its traces with it.
+   * A note that took it as a line, if on screen, is swapped for its saved version so a later edit starts from the new body. */
+  function leave(id, note) {
+    state.server = state.server.filter(function (entry) { return entry.id !== id; }).map(function (entry) { return note && entry.id === note.id ? note : entry; });
+    forget(id);
+    state.status = 'ready';
+    state.version += 1;
+    recount();
+  }
+
   /** Swaps every entry of one group (a day, or the items of one month) for the list of that group (after a delete or a move). */
   function replaceGroup(horizon, date, entries) {
     state.server = state.server.filter(function (entry) { return !(entry.date === date && L.days.horizonOf(entry) === horizon); }).concat(entries);
@@ -576,7 +586,7 @@
     L.move.pick.init({
       root: root,
       select: L.select.mode,
-      host: { entries: host.entries, today: host.today, upsert: upsert, paint: render }
+      host: { entries: host.entries, today: host.today, upsert: upsert, remove: leave, paint: render }
     });
     L.type.picker.init({ root: root, select: L.select.mode });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
