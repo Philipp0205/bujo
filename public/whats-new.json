@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-two-line-grid",
+    "date": "2026-11-24",
+    "title": "Wrapped rows stay on the dot grid",
+    "bullets": [
+      "Long titles that run over two or more lines now end on the dots, so every row below keeps its place."
+    ]
+  },
+  {
     "id": "2026-11-24-swipe-clip",
     "date": "2026-11-24",
     "title": "Long titles stay visible when you swipe",
