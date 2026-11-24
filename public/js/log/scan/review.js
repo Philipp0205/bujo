@@ -92,6 +92,17 @@
     return input;
   }
 
+  /** The important switch of a row: a * and the word, pressed while the line is important. A tap marks the line as touched, so Apply sends an explicit off. */
+  function importantToggle(item, onToggle) {
+    var copy = L.copy.scan.review;
+    var button = h('button', { class: 'scan-important', type: 'button', 'data-field': 'important', 'data-testid': 'scan-important', 'aria-label': copy.importantLabel, onclick: function () {
+      item.important = !item.important;
+      item.importantTouched = true;
+      onToggle();
+    } }, h('span', { class: 'scan-important-star', 'aria-hidden': 'true' }, '*'), h('span', null, copy.importantToggle));
+    return { node: button, show: function () { button.setAttribute('aria-pressed', item.important ? 'true' : 'false'); } };
+  }
+
   /** The keep check at the end of a row: a box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
   function keepToggle(item, onToggle) {
     var copy = L.copy.scan.review;
@@ -117,12 +128,13 @@
     var unmatch = matchToggle(item, function () { hooks.changed(true); });
     var picker = typePicker(item, L.scan.model.allowsEvent(state.kind), function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
+    var star = importantToggle(item, function () { hooks.changed(true); });
     var place = L.scan.kind.placeField(state, item, hooks.moved);
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, place.node),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, star.node, place.node),
       keep.node);
 
     function refresh() {
@@ -139,6 +151,7 @@
       unmatch.show(text !== '');
       meta.textContent = metaText(item);
       picker.show();
+      star.show();
       place.show();
       keep.show();
     }

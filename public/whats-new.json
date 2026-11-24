@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-important-edit",
+    "date": "2026-11-24",
+    "title": "Mark important from the edit sheet",
+    "bullets": [
+      "Mark or unmark an entry as important in its edit sheet, and on a line in the scan review. The * still means the same thing."
+    ]
+  },
+  {
     "id": "2026-11-24-collection-edit",
     "date": "2026-11-24",
     "title": "Rename or delete a collection",

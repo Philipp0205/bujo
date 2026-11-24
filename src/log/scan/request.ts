@@ -21,8 +21,10 @@ export type SentItem = {
   day: number | null;
   month: string | null;
   unmatched: boolean;
-  /** The handwritten * on the line. */
+  /** The handwritten * on the line, or turned on in the review. */
   important: boolean;
+  /** The review explicitly turned the marker off (important: false). A line that only lacks a * on paper leaves this false. */
+  unflag: boolean;
 };
 
 /** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, the physical page and the lines. */
@@ -84,7 +86,7 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   if (raw.unmatched !== undefined && typeof raw.unmatched !== "boolean") bad(`${at}: unmatched must be true or false`);
   const { id, type, title } = raw as { id: string; type: EntryType; title: string };
   if (raw.important !== undefined && typeof raw.important !== "boolean") bad(`${at}: important must be true or false`);
-  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true };
+  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true, unflag: raw.important === false };
 }
 
 /** The kind a request names, or the draft's detected kind when it names none. */
