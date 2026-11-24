@@ -109,7 +109,7 @@
   width: 100%;
   min-height: 48px;
   margin: 0;
-  padding: 12px 12px 12px 8px;
+  padding: 6px 12px 6px 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -243,7 +243,7 @@ html.ak-base .select-bar :focus-visible { outline: 1px solid var(--paper-muted);
   align-items: center;
   justify-content: center;
   width: 24px;
-  height: 24px;
+  height: var(--text-leading);
   color: var(--paper-ink);
 }
 .paper-sym svg,
@@ -292,7 +292,7 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   flex: 1;
   display: block;
   min-width: 0;
-  line-height: 24px;
+  line-height: var(--text-leading);
 }
 
 /* The title and the inked words after it (.paper-meta) are inline, so the words follow the title on its line and wrap with it. */
@@ -301,7 +301,7 @@ html.ak-base .paper-sym-btn:focus-visible { outline: 1px solid var(--paper-muted
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 18px;
-  line-height: 24px;
+  line-height: var(--text-leading);
   letter-spacing: -0.01em;
   font-variation-settings: "opsz" 18, "wght" var(--text-weight);
   font-synthesis: none;
