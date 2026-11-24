@@ -79,6 +79,19 @@ test("listNotes returns only free notes of any day, newest day first, ties by ne
   assert.deepEqual(store.listNotes("someone-else"), []);
 });
 
+test("listOpenBefore returns open daily tasks of any age before the day, oldest first, and nothing resolved", () => {
+  const { store } = setup();
+  store.create(USER, entry({ date: "2026-11-10", title: "second" }), 1);
+  store.create(USER, entry({ date: "2025-01-02", title: "first, very old" }), 2);
+  store.create(USER, entry({ date: "2026-11-10", title: "second b" }), 3);
+  for (const type of ["done", "dropped", "migrated", "scheduled", "event", "note"] as const) store.create(USER, entry({ date: "2026-11-10", type, title: type }), 4);
+  store.create(USER, entry({ date: "2026-11-20", title: "today" }), 5);
+  store.create(USER, entry({ date: "2026-11-30", horizon: "month-task", title: "month" }), 6);
+  store.create(USER, entry({ date: "2026-12-31", horizon: "future", title: "future" }), 7);
+  assert.deepEqual(store.listOpenBefore(USER, "2026-11-20").map((e) => e.title), ["first, very old", "second", "second b"]);
+  assert.deepEqual(store.listOpenBefore("someone-else", "2026-11-20"), []);
+});
+
 test("get finds an entry of this user only", () => {
   const { store } = setup();
   const made = store.create(USER, entry(), 1);

@@ -167,6 +167,23 @@ test("GET ?kind=notes lists every free note of any day, newest first, session on
   });
 });
 
+test("GET ?openBefore= lists open daily tasks from any earlier day, past the range cap, and refuses a bad day", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    assert.equal((await api(base, "GET", "/api/entries?openBefore=2026-11-20")).status, 401);
+    const { headers } = await signUp(base);
+    const add = (date: string, title: string, type = "task") => api(base, "POST", "/api/entries", { body: { date, type, title }, headers });
+    await add("2025-03-01", "a year back");
+    await add("2026-11-01", "three weeks back");
+    await add("2026-11-01", "finished", "done");
+    await add("2026-11-20", "today");
+
+    const listed = await api(base, "GET", "/api/entries?openBefore=2026-11-20", { headers });
+    assert.equal(listed.status, 200);
+    assert.deepEqual(listed.json.entries.map((e: { title: string }) => e.title), ["a year back", "three weeks back"]);
+    assert.equal((await api(base, "GET", "/api/entries?openBefore=soon", { headers })).status, 400);
+  });
+});
+
 test("GET refuses a missing, bad, reversed or too wide range", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);

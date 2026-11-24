@@ -45,6 +45,8 @@ export class EntryIdTaken extends Error {
 export type EntryStore = {
   /** Entries from one day to another, both included, by date then position. */
   list(userId: string, range: DateRange): Entry[];
+  /** Every open task of the daily log from a day before `before`, with no limit on how far back, oldest day first then page order. For the migration review. */
+  listOpenBefore(userId: string, before: string): Entry[];
   /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. */
   listNotes(userId: string): Entry[];
   /** The entries filed on one collection, in their order on that page. */
@@ -266,6 +268,15 @@ export function createEntryStore(db: Db): EntryStore {
       const rows = db
         .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND collection_id IS NULL AND date >= ? AND date <= ? ORDER BY date, horizon, ${IN_DAY_ORDER}`)
         .all(userId, range.from, range.to) as Row[];
+      return rows.map(toEntry);
+    },
+
+    listOpenBefore(userId, before) {
+      const rows = db
+        .prepare(
+          `SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND collection_id IS NULL AND (horizon IS NULL OR horizon = 'day') AND type = 'task' AND date < ? ORDER BY date, ${IN_DAY_ORDER}`,
+        )
+        .all(userId, before) as Row[];
       return rows.map(toEntry);
     },
 

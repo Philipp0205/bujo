@@ -31,9 +31,12 @@ function lastDay(ahead: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** How far back the cleanup and the stored() reads reach: past the oldest seed of any test here. */
+const BACK = -40;
+
 /** Every test starts from an empty log: all entries of the throwaway account go (their traces go with them). */
 test.afterEach(async ({ page }) => {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-7)}&to=${lastDay(5)}`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(5)}`);
   for (const entry of (await response.json()).entries as Array<{ id: string }>) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 
@@ -47,9 +50,9 @@ async function seed(page: Page, data: { date: string; title: string; horizon?: s
   return (await response.json()).entry.id as string;
 }
 
-/** What the API holds from a week back through the sixth month: the entries and the traces. */
+/** What the API holds from forty days back through the sixth month: the entries and the traces. */
 async function stored(page: Page): Promise<{ entries: Entry[]; traces: Trace[] }> {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-7)}&to=${lastDay(5)}&traces=1`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(5)}&traces=1`);
   return response.json();
 }
 
@@ -247,4 +250,42 @@ test("closing mid-flow leaves the unreviewed tasks where they were", async ({ pa
   expect(await entryOf(page, "Erst")).toMatchObject({ date: day(0) });
   expect(await entryOf(page, "Dann")).toMatchObject({ date: day(-2), type: "task" });
   await expect(prompt(page)).toContainText("1 open task from earlier days");
+});
+
+test("an open task 30 days old is in the quiet prompt and the review, and Keep moves it to today with a trace on its old day", async ({ page }) => {
+  const id = await seed(page, { date: day(-30), title: "Lange liegen geblieben" });
+  await seed(page, { date: day(-2), title: "Vorgestern offen" });
+  await openLog(page);
+  await expect(prompt(page)).toContainText("2 open tasks from earlier days");
+  await prompt(page).click();
+  await expect(page.getByTestId("migrate-sub")).toHaveText("Task 1 of 2");
+  await expect(item(page)).toHaveText("Lange liegen geblieben");
+  await act(page, "keep").click();
+  await expect(item(page)).toHaveText("Vorgestern offen");
+  await act(page, "drop").click();
+  await closeReview(page);
+
+  expect(await entryOf(page, "Lange liegen geblieben")).toMatchObject({ id, date: day(0), type: "task" });
+  expect((await stored(page)).traces).toEqual([expect.objectContaining({ entryId: id, date: day(-30), kind: "migrated" })]);
+  await expect(live(page, "Lange liegen geblieben")).toHaveAttribute("data-id", id);
+  await expect(prompt(page)).toHaveCount(0);
+});
+
+test("old tasks that are done, scheduled, dropped, migrated or moved into a note are not offered", async ({ page }) => {
+  await seed(page, { date: day(-30), title: "Noch offen" });
+  await seed(page, { date: day(-30), title: "Alt erledigt", type: "done" });
+  await seed(page, { date: day(-30), title: "Alt geplant", type: "scheduled" });
+  await seed(page, { date: day(-30), title: "Alt verworfen", type: "dropped" });
+  await seed(page, { date: day(-30), title: "Alt weitergereicht", type: "migrated" });
+  const moved = await seed(page, { date: day(-30), title: "Alt in Notiz" });
+  const noteResponse = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day(-1), type: "note", title: "Sammelnotiz", body: "# Sammelnotiz\n\nText" } });
+  const note = (await noteResponse.json()).entry.id as string;
+  const filed = await page.request.post(`${app.baseUrl}/api/entries/${moved}/into-note`, { data: { noteId: note } });
+  expect(filed.status()).toBe(200);
+
+  await openLog(page);
+  await expect(prompt(page)).toContainText("1 open task from earlier days");
+  await prompt(page).click();
+  await expect(page.getByTestId("migrate-sub")).toHaveText("Task 1 of 1");
+  await expect(item(page)).toHaveText("Noch offen");
 });

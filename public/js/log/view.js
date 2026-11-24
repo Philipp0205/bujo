@@ -162,9 +162,9 @@
     return [card.startsPage ? pageBreak(card.startsPage) : null, entryCard(card, actions, today)];
   }
 
-  /** The entries of one day: the migrate prompt (today only), a card per top-level entry, the traces of moves, then the add row and migrate link (not while selecting). The date heading is on the page's date row. */
-  function dayPage(date, entries, actions, today) {
-    var waiting = date === today ? L.migrate.model.open(entries, today).length : 0;
+  /** The entries of one day: the migrate prompt (today only, counted on `review`: the loaded days plus older open tasks), a card per top-level entry, the traces of moves, then the add row and migrate link (not while selecting). The date heading is on the page's date row. */
+  function dayPage(date, entries, actions, today, review) {
+    var waiting = date === today ? L.migrate.model.open(review || entries, today).length : 0;
     var picking = actions.select.on();
     return h('section', { class: 'paper-day-group', 'data-date': date },
       waiting && !picking ? migratePrompt(waiting, actions.migrate) : null,

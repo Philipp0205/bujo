@@ -25,6 +25,13 @@
     });
   }
 
+  /** Every open daily task from a day before `day`, however old (the server has no day cap for this one). */
+  function listOpenBefore(day) {
+    return call('GET', '/api/entries?openBefore=' + day).then(function (body) {
+      return body.entries;
+    });
+  }
+
   /** The entries from one day to another that are not on paper yet (the server filters), both days included. */
   function listNotOnPaper(from, to) {
     return call('GET', '/api/entries?from=' + from + '&to=' + to + '&onPaper=0').then(function (body) {
@@ -134,5 +141,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, renameCollection: renameCollection, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, renameCollection: renameCollection, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

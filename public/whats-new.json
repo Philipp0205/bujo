@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-24-migration-lookback",
+    "date": "2026-11-24",
+    "title": "Older open tasks reach the review",
+    "bullets": [
+      "The migration review now offers every open task from earlier days, however long ago, not just the last week."
+    ]
+  },
+  {
     "id": "2026-11-24-not-synced-wrap",
     "date": "2026-11-24",
     "title": "\"not synced\" stays in one piece",
