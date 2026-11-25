@@ -10,7 +10,7 @@ export type SyncKind = "todo" | "event";
 /** The entry types that become a VTODO. */
 const TODO_TYPES: readonly EntryType[] = ["task", "done", "migrated", "scheduled", "dropped"];
 
-/** The kind of calendar object an entry type is written as, or null for a type that stays local. */
+/** The kind of calendar object an entry type is written as, or null for a type that stays local. Indent (nesting under the entry above) is local on purpose: it never maps to RELATED-TO or DESCRIPTION. */
 export function syncKind(type: EntryType): SyncKind | null {
   if (type === "event") return "event";
   return TODO_TYPES.includes(type) ? "todo" : null;

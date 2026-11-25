@@ -7,7 +7,7 @@ import { isPageKind, type Line, type PageKind } from "./types.ts";
 
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
-const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important"];
+const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important", "indent"];
 const BODY_KEYS = ["kind", "date", "month", "page", "items"];
 
 /** One line as the review sends it back: edits included. `day` is a calendar line's day, `month` a future line's month (YYYY-MM). `unmatched` says it is not the entry it matched. */
@@ -25,6 +25,8 @@ export type SentItem = {
   important: boolean;
   /** The review explicitly turned the marker off (important: false). A line that only lacks a * on paper leaves this false. */
   unflag: boolean;
+  /** 1 when the review nests the line under the entry above it, else 0 (left out means 0). Only a daily page nests. */
+  indent: 0 | 1;
 };
 
 /** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, the physical page and the lines. */
@@ -86,7 +88,8 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   if (raw.unmatched !== undefined && typeof raw.unmatched !== "boolean") bad(`${at}: unmatched must be true or false`);
   const { id, type, title } = raw as { id: string; type: EntryType; title: string };
   if (raw.important !== undefined && typeof raw.important !== "boolean") bad(`${at}: important must be true or false`);
-  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true, unflag: raw.important === false };
+  if (raw.indent !== undefined && raw.indent !== 0 && raw.indent !== 1) bad(`${at}: indent must be 0 or 1`);
+  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true, unflag: raw.important === false, indent: raw.indent === 1 ? 1 : 0 };
 }
 
 /** The kind a request names, or the draft's detected kind when it names none. */
@@ -119,7 +122,7 @@ function parsePaperPage(value: unknown): number {
 }
 
 /**
- * Checks a request body of the shape { kind?, date?, month?, page?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched? }] }.
+ * Checks a request body of the shape { kind?, date?, month?, page?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched?, important?, indent? }] }.
  * Used by both the check and the apply step, so they read the same thing. 400 on anything else.
  * A daily page needs `date`. A calendar or month-task page needs `month`. A future page needs neither, each line carries its month.
  * The apply step may send every line of the review: skipped lines (include false) let it record the key of an unchanged one.

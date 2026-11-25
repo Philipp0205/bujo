@@ -316,6 +316,8 @@
   padding-right: 8px;
 }
 .scan-row[data-include="false"]:not([data-status="unchanged"]) { opacity: 0.45; }
+/* A nested line sits one step in (24px), like a nested entry in the daily log (.card-child). */
+.scan-row[data-indent="1"] { margin-left: 24px; }
 
 .scan-sym {
   position: relative;
@@ -501,6 +503,27 @@
 .scan-important-star { font-family: var(--paper-hand, inherit); font-size: 20px; line-height: 24px; padding-top: 4px; }
 .scan-important[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
 .scan-important:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+/* The nest switch: quiet muted words with an underline, on a 48px tall target so the row keeps its grid. */
+.scan-nest {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  font: 500 14px/24px var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--paper-muted) 50%, transparent);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scan-nest[hidden] { display: none; }
+.scan-nest[aria-pressed="true"] { color: var(--paper-ink); }
+.scan-nest:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
 /* ----- The free-note sheet ----- */
 

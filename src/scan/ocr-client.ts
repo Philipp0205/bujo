@@ -19,6 +19,8 @@ export type OcrLine = {
   /** [x, y, w, h] in pixels of the uploaded image. */
   bbox: [number, number, number, number];
   engine: string;
+  /** 1 when the line is written indented under the line above it (a child), else 0. Optional: an answer without it is still valid. Anything not 1 counts as 0. */
+  indent?: number;
 };
 
 export type OcrResult = {
@@ -56,13 +58,19 @@ function isOcrLine(value: unknown): value is OcrLine {
   );
 }
 
+/** Keeps indent only when it is exactly 1: a missing, odd or any other value is 0 (no key). */
+function tidyIndent(line: OcrLine): OcrLine {
+  const { indent, ...rest } = line;
+  return indent === 1 ? { ...rest, indent: 1 } : rest;
+}
+
 function parseResult(json: unknown): OcrResult {
   const body = json as Record<string, unknown> | null;
   if (!body || typeof body !== "object" || !Array.isArray(body.lines) || !body.lines.every(isOcrLine)) {
     throw new HttpError(502, "The OCR service sent an answer bujo could not read.");
   }
   return {
-    lines: body.lines as OcrLine[],
+    lines: (body.lines as OcrLine[]).map(tidyIndent),
     width: typeof body.width === "number" ? body.width : 0,
     height: typeof body.height === "number" ? body.height : 0,
     ms: typeof body.ms === "number" ? body.ms : 0,

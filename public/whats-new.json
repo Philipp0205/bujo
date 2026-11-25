@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-indent-children",
+    "date": "2026-11-25",
+    "title": "Scanning keeps indented lines",
+    "bullets": [
+      "Scanning keeps indented lines under the line above, like notes under a meeting.",
+      "In the scan review you can nest or un-nest a line if the guess is wrong."
+    ]
+  },
+  {
     "id": "2026-11-25-log-reminders",
     "date": "2026-11-25",
     "title": "Monthly and future log reminders",

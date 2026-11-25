@@ -103,6 +103,25 @@
     return { node: button, show: function () { button.setAttribute('aria-pressed', item.important ? 'true' : 'false'); } };
   }
 
+  /** The nest switch of a row (daily pages): a quiet underlined word that nests the line under the one above, or takes it out again. Hidden on the first line. */
+  function nestToggle(state, item, onToggle) {
+    var copy = L.copy.scan.review;
+    var button = h('button', { class: 'scan-nest', type: 'button', 'data-field': 'nest', 'data-testid': 'scan-nest', onclick: function () {
+      L.scan.model.toggleNest(state, item);
+      onToggle();
+    } });
+    return {
+      node: button,
+      show: function () {
+        var nested = L.scan.model.indentOf(state, item) === 1;
+        button.hidden = !L.scan.model.canNest(state, item);
+        button.textContent = nested ? copy.unnest : copy.nest;
+        button.setAttribute('aria-pressed', nested ? 'true' : 'false');
+        button.setAttribute('aria-label', nested ? copy.unnestLabel : copy.nestLabel);
+      }
+    };
+  }
+
   /** The keep check at the end of a row: a box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
   function keepToggle(item, onToggle) {
     var copy = L.copy.scan.review;
@@ -130,17 +149,19 @@
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var star = importantToggle(item, function () { hooks.changed(true); });
     var place = L.scan.kind.placeField(state, item, hooks.moved);
+    var nest = nestToggle(state, item, function () { hooks.changed(false); });
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, star.node, place.node),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, star.node, nest.node, place.node),
       keep.node);
 
     function refresh() {
       var parts = wasLine(item);
       var text = matchText(item);
       node.setAttribute('data-include', item.include ? 'true' : 'false');
+      node.setAttribute('data-indent', String(L.scan.model.indentOf(state, item)));
       node.setAttribute('data-status', item.status);
       node.setAttribute('data-match', item.unmatched ? 'unmatched' : (L.scan.model.matchOf(item) ? 'matched' : 'none'));
       node.setAttribute('data-low', L.scan.model.isLowConfidence(item) ? 'true' : 'false');
@@ -152,6 +173,7 @@
       meta.textContent = metaText(item);
       picker.show();
       star.show();
+      nest.show();
       place.show();
       keep.show();
     }

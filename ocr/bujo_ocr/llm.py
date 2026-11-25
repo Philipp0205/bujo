@@ -6,6 +6,7 @@ Enabled only when OCR_LLM_BASE and OCR_LLM_KEY are both set. Env is read at call
   OCR_LLM_MODEL    model name (default claude-haiku-5-5)
   OCR_LLM_TIMEOUT  seconds to wait per gateway request (default 25: the app gives the whole scan 60 s)
 
+Each line carries symbol, text, tags, time, confidence and indent (0, or 1 for a child of the line above).
 read_page(image_bgr) -> LlmPage. Every problem is an LlmError, so the caller can fall back to the local path.
 The page photo is shrunk and encoded in memory, sent to the gateway only, and never written or logged.
 Standard library plus Pillow and numpy.
@@ -54,7 +55,10 @@ SYSTEM_PROMPT = (
     "text, exactly as written without the bullet, keeping umlauts, ß, #tags and times; "
     "tags, the #tags in the line without the #; "
     "time, a time written in the line as HH:MM, or null; "
-    "confidence, how sure you are of the line, 0 to 1. "
+    "confidence, how sure you are of the line, 0 to 1; "
+    "indent, 1 when the line is visibly indented to the right of the line above it, as a child of that line "
+    "(typically notes under a meeting or task), else 0. Never 1 on the first line, a date, a heading or a day row of "
+    "a calendar page. Indent one level only: deeper writing is still 1. "
     "Do not correct spelling. Do not invent lines. "
     "Also name the kind of page: daily (one day, headed by a date), future (a future log: several months, each with a "
     "short list under it, maybe headed by a year or Future log), calendar (one month as a column of day numbers with "
@@ -68,7 +72,7 @@ SYSTEM_PROMPT = (
     "for example 15 Fr Zahnarzt, keep the weekday letters, and leave out days with nothing written. "
     "On a future page keep a day number at the start of an item as part of its text. "
     'Answer with JSON only, matching the schema: {"date": string or null, "kind": string, "period": string or null, '
-    '"lines": [{"symbol", "text", "tags", "time", "confidence"}]}.'
+    '"lines": [{"symbol", "text", "tags", "time", "confidence", "indent"}]}.'
 )
 USER_INSTRUCTION = "Read this log page and answer with the JSON."
 
@@ -88,8 +92,9 @@ PAGE_SCHEMA = {
                     "tags": {"type": "array", "items": {"type": "string"}},
                     "time": {"type": ["string", "null"]},
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "indent": {"type": "integer", "enum": [0, 1]},
                 },
-                "required": ["symbol", "text", "tags", "time", "confidence"],
+                "required": ["symbol", "text", "tags", "time", "confidence", "indent"],
                 "additionalProperties": False,
             },
         },
@@ -122,6 +127,7 @@ class LlmLine:
     tags: list[str]
     time: str | None
     confidence: float
+    indent: int = 0
 
 
 @dataclass
@@ -290,6 +296,13 @@ def _confidence(value) -> float:
     return min(1.0, max(0.0, float(value)))
 
 
+def _indent(value) -> int:
+    """0 or 1: a missing, odd, negative or boolean value is 0, anything above 1 is 1 (one level only)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return 1 if value >= 1 else 0
+
+
 def _line(item) -> LlmLine | None:
     """One answer line, cleaned up. None when it is unusable (not an object, text not a string, or empty)."""
     if not isinstance(item, dict) or not isinstance(item.get("text"), str):
@@ -297,7 +310,10 @@ def _line(item) -> LlmLine | None:
     symbol, text = _symbol(item.get("symbol")), item["text"].strip()
     if not text and symbol == "none":
         return None
-    return LlmLine(symbol, text, _tags(item.get("tags")), _time(item.get("time")), _confidence(item.get("confidence")))
+    return LlmLine(
+        symbol, text, _tags(item.get("tags")), _time(item.get("time")), _confidence(item.get("confidence")),
+        _indent(item.get("indent")),
+    )
 
 
 _PERIOD = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]))?$")
