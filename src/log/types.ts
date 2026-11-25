@@ -86,7 +86,7 @@ export type ScanSnapshot = {
 };
 
 /** A custom collection: a named page of entries (like "books to read"). `count` is how many entries are filed on it. */
-export type Collection = { id: string; name: string; count: number; createdAt: number };
+export type Collection = { id: string; name: string; count: number; createdAt: number; paperPage: number | null };
 
 /** One tag in use, for the autocomplete: how many entries carry it and when one of them last changed. */
 export type TagUse = { tag: string; count: number; lastUsed: number };

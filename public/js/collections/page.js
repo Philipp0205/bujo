@@ -26,20 +26,31 @@
     add: function () {}
   };
 
-  /** The page header: the name of the collection, and the way back to the index. */
+  /** The page header: the name of the collection with its notebook page ("p. 12") when it has one, and the way back to the index. */
   function head() {
     var copy = L.collections.copy;
+    var page = L.collections.model.pageOf(state.collection);
     return h('div', { class: 'paper-head' },
       h('h1', { 'data-testid': 'collection-title' }, state.collection.name),
+      page === null ? null : h('span', { class: 'collection-page-mark', 'data-testid': 'collection-page-mark' }, copy.pageMark(page)),
       h('button', { class: 'paper-link collection-back', type: 'button', 'data-action': 'collection-back', 'aria-label': copy.backLabel, onclick: back }, copy.back));
   }
 
-  /** The two controls that manage the page: rename it, or delete it (after a confirm). Small paper links under the title. */
+  /** The controls that manage the page: rename it, give it a notebook page number, or delete it (after a confirm). Small paper links under the title. */
   function tools() {
     var copy = L.collections.copy;
     return h('div', { class: 'collection-tools' },
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'collection-rename', 'data-testid': 'collection-rename-open', onclick: rename }, copy.rename),
+      h('button', { class: 'paper-link', type: 'button', 'data-action': 'collection-page', 'data-testid': 'collection-page-open', onclick: askPage }, copy.pageAction),
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'collection-delete', 'data-testid': 'collection-delete-open', onclick: confirmRemove }, copy.delete));
+  }
+
+  /** Asks for the notebook page number, then shows it next to the title. */
+  function askPage() {
+    L.collections.chooser.askPage(state.collection, function (saved) {
+      state.collection = saved;
+      draw();
+    });
   }
 
   /** Asks for a new name, then shows it as the title. */

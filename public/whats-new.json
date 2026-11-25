@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-page-index",
+    "date": "2026-11-25",
+    "title": "Page numbers in the index",
+    "bullets": [
+      "Give a collection the page number where you wrote it in your notebook.",
+      "The index lists them in page order."
+    ]
+  },
+  {
     "id": "2026-11-25-calendar-past",
     "date": "2026-11-25",
     "title": "Past events start unticked in a scan",

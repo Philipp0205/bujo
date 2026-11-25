@@ -64,11 +64,15 @@
   /** One collection as a row: the name, and how many entries it holds. A tap opens its page. */
   function collectionRow(collection, onOpen) {
     var copy = L.collections.copy;
+    var page = L.collections.model.pageOf(collection);
     return h('li', { class: 'collection-item' },
       h('button', {
         class: 'collection-row', type: 'button', 'data-testid': 'collection-row', 'data-id': collection.id,
         'aria-label': copy.openLabel + ': ' + collection.name, onclick: function () { onOpen(collection); }
-      }, h('span', { class: 'collection-row-name' }, collection.name), h('span', { class: 'collection-row-count' }, copy.count(collection.count))));
+      }, h('span', { class: 'collection-row-name' }, collection.name),
+        h('span', { class: 'collection-row-meta' },
+          h('span', { class: 'collection-row-count' }, copy.count(collection.count)),
+          page === null ? null : h('span', { class: 'collection-row-page', 'data-testid': 'collection-row-page' }, copy.pageMark(page)))));
   }
 
   /** The Collections section of the index: its heading and one row per collection. Null when there are none. */

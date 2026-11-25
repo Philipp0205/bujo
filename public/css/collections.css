@@ -52,15 +52,28 @@
   -webkit-tap-highlight-color: transparent;
 }
 .collection-row-name { min-width: 0; overflow-wrap: anywhere; background: var(--paper-bg); box-shadow: var(--paper-wash); }
+.collection-row-meta { flex: none; display: flex; align-items: baseline; gap: 12px; }
 .collection-row-count { flex: none; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+.collection-row-page { flex: none; min-width: 4ch; text-align: right; color: var(--paper-muted); font: var(--text-weight) 14px/24px var(--font-text); font-variant-numeric: tabular-nums; }
 html.ak-base .collection-row:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
 
 /* ----- The collection page ----- */
 
+/* The notebook page next to the title, on the title's own 48px line; it takes the room between the title and the way back. */
+.paper-head .collection-page-mark {
+  flex: 1 1 auto;
+  align-self: flex-start;
+  padding: 35px 8px 13px 0;
+  color: var(--paper-muted);
+  font: var(--text-weight) 15px/48px var(--font-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .paper-head .collection-back { align-self: center; min-height: 44px; margin: 0 8px 0 0; padding: 0 4px; }
 
 /* Rename and delete sit in a quiet row under the title, in the text column. */
-.collection-tools { display: flex; gap: 4px 20px; padding: 0 4px 0 40px; }
+.collection-tools { display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 0 4px 0 40px; }
 .collection-tools .paper-link { min-height: 44px; margin: 0; display: flex; align-items: center; }
 
 /* The add line sits in the text column, like the "+ Add entry" row of a day. */

@@ -74,6 +74,13 @@
     });
   }
 
+  /** Sets (a whole number) or clears (null) the notebook page number of a collection. Resolves with it; rejects with the server's error text in message. */
+  function setCollectionPage(id, page) {
+    return call('PATCH', '/api/collections/' + encodeURIComponent(id), { paperPage: page }).then(function (body) {
+      return body.collection;
+    });
+  }
+
   /** Deletes a collection. Its entries stay in the log, back on their days. */
   function deleteCollection(id) {
     return call('DELETE', '/api/collections/' + encodeURIComponent(id));
@@ -141,5 +148,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, renameCollection: renameCollection, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

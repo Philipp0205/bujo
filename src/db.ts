@@ -121,7 +121,8 @@ CREATE TABLE IF NOT EXISTS collections (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  paper_page INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at);
 
@@ -165,10 +166,15 @@ const USER_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> =
   ["whats_new_seen", "TEXT"],
 ];
 
+/** Columns added after the first release of the collections table. paper_page is the notebook page the collection is written on (null: none). */
+const COLLECTION_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
+  ["paper_page", "INTEGER"],
+];
+
 /** Adds the columns a table made before they existed lacks. Safe to run on every open. */
 function addMissingColumns(
   db: Db,
-  table: "users" | "entries",
+  table: "users" | "entries" | "collections",
   columns: ReadonlyArray<readonly [name: string, type: string]>,
 ): void {
   const have = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name);
@@ -181,6 +187,7 @@ function addMissingColumns(
 function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
+  addMissingColumns(db, "collections", COLLECTION_EXTRA_COLUMNS);
   moveSingleTags(db);
   placeScannedOnFirstPage(db);
   allowCalendarTraces(db);
