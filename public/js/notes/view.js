@@ -1,6 +1,6 @@
 /*
- * Notes render functions: the header, the two ways to start (a note, a collection), the collection rows, the two-column grid of ink cards and the quiet states. They build nodes and call back,
- * they never fetch. Needs ak-dom.js, notes/copy.js, collections/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
+ * Notes render functions: the header, the two ways to start (a note, a collection), the way into the notebook index, the collection rows, the two-column grid of ink cards and the quiet states. They build nodes and call back,
+ * they never fetch. Needs ak-dom.js, notes/copy.js, collections/copy.js, index/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
  */
 (function () {
   'use strict';
@@ -56,6 +56,17 @@
       h('button', { class: 'paper-link', type: 'button', 'data-action': 'new-collection', 'data-testid': 'new-collection', onclick: onCollection }, copy.newCollection));
   }
 
+  /** The way into the notebook index: a quiet row with the count of listed pages (left out when the count is not known). */
+  function indexEntry(count, onOpen) {
+    var copy = window.BujoIndex.copy;
+    return h('div', { class: 'notes-index-entry' },
+      h('button', {
+        class: 'collection-row', type: 'button', 'data-action': 'open-index', 'data-testid': 'open-index',
+        'aria-label': count === null ? copy.entry : copy.entryLabel(count), onclick: onOpen
+      }, h('span', { class: 'collection-row-name' }, copy.entry),
+        count === null ? null : h('span', { class: 'collection-row-meta' }, h('span', { class: 'collection-row-count', 'data-testid': 'index-count' }, copy.entryCount(count)))));
+  }
+
   /** A small italic heading over a section of the index. */
   function heading(text) {
     return h('h2', { class: 'notes-heading' }, text);
@@ -64,11 +75,15 @@
   /** One collection as a row: the name, and how many entries it holds. A tap opens its page. */
   function collectionRow(collection, onOpen) {
     var copy = L.collections.copy;
+    var page = L.collections.model.pageOf(collection);
     return h('li', { class: 'collection-item' },
       h('button', {
         class: 'collection-row', type: 'button', 'data-testid': 'collection-row', 'data-id': collection.id,
         'aria-label': copy.openLabel + ': ' + collection.name, onclick: function () { onOpen(collection); }
-      }, h('span', { class: 'collection-row-name' }, collection.name), h('span', { class: 'collection-row-count' }, copy.count(collection.count))));
+      }, h('span', { class: 'collection-row-name' }, collection.name),
+        h('span', { class: 'collection-row-meta' },
+          h('span', { class: 'collection-row-count' }, copy.count(collection.count)),
+          page === null ? null : h('span', { class: 'collection-row-page', 'data-testid': 'collection-row-page' }, copy.pageMark(page)))));
   }
 
   /** The Collections section of the index: its heading and one row per collection. Null when there are none. */
@@ -100,5 +115,5 @@
     return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, B.copy.offlineHint);
   }
 
-  B.view = { header: header, noteSection: noteSection, collectionList: collectionList, actions: actions, stateNote: stateNote, offlineHint: offlineHint };
+  B.view = { header: header, noteSection: noteSection, collectionList: collectionList, actions: actions, indexEntry: indexEntry, stateNote: stateNote, offlineHint: offlineHint };
 })();

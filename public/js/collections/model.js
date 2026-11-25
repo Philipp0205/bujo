@@ -9,6 +9,7 @@
   L.collections = L.collections || {};
 
   var NAME_MAX = 60;
+  var PAGE_MAX = 9999;
 
   /** The change that files an entry on a collection. */
   function fileBody(collectionId) {
@@ -33,5 +34,21 @@
     return { date: today, horizon: 'day', type: 'task', title: title, tags: found.tags, time: found.time, collectionId: collectionId };
   }
 
-  L.collections.model = { fileBody: fileBody, leaveBody: leaveBody, cleanName: cleanName, newEntry: newEntry };
+  /**
+   * Reads the page number field: '' means none (ok, null); otherwise digits only, a whole number from 1 to 9999 (the server's rule).
+   * Answers { ok, value }.
+   */
+  function parsePage(text) {
+    var s = String(text).trim();
+    if (s === '') return { ok: true, value: null };
+    var n = /^\d{1,4}$/.test(s) ? Number(s) : 0;
+    return n >= 1 && n <= PAGE_MAX ? { ok: true, value: n } : { ok: false };
+  }
+
+  /** A collection's page number, or null: a list cached before page numbers existed has none. */
+  function pageOf(collection) {
+    return typeof collection.paperPage === 'number' ? collection.paperPage : null;
+  }
+
+  L.collections.model = { fileBody: fileBody, leaveBody: leaveBody, cleanName: cleanName, newEntry: newEntry, parsePage: parsePage, pageOf: pageOf };
 })();

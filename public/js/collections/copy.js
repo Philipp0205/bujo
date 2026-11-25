@@ -51,6 +51,16 @@
     deleteBody: 'This page will be removed. Its entries are not deleted: they stay in the log, on their days.',
     deleteConfirm: 'Delete page',
     deleteCancel: 'Cancel',
-    deleteFailed: 'Could not delete the page. Try again.'
+    deleteFailed: 'Could not delete the page. Try again.',
+
+    pageMark: function (n) { return 'p. ' + n; },
+    pageAction: 'Page number',
+    pageTitle: 'Page number in your notebook',
+    pageLabel: 'Notebook page number (1 to 9999)',
+    pagePlaceholder: 'Page 1 to 9999',
+    pageSave: 'Save',
+    pageClear: 'No page number',
+    pageInvalid: 'Use a whole number from 1 to 9999.',
+    pageFailed: 'Could not save the page number. Try again.'
   };
 })();

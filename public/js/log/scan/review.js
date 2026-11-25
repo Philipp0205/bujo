@@ -236,7 +236,7 @@
   /** The trouble line for a problem key ('' says nothing). */
   function problemText(problem) {
     var errors = L.copy.scan.errors;
-    return { title: errors.titleRequired, day: errors.dayRequired, month: errors.monthRequired }[problem] || '';
+    return { paper: errors.paperInvalid, title: errors.titleRequired, day: errors.dayRequired, month: errors.monthRequired }[problem] || '';
   }
 
   /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save. */
@@ -248,6 +248,7 @@
     var date = dateRow(state, function () { recheck(); });
     var month = L.scan.kind.monthRow(state, function () { recheck(); });
     var pages = L.scan.page.row(state, function () { recheck(); });
+    var number = L.scan.number.row(state, function () { refreshAll(); });
     var kinds = L.scan.kind.kindSwitch(state, switchTo);
     var rows = rowsView(state, {
       changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
@@ -272,6 +273,7 @@
       date.refresh();
       month.refresh();
       pages.refresh();
+      number.refresh();
       rows.refresh();
     }
 
@@ -318,7 +320,7 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
-      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, pages.node, month.node, rows.node),
+      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});

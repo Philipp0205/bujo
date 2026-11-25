@@ -1,4 +1,5 @@
 import { HttpError } from "../app-kit/http.ts";
+import { asPageNumber } from "../log/paper-pages.ts";
 
 /**
  * Client for the OCR service (ocr/): POST /ocr with the raw image, JSON back.
@@ -32,6 +33,8 @@ export type OcrResult = {
   kind?: string;
   /** The year (YYYY) or month (YYYY-MM) the LLM read from the page header, when it read one. */
   period?: string;
+  /** The notebook page number the LLM read (integer 1..9999). Optional: an answer without it is valid; anything else is null. */
+  pageNumber?: number | null;
 };
 
 /** Reads one page photo. The Buffer is not kept. */
@@ -76,6 +79,7 @@ function parseResult(json: unknown): OcrResult {
     ms: typeof body.ms === "number" ? body.ms : 0,
     ...(typeof body.kind === "string" ? { kind: body.kind } : {}),
     ...(typeof body.period === "string" ? { period: body.period } : {}),
+    pageNumber: asPageNumber(body.pageNumber),
   };
 }
 

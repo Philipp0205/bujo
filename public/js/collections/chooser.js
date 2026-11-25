@@ -113,6 +113,41 @@
     overlay.querySelector('input').focus();
   }
 
+  /** The page number form: a numeric input, Save, and "No page number" to clear. send(page|null) saves; the server's text shows when it refuses (400). */
+  function pageForm(collection, onSaved) {
+    var copy = L.collections.copy;
+    var current = L.collections.model.pageOf(collection);
+    var input = h('input', {
+      class: 'collection-name collection-page-input', type: 'text', inputmode: 'numeric', pattern: '[0-9]*', maxlength: 4, autocomplete: 'off',
+      'data-testid': 'collection-page-input', placeholder: copy.pagePlaceholder, 'aria-label': copy.pageLabel, value: current === null ? '' : String(current)
+    });
+    var note = h('p', { class: 'collection-note', role: 'status', 'data-testid': 'collection-note' });
+    var clear = h('button', { class: 'collection-leave', type: 'button', 'data-action': 'clear-page', 'data-testid': 'collection-page-clear' }, copy.pageClear);
+    var node = h('form', { class: 'collection-form', novalidate: true }, input, h('button', { class: 'collection-create', type: 'submit', 'data-action': 'save-page' }, copy.pageSave), note);
+    function send(page) {
+      note.textContent = '';
+      L.api.setCollectionPage(collection.id, page).then(function (saved) { close(); onSaved(saved); }, function (error) {
+        note.textContent = error && error.status === 400 && error.message ? error.message : copy.pageFailed;
+      });
+    }
+    node.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var page = L.collections.model.parsePage(input.value);
+      if (!page.ok) { note.textContent = copy.pageInvalid; return; }
+      send(page.value);
+    });
+    clear.addEventListener('click', function () { send(null); });
+    return [node, clear];
+  }
+
+  /** Opens the page number form for a collection. onSaved(collection) runs once the server has the number (or its removal). */
+  function askPage(collection, onSaved) {
+    var copy = L.collections.copy;
+    var parts = pageForm(collection, onSaved);
+    show(h('div', { class: 'move-chooser collection-chooser', role: 'dialog', 'aria-label': copy.pageTitle, 'data-testid': 'collection-page-sheet' }, h('p', { class: 'collection-title' }, copy.pageTitle), parts[0], parts[1]));
+    overlay.querySelector('input').focus();
+  }
+
   /** Opens the delete confirm: says the page goes and its entries stay in the log. onConfirm runs on Delete; Cancel (or the veil) leaves everything as it is. */
   function confirmDelete(collection, onConfirm) {
     var copy = L.collections.copy;
@@ -129,5 +164,5 @@
       remove, cancel, note));
   }
 
-  L.collections.chooser = { open: open, askName: askName, askRename: askRename, confirmDelete: confirmDelete, close: close };
+  L.collections.chooser = { open: open, askName: askName, askRename: askRename, askPage: askPage, confirmDelete: confirmDelete, close: close };
 })();

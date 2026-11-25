@@ -48,10 +48,13 @@
       titleRequired: 'Give every kept line a title.',
       dayRequired: 'Give every kept line a day of this month.',
       monthRequired: 'Give every kept line a month.',
-      kindFailed: 'Could not switch the page kind. Try again.'
+      kindFailed: 'Could not switch the page kind. Try again.',
+      paperInvalid: 'The notebook page must be a whole number from 1 to 9999, or empty.'
     },
     review: {
       title: 'Review scan',
+      paperLabel: 'Notebook page',
+      paperHint: 'read from the photo',
       date: 'Date',
       dateFromPage: 'Read from the page',
       dateFallback: 'Today, no date found',

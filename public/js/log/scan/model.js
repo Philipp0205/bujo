@@ -140,8 +140,30 @@
       month: month,
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
+      paperText: draft.paperNumber ? String(draft.paperNumber) : '',
+      paperRead: draft.paperNumber || null,
+      paperEdited: false,
       items: draft.items.map(function (line) { return fromLine(line, draft.kind, month); })
     };
+  }
+
+  /** The notebook page number field read as a number: { value: null } for an empty field, { value: n } for 1 to 9999, { invalid: true } for anything else. */
+  function paperNumberOf(state) {
+    var text = String(state.paperText || '').trim();
+    if (text === '') return { value: null, invalid: false };
+    var number = /^\d{1,4}$/.test(text) ? Number(text) : 0;
+    return number >= 1 && number <= 9999 ? { value: number, invalid: false } : { value: null, invalid: true };
+  }
+
+  /** Sets what the person typed in the notebook page field. From then on the number is theirs, not the one read from the photo. */
+  function setPaperText(state, text) {
+    state.paperText = text;
+    state.paperEdited = true;
+  }
+
+  /** True while the field still holds the number the OCR read from the photo (so the "read from the photo" hint is shown). */
+  function paperFromPhoto(state) {
+    return !state.paperEdited && state.paperRead !== null && state.paperText === String(state.paperRead);
   }
 
   /** The most pages one day may have (the server's limit). */
@@ -160,9 +182,10 @@
     state.page = page;
   }
 
-  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. */
+  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. The notebook page number stays as it is. */
   function replaceDraft(state, draft) {
-    Object.assign(state, fromDraft(draft));
+    var number = { paperText: state.paperText, paperRead: state.paperRead, paperEdited: state.paperEdited };
+    Object.assign(state, fromDraft(draft), number);
   }
 
   /** True when the kind files lines on days of the log (events are allowed there). */
@@ -273,8 +296,9 @@
     return '';
   }
 
-  /** 'title' when a kept line has no title, 'day' or 'month' when a kept line has no place, 'none' when nothing is kept, else ''. */
+  /** 'paper' when the notebook page field is not a number from 1 to 9999, 'title' when a kept line has no title, 'day' or 'month' when a kept line has no place, 'none' when nothing is kept, else ''. */
   function problem(state) {
+    if (paperNumberOf(state).invalid) return 'paper';
     var kept = keptItems(state);
     if (kept.some(function (item) { return item.title.trim() === ''; })) return 'title';
     var place = placeProblem(state, kept);
@@ -314,6 +338,8 @@
       body.page = state.page;
     }
     if (NEEDS_MONTH[state.kind]) body.month = state.month;
+    var number = paperNumberOf(state).value;
+    if (number !== null) body.paperNumber = number;
     return body;
   }
 
@@ -396,6 +422,9 @@
     setMonth: setMonth,
     pageOptions: pageOptions,
     setPage: setPage,
+    paperNumberOf: paperNumberOf,
+    setPaperText: setPaperText,
+    paperFromPhoto: paperFromPhoto,
     dayOf: dayOf,
     mergeChecks: mergeChecks,
     matchOf: matchOf,

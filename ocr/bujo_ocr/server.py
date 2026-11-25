@@ -2,12 +2,14 @@
 
   GET  /healthz  -> {"ok": true}
   POST /ocr      raw image body (image/jpeg, image/png, image/webp), up to 15 MB
-                   -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine, tags, time, indent}], "date", "kind", "period", "width", "height", "ms"}
+                   -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine, tags, time, indent}], "date", "kind", "period", "pageNumber", "width", "height", "ms"}
 
 The image is decoded from memory and dropped after the answer. Nothing is written to disk.
 With OCR_LLM_BASE and OCR_LLM_KEY set, a vision LLM reads the whole page first (see llm.py, engine "llm:<model>").
-It also names the page kind (daily, future, calendar, month-task) and its period (YYYY or YYYY-MM).
-Any problem there falls back to the detector and recognizer, where tags are [] and time, date, kind and period are null.
+It also names the page kind (daily, future, calendar, month-task), its period (YYYY or YYYY-MM) and the notebook
+page number (pageNumber, integer or null).
+Any problem there falls back to the detector and recognizer, where tags are [] and time, date, kind, period and
+pageNumber are null.
 Env: OCR_HOST (default 0.0.0.0; "::" listens on IPv6 and IPv4), OCR_PORT (default 8090).
 """
 from __future__ import annotations
@@ -57,7 +59,7 @@ def _local_answer(image: np.ndarray, recognize: Recognize) -> dict:
                 "indent": 0,
             }
         )
-    return {"lines": lines, "date": None, "kind": None, "period": None}
+    return {"lines": lines, "date": None, "kind": None, "period": None, "pageNumber": None}
 
 
 def _llm_boxes(image: np.ndarray, count: int) -> list[list[int]]:
@@ -98,7 +100,10 @@ def _llm_answer(image: np.ndarray, read_page: ReadPage) -> dict:
         }
         for line, box in zip(page_lines, boxes)
     ]
-    return {"lines": lines, "date": result.date, "kind": result.kind, "period": result.period}
+    return {
+        "lines": lines, "date": result.date, "kind": result.kind, "period": result.period,
+        "pageNumber": result.page_number,
+    }
 
 
 def _try_llm(image: np.ndarray, read_page: ReadPage | None) -> dict | None:

@@ -258,10 +258,15 @@
    * future page the Future view, a day the Daily view even when it is outside the usual window. A month the views do not reach
    * opens the Daily view on its first day instead. */
   function applied(result) {
+    land(result);
+    reload();
+  }
+
+  /** Points the log at the place a result or a request names, without reading anything. */
+  function land(result) {
     if (result.view === 'future') showHorizon('future', null, 'calendar');
     else if (result.view === 'month') showMonthOrDay(result.month, result.part);
     else showDay(result.date);
-    reload();
   }
 
   /** Points the log at a day of the Daily view. */
@@ -651,7 +656,7 @@
     L.pages.scroll.init(root);
     root.addEventListener('click', onPaperTap);
     L.paper.count.init(root, openPaperList);
-    var linked = arriveAtView() || arriveAtDay();
+    var linked = ctx.open ? (land(ctx.open), true) : (arriveAtView() || arriveAtDay());
     render();
     L.outbox.queue.load().then(function () { return load(false, 'first'); }).then(recount);
     // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.
@@ -660,10 +665,12 @@
     else if (!linked) BujoWhatsNew.boot.showUnseen(remindFuture);
   }
 
-  /** The router shows the log (the first time, or again from another tab): boots once, then reads the rows again quietly. */
+  /** The router shows the log (the first time, or again from another tab): boots once, then reads the rows again quietly.
+   * ctx.open (from the notebook index) shows that place: a day, a month or the future log. */
   function show(ctx) {
     if (!booted) return boot(ctx);
     L.outbox.replay.flush();
+    if (ctx.open) { applied(ctx.open); return; }
     syncAddress();
     if (ctx.scan) startScan();
     else if (ctx.add) addFromTab();

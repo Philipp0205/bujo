@@ -301,6 +301,34 @@
 .scan-kind:disabled { opacity: 0.6; cursor: default; }
 .scan-kind-note { margin: 0; padding-top: 4px; font: italic var(--text-weight) 14px/24px var(--font-text); color: var(--paper-muted); }
 
+/* The notebook page row: a label and a small numeric field on one 48px line, then a quiet note ("read from the photo", or why Apply waits). */
+.scan-number { margin: 0 0 24px var(--text-col); padding-right: 16px; }
+.scan-number[hidden] { display: none; }
+.scan-number-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; }
+.scan-number-label { font: 14px/24px var(--font-ui); color: var(--paper-muted); }
+.scan-number-input {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 96px;
+  height: 40px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 20px/24px var(--font-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.scan-number-input:focus-visible { outline: none; border-bottom-style: solid; border-bottom-color: var(--paper-ink); }
+.scan-number[data-invalid="true"] .scan-number-input { border-bottom-style: solid; border-bottom-color: var(--paper-today); }
+.scan-number-note { margin: 0; font: italic var(--text-weight) 14px/24px var(--font-text); color: var(--paper-muted); text-align: right; }
+.scan-number-note[hidden] { display: none; }
+.scan-number[data-invalid="true"] .scan-number-note { color: var(--paper-today); }
+
 /* A group of rows (a month of the future page, a day of a calendar page) starts with a small italic heading. */
 .scan-group {
   margin: 24px 0 0 var(--text-col);
