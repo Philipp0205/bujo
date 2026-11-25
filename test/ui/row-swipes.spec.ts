@@ -128,6 +128,42 @@ test("a wrapping title stays on screen mid-swipe in both directions and after th
   await expect.poll(async () => (await target.locator(".paper-title").boundingBox())!.x).toBe(rest.x);
 });
 
+type Box = { x: number; y: number; width: number; height: number };
+
+/** The boxes of the given rows, by title. */
+async function boxes(page: Page, titles: string[]): Promise<Box[]> {
+  return Promise.all(titles.map(async (title) => (await row(page, title).boundingBox())!));
+}
+
+test("a swipe keeps neighbors and the swiped row on their grid position, one-line and wrapping", async ({ page }) => {
+  await seed(page, "task", "Oben");
+  await seed(page, "task", LONG);
+  await seed(page, "task", "Unten");
+  await seed(page, "task", "Kurzzeile");
+  await openLog(page);
+  const titles = ["Oben", "Wrapping title", "Unten", "Kurzzeile"];
+  const rest = await boxes(page, titles);
+  expect(rest[1].height % 24).toBe(0);
+  for (const swiped of [1, 3]) {
+    for (const dx of [-90, 90]) {
+      await drag(page, titles[swiped], dx, 0, true);
+      await expect(row(page, titles[swiped]).locator(".swipe-ink")).toHaveCount(1);
+      const mid = await boxes(page, titles);
+      titles.forEach((_, i) => {
+        if (i === swiped) {
+          expect(mid[i].y).toBe(rest[i].y);
+          expect(mid[i].height).toBe(rest[i].height);
+        } else expect(mid[i]).toEqual(rest[i]);
+      });
+      await page.mouse.up();
+      await page.getByTestId("move-overlay").click({ position: { x: 4, y: 4 } });
+      await expect(chooser(page)).toHaveCount(0);
+      await page.waitForTimeout(400);
+      expect(await boxes(page, titles)).toEqual(rest);
+    }
+  }
+});
+
 test("the row follows the finger while held and snaps back on a cancelled release", async ({ page }) => {
   await seed(page, "task", "Halten");
   await openLog(page);

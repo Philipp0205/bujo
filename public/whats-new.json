@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-25-swipe-shift",
+    "date": "2026-11-25",
+    "title": "Swiping keeps the rows in place",
+    "bullets": [
+      "Swiping an entry no longer nudges the rows around it; every row stays on its grid line."
+    ]
+  },
+  {
     "id": "2026-11-24-scan-dropped",
     "date": "2026-11-24",
     "title": "Scan reads struck-through tasks",

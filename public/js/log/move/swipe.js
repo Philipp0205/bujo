@@ -53,7 +53,8 @@
 
   /**
  * The row follows the finger (up to MAX_PULL) and the mark in the gap sharpens once the threshold is passed. The row narrows instead of sliding,
- * so its text re-wraps inside the screen and a long title is never pushed off the edge.
+ * so its text re-wraps inside the screen and a long title is never pushed off the edge. Its height is pinned to the resting height for the whole
+ * gesture (see onMove and settle), so the re-wrap never moves the rows below it off the grid.
  */
   function pull(dx) {
     var shown = Math.max(-MAX_PULL, Math.min(MAX_PULL, dx));
@@ -78,7 +79,10 @@
     start.row.style.marginLeft = '';
     if (start.ink) start.ink.remove();
     var row = start.row;
-    window.setTimeout(function () { row.classList.remove('is-snapping'); }, 200);
+    window.setTimeout(function () {
+      row.classList.remove('is-snapping');
+      if (!start || start.row !== row) row.style.height = '';
+    }, 200);
   }
 
   /** A pointer went down on an open task, away from the screen edge: the swipe may begin. */
@@ -97,6 +101,7 @@
     var dy = event.clientY - start.y;
     if (!start.locked && sideways(dx, dy, LOCK_PX)) {
       start.locked = true;
+      start.row.style.height = start.row.getBoundingClientRect().height + 'px';
       L.done.flip.buzz();
     }
     if (start.locked) pull(dx);
