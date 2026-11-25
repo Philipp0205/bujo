@@ -414,6 +414,17 @@
 }
 .scan-meta { flex: none; padding-top: 12px; }
 .scan-row[data-low="true"] .scan-meta { color: var(--paper-today); }
+.scan-past {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 15px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--paper-muted) 45%, transparent);
+  border-radius: 999px;
+  font: 11px/16px var(--font-ui);
+  color: var(--paper-muted);
+}
+.scan-past[hidden] { display: none; }
 .scan-input-tag { flex: 1; min-width: 0; height: 24px; margin-top: 12px; padding: 0; font: italic var(--text-weight) 13px/24px var(--font-text); color: var(--paper-muted); }
 .scan-input-tag::placeholder { color: var(--paper-muted); opacity: 0.6; }
 

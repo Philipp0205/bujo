@@ -14,6 +14,9 @@ const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
 
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
+  // The first of the month, so no day row of the page is before today (past lines start unticked).
+  const now = new Date();
+  await page.clock.setFixedTime(new Date(now.getFullYear(), now.getMonth(), 1, 12));
   app.ocr.failWith(0);
   app.ocr.delay(0);
   app.ocr.setPage(null);

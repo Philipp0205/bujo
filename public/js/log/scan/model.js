@@ -40,12 +40,38 @@
   function defaultInclude(item) {
     if (item.noBullet) return false;
     if (item.needsDay && dayOf(item) === null) return false;
+    if (isPast(item)) return false;
     if (item.status === 'new') return item.title !== '';
     return item.status === 'edited' && !item.contested;
   }
 
-  function fromLine(line, kind) {
+  /** Where the scan flow reads today from. Tests replace it to fix the day. */
+  var clock = function () { return new Date(); };
+
+  /** Sets the clock: a function that returns a Date. */
+  function setClock(now) {
+    clock = now;
+  }
+
+  /** True when a calendar line's day, or a future line's month, lies before today (the person's local day). A line with no place is not past. */
+  function isPast(item) {
+    var today = L.dates.todayIso(clock());
+    if (item.dated === 'future') return !!item.month && item.month < today.slice(0, 7);
+    if (item.dated !== 'calendar') return false;
+    var day = dayOf(item);
+    return day !== null && item.pageMonth + '-' + (day < 10 ? '0' : '') + day < today;
+  }
+
+  function fromLine(line, kind, month) {
+    var item = newItem(line, kind, month);
+    item.include = line.include && !isPast(item);
+    return item;
+  }
+
+  function newItem(line, kind, month) {
     return {
+      dated: kind === 'calendar' || kind === 'future' ? kind : null,
+      pageMonth: month,
       needsDay: kind === 'calendar' && !line.day,
       id: line.id,
       type: line.type,
@@ -101,6 +127,7 @@
 
   /** The review state of a draft the server sent (or sent again for another kind). A page with no month reads as the month of the fallback day. */
   function fromDraft(draft) {
+    var month = draft.month || monthOfDate(draft.fallbackDate);
     return {
       id: draft.id,
       kind: draft.kind,
@@ -110,10 +137,10 @@
       fallbackDate: draft.fallbackDate,
       continues: draft.continues || null,
       dateSource: draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback'),
-      month: draft.month || monthOfDate(draft.fallbackDate),
+      month: month,
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
-      items: draft.items.map(function (line) { return fromLine(line, draft.kind); })
+      items: draft.items.map(function (line) { return fromLine(line, draft.kind, month); })
     };
   }
 
@@ -155,6 +182,7 @@
   /** Sets the month of a calendar or month-task page. */
   function setMonth(state, month) {
     state.month = month;
+    state.items.forEach(function (item) { item.pageMonth = month; });
   }
 
   /** A calendar line's day as a whole number 1 to 31, else null. */
@@ -359,6 +387,8 @@
     photoProblem: photoProblem,
     uploadable: uploadable,
     defaultInclude: defaultInclude,
+    isPast: isPast,
+    setClock: setClock,
     fromDraft: fromDraft,
     replaceDraft: replaceDraft,
     allowsEvent: allowsEvent,
