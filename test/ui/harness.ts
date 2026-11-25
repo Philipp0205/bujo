@@ -10,7 +10,27 @@ import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
 /** The id of the newest what's-new entry. Specs that mark everything as seen use this, so a new entry bumps one line. */
-export const WHATS_NEW_NEWEST = "2026-11-25-rescan";
+export const WHATS_NEW_NEWEST = "2026-11-25-log-reminders";
+
+/** The localStorage keys of the two log reminders (public/js/log/remind/store.js). */
+export const REMIND_MONTHLY_KEY = "bujo-remind-month";
+export const REMIND_FUTURE_KEY = "bujo-remind-future";
+
+/** Marks both reminders as dismissed for today and this month, unless a key is already set, so specs that are not about them stay stable. */
+function seedReminders(): void {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const month = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  const set = (key: string, value: string) => {
+    try {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+    } catch {
+      /* storage blocked */
+    }
+  };
+  set("bujo-remind-month", `${month}-${pad(now.getDate())}`);
+  set("bujo-remind-future", month);
+}
 
 /** Opens the details sheet of a saved row: tap the row to type in it, then Details in the accessory bar. */
 export async function openDetails(page: Page, title: string): Promise<void> {
@@ -94,6 +114,7 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
       const context = "context" in target && typeof target.context === "function" ? target.context() : (target as BrowserContext);
       const [name, value] = ctx.cookie.split("=");
       await context.addCookies([{ name, value, url: ctx.app!.base }]);
+      await context.addInitScript(seedReminders);
     },
   };
 }

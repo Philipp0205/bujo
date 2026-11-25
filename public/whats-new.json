@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-25-log-reminders",
+    "date": "2026-11-25",
+    "title": "Monthly and future log reminders",
+    "bullets": [
+      "After you migrate, a nudge offers to open the monthly log.",
+      "On the first open of a new month, a nudge offers to open the future log.",
+      "Both can be dismissed with Not now."
+    ]
+  },
+  {
     "id": "2026-11-25-rescan",
     "date": "2026-11-25",
     "title": "Scan a page or note again",

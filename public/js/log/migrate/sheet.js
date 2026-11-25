@@ -1,9 +1,10 @@
 /*
  * The migration review sheet: the open tasks of earlier days, one at a time, oldest first. Each is kept (moved to today, a > trace
  * stays), scheduled (the move chooser, a < trace stays) or dropped (struck out, same entry). "Keep all remaining" moves the rest to
- * today. It ends with a short tally. Closing early leaves the unreviewed tasks where they are. No fetch of its own: the moves go
- * through move/pick.js. Needs ak-dom.js, nav/overlays.js, copy.js, dates.js, glyph.js, migrate/model.js and move/pick.js.
- * options: entries() the entries on screen, today().
+ * today. It ends with a short tally; when something was decided and the monthly-log nudge is not dismissed for today, the tally also
+ * offers to open the monthly log. Closing early leaves the unreviewed tasks where they are. No fetch of its own: the moves go
+ * through move/pick.js. Needs ak-dom.js, nav/overlays.js, copy.js, dates.js, glyph.js, migrate/model.js, move/pick.js and remind/store.js.
+ * options: entries() the entries on screen, today(), onOpenMonth() called after the sheet is closed.
  */
 (function () {
   'use strict';
@@ -72,15 +73,35 @@
     return [all, close];
   }
 
-  /** Redraws the sheet for the state: the item, the empty note or the tally. */
+  /** The monthly-log nudge under the tally: one line of text, and in the dock the button that opens it and a quiet Not now. */
+  function nudgeParts(actions) {
+    var words = L.copy.remind.monthly;
+    return {
+      text: h('p', { class: 'remind-text', 'data-testid': 'remind-monthly' }, words.text),
+      dock: [
+        h('button', { class: 'ak-btn', type: 'button', 'data-testid': 'remind-monthly-open', onclick: actions.openMonth }, words.open),
+        h('button', { class: 'ak-btn ak-btn-quiet', type: 'button', 'data-testid': 'remind-monthly-later', onclick: actions.close }, words.later)
+      ]
+    };
+  }
+
+  /** Redraws the sheet for the state: the item, the empty note or the tally (with the monthly-log nudge after a finished migration). */
   function paint(parts, state, options, actions) {
     var words = L.copy.migrate;
     var entry = current(state, options);
     var empty = state.ids.length === 0;
+    var nudge = !entry && !empty && state.decisions.length > 0 && L.remind.store.monthlyDue(options.today()) ? nudgeParts(actions) : null;
+    state.nudged = !!nudge;
     parts.sub.textContent = entry ? words.progress(state.index + 1, state.ids.length) : empty ? words.emptySub : words.doneSub;
     var content = entry ? itemView(entry, state, actions.run) : empty ? h('p', { class: 'migrate-empty', 'data-testid': 'migrate-empty' }, words.empty) : summaryView(state);
-    parts.body.replaceChildren.apply(parts.body, [].concat(content));
-    parts.dock.replaceChildren.apply(parts.dock, dockOf(entry, state, actions.keepAll, actions.close));
+    parts.body.replaceChildren.apply(parts.body, [].concat(content, nudge ? nudge.text : []));
+    parts.dock.replaceChildren.apply(parts.dock, nudge ? nudge.dock : dockOf(entry, state, actions.keepAll, actions.close));
+  }
+
+  /** The sheet closed by any route: a monthly-log nudge that was on screen is done for today. */
+  function closed(state, options) {
+    L.move.chooser.close();
+    if (state.nudged) L.remind.store.dismissMonthly(options.today());
   }
 
   /** Opens the sheet over the log. Returns the kit's handle, or null when another sheet is open. */
@@ -88,7 +109,12 @@
     var state = { ids: L.migrate.model.open(options.entries(), options.today()).map(function (entry) { return entry.id; }), index: 0, decisions: [], busy: false };
     var parts = shell();
     var sheet = null;
-    var actions = { run: null, keepAll: null, close: function () { sheet.close(); } };
+    var actions = {
+      run: null,
+      keepAll: null,
+      close: function () { sheet.close(); },
+      openMonth: function () { sheet.close(); options.onOpenMonth(); }
+    };
 
     /** One decided item: it is tallied and the next one is asked about. */
     function decided(decision) {
@@ -141,7 +167,7 @@
     };
 
     paint(parts, state, options, actions);
-    sheet = BujoNav.overlays.showSheet(parts.node, { onClose: L.move.chooser.close });
+    sheet = BujoNav.overlays.showSheet(parts.node, { onClose: function () { closed(state, options); } });
     return sheet;
   }
 

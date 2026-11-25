@@ -8,22 +8,28 @@
 
   var W = window.BujoWhatsNew = window.BujoWhatsNew || {};
 
-  /** Opens the sheet for some entries. Closing it stores the newest id of the whole catalog as seen. */
-  function present(all, shown, mode) {
+  /** Opens the sheet for some entries. Closing it stores the newest id of the whole catalog as seen, then runs after (if given). */
+  function present(all, shown, mode, after) {
     var latest = AppKit.whatsNew.latestId(all);
     return W.sheet.open({
       entries: shown,
       mode: mode,
-      onClose: function () { W.seen.remember(latest); }
+      onClose: function () {
+        W.seen.remember(latest);
+        if (typeof after === 'function') after();
+      }
     });
   }
 
-  /** On boot of the log: shows the entries newer than what this device and the account have seen, if there are any. */
-  function showUnseen() {
+  /** On boot of the log: shows the entries newer than what this device and the account have seen, if there are any.
+   * after runs once the sheet is closed, or at once when there is nothing to show (so a later prompt never sits on top of it). */
+  function showUnseen(after) {
     return W.catalog.load().then(function (all) {
       return W.seen.current(all).then(function (seen) {
         var fresh = AppKit.whatsNew.unseenEntries(all, seen);
-        return fresh.length ? present(all, fresh, 'unseen') : null;
+        var sheet = fresh.length ? present(all, fresh, 'unseen', after) : null;
+        if (!sheet && typeof after === 'function') after();
+        return sheet;
       });
     });
   }

@@ -756,7 +756,10 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .migrate-day,
 .migrate-title,
 .migrate-empty,
+.remind-text,
 .migrate-tally { margin: 0; padding: 0 16px 0 var(--text-col); }
+.remind-text { margin-top: 24px; color: var(--paper-ink); font: italic var(--text-weight) 18px/24px var(--font-text); }
+.sheet-remind .remind-text { margin-top: 0; }
 .migrate-day { color: var(--paper-muted); font: italic var(--text-weight) 16px/24px var(--font-text); }
 .migrate-title {
   margin-bottom: 24px;
