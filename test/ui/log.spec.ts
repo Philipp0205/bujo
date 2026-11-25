@@ -226,7 +226,11 @@ test("each entry is a borderless row: the symbol shares the title's line, the ta
   ]);
   await page.goto(app.baseUrl);
   await expect(row(page, "Winzig")).toBeVisible();
-
+  await expect(row(page, "Winzig").locator(".pill")).toHaveText(["Haushalt"]);
+  await expect(page.locator(".paper-row", { hasText: "Ein sehr langer" }).locator(".pill")).toHaveText(["Arbeit", "13:00"]);
+  // Row geometry depends on the font metrics: measure only once the fonts are in and the layout has settled.
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   const card = page.locator(".entry-card", { has: row(page, "Winzig") });
   await expect(card.locator(":scope > svg.ink-stroke")).toHaveCount(0);
   const short = row(page, "Winzig");

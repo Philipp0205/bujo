@@ -61,15 +61,24 @@ function dayUrl(offset: number): string {
 async function openDay(page: Page, offset: number): Promise<void> {
   await page.goto(dayUrl(offset));
   await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(offset));
+  // Let the quiet revalidation read land, so it cannot redraw the rows under a press.
+  await page.waitForLoadState("networkidle");
+}
+
+/** Freezes the page's timers. A press then lasts exactly as long as the test advances the clock, however slow the machine is. */
+async function freezeClock(page: Page): Promise<void> {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 60_000));
 }
 
 /** A long press with the mouse: scroll the row to the middle (clear of the tab bar), press, hold past the hold time, release. */
 async function hold(page: Page, title: string): Promise<void> {
   await row(page, title).evaluate((node) => node.scrollIntoView({ block: "center" }));
   const box = (await row(page, title).boundingBox())!;
+  await freezeClock(page);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(650);
+  await page.clock.runFor(650);
   await page.mouse.up();
 }
 
@@ -143,10 +152,11 @@ test("a press that moves too far is not a long press", async ({ page }) => {
   await seed(page, [{ date: day(-2), type: "task", title: "Verwischt" }]);
   await openDay(page, -2);
   const box = (await row(page, "Verwischt").boundingBox())!;
+  await freezeClock(page);
   await page.mouse.move(box.x + 40, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + 40, box.y + box.height / 2 + 30, { steps: 4 });
-  await page.waitForTimeout(650);
+  await page.clock.runFor(650);
   await page.mouse.up();
   await expect(bar(page)).toHaveCount(0);
 });
@@ -155,12 +165,14 @@ test("a touch long press selects too", async ({ page }) => {
   await seed(page, [{ date: day(-3), type: "task", title: "Mit dem Finger" }]);
   await openDay(page, -3);
   const target = row(page, "Mit dem Finger");
-  await target.evaluate((node) => {
+  await freezeClock(page);
+  const touch = (type: string) => target.evaluate((node, kind) => {
     const rect = node.getBoundingClientRect();
-    const init = { bubbles: true, pointerType: "touch", pointerId: 7, isPrimary: true, clientX: rect.x + 60, clientY: rect.y + 20 };
-    node.dispatchEvent(new PointerEvent("pointerdown", init));
-    window.setTimeout(() => node.dispatchEvent(new PointerEvent("pointerup", init)), 650);
-  });
+    node.dispatchEvent(new PointerEvent(kind, { bubbles: true, pointerType: "touch", pointerId: 7, isPrimary: true, clientX: rect.x + 60, clientY: rect.y + 20 }));
+  }, type);
+  await touch("pointerdown");
+  await page.clock.runFor(650);
+  await touch("pointerup");
   await expect(bar(page)).toBeVisible();
   await expect(page.getByTestId("select-count")).toHaveText("1 selected");
 });
