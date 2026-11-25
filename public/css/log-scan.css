@@ -531,7 +531,8 @@
 }
 .detail-form .ak-input[data-field="title"] { min-height: 48px; }
 
-.detail-form .note-copy { justify-self: start; margin: 24px 0 0 var(--text-col); }
+.detail-form .note-copy,
+.detail-form .note-rescan { justify-self: start; margin: 24px 0 0 var(--text-col); }
 
 /* The scan photo: a thumbnail on four paper lines under the markdown, and the full-size view over the page. */
 .detail-form .note-photo-field { margin-top: 24px; }

@@ -5,6 +5,7 @@ import { createTraceStore } from "../log/trace.ts";
 import { applyLogDraft } from "../log/scan/apply.ts";
 import { buildLogDraft, checkPlaced, pagesOf, startReview, type LogDraft } from "../log/scan/draft.ts";
 import { suggestNote } from "../log/scan/note.ts";
+import { matchNote } from "../log/scan/note-match.ts";
 import { pageReader, type SlotReader } from "../log/scan/plan.ts";
 import { storeReader } from "../log/scan/reader.ts";
 import { parseReview, placeReview, type SentReview } from "../log/scan/request.ts";
@@ -67,11 +68,13 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
 
 /** POST /api/log/scan/note: reads the photo, runs OCR and answers a suggested title, day and markdown. Keeps nothing, writes nothing. */
 async function scanNote(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
-  requireSession(ctx.who);
+  const session = requireSession(ctx.who);
   const { image, contentType } = await readPhoto(ctx.req);
   const fallbackDate = fallbackDay(ctx, deps.now());
   const ocr = await deps.ocr(image, contentType);
-  sendJson(ctx.res, 200, { note: suggestNote(ocr.lines, fallbackDate) });
+  const note = suggestNote(ocr.lines, fallbackDate);
+  const match = matchNote(note, createEntryStore(ctx.accounts.db).listNotes(session.user.id));
+  sendJson(ctx.res, 200, { note, match });
 }
 
 /** POST /api/log/scan/:id/kind: reads the page again as the kind the person picked and answers a fresh review. Edits made before are not carried over. */
@@ -119,8 +122,9 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *   POST /api/log/scan?date=&view=  raw image body. OCR, then a draft kept in memory (never the photo). Writes nothing. The page kind
  *                                   (daily, future, calendar or month-task) is found from the OCR lines, the LLM's word and the view
  *                                   (daily, future or month) the person had open.
- *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note. Keeps and writes
- *                                   nothing: the note is saved by the review through POST /api/entries.
+ *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note, and `match`: the
+ *                                   person's saved note this page most likely is (id, title, date, body), or null. Keeps and writes
+ *                                   nothing: the note is saved by the review through POST /api/entries (or PATCHed when updating).
  *   POST /api/log/scan/:id/kind     { kind }. Reads the page again as that kind and answers a fresh review. Writes nothing.
  *   POST /api/log/scan/:id/check    the review's kind, day or month, page and lines. Answers new, edited (with before and after) or unchanged
  *                                   per line, each against its own slot and the entries of that physical page (and those not on paper).

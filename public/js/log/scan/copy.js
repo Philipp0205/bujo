@@ -32,7 +32,13 @@
       reviewSub: 'Scanned just now',
       save: 'Save note',
       cancel: 'Cancel',
-      noText: 'No text was read from this page.'
+      noText: 'No text was read from this page.',
+      /** The row above the form when the scan looks like a saved note (or is a rescan of one): update it, or save a copy. */
+      matchGroup: 'Update or save as new',
+      matchLooks: function (title, day) { return 'Looks like your note \u201c' + title + '\u201d from ' + day + '.'; },
+      matchRescan: function (title, day) { return 'Scanning your note \u201c' + title + '\u201d from ' + day + ' again.'; },
+      matchUpdate: 'Update it',
+      matchNew: 'Save as new'
     },
     errors: {
       type: 'This file is not a JPEG, PNG, WebP or HEIC photo.',

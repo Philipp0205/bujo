@@ -31,10 +31,10 @@
     });
   }
 
-  /** Sends the photo of a free-note page. Resolves with the suggestion { title, date, dateFromPage, body }. Writes nothing. */
+  /** Sends the photo of a free-note page. Resolves with { note, match }: the suggestion { title, date, dateFromPage, body } and the saved note it most likely is (or null). Writes nothing. */
   function note(file, day) {
     return Bujo.upload('/api/log/scan/note?date=' + encodeURIComponent(day), file, { guarded: true }).then(function (body) {
-      return body.note;
+      return { note: body.note, match: body.match || null };
     });
   }
 

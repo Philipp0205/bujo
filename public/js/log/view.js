@@ -1,6 +1,6 @@
 /*
  * Render functions of the daily log: header, the entries of a day, ink cards. They build nodes and call back, they never fetch.
- * actions: open(entry), add(), toggleDone(entry), migrate(), and select { on(), ticked(entry), toggle(entry) } for select mode.
+ * actions: open(entry), add(), toggleDone(entry), migrate(), rescan(date), and select { on(), ticked(entry), toggle(entry) } for select mode.
  * Needs ak-dom.js, copy.js, dates.js, glyph.js, days.js, migrate/model.js, done/model.js, paper/recent.js and paper/view.js (the row mark and the header button).
  */
 (function () {
@@ -150,6 +150,12 @@
       h('span', { class: 'paper-migrate-text' }, L.copy.migrate.link));
   }
 
+  /** The quiet line under a page that is on paper: scans that page again, so its entries are updated instead of repeated. */
+  function rescanLink(onOpen) {
+    return h('button', { class: 'paper-migrate', type: 'button', 'data-action': 'rescan-page', 'data-testid': 'rescan-page', onclick: onOpen },
+      h('span', { class: 'paper-migrate-text' }, L.copy.paperPage.scanAgain));
+  }
+
   /** The quiet break where the next physical page of the day starts: a dashed ink line with the page number. It is a drawing only and takes no touches. */
   function pageBreak(page) {
     var text = L.copy.paperPage.break(page);
@@ -166,12 +172,15 @@
   function dayPage(date, entries, actions, today, review) {
     var waiting = date === today ? L.migrate.model.open(review || entries, today).length : 0;
     var picking = actions.select.on();
+    var dayEntries = L.days.dayEntries(entries, date);
+    var onPaper = dayEntries.some(function (entry) { return entry.onPaper; });
     return h('section', { class: 'paper-day-group', 'data-date': date },
       waiting && !picking ? migratePrompt(waiting, actions.migrate) : null,
-      L.days.cardsOf(L.days.dayEntries(entries, date)).map(function (card) { return dayCard(card, actions, today); }),
+      L.days.cardsOf(dayEntries).map(function (card) { return dayCard(card, actions, today); }),
       traceList(L.days.tracesOf(entries, 'day', date)),
       picking ? null : addRow(actions.add),
-      picking ? null : migrateLink(actions.migrate));
+      picking ? null : migrateLink(actions.migrate),
+      picking || !onPaper ? null : rescanLink(function () { actions.rescan(date); }));
   }
 
   /** The quiet line above the days while the device is offline. */
