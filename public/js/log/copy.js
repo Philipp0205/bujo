@@ -209,6 +209,7 @@
       failed: 'Could not load the list. Try again.',
       copyAll: 'Copy all',
       written: 'Mark as written',
+      migrate: 'Migrate earlier tasks',
       writtenFailed: 'Could not mark it. Try again.'
     },
     select: {

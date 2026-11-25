@@ -1,6 +1,6 @@
 /*
  * Render functions of the "not on paper" list: the sheet, a day or a month with its rows, a row with its "Mark as written" button.
- * They build nodes and call back, they never fetch. Needs ak-dom.js, copy.js, dates.js, days.js, glyph.js and paper/model.js.
+ * They build nodes and call back, they never fetch. Needs ak-dom.js, copy.js, dates.js, days.js, glyph.js, paper/model.js, migrate/model.js and migrate/choices.js.
  */
 (function () {
   'use strict';
@@ -16,24 +16,31 @@
     return items.length ? h('span', { class: 'paper-meta' }, words) : null;
   }
 
-  /** One entry: its symbol, title and inked words, and the button that says it is written down now. */
-  function row(entry, onWritten) {
+  /** The choices of a row that can be migrated (an open task of an earlier day: the review's own rule), else nothing. */
+  function choices(entry, handlers) {
+    if (!L.migrate.model.reviewable(entry, handlers.today)) return null;
+    return L.migrate.choices.view(handlers.busy, function (action) { handlers.decide(entry, action); });
+  }
+
+  /** One entry: its symbol, title and inked words, the migration choices when it has them, and the button that says it is written down now. */
+  function row(entry, handlers) {
     return h('div', { class: 'todo-row', 'data-id': entry.id, 'data-type': entry.type, 'data-testid': 'not-on-paper-row' },
       h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[entry.type] }, L.glyph.typeGlyph(entry.type)),
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
         pills(entry),
-        h('button', { class: 'todo-written', type: 'button', 'data-action': 'mark-written', onclick: function () { onWritten(entry); } }, L.copy.paper.written)));
+        choices(entry, handlers),
+        h('button', { class: 'todo-written', type: 'button', 'data-action': 'mark-written', onclick: function () { handlers.written(entry); } }, L.copy.paper.written)));
   }
 
   /** A day or a month: its heading and its rows. A month group is headed by the month name. */
-  function day(group, onWritten) {
+  function day(group, handlers) {
     var head = group.month
       ? h('h3', { class: 'todo-day-head', 'data-testid': 'not-on-paper-month' }, L.copy.horizon.monthName(group.date.slice(0, 7)))
       : h('h3', { class: 'todo-day-head', 'data-testid': 'not-on-paper-day' }, L.dates.dayHeading(group.date));
     return h('section', { class: 'todo-day', 'data-date': group.date, 'data-horizon': group.month ? 'month' : 'day' },
       head,
-      group.entries.map(function (entry) { return row(entry, onWritten); }));
+      group.entries.map(function (entry) { return row(entry, handlers); }));
   }
 
   /** A quiet line: the loading note, the failure, or "Everything is on paper." */
@@ -50,12 +57,12 @@
         h('button', { class: 'todo-offer-dismiss', type: 'button', 'data-testid': 'scan-offer-dismiss', onclick: actions.onDismiss }, L.copy.paper.offerDismiss)));
   }
 
-  /** What the scroll area shows for a status: the days with their rows, or a note (with the scan offer when asked for). */
-  function content(state, onWritten, offerActions) {
+  /** What the scroll area shows for a status: the days with their rows, or a note (with the scan offer when asked for). handlers: today, busy, written(entry), decide(entry, action). */
+  function content(state, handlers) {
     if (state.status === 'loading') return note(L.copy.loading, 'loading');
     if (state.status === 'error') return note(L.copy.paper.failed, 'error');
-    if (!state.entries.length) return [note(L.copy.paper.empty, 'empty'), state.offer ? offer(offerActions) : null].filter(Boolean);
-    return L.paper.model.groups(state.entries).map(function (group) { return day(group, onWritten); });
+    if (!state.entries.length) return [note(L.copy.paper.empty, 'empty'), state.offer ? offer(state.offerActions) : null].filter(Boolean);
+    return L.paper.model.groups(state.entries).map(function (group) { return day(group, handlers); });
   }
 
   /** The line under the sheet title: how many entries are left to write down. */
@@ -63,12 +70,13 @@
     return state.status === 'ready' && state.entries.length ? L.copy.paper.sub(state.entries.length) : L.copy.paper.subEmpty;
   }
 
-  /** The sheet node with the parts the controller redraws: the sub line, the scroll slot and the Copy all button. */
-  function shell(onCopyAll) {
+  /** The sheet node with the parts the controller redraws: the sub line, the scroll slot, the Copy all and the Migrate buttons. */
+  function shell(onCopyAll, onMigrate) {
     var parts = {
       sub: h('p', { class: 'sheet-sub', 'data-testid': 'not-on-paper-sub' }),
       slot: h('div', { class: 'todo-list', 'data-testid': 'not-on-paper-list' }),
-      copy: h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-testid': 'copy-all', onclick: onCopyAll }, L.copy.paper.copyAll)
+      copy: h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-testid': 'copy-all', onclick: onCopyAll }, L.copy.paper.copyAll),
+      migrate: h('button', { class: 'ak-btn', type: 'button', hidden: true, 'data-testid': 'not-on-paper-migrate', onclick: onMigrate }, L.copy.paper.migrate)
     };
     parts.node = h('div', {
       class: 'ak-sheet todo-sheet sheet-entry sheet-scan',
@@ -79,7 +87,7 @@
         h('h2', { class: 'sheet-title', id: 'todo-heading' }, L.copy.paper.heading),
         parts.sub),
       h('div', { class: 'ak-sheet-scroll' }, parts.slot),
-      h('div', { class: 'ak-sheet-dock' }, parts.copy));
+      h('div', { class: 'ak-sheet-dock' }, parts.copy, parts.migrate));
     return parts;
   }
 

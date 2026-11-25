@@ -447,7 +447,7 @@
   /** Opens the "not on paper" list. Marking an entry as written reads the log again, so its row mark goes. */
   function openPaperList() {
     L.inline.editor.settle(function () {
-      L.paper.sheet.open({ today: state.today, onCount: L.paper.count.set, onScan: startScan, onChanged: function () { load(true, 'plain'); } });
+      L.paper.sheet.open({ today: state.today, onCount: L.paper.count.set, onScan: startScan, onChanged: function () { load(true, 'plain'); }, onMigrate: openMigrate });
     });
   }
 

@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 type Item = { id: string; date: string; type: string; horizon?: string; position: number; createdAt: number; isTrace?: boolean };
 type Api = {
-  migrate: { model: { open: (entries: Item[], today: string) => Item[]; tally: (decisions: string[]) => { kept: number; scheduled: number; dropped: number } } };
+  migrate: { model: { reviewable: (entry: Item, today: string) => boolean; open: (entries: Item[], today: string) => Item[]; tally: (decisions: string[]) => { kept: number; scheduled: number; dropped: number } } };
 };
 
 /** The pure scripts, loaded the way a page loads them: each one hangs itself on window.BujoLog. */
@@ -50,6 +50,15 @@ test("done, notes, events, moved, scheduled and dropped marks, traces, calendar 
     item("legacy", earlier, { horizon: undefined }),
   ];
   assert.deepEqual(ids(M.open(list, TODAY)), ["legacy"]);
+});
+
+test("reviewable is the rule both sheets share: an open daily task of an earlier day, nothing else", () => {
+  assert.equal(M.reviewable(item("a", "2026-11-22"), TODAY), true);
+  assert.equal(M.reviewable(item("today", TODAY), TODAY), false);
+  assert.equal(M.reviewable(item("future", "2026-11-25"), TODAY), false);
+  assert.equal(M.reviewable(item("note", "2026-11-22", { type: "note" }), TODAY), false);
+  assert.equal(M.reviewable(item("month", "2026-11-30", { horizon: "month-task" }), TODAY), false);
+  assert.equal(M.reviewable(item("trace", "2026-11-22", { isTrace: true }), TODAY), false);
 });
 
 test("tally counts kept, scheduled and dropped", () => {

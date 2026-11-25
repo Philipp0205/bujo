@@ -770,6 +770,7 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
   font-synthesis: none;
 }
 .migrate-empty { color: var(--paper-muted); font: italic var(--text-weight) 18px/24px var(--font-text); }
+.migrate-title .paper-off { display: inline-flex; vertical-align: middle; height: 24px; }
 .migrate-tally { list-style: none; font-size: 20px; line-height: 48px; }
 .migrate-choices { display: flex; flex-direction: column; gap: 8px; padding: 0 0 0 var(--text-col); }
 .migrate-choice {
