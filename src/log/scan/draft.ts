@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { OcrResult } from "../../scan/ocr-client.ts";
 import type { ScanEntry } from "../types.ts";
+import { continuedDay } from "./continue.ts";
 import { detectKind, type Detected } from "./kind.ts";
 import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
 import { pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
@@ -20,6 +21,8 @@ export type LogDraft = {
   expires: number;
   /** The day to use when the page names none: the day picked in the log, else today. */
   fallbackDate: string;
+  /** True when the request named the day on purpose (a rescan of a day page): a page with no date is never taken as a continuation. */
+  pinned: boolean;
   image: { width: number; height: number };
   /** The OCR lines in page order. Line ids are l1, l2, ... by position here, whatever the kind. */
   page: PageLine[];
@@ -59,6 +62,8 @@ export type Review = {
   /** The date the page header named, or null. The review words its date row from these two. */
   pageDate: string | null;
   fallbackDate: string;
+  /** The earlier day this page continues (it names no date and that day already has paper), else null. Then `date` is that day. */
+  continues: string | null;
   /** The month (YYYY-MM) of a calendar or month-task page, else null. */
   month: string | null;
   /** The physical page of the day this scan is taken for: a rescan of the page its lines match, else the next new page. Only a daily page has a choice. */
@@ -71,6 +76,8 @@ export type Review = {
 export type DraftInput = {
   ocr: OcrResult;
   fallbackDate: string;
+  /** The day was named on purpose, so no continuation is looked for. Left out means false. */
+  pinned?: boolean;
   now: number;
   ttlMs: number;
   /** The log view open when scanning. Left out means none. */
@@ -86,6 +93,7 @@ export function buildLogDraft(input: DraftInput): LogDraft {
     created: input.now,
     expires: input.now + input.ttlMs,
     fallbackDate: input.fallbackDate,
+    pinned: input.pinned ?? false,
     image: { width: input.ocr.width, height: input.ocr.height },
     page,
     llm: { kind: input.ocr.kind ?? null, period: input.ocr.period ?? null },
@@ -157,7 +165,8 @@ function pageChoice(kind: PageKind, date: string, placed: readonly Placed[], rea
 /** The review a draft starts with for one kind (the detected one unless the person picked another). `reader` gives each slot's entries. */
 export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind = draft.detected.kind): Review {
   const parsed = parsePage(draft.page, draft.fallbackDate, kind, draft.llm.period);
-  const date = parsed.pageDate ?? draft.fallbackDate;
+  const continues = kind === "daily" && parsed.pageDate === null && !draft.pinned ? continuedDay(draft.fallbackDate, reader) : null;
+  const date = parsed.pageDate ?? continues ?? draft.fallbackDate;
   const where: Where = { kind, date, month: parsed.month };
   const placed = parsed.lines.map((line) => ({ line, slot: slotOf(where, line) }));
   const { page, pages } = pageChoice(kind, date, placed, reader);
@@ -170,6 +179,7 @@ export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind 
     date,
     pageDate: parsed.pageDate,
     fallbackDate: draft.fallbackDate,
+    continues,
     month: parsed.month,
     page,
     pages,

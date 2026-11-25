@@ -16,9 +16,10 @@
     return '/api/log/scan/' + encodeURIComponent(id) + '/' + step;
   }
 
-  /** Sends the photo. day is the day open in the log: the date to use when the page names none. view ('daily', 'future' or 'month') is the open log view, a hint for the page kind. */
-  function scan(file, day, view) {
-    var query = '?date=' + encodeURIComponent(day) + (view ? '&view=' + encodeURIComponent(view) : '');
+  /** Sends the photo. day is the day open in the log: the date to use when the page names none. view ('daily', 'future' or 'month') is the open log view, a hint for the page kind.
+   * pinned says the day was named on purpose (a rescan of a day), so a page with no date is never taken as the continuation of an earlier day. */
+  function scan(file, day, view, pinned) {
+    var query = '?date=' + encodeURIComponent(day) + (view ? '&view=' + encodeURIComponent(view) : '') + (pinned ? '&pinned=1' : '');
     return Bujo.upload('/api/log/scan' + query, file, { guarded: true }).then(function (body) {
       return body.draft;
     });

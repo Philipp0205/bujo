@@ -108,7 +108,8 @@
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
-      dateSource: draft.pageDate ? 'page' : 'fallback',
+      continues: draft.continues || null,
+      dateSource: draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback'),
       month: draft.month || monthOfDate(draft.fallbackDate),
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
@@ -119,11 +120,12 @@
   /** The most pages one day may have (the server's limit). */
   var MAX_PAGE = 20;
 
-  /** The page choices of a daily review: every page the day has paper for, then the next new one. None while the day has no paper yet. */
+  /** The page choices of a daily review: pages 1 to 3, every page the day has paper for, the next new one and the chosen page, unique and sorted. */
   function pageOptions(state) {
-    if (!state.pages.length) return [];
-    var next = state.pages[state.pages.length - 1] + 1;
-    return state.pages.concat(next <= MAX_PAGE ? [next] : []).map(function (page) { return { page: page }; });
+    var last = state.pages.length ? state.pages[state.pages.length - 1] + 1 : 0;
+    var all = [1, 2, 3, last, state.page].concat(state.pages).filter(function (page) { return page >= 1 && page <= MAX_PAGE; });
+    return all.filter(function (page, at) { return all.indexOf(page) === at; })
+      .sort(function (a, b) { return a - b; }).map(function (page) { return { page: page }; });
   }
 
   /** Sets the physical page the photo shows. */
@@ -141,11 +143,11 @@
     return kind === 'daily' || kind === 'calendar';
   }
 
-  /** Sets the day. The note under it says where it came from: the page, the fallback, or the person. Another day starts on page 1 again (the check then says which pages it has). */
+  /** Sets the day. The note under it says where it came from: the page, the day it continues, the fallback, or the person. The page number is kept (the check then says which pages the new day has). */
   function setDate(state, date) {
     state.date = date;
-    state.page = 1;
     if (date === state.pageDate) state.dateSource = 'page';
+    else if (!state.pageDate && state.continues && date === state.continues) state.dateSource = 'continues';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';
   }

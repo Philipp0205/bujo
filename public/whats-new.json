@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-25-multipage-day",
+    "date": "2026-11-25",
+    "title": "A day can span several pages",
+    "bullets": [
+      "A scanned page with no date continues the latest day you scanned.",
+      "The review says which day it continues.",
+      "Pick which page of the day it is: page 1, 2, 3 or more.",
+      "Entries follow that page order on the day.",
+      "Tap Use today instead to file it on today."
+    ]
+  },
+  {
     "id": "2026-11-25-scan-review-tidy",
     "date": "2026-11-25",
     "title": "Tidier scan review",

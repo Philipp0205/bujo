@@ -142,7 +142,7 @@
 
   /** Scans the page of one day again: the page's day is the fallback day, so a photo with no printed date files on it and matches its entries. */
   function rescanDay(date) {
-    L.scan.flow.start({ day: date, view: 'daily', onApplied: applied, autoCapture: true });
+    L.scan.flow.start({ day: date, view: 'daily', pinned: true, onApplied: applied, autoCapture: true });
   }
 
   /** Scans a saved note again: the camera opens in note mode and the review offers to update that note. */

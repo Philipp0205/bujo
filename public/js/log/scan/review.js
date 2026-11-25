@@ -181,11 +181,17 @@
     });
     var node = h('label', { class: 'scan-date' }, L.glyph.use('g-scan-page', { viewBox: '0 0 40 52', width: 40, height: 52 }),
       h('span', { class: 'scan-date-text' }, day, source), input);
+    var today = h('button', { class: 'scan-continue-today', type: 'button', 'data-testid': 'scan-continue-today', onclick: function () {
+      L.scan.model.setDate(state, state.fallbackDate);
+      onPick();
+    } }, copy.useToday);
     return {
-      node: node,
+      node: h('div', { class: 'scan-date-block' }, node, today),
       refresh: function () {
+        var texts = { page: copy.dateFromPage, fallback: copy.dateFallback, picked: copy.datePicked };
         day.textContent = L.dates.dayHeading(state.date);
-        source.textContent = { page: copy.dateFromPage, fallback: copy.dateFallback, picked: copy.datePicked }[state.dateSource];
+        source.textContent = state.dateSource === 'continues' ? copy.dateContinues(L.dates.dayHeading(state.continues)) : texts[state.dateSource];
+        today.hidden = state.dateSource !== 'continues';
         input.value = state.date;
       }
     };
