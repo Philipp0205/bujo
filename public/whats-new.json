@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-not-on-paper-migration",
+    "date": "2026-11-25",
+    "title": "Migrate from Not on paper",
+    "bullets": [
+      "Earlier open tasks in Not on paper can now be kept, scheduled or dropped, like in the migration review.",
+      "The migration review shows a page mark on tasks that are not on paper yet."
+    ]
+  },
+  {
     "id": "2026-11-25-page-index",
     "date": "2026-11-25",
     "title": "Notebook page numbers and an index",
@@ -172,7 +181,6 @@
     "title": "Add a task to a note",
     "bullets": [
       "Press and hold a task's dot in the log and tap Note to add the task as a new line at the end of a note. The task then leaves the log."
-
     ]
   },
   {

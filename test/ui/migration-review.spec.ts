@@ -271,6 +271,22 @@ test("an open task 30 days old is in the quiet prompt and the review, and Keep m
   await expect(prompt(page)).toHaveCount(0);
 });
 
+test("the review marks a task that is not on paper yet with the page mark, and a written one has none", async ({ page }) => {
+  const first = await seed(page, { date: day(-3), title: "Schon notiert" });
+  await seed(page, { date: day(-2), title: "Noch nicht notiert" });
+  expect((await page.request.post(`${app.baseUrl}/api/entries/${first}/written`)).status()).toBe(200);
+
+  await openLog(page);
+  await prompt(page).click();
+  await expect(item(page)).toHaveText("Schon notiert");
+  await expect(page.getByTestId("migrate-sub")).toHaveText("Task 1 of 2");
+  await expect(item(page).getByTestId("not-on-paper-mark")).toHaveCount(0);
+  await act(page, "drop").click();
+  await expect(item(page)).toHaveText("Noch nicht notiert");
+  await expect(item(page).getByTestId("not-on-paper-mark")).toHaveCount(1);
+  await expect(item(page).getByTestId("not-on-paper-mark")).toHaveAttribute("aria-label", "Not on paper yet");
+});
+
 test("old tasks that are done, scheduled, dropped, migrated or moved into a note are not offered", async ({ page }) => {
   await seed(page, { date: day(-30), title: "Noch offen" });
   await seed(page, { date: day(-30), title: "Alt erledigt", type: "done" });

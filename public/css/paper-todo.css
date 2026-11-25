@@ -55,8 +55,18 @@
 .todo-sheet .ak-sheet-dock {
   flex-shrink: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+.todo-sheet .ak-sheet-dock [hidden] { display: none; }
 .todo-list { margin: 0; }
+
+/* The migration choices of a row are the review's buttons, three in a line with the glyph above the word (the hint stays for the review). */
+.todo-row .migrate-choices { flex-direction: row; gap: 8px; padding: 8px 0 4px; }
+.todo-row .migrate-choice { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: 4px; padding: 6px 4px; text-align: center; }
+.todo-row .migrate-choice-text { align-items: center; }
+.todo-row .migrate-choice-hint { display: none; }
 
 .todo-day { margin: 0 0 8px; }
 .todo-day-head {

@@ -253,6 +253,102 @@ test("Back closes the list and stays in the app", async ({ page }) => {
   await expect(page.locator("#log")).toBeVisible();
 });
 
+const choice = (page: Page, title: string, name: "keep" | "schedule" | "drop") => listed(page).filter({ hasText: title }).getByTestId(`migrate-${name}`);
+const migrateButton = (page: Page) => sheet(page).getByTestId("not-on-paper-migrate");
+
+/** The entries and the traces, as the API holds them now. */
+async function stored(page: Page): Promise<{ entries: Array<{ id: string; date: string; type: string; title: string }>; traces: Array<{ entryId: string; date: string; kind: string }> }> {
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-30)}&to=${day(70)}&traces=1`);
+  return response.json();
+}
+
+const MIXED: Seed[] = [
+  { date: day(-3), type: "task", title: "Vorgestern offen" },
+  { date: day(-3), type: "note", title: "Notiz alt" },
+  { date: day(-3), type: "done", title: "Erledigt alt" },
+  { date: day(0), type: "task", title: "Heute offen" },
+  { date: day(2), type: "task", title: "Bald offen" },
+];
+
+test("only an open task of an earlier day shows Keep, Schedule and Drop; today, future, notes and done lines keep Mark as written alone", async ({ page }) => {
+  await seed(page, MIXED);
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await expect(choice(page, "Vorgestern offen", "keep")).toBeVisible();
+  await expect(choice(page, "Vorgestern offen", "schedule")).toBeVisible();
+  await expect(choice(page, "Vorgestern offen", "drop")).toBeVisible();
+  await expect(sheet(page).getByTestId("migrate-keep")).toHaveCount(1);
+  for (const title of ["Notiz alt", "Heute offen", "Bald offen"]) {
+    await expect(listed(page).filter({ hasText: title }).getByTestId("migrate-keep")).toHaveCount(0);
+    await expect(listed(page).filter({ hasText: title }).getByRole("button", { name: "Mark as written" })).toBeVisible();
+  }
+  await expect(sheet(page)).not.toContainText("Erledigt alt");
+});
+
+test("Keep moves an earlier task to today, leaves a trace on its old day and the row follows to today without controls", async ({ page }) => {
+  const ids = await seed(page, MIXED);
+  await page.goto(app.baseUrl);
+  await expect(open(page)).toHaveText("Not on paper 4");
+  await open(page).click();
+  await choice(page, "Vorgestern offen", "keep").click();
+  await expect(sheet(page).getByTestId("migrate-keep")).toHaveCount(0);
+  // Moving clears the page provenance, so it is still to be written on today's page: the count is the same, the row sits on today.
+  await expect(sheet(page).locator(`section[data-date="${day(0)}"] [data-id="${ids["Vorgestern offen"]}"]`)).toHaveCount(1);
+  await expect(open(page)).toHaveText("Not on paper 4");
+  await expect(migrateButton(page)).toBeHidden();
+  const held = await stored(page);
+  expect(held.entries.find((entry) => entry.title === "Vorgestern offen")).toMatchObject({ date: day(0), type: "task" });
+  expect(held.traces).toEqual([expect.objectContaining({ entryId: ids["Vorgestern offen"], date: day(-3), kind: "migrated" })]);
+});
+
+test("Drop strikes an earlier task out and takes its controls away", async ({ page }) => {
+  const ids = await seed(page, MIXED);
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await choice(page, "Vorgestern offen", "drop").click();
+  await expect(sheet(page).getByTestId("migrate-keep")).toHaveCount(0);
+  const held = await stored(page);
+  expect(held.entries.find((entry) => entry.id === ids["Vorgestern offen"])).toMatchObject({ date: day(-3), type: "dropped" });
+  await expect(migrateButton(page)).toBeHidden();
+});
+
+test("Schedule opens the move chooser; a pick files the task and its row leaves the earlier day", async ({ page }) => {
+  const ids = await seed(page, MIXED);
+  const future = (() => {
+    const date = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  })();
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await choice(page, "Vorgestern offen", "schedule").click();
+  await expect(page.getByTestId("move-chooser")).toHaveAttribute("data-kind", "schedule");
+  await page.getByTestId("move-chooser").locator(`[data-dest="month:${future}"]`).click();
+  await expect(page.getByTestId("move-chooser")).toHaveCount(0);
+  await expect(sheet(page).locator(`section[data-date="${day(-3)}"] [data-id="${ids["Vorgestern offen"]}"]`)).toHaveCount(0);
+  const held = await stored(page);
+  expect(held.entries.find((entry) => entry.title === "Vorgestern offen")).toMatchObject({ type: "task" });
+  expect(held.entries.find((entry) => entry.title === "Vorgestern offen")?.date).not.toBe(day(-3));
+});
+
+test("the Migrate button shows only while an earlier open task is listed, and opens the review", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "task", title: "Heute offen" }, { date: day(-3), type: "note", title: "Notiz alt" }]);
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await expect(listed(page)).toHaveCount(2);
+  await expect(migrateButton(page)).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+
+  await seed(page, [{ date: day(-3), type: "task", title: "Vorgestern offen" }]);
+  await page.reload();
+  await open(page).click();
+  await expect(migrateButton(page)).toBeVisible();
+  await migrateButton(page).click();
+  await expect(page.getByTestId("migrate-review")).toBeVisible();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(page.getByTestId("migrate-item")).toHaveText("Vorgestern offen");
+});
+
 test("a done entry is not counted, listed or marked; the same task is", async ({ page }) => {
   await seed(page, [
     { date: day(0), type: "done", title: "Schon erledigt" },

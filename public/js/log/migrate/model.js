@@ -28,5 +28,5 @@
     return count;
   }
 
-  L.migrate.model = { open: open, tally: tally };
+  L.migrate.model = { reviewable: reviewable, open: open, tally: tally };
 })();
