@@ -80,36 +80,53 @@ test("a save from the details sheet that leaves the marker alone keeps it", asyn
   expect(await importantOf(page, "Bleibt wichtig 2")).toBe(true);
 });
 
-test("scan review: the marker turns on and off on a line, Apply saves it, and an untouched line without * keeps an important entry", async ({ page }) => {
+test("scan review: no important control, the page's * still shows and saves, and a matched important entry stays important", async ({ page }) => {
   await seed(page, "Bleibt", true);
-  await seed(page, "Wird aus", true);
-  app.ocr.setLines([header(), line("x", "Bleibt"), line("x", "Wird aus"), line("•", "Neu an"), line("•", "* Neu aus")]);
+  await seed(page, "Wird erledigt", true);
+  app.ocr.setLines([header(), line("•", "Bleibt"), line("x", "Wird erledigt"), line("•", "* Neu wichtig"), line("•", "Neu normal")]);
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
 
   const rows = review(page).locator(".scan-row");
   await expect(rows).toHaveCount(4);
-  const toggleOf = (n: number) => rows.nth(n).getByTestId("scan-important");
+  await expect(review(page).getByTestId("scan-important")).toHaveCount(0);
+  await expect(review(page).locator(".scan-important")).toHaveCount(0);
   const starOf = (n: number) => rows.nth(n).getByTestId("scan-star");
-  await expect(toggleOf(0)).toHaveAttribute("aria-pressed", "false");
-  await expect(toggleOf(3)).toHaveAttribute("aria-pressed", "true");
-  await expect(starOf(3)).toBeVisible();
-
-  // The paper has no * on "Wird aus": on, then off, is an explicit off. "Bleibt" is never touched.
-  await toggleOf(1).click();
-  await expect(starOf(1)).toBeVisible();
-  await toggleOf(1).click();
-  await expect(toggleOf(1)).toHaveAttribute("aria-pressed", "false");
-  await toggleOf(2).click();
   await expect(starOf(2)).toBeVisible();
-  await toggleOf(3).click();
   await expect(starOf(3)).toBeHidden();
 
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toBeHidden();
-  await expect.poll(() => importantOf(page, "Neu aus")).toBe(false);
+  await expect.poll(() => importantOf(page, "Neu wichtig")).toBe(true);
+  expect(await importantOf(page, "Neu normal")).toBe(false);
   expect(await importantOf(page, "Bleibt")).toBe(true);
-  expect(await importantOf(page, "Wird aus")).toBe(false);
-  expect(await importantOf(page, "Neu an")).toBe(true);
+  expect(await importantOf(page, "Wird erledigt")).toBe(true);
 });
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`scan review: a matched line's note is in paper ink, not muted (${scheme})`, async ({ page }) => {
+    await seed(page, "Schon da", false);
+    await page.emulateMedia({ colorScheme: scheme });
+    app.ocr.setLines([header(), line("•", "Schon da"), line("•", "Ganz neu")]);
+    await page.goto(app.baseUrl);
+    await (await openScan(page)).setFiles(photo);
+    await expect(review(page)).toBeVisible();
+
+    const note = review(page).locator(".scan-row[data-match=matched] .scan-match");
+    await expect(note).toBeVisible();
+    const colors = await note.evaluate((el) => {
+      const probe = (token: string) => {
+        const span = document.createElement("span");
+        span.style.color = `var(${token})`;
+        el.parentElement!.append(span);
+        const value = getComputedStyle(span).color;
+        span.remove();
+        return value;
+      };
+      return { own: getComputedStyle(el).color, ink: probe("--paper-ink"), muted: probe("--paper-muted") };
+    });
+    expect(colors.own).toBe(colors.ink);
+    expect(colors.own).not.toBe(colors.muted);
+  });
+}
