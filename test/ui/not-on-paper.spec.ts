@@ -102,6 +102,50 @@ test("the header button shows the count, reaching past the log window, and hides
   await expect(open(page)).toBeHidden();
 });
 
+const offer = (page: Page) => sheet(page).getByTestId("scan-offer");
+
+/** Opens the list with one entry and marks it as written, so the sheet is empty by the person's hand. */
+async function writeLast(page: Page) {
+  await seed(page, [{ date: day(0), type: "task", title: "Einzige" }]);
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await sheet(page).getByRole("button", { name: "Mark as written" }).click();
+  await expect(listed(page)).toHaveCount(0);
+}
+
+test("marking the last entry as written offers a scan and does not start one", async ({ page }) => {
+  await writeLast(page);
+  await expect(sheet(page).getByText("Everything is on paper.")).toBeVisible();
+  await expect(offer(page).getByTestId("scan-offer-prompt")).toBeVisible();
+  await expect(offer(page).getByTestId("scan-offer-scan")).toBeVisible();
+  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+});
+
+test("Scan in the offer closes the list and opens the scan screen", async ({ page }) => {
+  await writeLast(page);
+  await Promise.all([page.waitForEvent("filechooser"), offer(page).getByTestId("scan-offer-scan").click()]);
+  await expect(page.getByTestId("scan-screen")).toBeVisible();
+  await expect(sheet(page)).toHaveCount(0);
+});
+
+test("Not now closes the list without a scan and the header button stays hidden", async ({ page }) => {
+  await writeLast(page);
+  await offer(page).getByTestId("scan-offer-dismiss").click();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(page.getByTestId("scan-screen")).toHaveCount(0);
+  await expect(page.locator("#log")).toBeVisible();
+  await expect(open(page)).toBeHidden();
+});
+
+test("marking one of several entries shows no offer yet", async ({ page }) => {
+  await seed(page, [{ date: day(0), type: "task", title: "Eins" }, { date: day(0), type: "task", title: "Zwei" }]);
+  await page.goto(app.baseUrl);
+  await open(page).click();
+  await sheet(page).getByRole("button", { name: "Mark as written" }).first().click();
+  await expect(listed(page)).toHaveCount(1);
+  await expect(offer(page)).toHaveCount(0);
+});
+
 test("an entry older than 14 days is not counted or listed; 14 days back still is", async ({ page }) => {
   await seed(page, [
     { date: day(-15), type: "task", title: "Zu alt" },
