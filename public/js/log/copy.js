@@ -127,6 +127,20 @@
       scheduled: function (count) { return count + ' scheduled'; },
       dropped: function (count) { return count + ' dropped'; }
     },
+    remind: {
+      monthly: {
+        text: 'Migration is done. Take a look at the monthly log too.',
+        open: 'Open the monthly log',
+        later: 'Not now'
+      },
+      future: {
+        title: 'A new month',
+        sub: 'First open this month',
+        text: 'Take a moment to check the future log.',
+        open: 'Open the future log',
+        later: 'Not now'
+      }
+    },
     sync: {
       local: 'Not synced',
       pending: 'Waiting to sync',

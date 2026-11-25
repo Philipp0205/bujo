@@ -38,9 +38,17 @@
     select: L.select.mode
   };
 
-  /** Opens the migration review of the open tasks from earlier days. */
+  /** Opens the migration review of the open tasks from earlier days. Its monthly-log nudge opens the Month view once the sheet is closed. */
   function openMigrate() {
-    L.migrate.sheet.open({ entries: reviewEntries, today: host.today });
+    L.migrate.sheet.open({ entries: reviewEntries, today: host.today, onOpenMonth: function () { switchView('month'); } });
+  }
+
+  /** The future-log nudge, once a month: asked for after the what's-new sheet (a timer lets that sheet finish closing). Not while typing. */
+  function remindFuture() {
+    window.setTimeout(function () {
+      if (L.inline.editor.line()) return;
+      L.remind.future.maybeShow({ today: function () { return state.today; }, onOpenFuture: function () { switchView('future'); } });
+    }, 0);
   }
 
   /** The entries the review and its prompt read: the days on screen, plus the open tasks of older days the store reported (any age). */
@@ -648,7 +656,7 @@
     // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.
     if (ctx.scan || scanFromLink()) startScan();
     else if (ctx.add) addFromTab();
-    else if (!linked) BujoWhatsNew.boot.showUnseen();
+    else if (!linked) BujoWhatsNew.boot.showUnseen(remindFuture);
   }
 
   /** The router shows the log (the first time, or again from another tab): boots once, then reads the rows again quietly. */
@@ -658,6 +666,7 @@
     syncAddress();
     if (ctx.scan) startScan();
     else if (ctx.add) addFromTab();
+    else remindFuture();
     load(true, 'cache').then(recount);
   }
 
