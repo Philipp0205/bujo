@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-calendar-past",
+    "date": "2026-11-25",
+    "title": "Past events start unticked in a scan",
+    "bullets": [
+      "On a monthly log or future log scan, lines dated before today start unticked.",
+      "They show a small past mark, and you can still tick one to keep it."
+    ]
+  },
+  {
     "id": "2026-11-25-apply-refresh",
     "date": "2026-11-25",
     "title": "The daily log updates after you apply a scan",

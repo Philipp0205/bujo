@@ -131,6 +131,7 @@
   /** One line of the page as an editable row. Returns its node and a refresh that redraws the changing parts. hooks.showUnchanged() says whether unchanged rows are open. */
   function row(state, item, hooks) {
     var meta = h('span', { class: 'scan-meta' });
+    var past = h('span', { class: 'scan-past', 'data-testid': 'scan-past', role: 'note', 'aria-label': L.copy.scan.review.pastLabel }, L.copy.scan.review.past);
     var was = h('div', { class: 'scan-was', 'data-role': 'was' });
     var matched = h('div', { class: 'scan-match', 'data-role': 'match' });
     var unmatch = matchToggle(item, function () { hooks.changed(true); });
@@ -142,7 +143,7 @@
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, tag), matched, unmatch.node, nest.node, place.node),
+      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, past, tag), matched, unmatch.node, nest.node, place.node),
       keep.node);
 
     function refresh() {
@@ -159,6 +160,7 @@
       matched.textContent = text;
       unmatch.show(text !== '');
       meta.textContent = metaText(item);
+      past.hidden = !L.scan.model.isPast(item);
       picker.show();
       nest.show();
       place.show();

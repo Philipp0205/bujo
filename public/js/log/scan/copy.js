@@ -87,6 +87,9 @@
       tag: 'tag',
       checkSpelling: 'check spelling',
       changedInApp: 'also changed in the app',
+      /** The quiet mark on a line dated before today, and its spoken form. Such a line starts unticked. */
+      past: 'past',
+      pastLabel: 'Date has passed, so this line starts unticked',
       important: 'important',
       was: 'was',
       noTag: 'no tag',
