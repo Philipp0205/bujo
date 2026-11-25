@@ -21,6 +21,10 @@ test("a one-line row is 48px and a wrapped row is a whole number of 24px grid un
   }
   await page.goto(app.baseUrl);
   await page.waitForFunction(() => !!document.querySelector(".paper-add"));
+  // Row heights depend on the font metrics: measure only once the fonts are in and every row has been laid out.
+  await expect(page.locator(".paper-row", { hasText: "Grid" })).toHaveCount(3);
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   const heights = await page.locator(".paper-row", { hasText: "Grid" }).evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
   expect(heights).toHaveLength(3);
   expect(heights[0]).toBe(48);

@@ -72,11 +72,14 @@ async function swipeOnPaper(page: Page, dx: number, dy = 0): Promise<void> {
   await page.mouse.up();
 }
 
-/** A swipe to the right with the mouse that starts on a row. */
+/** A swipe to the right with the mouse that starts on a row. The page's timers are frozen first: a slow machine must not let the 500 ms row hold fire between press and move. */
 async function swipeRowRight(page: Page, title: string): Promise<void> {
+  await page.waitForLoadState("networkidle");
   const box = (await row(page, title).boundingBox())!;
   const x = box.x + 60;
   const y = box.y + box.height / 2;
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 60_000));
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 70, y, { steps: 4 });

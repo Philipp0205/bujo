@@ -51,6 +51,8 @@ async function makeJpeg(page: Page): Promise<Buffer> {
 /** Creates the fake notes through the API with the page's session. Notes marked photo get a stored JPEG. */
 async function seedNotes(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
+  // Let the log's own background reads finish, so none of them lands in the cache after the notes are seeded.
+  await page.waitForLoadState("networkidle");
   const jpeg = await makeJpeg(page);
   for (const note of NOTES) {
     const created = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: "2026-11-20", type: "note", title: note.title, body: note.body } });
@@ -171,9 +173,18 @@ test("the notes grid shows a card per note, newest first: a photo or a placehold
   await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(90);
 });
 
+/** Opens /notes and waits until the three seeded cards are drawn, their photos decoded and the fonts in, so geometry and taps are stable. */
+async function openNotes(page: Page): Promise<void> {
+  await page.goto(`${app.baseUrl}/notes`);
+  await expect(grid(page).locator(".note-card")).toHaveCount(3);
+  await expect.poll(() => grid(page).locator("img").evaluateAll((imgs) => imgs.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+}
+
 test("the grid has two columns", async ({ page }) => {
   await seedNotes(page);
-  await page.goto(`${app.baseUrl}/notes`);
+  await openNotes(page);
   const boxes = await grid(page).locator(".note-card").evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ x: Math.round(r.x), y: Math.round(r.y) })));
   expect(boxes[0].y).toBe(boxes[1].y);
   expect(boxes[1].x).toBeGreaterThan(boxes[0].x);
@@ -183,7 +194,7 @@ test("the grid has two columns", async ({ page }) => {
 
 test("a tap on a card opens its note sheet", async ({ page }) => {
   await seedNotes(page);
-  await page.goto(`${app.baseUrl}/notes`);
+  await openNotes(page);
   await card(page, "Watering plan").click();
   await expect(noteSheet(page)).toBeVisible();
   await expect(noteSheet(page).locator('[data-field="title"]')).toHaveValue("Watering plan");
