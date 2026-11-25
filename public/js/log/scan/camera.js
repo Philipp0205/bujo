@@ -111,11 +111,12 @@
 
   /**
    * Opens the screen. options.onPhoto(file, mode) gets a photo and the mode ('rapid' or 'note'), options.onClose() the close button.
+   * options.mode is the mode it opens in (default 'rapid').
    * With options.autoCapture the camera input opens at once (call it inside a tap, or the browser may refuse); the screen stays up under it.
    */
   function open(options) {
     var copy = L.copy.scan.camera;
-    var mode = 'rapid';
+    var mode = options.mode || 'rapid';
     var slot = h('div', { class: 'scan-slot', 'aria-live': 'polite' });
     var cameraInput = fileInput(INPUT_ID, 'environment');
     var galleryInput = fileInput(GALLERY_ID, null);
@@ -128,6 +129,7 @@
     var node = h('div', { class: 'scan-screen', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-title', 'data-testid': 'scan-screen', 'data-mode': mode },
       h('div', { class: 'scan-top' }, close, title), guide, slot, picker.node, buttons.row, cameraInput, galleryInput);
     var parts = { node: node, title: title, frame: guide, buttons: picker.buttons };
+    if (mode !== 'rapid') showMode(mode, parts, copy);
 
     function photo(file) { options.onPhoto(file, mode); }
     feed(cameraInput, photo);

@@ -99,7 +99,9 @@
     },
     paperPage: {
       /** The quiet break where the next physical page of a day starts, and its spoken name. */
-      break: function (page) { return 'Page ' + page; }
+      break: function (page) { return 'Page ' + page; },
+      /** The quiet line under a page that is on paper: scan that page again to update its entries. */
+      scanAgain: 'Scan this page again'
     },
     migrate: {
       /** The quiet line above today's log while earlier days still hold open tasks. */
@@ -257,6 +259,7 @@
       dateRequired: 'Pick a date.',
       bodyRequired: 'Write something in the note.',
       saveFailed: 'Could not save the note. Try again.',
+      scanAgain: 'Scan again',
       save: 'Save'
     }
   };

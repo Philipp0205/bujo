@@ -34,6 +34,7 @@
     add: function () { L.inline.editor.addLine(); },
     toggleDone: function (entry) { L.done.toggle.toggle(entry.id); },
     migrate: function () { L.inline.editor.settle(openMigrate); },
+    rescan: function (date) { L.inline.editor.settle(function () { rescanDay(date); }); },
     select: L.select.mode
   };
 
@@ -131,6 +132,16 @@
     L.scan.flow.start({ day: scanDay(), view: state.view, onApplied: applied, autoCapture: true });
   }
 
+  /** Scans the page of one day again: the page's day is the fallback day, so a photo with no printed date files on it and matches its entries. */
+  function rescanDay(date) {
+    L.scan.flow.start({ day: date, view: 'daily', onApplied: applied, autoCapture: true });
+  }
+
+  /** Scans a saved note again: the camera opens in note mode and the review offers to update that note. */
+  function rescanNote(values) {
+    L.scan.flow.start({ day: values.date, replaceNote: { id: values.id, title: values.title, date: values.date }, onApplied: applied, autoCapture: true });
+  }
+
   /** Arriving with ?scan=1 (a shared link): drops the query so a refresh does not reopen the camera.
    * Returns true when the link asked for a scan. */
   function scanFromLink() {
@@ -141,7 +152,7 @@
   }
 
   function openNote(entry) {
-    L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload });
+    L.note.sheet.open({ mode: 'saved', values: L.note.model.fromEntry(entry), onSaved: reload, onRescan: rescanNote });
   }
 
   /** What the inline editor needs from the page: the slot for a new line, the entries, a redraw, saved entries and the details sheet. */

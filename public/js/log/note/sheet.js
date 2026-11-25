@@ -1,7 +1,7 @@
 /*
  * The free-note sheet (mock 06 without Obsidian): one paper sheet to review a scanned note and to view or edit a saved one.
  * It edits title, day and markdown, saves through /api/entries (and stores the scan photo with the note), and copies the markdown.
- * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js.
+ * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js (and note/match.js for a scan that looks like a saved note).
  */
 (function () {
   'use strict';
@@ -109,9 +109,35 @@
     return null;
   }
 
+  /** The Scan again button of a saved note: closes the sheet and hands the values to options.onRescan, which opens the camera. Null where no scan flow is loaded. */
+  function rescanButton(options, close) {
+    if (options.mode !== 'saved' || !options.onRescan) return null;
+    return h('button', {
+      class: 'paper-link note-rescan', type: 'button', 'data-action': 'rescan-note',
+      onclick: function () { close(); options.onRescan(options.values); }
+    }, L.copy.note.scanAgain);
+  }
+
+  /** The row that offers the saved note a scan looks like, or null. A match that keeps its day puts that day in the form while Update is chosen. */
+  function matchRow(options, inputs) {
+    var match = options.match;
+    if (!match) return null;
+    var scanned = inputs.date.value;
+    function follow(update) {
+      if (!match.keepDate) return;
+      inputs.date.value = update ? match.date : scanned;
+      inputs.date.dispatchEvent(new Event('input'));
+    }
+    var node = L.note.match.row(match, options.values, follow);
+    follow(true);
+    return node;
+  }
+
   /**
    * Opens the sheet. options.mode is 'review' (a scan, not saved yet), 'new' (a note typed by hand, not saved yet) or 'saved'. options.values come from the model.
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
+   * options.match is the saved note a scan looks like ({ id, title, date, keepDate, explicit }): the review offers to update it. options.onRescan(values)
+   * adds Scan again to a saved note.
    */
   function open(options) {
     var copy = L.copy.note;
@@ -147,10 +173,12 @@
       event.preventDefault();
       submit();
     } },
-      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), field(copy.body, inputs.body), photoField(options), copyButton(inputs));
+      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), field(copy.body, inputs.body), photoField(options), copyButton(inputs),
+      rescanButton(options, function () { sheet.close(); }));
+    var offer = matchRow(options, inputs);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan sheet-note', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'note-title', 'data-testid': 'note-sheet', 'data-mode': options.mode },
       head(options, function () { sheet.close(); }),
-      h('div', { class: 'ak-sheet-scroll' }, slot, form),
+      h('div', { class: 'ak-sheet-scroll' }, slot, offer, form),
       h('div', { class: 'ak-sheet-dock' }, save));
     sheet = BujoNav.overlays.showSheet(node, {});
     return sheet;
