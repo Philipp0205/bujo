@@ -65,6 +65,8 @@ export type EntryStore = {
   placeOnPaper(userId: string, slot: { date: string; horizon: EntryHorizon }, page: number, ids: readonly string[]): void;
   /** Forgets the paper line a scan or a "written" mark left on an entry, so it is not on paper any more. Not an edit: updated_at and sync stay. */
   clearScanProvenance(userId: string, id: string): void;
+  /** Sets the indent (0 or 1) of an entry after a scan filed it. A 1 with no entry above stays 0. Not an edit: updated_at and sync stay (indent is local). */
+  setIndent(userId: string, id: string, indent: 0 | 1): void;
   get(userId: string, id: string): Entry | undefined;
   /** The tags in use, with how many entries carry each and when one last changed. Newest use first, then by name. */
   listTags(userId: string): TagUse[];
@@ -312,6 +314,12 @@ export function createEntryStore(db: Db): EntryStore {
         userId,
         id,
       );
+    },
+
+    setIndent(userId, id, indent) {
+      db.prepare("UPDATE entries SET indent = ? WHERE user_id = ? AND id = ?").run(indent, userId, id);
+      const entry = get(userId, id);
+      if (entry) settleIndent(userId, entry);
     },
 
     clearScanProvenance(userId, id) {

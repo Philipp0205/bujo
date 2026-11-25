@@ -258,6 +258,38 @@ def test_the_prompt_and_schema_ask_for_every_page_kind(gateway):
         assert word in llm.SYSTEM_PROMPT
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [(None, 0), (0, 0), (1, 1), (2, 1), (5, 1), ("1", 0), (True, 0), (False, 0), (-1, 0), (1.0, 0), ([1], 0)],
+)
+def test_indent_is_tolerant(value, expected):
+    line = llm._line({"symbol": "–", "text": "Note", "indent": value})
+    assert line.indent == expected
+
+
+def test_a_line_without_indent_is_not_nested():
+    assert llm._line({"symbol": "–", "text": "Note"}).indent == 0
+
+
+def test_the_schema_and_prompt_ask_for_indent():
+    item = llm.PAGE_SCHEMA["properties"]["lines"]["items"]
+    assert item["properties"]["indent"] == {"type": "integer", "enum": [0, 1]}
+    assert "indent" in item["required"] and item["additionalProperties"] is False
+    assert "indented to the right of the line above" in llm.SYSTEM_PROMPT
+    assert "one level only" in llm.SYSTEM_PROMPT
+
+
+def test_read_page_keeps_the_indent_of_each_line(gateway):
+    lines = [
+        {"symbol": "○", "text": "Meeting", "tags": [], "time": None, "confidence": 0.9, "indent": 0},
+        {"symbol": "–", "text": "Note 1", "tags": [], "time": None, "confidence": 0.9, "indent": 1},
+        {"symbol": "–", "text": "Note 2", "tags": [], "time": None, "confidence": 0.9, "indent": 3},
+    ]
+    gateway.answers = [ok({"date": None, "lines": lines})]
+    _, image = page_image()
+    assert [line.indent for line in llm.read_page(image).lines] == [0, 1, 1]
+
+
 def test_run_ocr_passes_the_kind_and_period_on(gateway):
     gateway.answers = [ok(kind_answer("future", "2027", FUTURE_LINES))]
     result = server.run_ocr(make_page(FUTURE_LINES).png, fake_recognizer)
@@ -367,9 +399,21 @@ def test_run_ocr_uses_the_llm_and_the_detector_boxes(gateway):
     assert (result["kind"], result["period"]) == (None, None)
     assert [line["symbol"] for line in result["lines"]] == [e.symbol for e in fixture.expected]
     for line in result["lines"]:
-        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time"}
+        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
         assert line["engine"] == "llm:claude-haiku-5-5"
         assert line["bbox"][2] > 0 and line["bbox"][3] > 0
+
+
+def test_run_ocr_passes_the_indent_on_and_the_date_line_is_never_nested(gateway):
+    answer = {"date": "20.11.2025", "lines": [
+        {"symbol": "○", "text": "Meeting", "tags": [], "time": None, "confidence": 0.9, "indent": 0},
+        {"symbol": "–", "text": "Note", "tags": [], "time": None, "confidence": 0.9, "indent": 1},
+    ]}
+    gateway.answers = [ok(answer)]
+    result = server.run_ocr(make_page().png, fake_recognizer)
+    assert [(line["text"], line["indent"]) for line in result["lines"]] == [
+        ("20.11.2025", 0), ("Meeting", 0), ("Note", 1),
+    ]
 
 
 def test_a_date_given_only_in_date_becomes_the_first_line(gateway):
@@ -468,8 +512,8 @@ def assert_fallback(port_or_none, fixture, via_http):
     assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]
     for line in body["lines"]:
         assert line["engine"] == "fake"
-        assert line["tags"] == [] and line["time"] is None
-        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time"}
+        assert line["tags"] == [] and line["time"] is None and line["indent"] == 0
+        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
 
 
 def test_fallback_without_a_key_makes_no_request(gateway, monkeypatch):

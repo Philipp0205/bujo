@@ -66,8 +66,24 @@
       include: line.include,
       month: line.month || null,
       dayText: line.day ? String(line.day) : '',
-      touched: false
+      touched: false,
+      indent: line.indent === 1 ? 1 : 0
     };
+  }
+
+  /** True when the line may nest under the line above: only a daily page nests, and the first line has nothing above it. */
+  function canNest(state, item) {
+    return state.kind === 'daily' && state.items.indexOf(item) > 0;
+  }
+
+  /** Nests the line under the one above, or lifts it back out. */
+  function toggleNest(state, item) {
+    if (canNest(state, item)) item.indent = item.indent === 1 ? 0 : 1;
+  }
+
+  /** The indent a row draws and sends: 1 only while the line can nest. */
+  function indentOf(state, item) {
+    return item.indent === 1 && canNest(state, item) ? 1 : 0;
   }
 
   var NEEDS_MONTH = { calendar: true, 'month-task': true };
@@ -254,6 +270,7 @@
     if (state.kind === 'calendar') body.day = dayOf(item);
     if (state.kind === 'future') body.month = item.month;
     if (item.unmatched) body.unmatched = true;
+    if (indentOf(state, item) === 1) body.indent = 1;
     if (item.important) body.important = true;
     else if (item.importantTouched) body.important = false;
     return body;
@@ -352,6 +369,9 @@
     matchOf: matchOf,
     changeKey: changeKey,
     unmatch: unmatch,
+    canNest: canNest,
+    toggleNest: toggleNest,
+    indentOf: indentOf,
     rematch: rematch,
     keptItems: keptItems,
     counts: counts,

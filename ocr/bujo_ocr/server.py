@@ -2,7 +2,7 @@
 
   GET  /healthz  -> {"ok": true}
   POST /ocr      raw image body (image/jpeg, image/png, image/webp), up to 15 MB
-                   -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine, tags, time}], "date", "kind", "period", "width", "height", "ms"}
+                   -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine, tags, time, indent}], "date", "kind", "period", "width", "height", "ms"}
 
 The image is decoded from memory and dropped after the answer. Nothing is written to disk.
 With OCR_LLM_BASE and OCR_LLM_KEY set, a vision LLM reads the whole page first (see llm.py, engine "llm:<model>").
@@ -54,6 +54,7 @@ def _local_answer(image: np.ndarray, recognize: Recognize) -> dict:
                 "engine": reading.engine,
                 "tags": [],
                 "time": None,
+                "indent": 0,
             }
         )
     return {"lines": lines, "date": None, "kind": None, "period": None}
@@ -93,6 +94,7 @@ def _llm_answer(image: np.ndarray, read_page: ReadPage) -> dict:
             "engine": engine,
             "tags": line.tags,
             "time": line.time,
+            "indent": line.indent,
         }
         for line, box in zip(page_lines, boxes)
     ]

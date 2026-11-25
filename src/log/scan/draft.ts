@@ -80,7 +80,7 @@ export type DraftInput = {
 
 /** Builds a draft from one OCR answer: keeps the lines (without their boxes) and the kind they read as. */
 export function buildLogDraft(input: DraftInput): LogDraft {
-  const page = input.ocr.lines.map(({ symbol, text, confidence }) => ({ symbol, text, confidence }));
+  const page = input.ocr.lines.map(({ symbol, text, confidence, indent }) => ({ symbol, text, confidence, ...(indent === 1 ? { indent } : {}) }));
   return {
     id: input.id ?? randomBytes(16).toString("base64url"),
     created: input.now,

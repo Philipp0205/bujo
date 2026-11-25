@@ -82,8 +82,8 @@ def test_post_ocr_returns_the_json_shape(service, encode, content_type):
     assert isinstance(body["ms"], int)
     assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]
     for index, line in enumerate(body["lines"]):
-        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time"}
-        assert line["tags"] == [] and line["time"] is None
+        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
+        assert line["tags"] == [] and line["time"] is None and line["indent"] == 0
         assert line["text"] == f"zeile {index + 1} ä ö ü ß"
         assert line["engine"] == "fake"
         assert 0 <= line["confidence"] <= 1

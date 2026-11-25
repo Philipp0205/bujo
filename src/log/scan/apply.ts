@@ -44,7 +44,7 @@ function checkKept(plan: readonly Planned[]): void {
   }
 }
 
-/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent or body (the page filing sets the position after). */
+/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent or body (the page filing sets the position, then applyIndents the indent). */
 function writeOne(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): ApplyOutcome {
   const paper = validFields(item, slot!);
   if (!paper.ok) throw new HttpError(400, paper.error);
@@ -92,6 +92,20 @@ function placeOnPaper(store: EntryStore, userId: string, page: number, plan: rea
 }
 
 /**
+ * Sets the indent the paper shows on each kept line's entry (new or matched), after the filing set the order, through the store so a 1 with
+ * no entry above stays 0. Only a daily page nests. A line the person left out, or an unchanged entry they edited in the app, is not touched.
+ * Indent is not a compared field: it never makes a line "edited" and never counts as a write.
+ */
+function applyIndents(store: EntryStore, userId: string, review: SentReview, plan: readonly Planned[], outcomes: readonly ApplyOutcome[]): void {
+  if (review.kind !== "daily") return;
+  const written = new Map(outcomes.map((outcome) => [outcome.id, outcome.entry.id]));
+  for (const { item, resolution } of plan) {
+    const id = written.get(item.id) ?? (resolution.protectedEdit ? undefined : resolution.target?.id);
+    if (item.include && id) store.setIndent(userId, id, item.indent);
+  }
+}
+
+/**
  * Writes what the person kept from a draft into the log, sync state local (the route then queues the push). Kept new lines add
  * entries, kept edited lines change their entry's type, title, tags or time, and nothing is ever deleted. Unchanged lines are
  * recorded (key only) and change no content, even when ticked. Each line files in its own slot (a day, or a month's lane) and
@@ -118,6 +132,7 @@ export function applyLogDraft(
     plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
     const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
     placeOnPaper(store, userId, review.page, plan, done);
+    applyIndents(store, userId, review, plan, done);
     return done;
   });
   draft.applied = true;

@@ -21,7 +21,7 @@ const SYMBOL_TYPES: Record<OcrSymbol, EntryType> = {
 };
 
 /** The part of an OCR line the parser reads. The box is not needed, so a draft can keep lines without it. */
-export type PageLine = Pick<OcrLine, "symbol" | "text" | "confidence">;
+export type PageLine = Pick<OcrLine, "symbol" | "text" | "confidence" | "indent">;
 
 /** One scanned line, as the review starts from it. */
 export type ParsedLine = {
@@ -38,6 +38,8 @@ export type ParsedLine = {
   confidence: number;
   /** True for a line with no bullet: it may be a stray mark, so the review leaves it off by default. */
   noBullet: boolean;
+  /** 1 when the line is nested under the entry above it (daily pages only), else 0. */
+  indent: 0 | 1;
   /** Future page only: the month (YYYY-MM) the line sits under. */
   month?: string;
   /** Calendar page only: the day of the month the line sits on, or null when the page gave it none. */
@@ -88,6 +90,7 @@ function toParsedLine(line: PageLine, index: number): ParsedLine {
     important,
     confidence: line.confidence,
     noBullet: line.symbol === "none",
+    indent: 0,
   };
 }
 
@@ -104,8 +107,18 @@ function bodyLines(lines: readonly PageLine[], headings: readonly Heading[]): Ar
 
 function parseDaily(lines: readonly PageLine[], fallbackDate: string): ParsedPage {
   const header = findHeader(lines, fallbackDate);
-  const parsed = lines.map(toParsedLine).filter((_, index) => index !== header?.index);
+  const parsed = lines.map((line, index) => ({ ...toParsedLine(line, index), indent: indentOf(lines, index, header?.index ?? null) })).filter((_, index) => index !== header?.index);
   return { kind: "daily", pageDate: header?.date ?? null, month: null, lines: parsed };
+}
+
+/**
+ * A daily line nests (1) only when the OCR says so and the line right above it on the page is an entry line (it has a bullet and is not
+ * the date header). Anything else, the first line included, stays 0. Deeper writing is already one level in the OCR answer.
+ */
+function indentOf(lines: readonly PageLine[], index: number, headerIndex: number | null): 0 | 1 {
+  const parent = lines[index - 1];
+  if (lines[index].indent !== 1 || !parent || parent.symbol === "none" || index - 1 === headerIndex) return 0;
+  return 1;
 }
 
 /** A month's task page: the lines under one month heading, with no day. */

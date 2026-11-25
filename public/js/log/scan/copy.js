@@ -92,6 +92,11 @@
       noTime: 'no time',
       keep: 'Keep this line',
       keepLabel: 'Keep',
+      /** The quiet switch that nests a line under the line above it (a note under a meeting). */
+      nest: 'Nest under line above',
+      unnest: 'Nested under line above',
+      nestLabel: 'Nest this line under the line above',
+      unnestLabel: 'Take this line out from under the line above',
       /** The faint line of a line that matched an entry of the day: it is that item, not a new one. */
       matches: function (title) {
         return 'matches: ' + title;
