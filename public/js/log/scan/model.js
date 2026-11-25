@@ -54,7 +54,6 @@
       tagText: L.tags.join(line.tags || []),
       time: line.time || null,
       important: line.important === true,
-      importantTouched: false,
       confidence: line.confidence,
       noBullet: line.noBullet,
       status: line.status,
@@ -274,7 +273,6 @@
     if (item.unmatched) body.unmatched = true;
     if (indentOf(state, item) === 1) body.indent = 1;
     if (item.important) body.important = true;
-    else if (item.importantTouched) body.important = false;
     return body;
   }
 

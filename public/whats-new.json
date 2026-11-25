@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-scan-review-tidy",
+    "date": "2026-11-25",
+    "title": "Tidier scan review",
+    "bullets": [
+      "The text that says a line matched an entry is now easy to read.",
+      "The scan review no longer has an important switch. You can still mark an entry important from the entry itself."
+    ]
+  },
+  {
     "id": "2026-11-25-month-scan-apply",
     "date": "2026-11-25",
     "title": "Apply works on monthly log scans",

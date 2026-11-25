@@ -452,17 +452,16 @@
 .scan-row[data-status="edited"] { min-height: 120px; }
 
 /*
- * A matched line says so in faint italics under the title: what it matches and what applying does to it. The "Not the same"
+ * A matched line says so in italics under the title: what it matches and what applying does to it. The "Not the same"
  * button under it turns the line into a new entry, and reads "Match again" once it has. Paper tokens only.
  */
 .scan-match {
   margin-top: 4px;
-  color: var(--paper-muted);
+  color: var(--paper-ink);
   font: italic var(--text-weight) 14px/24px var(--font-text);
   overflow-wrap: anywhere;
 }
 .scan-match[hidden] { display: none; }
-.scan-row[data-match="unmatched"] .scan-match { color: var(--paper-ink); }
 .scan-unmatch {
   appearance: none;
   -webkit-appearance: none;
@@ -481,28 +480,6 @@
 }
 .scan-unmatch[hidden] { display: none; }
 .scan-unmatch:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
-/* The important switch of a row: a pen star and the word in a quiet outline that fills with ink while on, like the picker's switch. */
-.scan-important {
-  appearance: none;
-  -webkit-appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  height: 36px;
-  margin: 4px 0 12px;
-  padding: 0 12px 0 8px;
-  border: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--paper-muted);
-  font: 500 14px/24px var(--font-ui);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.scan-important-star { font-family: var(--paper-hand, inherit); font-size: 20px; line-height: 24px; padding-top: 4px; }
-.scan-important[aria-pressed="true"] { background: var(--paper-ink); border-color: var(--paper-ink); color: var(--paper-bg); }
-.scan-important:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 /* The nest switch: quiet muted words with an underline, on a 48px tall target so the row keeps its grid. */
 .scan-nest {
   appearance: none;
@@ -524,6 +501,7 @@
 .scan-nest[hidden] { display: none; }
 .scan-nest[aria-pressed="true"] { color: var(--paper-ink); }
 .scan-nest:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+
 
 /* ----- The free-note sheet ----- */
 
