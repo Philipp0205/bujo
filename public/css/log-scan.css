@@ -252,6 +252,25 @@
 .scan-source { font: 14px/24px var(--font-ui); color: var(--paper-muted); }
 .scan-date-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .scan-date[hidden] { display: none; }
+/* The quiet override under the day row of a page that continues an earlier day: it tucks up under the day, in the ink link style of the match toggle. */
+.scan-continue-today {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  min-height: 44px;
+  margin: -20px 0 8px var(--text-col);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 500 14px/24px var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.scan-continue-today[hidden] { display: none; }
+.scan-continue-today:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
 /* The kind switch: four pills in one row (it must fit a 390px phone) and one line under them saying where the kind came from. */
 .scan-kinds { margin: 0 0 24px var(--text-col); padding-right: 16px; }

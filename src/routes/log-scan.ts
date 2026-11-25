@@ -61,7 +61,8 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   const now = deps.now();
   const fallbackDate = fallbackDay(ctx, now);
   const ocr = await deps.ocr(image, contentType);
-  const draft = buildLogDraft({ ocr, fallbackDate, now, ttlMs: DRAFT_TTL_MS, hint });
+  const pinned = ctx.url.searchParams.get("pinned") === "1";
+  const draft = buildLogDraft({ ocr, fallbackDate, pinned, now, ttlMs: DRAFT_TTL_MS, hint });
   deps.drafts.add(draft);
   sendJson(ctx.res, 201, { draft: startReview(draft, readerOf(ctx, session.user.id)) });
 }
@@ -119,9 +120,11 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
 
 /**
  * /api/log/scan, the log-page scan. Browser sessions only: a scan reads the photo and writes entries.
- *   POST /api/log/scan?date=&view=  raw image body. OCR, then a draft kept in memory (never the photo). Writes nothing. The page kind
+ *   POST /api/log/scan?date=&view=&pinned=  raw image body. OCR, then a draft kept in memory (never the photo). Writes nothing. The page kind
  *                                   (daily, future, calendar or month-task) is found from the OCR lines, the LLM's word and the view
- *                                   (daily, future or month) the person had open.
+ *                                   (daily, future or month) the person had open. A daily page with no date header continues the latest
+ *                                   day within 3 days before `date` that has paper entries (the review answers `continues`), unless
+ *                                   pinned=1 says the day was named on purpose (a rescan of that day).
  *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note, and `match`: the
  *                                   person's saved note this page most likely is (id, title, date, body), or null. Keeps and writes
  *                                   nothing: the note is saved by the review through POST /api/entries (or PATCHed when updating).

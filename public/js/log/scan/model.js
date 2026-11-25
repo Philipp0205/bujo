@@ -108,7 +108,8 @@
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
-      dateSource: draft.pageDate ? 'page' : 'fallback',
+      continues: draft.continues || null,
+      dateSource: draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback'),
       month: draft.month || monthOfDate(draft.fallbackDate),
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
@@ -141,11 +142,12 @@
     return kind === 'daily' || kind === 'calendar';
   }
 
-  /** Sets the day. The note under it says where it came from: the page, the fallback, or the person. Another day starts on page 1 again (the check then says which pages it has). */
+  /** Sets the day. The note under it says where it came from: the page, the day it continues, the fallback, or the person. Another day starts on page 1 again (the check then says which pages it has). */
   function setDate(state, date) {
     state.date = date;
     state.page = 1;
     if (date === state.pageDate) state.dateSource = 'page';
+    else if (!state.pageDate && state.continues && date === state.continues) state.dateSource = 'continues';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';
   }

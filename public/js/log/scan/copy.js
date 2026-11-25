@@ -56,6 +56,8 @@
       dateFromPage: 'Read from the page',
       dateFallback: 'Today, no date found',
       datePicked: 'Picked by you',
+      dateContinues: function (day) { return 'Continues ' + day + ', no date on this page'; },
+      useToday: 'Use today instead',
       kindGroup: 'Kind of page',
       pageGroup: 'Page of the day',
       page: function (page) { return 'Page ' + page; },
