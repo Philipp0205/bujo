@@ -54,6 +54,11 @@ test("parsePage: a leading * is the important signifier and leaves the bullet ty
   assert.equal(page.lines[3].time, "14:30");
 });
 
+test("parsePage: a ~ (struck-through) line is dropped, an x line stays done", () => {
+  const page = parsePage([line("~", "Alte Idee", 0.8), line("x", "Plants", 0.9)], TODAY);
+  assert.deepEqual(page.lines.map((l) => [l.type, l.title]), [["dropped", "Alte Idee"], ["done", "Plants"]]);
+});
+
 test("parsePage: a bare * line is an important line with no title", () => {
   const page = parsePage([line("•", "*", 0.5)], TODAY);
   assert.deepEqual([page.lines[0].type, page.lines[0].title, page.lines[0].important], ["task", "", true]);

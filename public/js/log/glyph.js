@@ -9,7 +9,9 @@
   var NS = 'http://www.w3.org/2000/svg';
 
   var TYPES = ['task', 'note', 'event', 'done', 'migrated', 'scheduled'];
-  /** TYPES are the bullets a person writes. dropped has a symbol too, but is only set by the migration review. */
+  /** The types the scan review offers: TYPES plus dropped, a struck-through task ("~"). The writing pickers keep TYPES, dropped is not typed in the log. */
+  var SCAN_TYPES = TYPES.concat('dropped');
+  /** TYPES are the bullets a person writes. dropped has a symbol too: it comes from the migration review or a scan. */
   var SYMBOLS = {
     task: 'g-task',
     note: 'g-note',
@@ -47,5 +49,5 @@
     return h('span', { class: 'pill pill-' + item.kind, 'data-kind': item.kind, 'data-hue': item.hue || null, 'data-testid': item.testid || null }, item.text);
   }
 
-  L.glyph = { TYPES: TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark, pill: pill };
+  L.glyph = { TYPES: TYPES, SCAN_TYPES: SCAN_TYPES, use: use, typeGlyph: typeGlyph, syncMark: syncMark, pill: pill };
 })();

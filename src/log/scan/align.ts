@@ -2,8 +2,8 @@ import { AMBIGUOUS_GAP, MATCH_THRESHOLD, matchKey, similarity } from "../../scan
 import type { EntryType, ScanEntry } from "../types.ts";
 import type { Line } from "./types.ts";
 
-/** Task-family symbols that a change of symbol moves between: task, done, migrated, scheduled. */
-const RELATED_TYPES: ReadonlySet<EntryType> = new Set<EntryType>(["task", "done", "migrated", "scheduled"]);
+/** Task-family symbols that a change of symbol moves between: task, done, migrated, scheduled, dropped. */
+const RELATED_TYPES: ReadonlySet<EntryType> = new Set<EntryType>(["task", "done", "migrated", "scheduled", "dropped"]);
 /** How much a shared type and a nearby position add to a title score. Titles decide, these only break ties. */
 const TYPE_WEIGHT = 0.12;
 const POSITION_WEIGHT = 0.05;

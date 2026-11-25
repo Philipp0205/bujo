@@ -53,7 +53,7 @@ test("edited: a tag added to or removed from a non-empty set is a change, and th
 });
 
 test("edited: a symbol change, for every task-family symbol, with before and after", () => {
-  for (const type of ["done", "migrated", "scheduled"] as const) {
+  for (const type of ["done", "migrated", "scheduled", "dropped"] as const) {
     const out = resolveLines([paper("a", type, "Brot kaufen")], [entry("e1", "task", "Brot kaufen")]);
     const hit = out.get("a")!;
     assert.equal(hit.status, "edited", type);

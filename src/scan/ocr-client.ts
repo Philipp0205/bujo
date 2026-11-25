@@ -9,8 +9,8 @@ import { HttpError } from "../app-kit/http.ts";
 
 export const OCR_TIMEOUT_MS = 60_000;
 
-export type OcrSymbol = "•" | "x" | ">" | "<" | "○" | "–" | "none";
-export const OCR_SYMBOLS: readonly OcrSymbol[] = ["•", "x", ">", "<", "○", "–", "none"];
+export type OcrSymbol = "•" | "x" | ">" | "<" | "○" | "–" | "~" | "none";
+export const OCR_SYMBOLS: readonly OcrSymbol[] = ["•", "x", ">", "<", "○", "–", "~", "none"];
 
 export type OcrLine = {
   symbol: OcrSymbol;

@@ -16,6 +16,7 @@ const SYMBOL_TYPES: Record<OcrSymbol, EntryType> = {
   x: "done",
   ">": "migrated",
   "<": "scheduled",
+  "~": "dropped",
   none: "note",
 };
 

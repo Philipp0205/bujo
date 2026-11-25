@@ -169,6 +169,7 @@ def test_symbols_are_normalised():
     cases = {
         "*": "•", "·": "•", "●": "•", "-": "–", "—": "–", "o": "○", "O": "○", "◯": "○", "°": "○",
         "X": "x", "×": "x", "•": "•", "x": "x", ">": ">", "<": "<", "○": "○", "–": "–", "none": "none",
+        "~": "~", "∼": "~",
         "?": "none", "": "none", "ab": "none",
     }
     lines = [{"symbol": symbol, "text": "t"} for symbol in cases]
