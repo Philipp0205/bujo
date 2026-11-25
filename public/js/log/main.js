@@ -586,6 +586,7 @@
 
   /** Reads the log again with the loading note. Never used while a line is being typed. */
   function reload() {
+    state.version += 1; // in-flight reads must not hide a just-applied or just-reloaded list
     state.status = 'loading';
     render();
     return load(false, 'plain').then(recount);

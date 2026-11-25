@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-25-apply-refresh",
+    "date": "2026-11-25",
+    "title": "The daily log updates after you apply a scan",
+    "bullets": [
+      "After you apply a scanned page, the daily log shows the new and changed entries without a reload."
+    ]
+  },
+  {
     "id": "2026-11-25-multipage-day",
     "date": "2026-11-25",
     "title": "A day can span several pages",
