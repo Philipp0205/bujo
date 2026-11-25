@@ -118,10 +118,11 @@ export function checkPlaced(placed: readonly Placed[], reader: SlotReader): Line
 
 /**
  * A line starts ticked when it would write something and can be trusted: a new line with a bullet and text, or an edit with a
- * bullet that the app did not also change. An unchanged line, and a line with no bullet (maybe a stray mark), start off.
+ * bullet that the app did not also change. An unchanged line, a line with no bullet (maybe a stray mark) and a calendar line with
+ * no day yet (it cannot be filed until the person gives one) start off.
  */
 function startsIncluded(line: ParsedLine, check: LineCheck): boolean {
-  if (line.noBullet) return false;
+  if (line.noBullet || line.day === null) return false;
   if (check.status === "new") return line.title !== "";
   return check.status === "edited" && !check.contested;
 }
