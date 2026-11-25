@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-25-offer-scan",
+    "date": "2026-11-25",
+    "title": "Scan offer once everything is on paper",
+    "bullets": [
+      "When you mark the last entry as written, the list offers to scan the page. Tap Not now to skip it."
+    ]
+  },
+  {
     "id": "2026-11-25-swipe-shift",
     "date": "2026-11-25",
     "title": "Swiping keeps the rows in place",

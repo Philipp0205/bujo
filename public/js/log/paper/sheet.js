@@ -2,7 +2,8 @@
  * The "not on paper" sheet: every entry made in the app that was not written on the page yet, by day. It has Copy all (one
  * paper line per entry, to write down from) and Mark as written per entry. Opens at once, inside the tap, and fills when the
  * server answers. Needs ak-dom.js, nav/overlays.js, clipboard.js, toast.js, api.js and the other paper/ files.
- * options: today, onCount(count) once the list is read or shrinks, onChanged() after an entry was marked, onClose().
+ * options: today, onCount(count) once the list is read or shrinks, onChanged() after an entry was marked, onClose(),
+ * onScan() to start a scan (offered once the last entry was marked as written in this open sheet; the sheet closes first).
  */
 (function () {
   'use strict';
@@ -13,7 +14,7 @@
   /** Redraws the sheet from its state: the sub line, the rows and the Copy all button. */
   function paint(parts, state, onWritten) {
     parts.sub.textContent = L.paper.view.subText(state);
-    parts.slot.replaceChildren.apply(parts.slot, [].concat(L.paper.view.content(state, onWritten)));
+    parts.slot.replaceChildren.apply(parts.slot, [].concat(L.paper.view.content(state, onWritten, state.offerActions)));
     parts.copy.disabled = state.status !== 'ready' || !state.entries.length;
   }
 
@@ -33,6 +34,7 @@
     var redraw = function () { paint(parts, state, onWrittenOf(parts, state, options)); };
     return L.api.markWritten(entry.id).then(function () {
       state.entries = L.paper.model.without(state.entries, entry.id);
+      state.offer = !state.entries.length && !!options.onScan;
       redraw();
       options.onCount(state.entries.length);
       options.onChanged();
@@ -46,11 +48,14 @@
 
   /** Opens the sheet. Returns the kit's handle, or null when another sheet is open. */
   function open(options) {
-    var state = { entries: [], status: 'loading' };
+    var state = { entries: [], status: 'loading', offer: false };
+    var sheet = null;
+    var closeThen = function (next) { return function () { if (sheet) sheet.close(); if (next) next(); }; };
+    state.offerActions = { onScan: closeThen(options.onScan), onDismiss: closeThen(null) };
     var parts = L.paper.view.shell(function () { L.clipboard.copy(state.entries); });
     var onWritten = onWrittenOf(parts, state, options);
     paint(parts, state, onWritten);
-    var sheet = BujoNav.overlays.showSheet(parts.node, { onClose: options.onClose });
+    sheet = BujoNav.overlays.showSheet(parts.node, { onClose: options.onClose });
     if (sheet) fill(parts, state, options.today, onWritten).then(function () { if (state.status === 'ready') options.onCount(state.entries.length); });
     return sheet;
   }

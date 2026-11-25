@@ -41,11 +41,20 @@
     return h('p', { class: 'todo-note', 'data-state': kind, role: kind === 'error' ? 'alert' : 'status' }, text);
   }
 
-  /** What the scroll area shows for a status: the days with their rows, or a note. */
-  function content(state, onWritten) {
+  /** The offer after the last entry was written down: a prompt, the Scan button and a quiet "Not now". */
+  function offer(actions) {
+    return h('div', { class: 'todo-offer', 'data-testid': 'scan-offer' },
+      h('p', { class: 'todo-offer-text', 'data-testid': 'scan-offer-prompt' }, L.copy.paper.offerPrompt),
+      h('div', { class: 'todo-offer-actions' },
+        h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-testid': 'scan-offer-scan', onclick: actions.onScan }, L.copy.paper.offerScan),
+        h('button', { class: 'todo-offer-dismiss', type: 'button', 'data-testid': 'scan-offer-dismiss', onclick: actions.onDismiss }, L.copy.paper.offerDismiss)));
+  }
+
+  /** What the scroll area shows for a status: the days with their rows, or a note (with the scan offer when asked for). */
+  function content(state, onWritten, offerActions) {
     if (state.status === 'loading') return note(L.copy.loading, 'loading');
     if (state.status === 'error') return note(L.copy.paper.failed, 'error');
-    if (!state.entries.length) return note(L.copy.paper.empty, 'empty');
+    if (!state.entries.length) return [note(L.copy.paper.empty, 'empty'), state.offer ? offer(offerActions) : null].filter(Boolean);
     return L.paper.model.groups(state.entries).map(function (group) { return day(group, onWritten); });
   }
 

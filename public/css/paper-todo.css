@@ -108,3 +108,26 @@
   font: italic var(--text-weight) 16px/24px var(--font-text);
 }
 .todo-note[data-state="error"] { color: var(--paper-today); }
+
+/* The scan offer under "Everything is on paper.": a prompt, the Scan button and a quiet Not now, in the text column. */
+.todo-offer { padding: 8px 16px 8px var(--text-col); }
+.todo-offer-text { margin: 0 0 12px; color: var(--paper-ink); font: italic var(--text-weight) 16px/24px var(--font-text); }
+.todo-offer-actions { display: flex; align-items: center; gap: 16px; }
+.todo-offer-actions .ak-btn { flex: 1 1 auto; min-width: 0; }
+.todo-offer-dismiss {
+  flex: none;
+  white-space: nowrap;
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  text-decoration: underline;
+  text-decoration-thickness: 0.75px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
