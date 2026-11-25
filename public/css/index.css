@@ -1,0 +1,52 @@
+/*
+ * bujo notebook index: the list of notebook pages by number, opened from the Notes screen, and its way into the Notes list. Paper tokens
+ * only. Loaded after collections.css, so the paper tokens and the collection row look are already there. A row is a multiple of the
+ * 24px grid, and nothing touches the left 24px of the screen: the phone's Back owns it.
+ */
+
+.notes-index-entry { margin: 8px 0 0; padding: 0; }
+
+.paper-head .index-back { align-self: center; min-height: 44px; margin: 0 8px 0 auto; padding: 0 4px; }
+
+.index-list { margin: 0; padding: 0; list-style: none; }
+.index-item { margin: 0; padding: 0; }
+
+/* One page: the number big on the left, the label after it, a dotted rule under the row like a collection row. */
+.index-row {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 72px;
+  margin: 0;
+  padding: 12px 12px;
+  border: 0;
+  border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 30%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.index-number {
+  flex: none;
+  min-width: 4.4ch;
+  font: var(--text-weight) 30px/48px var(--font-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.index-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: var(--text-weight) 18px/24px var(--font-text);
+  background: var(--paper-bg);
+  box-shadow: var(--paper-wash);
+}
+html.ak-base .index-row:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: -2px; }
+
+/* The last row stays clear of the tab bar. */
+html.has-tabbar .index-page { padding-bottom: calc(var(--ak-tab, 0px) + 48px); }

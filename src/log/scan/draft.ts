@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { OcrResult } from "../../scan/ocr-client.ts";
+import { asPageNumber } from "../paper-pages.ts";
 import type { ScanEntry } from "../types.ts";
 import { continuedDay } from "./continue.ts";
 import { detectKind, type Detected } from "./kind.ts";
@@ -26,8 +27,8 @@ export type LogDraft = {
   image: { width: number; height: number };
   /** The OCR lines in page order. Line ids are l1, l2, ... by position here, whatever the kind. */
   page: PageLine[];
-  /** What the OCR service said about the page (the LLM engine), or nulls. Only a hint. */
-  llm: { kind: string | null; period: string | null };
+  /** What the OCR service said about the page (the LLM engine), or nulls. Only a hint. `pageNumber` is the notebook page number it read. */
+  llm: { kind: string | null; period: string | null; pageNumber: number | null };
   /** The kind found when the photo came in, and what it was found from. */
   detected: Detected;
   applied: boolean;
@@ -70,6 +71,8 @@ export type Review = {
   page: number;
   /** The pages the day already has paper for, ascending, so the review can offer them as rescans. Empty for any kind but daily. */
   pages: number[];
+  /** The notebook page number to start with: the one the OCR read, else null. Kept when the kind is switched. */
+  paperNumber: number | null;
   items: ReviewItem[];
 };
 
@@ -96,7 +99,7 @@ export function buildLogDraft(input: DraftInput): LogDraft {
     pinned: input.pinned ?? false,
     image: { width: input.ocr.width, height: input.ocr.height },
     page,
-    llm: { kind: input.ocr.kind ?? null, period: input.ocr.period ?? null },
+    llm: { kind: input.ocr.kind ?? null, period: input.ocr.period ?? null, pageNumber: asPageNumber(input.ocr.pageNumber) },
     detected: detectKind(page, input.hint ?? null, input.fallbackDate, input.ocr.kind),
     applied: false,
   };
@@ -183,6 +186,7 @@ export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind 
     month: parsed.month,
     page,
     pages,
+    paperNumber: draft.llm.pageNumber,
     items: parsed.lines.map((line, index) => ({ ...line, ...checks[index], include: startsIncluded(line, checks[index]) })),
   };
 }

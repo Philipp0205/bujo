@@ -103,8 +103,9 @@
     if (current === 'log' && to !== 'log') {
       tabs.remember(true);
       window.history.pushState(null, '', tabs.PATHS[to]);
-    } else if (to === 'log' && (ctx.scan || ctx.add)) {
+    } else if (to === 'log' && (ctx.scan || ctx.add || ctx.open)) {
       // A scan or an add must show the log in this very turn (the tap's keyboard or camera), so no step back in history.
+      // A page opened from the notebook index asks for a place the step back would not show.
       window.history.pushState(null, '', tabs.PATHS.log);
     } else if (to === 'log' && tabs.logIsBefore()) {
       return backToLog();
@@ -114,7 +115,7 @@
     swap(to, ctx);
   }
 
-  /** Goes to a tab. ctx.scan (log only) starts the scan flow there. A newer call cancels one that is still loading. */
+  /** Goes to a tab. ctx.scan (log only) starts the scan flow there. ctx.open (log only) shows a place of the notebook: { view, date } or { view, month, part }. A newer call cancels one that is still loading. */
   function go(to, ctx) {
     var options = ctx || {};
     if (to === current || !N.tabs.PATHS[to]) return;

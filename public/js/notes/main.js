@@ -1,5 +1,5 @@
 /*
- * The Notes screen: the index of free notes and collections. It loads every free note and every collection, draws the collection rows
+ * The Notes screen: the index of free notes and collections, with the way into the notebook index (public/js/index). It loads every free note and every collection, draws the collection rows
  * and the note grid, starts a new note or a new collection, and opens the note sheet or a collection page on a tap. The state lives here
  * and nowhere else. The page registers with BujoNav.router, which shows it on a cold load of /notes and again whenever the Notes tab is
  * tapped (the page stays in the document, hidden, while another tab is on screen); that also leaves an open collection page for the index.
@@ -12,19 +12,20 @@
   var L = window.BujoLog;
   var B = window.BujoNotes;
   var root = document.getElementById('notes');
-  var state = { status: 'loading', entries: [], collections: [], offline: false };
+  var state = { status: 'loading', entries: [], collections: [], pages: null, offline: false };
   var booted = false;
 
-  /** Reads the notes and the collections together: the one value the index and its cache hold. */
+  /** Reads the notes, the collections and the count of notebook pages together: the one value the index and its cache hold. A failed page count is just no count. */
   function fetchIndex() {
-    return Promise.all([L.api.listNotes(), L.api.listCollections()]).then(function (parts) {
-      return { entries: parts[0], collections: parts[1] };
+    var pages = L.api.listIndex().then(function (list) { return list.length; }, function () { return null; });
+    return Promise.all([L.api.listNotes(), L.api.listCollections(), pages]).then(function (parts) {
+      return { entries: parts[0], collections: parts[1], pages: parts[2] };
     });
   }
 
-  /** The two lists of a cached or fresh value. A list cached before collections existed is just the notes. */
+  /** The lists of a cached or fresh value. A list cached before collections existed is just the notes, one before the index has no page count. */
   function parts(value) {
-    return Array.isArray(value) ? { entries: value, collections: [] } : value;
+    return Array.isArray(value) ? { entries: value, collections: [], pages: null } : { entries: value.entries, collections: value.collections, pages: value.pages === undefined ? null : value.pages };
   }
 
   /** The collection rows and the note grid (with a heading over it when collections are listed above). */
@@ -33,16 +34,16 @@
     return [B.view.collectionList(state.collections, openCollection), B.view.noteSection(groups, open, state.collections.length > 0)];
   }
 
-  /** The start buttons, the lists, or an empty note, or the loading and error notes, for the current status. A hint sits above while offline. */
+  /** The start buttons, the way into the notebook index, the lists, or an empty note, or the loading and error notes, for the current status. A hint sits above while offline. */
   function body() {
     if (state.status !== 'ready') return B.view.stateNote(state.status, reload);
     var empty = !state.entries.length && !state.collections.length;
-    return [state.offline ? B.view.offlineHint() : null, B.view.actions(newNote, newCollection), empty ? B.view.stateNote('empty') : lists()];
+    return [state.offline ? B.view.offlineHint() : null, B.view.actions(newNote, newCollection), B.view.indexEntry(state.pages, openIndex), empty ? B.view.stateNote('empty') : lists()];
   }
 
-  /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. Not while a collection page is open. */
+  /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. Not while a collection page or the notebook index is open. */
   function draw() {
-    if (L.collections.page.isOpen()) return;
+    if (L.collections.page.isOpen() || BujoIndex.screen.isOpen()) return;
     root.replaceChildren(B.view.header(), AppKit.h('div', { class: 'paper-page' }, body()));
     L.ink.decorate.notes(root);
   }
@@ -74,12 +75,34 @@
     reload();
   }
 
+  /** Opens the notebook index in place of the list. The way back shows the list again, read quietly. */
+  function openIndex() {
+    BujoIndex.screen.open(root, { onBack: leaveIndex, onOpen: openIndexPage });
+    window.scrollTo(0, 0);
+  }
+
+  /** Back from the notebook index to the list. */
+  function leaveIndex() {
+    BujoIndex.screen.close();
+    draw();
+    load(false);
+  }
+
+  /** A tapped page of the index: a collection opens its page here, any other page opens in the log (a day, the month log or the future log). */
+  function openIndexPage(item) {
+    var target = BujoIndex.model.targetOf(item);
+    if (!target.collection) return BujoNav.router.go('log', { open: target });
+    BujoIndex.screen.close();
+    openCollection(state.collections.filter(function (one) { return one.id === target.collection; })[0] || { id: item.ref, name: item.label || '', count: 0, paperPage: item.number });
+  }
+
   /** Takes a list. The page is only drawn again when it differs from what is on screen (or the offline hint has to go). */
   function accept(value) {
     var next = parts(value);
-    var same = state.status === 'ready' && !state.offline && JSON.stringify(next) === JSON.stringify({ entries: state.entries, collections: state.collections });
+    var same = state.status === 'ready' && !state.offline && JSON.stringify(next) === JSON.stringify({ entries: state.entries, collections: state.collections, pages: state.pages });
     state.entries = next.entries;
     state.collections = next.collections;
+    state.pages = next.pages;
     state.status = 'ready';
     state.offline = false;
     if (!same) draw();
@@ -112,10 +135,11 @@
     return BujoNav.data.fresh(BujoNav.data.KEYS.notes, fetchIndex).then(accept, failed);
   }
 
-  /** The router shows Notes: leaves an open collection page, paints the cached list at once on the first show (else the loading note), then reads it quietly. */
+  /** The router shows Notes: leaves an open collection page or the notebook index, paints the cached list at once on the first show (else the loading note), then reads it quietly. */
   function show() {
-    if (L.collections.page.isOpen()) {
+    if (L.collections.page.isOpen() || BujoIndex.screen.isOpen()) {
       L.collections.page.close();
+      BujoIndex.screen.close();
       state.status = 'loading';
       draw();
     }

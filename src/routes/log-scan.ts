@@ -136,6 +136,9 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *                                   "updated") and files them on the page, in the order of the paper. A page left out is page 1.
  *                                   Skipped lines may be sent so unchanged ones are recorded. Once per draft.
  *                                   An entry no line names is never touched, and nothing is deleted.
+ * The review answers paperNumber (the notebook page number the OCR read, or null). check and apply take an optional paperNumber (a whole
+ * number 1..9999 or null; left out or null leaves what the page has, anything else is a 400). Apply keeps it for the day's physical page,
+ * the month log or the future log (its first month), replacing an earlier number. It is listed by GET /api/index.
  */
 export async function handleLogScan(ctx: RouteContext, deps: LogScanDeps): Promise<boolean> {
   const { pathname, method } = ctx;

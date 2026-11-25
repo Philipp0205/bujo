@@ -7,6 +7,7 @@ Enabled only when OCR_LLM_BASE and OCR_LLM_KEY are both set. Env is read at call
   OCR_LLM_TIMEOUT  seconds to wait per gateway request (default 25: the app gives the whole scan 60 s)
 
 Each line carries symbol, text, tags, time, confidence and indent (0, or 1 for a child of the line above).
+The page also carries page_number: the notebook page number (integer 1..9999) or null. It is never a line.
 read_page(image_bgr) -> LlmPage. Every problem is an LlmError, so the caller can fall back to the local path.
 The page photo is shrunk and encoded in memory, sent to the gateway only, and never written or logged.
 Standard library plus Pillow and numpy.
@@ -71,8 +72,12 @@ SYSTEM_PROMPT = (
     "On a calendar page, return each written day as one line with symbol none and text starting with the day number, "
     "for example 15 Fr Zahnarzt, keep the weekday letters, and leave out days with nothing written. "
     "On a future page keep a day number at the start of an item as part of its text. "
+    "Return page_number as the notebook page number printed or handwritten as the page's own number (a lone number in a "
+    'corner, often with a dash or dot around it, for example "- 12 -"), as an integer, else null. It is not a line of '
+    "the page: never return it as a line. A number that is part of a line (a time, a date, a price, 3 books) is not a "
+    "page number. "
     'Answer with JSON only, matching the schema: {"date": string or null, "kind": string, "period": string or null, '
-    '"lines": [{"symbol", "text", "tags", "time", "confidence", "indent"}]}.'
+    '"page_number": integer or null, "lines": [{"symbol", "text", "tags", "time", "confidence", "indent"}]}.'
 )
 USER_INSTRUCTION = "Read this log page and answer with the JSON."
 
@@ -82,6 +87,7 @@ PAGE_SCHEMA = {
         "date": {"type": ["string", "null"]},
         "kind": {"type": ["string", "null"], "enum": [*KINDS, None]},
         "period": {"type": ["string", "null"]},
+        "page_number": {"type": ["integer", "null"]},
         "lines": {
             "type": "array",
             "items": {
@@ -99,7 +105,7 @@ PAGE_SCHEMA = {
             },
         },
     },
-    "required": ["date", "kind", "period", "lines"],
+    "required": ["date", "kind", "period", "page_number", "lines"],
     "additionalProperties": False,
 }
 RESPONSE_FORMAT = {
@@ -137,6 +143,7 @@ class LlmPage:
     model: str
     kind: str | None = None
     period: str | None = None
+    page_number: int | None = None
 
 
 @dataclass
@@ -329,16 +336,32 @@ def _period(value) -> str | None:
     return value.strip() if isinstance(value, str) and _PERIOD.match(value.strip()) else None
 
 
+_DIGITS = re.compile(r"^\d{1,4}$")
+
+
+def _page_number(value) -> int | None:
+    """The notebook page number 1..9999. Missing, null, a bool, a float, 0, a negative, too big or text is None;
+    a digit string like "12" is 12."""
+    if isinstance(value, str) and _DIGITS.match(value.strip()):
+        value = int(value.strip())
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 1 <= value <= 9999 else None
+
+
 def parse_page(content: str, model: str) -> LlmPage:
     """The model text to an LlmPage. Raises LlmError for bad JSON, a bad shape or no usable line.
-    A page kind or period that is not valid becomes None."""
+    A page kind, period or page_number that is not valid becomes None."""
     data = _load_json(content)
     lines = [line for line in map(_line, data["lines"]) if line]
     if not lines:
         raise LlmError("no lines")
     date = data.get("date")
     date = date.strip() if isinstance(date, str) and date.strip() else None
-    return LlmPage(date=date, lines=lines, model=model, kind=_kind(data.get("kind")), period=_period(data.get("period")))
+    return LlmPage(
+        date=date, lines=lines, model=model, kind=_kind(data.get("kind")), period=_period(data.get("period")),
+        page_number=_page_number(data.get("page_number")),
+    )
 
 
 def _ask(settings: Settings, image_bgr: np.ndarray, opener) -> LlmPage:

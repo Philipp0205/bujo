@@ -126,6 +126,17 @@ CREATE TABLE IF NOT EXISTS collections (
 );
 CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id, created_at);
 
+-- The notebook page number written on a scanned page: a day (ref YYYY-MM-DD, page = the physical page of that day), a month
+-- log (ref YYYY-MM) or a future log (ref = its first month). Older databases get the table on open.
+CREATE TABLE IF NOT EXISTS paper_pages (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('day', 'month', 'future')),
+  ref TEXT NOT NULL,
+  page INTEGER NOT NULL DEFAULT 1,
+  number INTEGER NOT NULL,
+  PRIMARY KEY (user_id, kind, ref, page)
+);
+
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
   name TEXT PRIMARY KEY

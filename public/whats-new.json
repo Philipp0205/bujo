@@ -2,10 +2,11 @@
   {
     "id": "2026-11-25-page-index",
     "date": "2026-11-25",
-    "title": "Page numbers in the index",
+    "title": "Notebook page numbers and an index",
     "bullets": [
-      "Give a collection the page number where you wrote it in your notebook.",
-      "The index lists them in page order."
+      "A scan reads the page number from your notebook; you confirm it in the review.",
+      "The Notes screen has a notebook index, listing days, logs and collections by page number.",
+      "Give a collection the page number where you wrote it in your notebook."
     ]
   },
   {

@@ -14,6 +14,7 @@ import { handleAuthRoutes } from "./routes/auth.ts";
 import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
 import { handleEntryRoutes } from "./routes/entries.ts";
 import { handleCollectionRoutes } from "./routes/collections.ts";
+import { handlePageIndex } from "./routes/page-index.ts";
 import { handleLogScan, type LogScanDeps } from "./routes/log-scan.ts";
 import { handleMcp } from "./routes/mcp.ts";
 import { handleScan, type ScanDeps } from "./routes/scan.ts";
@@ -171,6 +172,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleLogScan(ctx, logScan)) return;
       if (await handleEntryRoutes(ctx)) return;
       if (await handleCollectionRoutes(ctx)) return;
+      if (handlePageIndex(ctx)) return;
       if (await handleMcp(ctx)) return;
 
       if (pathname.startsWith("/api/")) return sendJson(res, 404, { error: "not found" });

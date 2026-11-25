@@ -12,7 +12,7 @@ from PIL import Image
 
 from bujo_ocr import detector, llm, server
 from bujo_ocr.recognize import Reading
-from fixtures import CALENDAR_LINES, FUTURE_LINES, MONTH_TASK_LINES, make_page
+from fixtures import CALENDAR_LINES, FUTURE_LINES, MONTH_TASK_LINES, make_page, with_corner_number
 
 PAGE_ANSWER = {
     "date": "20.11.2025",
@@ -290,6 +290,53 @@ def test_read_page_keeps_the_indent_of_each_line(gateway):
     assert [line.indent for line in llm.read_page(image).lines] == [0, 1, 1]
 
 
+# page number
+
+
+def test_the_schema_requires_page_number_and_the_prompt_explains_it():
+    assert "page_number" in llm.PAGE_SCHEMA["required"]
+    assert llm.PAGE_SCHEMA["properties"]["page_number"] == {"type": ["integer", "null"]}
+    assert llm.PAGE_SCHEMA["additionalProperties"] is False
+    assert llm.RESPONSE_FORMAT["json_schema"]["strict"] is True
+    for words in ("page_number", "- 12 -", "never return it as a line", "a time, a date, a price"):
+        assert words in llm.SYSTEM_PROMPT
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (12, 12), ("12", 12), (" 7 ", 7), (1, 1), (9999, 9999),
+        (None, None), (True, None), (False, None), (12.0, None), (12.5, None), ("twelve", None), ("12.5", None),
+        ("", None), (0, None), (-3, None), (10000, None), ("10000", None), ("0", None), ([12], None),
+    ],
+)
+def test_page_number_is_parsed_tolerantly(value, expected):
+    answer = {"page_number": value, "lines": [{"symbol": "•", "text": "a"}]}
+    assert llm.parse_page(json.dumps(answer), "m").page_number == expected
+
+
+def test_an_answer_without_page_number_is_a_page_with_none():
+    assert llm.parse_page(json.dumps({"lines": [{"symbol": "•", "text": "a"}]}), "m").page_number is None
+
+
+def test_run_ocr_passes_the_page_number_on_and_it_is_not_a_line(gateway):
+    answer = {**PAGE_ANSWER, "page_number": 12}
+    gateway.answers = [ok(answer)]
+    result = server.run_ocr(with_corner_number(make_page().png, 12), fake_recognizer)
+    assert result["pageNumber"] == 12
+    assert all(line["text"] != "12" for line in result["lines"])
+
+
+def test_run_ocr_without_a_page_number_answers_null(gateway):
+    result = server.run_ocr(make_page().png, fake_recognizer)
+    assert result["pageNumber"] is None
+
+
+def test_run_ocr_takes_an_injected_reader_with_a_page_number():
+    page = llm.LlmPage(date=None, lines=[llm.LlmLine("•", "a", [], None, 0.9)], model="m", page_number=33)
+    assert server.run_ocr(make_page().png, fake_recognizer, lambda image: page)["pageNumber"] == 33
+
+
 def test_run_ocr_passes_the_kind_and_period_on(gateway):
     gateway.answers = [ok(kind_answer("future", "2027", FUTURE_LINES))]
     result = server.run_ocr(make_page(FUTURE_LINES).png, fake_recognizer)
@@ -394,7 +441,7 @@ def test_run_ocr_uses_the_llm_and_the_detector_boxes(gateway):
         {"symbol": e.symbol, "text": e.text, "tags": [], "time": None, "confidence": 0.9} for e in fixture.expected
     ]})]
     result = server.run_ocr(fixture.png, fake_recognizer)
-    assert set(result) == {"lines", "date", "kind", "period", "width", "height", "ms"}
+    assert set(result) == {"lines", "date", "kind", "period", "pageNumber", "width", "height", "ms"}
     assert result["date"] == "20.11.2025"
     assert (result["kind"], result["period"]) == (None, None)
     assert [line["symbol"] for line in result["lines"]] == [e.symbol for e in fixture.expected]

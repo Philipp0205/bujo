@@ -1,6 +1,7 @@
 import { HttpError } from "../../app-kit/http.ts";
 import { inTransaction, type Db } from "../../db.ts";
 import { settleHorizon } from "../horizon.ts";
+import { createPaperPageStore, type PaperKind } from "../paper-pages.ts";
 import type { EntryStore } from "../store.ts";
 import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
@@ -105,6 +106,28 @@ function applyIndents(store: EntryStore, userId: string, review: SentReview, pla
   }
 }
 
+/** Where the notebook page number of this review is kept: a day's physical page, a month log, or a future log (its earliest month). Null when no place can be told. */
+function paperPlace(review: SentReview, plan: readonly Planned[], fallbackDate: string): { kind: PaperKind; ref: string; page: number } | null {
+  if (review.kind === "daily") return { kind: "day", ref: review.date ?? fallbackDate, page: review.page };
+  if (review.kind !== "future") return review.month ? { kind: "month", ref: review.month, page: 1 } : null;
+  const months = plan.flatMap(({ slot }) => (slot ? [slot.date.slice(0, 7)] : [])).sort();
+  return months.length > 0 ? { kind: "future", ref: months[0], page: 1 } : null;
+}
+
+/**
+ * Keeps the notebook page number the review sent (none sent: nothing changes, a stored number is never cleared). A failure to
+ * store is logged and swallowed: in SQLite a failed statement leaves the transaction alive, so the entries already written stay.
+ */
+function storePaperNumber(db: Db, userId: string, review: SentReview, plan: readonly Planned[], fallbackDate: string): void {
+  const place = review.paperNumber === null ? null : paperPlace(review, plan, fallbackDate);
+  if (!place || review.paperNumber === null) return;
+  try {
+    createPaperPageStore(db).save(userId, place.kind, place.ref, place.page, review.paperNumber);
+  } catch (error) {
+    console.error("paper page number not saved:", error instanceof Error ? error.name : "error");
+  }
+}
+
 /**
  * Writes what the person kept from a draft into the log, sync state local (the route then queues the push). Kept new lines add
  * entries, kept edited lines change their entry's type, title, tags or time, and nothing is ever deleted. Unchanged lines are
@@ -112,7 +135,7 @@ function applyIndents(store: EntryStore, userId: string, review: SentReview, pla
  * matches only the entries of that slot and of the scanned physical page (or not on paper). Entries of a page are then filed in
  * the paper's line order after earlier pages, so a rescan of page 1 keeps page 2 and a first scan of page 2 appends to the day.
  * The whole request is checked first, the slots are read again here (the client's status
- * is not trusted), and the writes share one transaction: all or nothing. A draft can be applied once.
+ * is not trusted), and the writes share one transaction: all or nothing, the notebook page number included (see storePaperNumber). A draft can be applied once.
  * Throws 409 when it was applied, 400 for a bad request or when no kept line would add or change anything.
  */
 export function applyLogDraft(
@@ -133,6 +156,7 @@ export function applyLogDraft(
     const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
     placeOnPaper(store, userId, review.page, plan, done);
     applyIndents(store, userId, review, plan, done);
+    storePaperNumber(db, userId, review, plan, draft.fallbackDate);
     return done;
   });
   draft.applied = true;

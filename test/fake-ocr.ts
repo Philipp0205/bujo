@@ -1,6 +1,6 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import type { OcrLine, OcrResult } from "../src/scan/ocr-client.ts";
+import type { OcrLine } from "../src/scan/ocr-client.ts";
 
 // A fake OCR service for tests: POST /ocr answers a fixed result, and records what it was sent (the byte
 // count and content type, never the bytes). It listens on 127.0.0.1 only. Not a test file: `npm test` only
@@ -14,6 +14,8 @@ export type FakeOcr = {
   setLines(lines: OcrLine[]): void;
   /** What the LLM engine says about the page for the next calls (null for none). */
   setPage(kind: string | null, period?: string | null): void;
+  /** The notebook page number the OCR reads for the next calls: a number, null, or any odd value; undefined leaves the key out. */
+  setPageNumber(value: unknown): void;
   /** Answer the next calls with this status and no result (0 = answer normally). */
   failWith(status: number): void;
   /** Never answer (for the timeout test). */
@@ -45,6 +47,7 @@ export const DEFAULT_PAGE: OcrLine[] = [
 export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<FakeOcr> {
   let lines = initial;
   let llm: { kind: string | null; period: string | null } = { kind: null, period: null };
+  let pageNumber: unknown = undefined;
   let failStatus = 0;
   let hanging = false;
   let delayMs = 0;
@@ -67,7 +70,7 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
         res.writeHead(failStatus, { "content-type": "application/json" }).end('{"error":"nope"}');
         return;
       }
-      const result: OcrResult = { lines, width: 900, height: 700, ms: 12, ...(llm.kind ? { kind: llm.kind } : {}), ...(llm.period ? { period: llm.period } : {}) };
+      const result = { lines, width: 900, height: 700, ms: 12, ...(llm.kind ? { kind: llm.kind } : {}), ...(llm.period ? { period: llm.period } : {}), ...(pageNumber === undefined ? {} : { pageNumber }) };
       const body = JSON.stringify(result);
       const answer = () => {
         res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
@@ -86,6 +89,9 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
     },
     setPage: (kind, period = null) => {
       llm = { kind, period };
+    },
+    setPageNumber: (value) => {
+      pageNumber = value;
     },
     failWith: (status) => {
       failStatus = status;

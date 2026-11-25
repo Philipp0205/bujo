@@ -161,6 +161,15 @@ def make_page(
     return Fixture(png=buffer.getvalue(), width=width, height=height, expected=expected)
 
 
+def with_corner_number(png: bytes, number: int) -> bytes:
+    """The page with a lone "- N -" drawn in the bottom right corner, as a notebook page number. Synthetic."""
+    page = Image.open(io.BytesIO(png)).convert("RGB")
+    ImageDraw.Draw(page).text((page.width - 60, page.height - 24), f"- {number} -", font=_font(26), fill=(20, 20, 30), anchor="rm")
+    out = io.BytesIO()
+    page.save(out, format="PNG")
+    return out.getvalue()
+
+
 def to_jpeg(png: bytes, quality: int = 85) -> bytes:
     out = io.BytesIO()
     Image.open(io.BytesIO(png)).convert("RGB").save(out, format="JPEG", quality=quality)
