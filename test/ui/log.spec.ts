@@ -202,6 +202,9 @@ test("tapping Add entry opens no dialog: an edit sheet with a focused task line 
 test("the paper is the page colour, never white, and its dot grid is on the scrolling sheet", async ({ page }, testInfo) => {
   await page.goto(app.baseUrl);
   await expect(page.locator("[data-testid=today-mark]")).toBeVisible();
+  // Computed styles can be empty until fonts and stylesheets have settled, especially under load.
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   const dark = testInfo.project.name === "phone-dark";
   const grid = (selector: string) => page.locator(selector).first().evaluate((el) => {
     const style = getComputedStyle(el);
@@ -214,7 +217,7 @@ test("the paper is the page colour, never white, and its dot grid is on the scro
   expect(paper.attachment).toBe("local");
   expect(paper.overflow).toBe("auto");
   // The body of rows paints nothing of its own: the sheet's one grid runs under it.
-  expect((await grid("[data-testid=page-body]")).image).toBe("none");
+  await expect.poll(async () => (await grid("[data-testid=page-body]")).image).toBe("none");
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
 });
 
