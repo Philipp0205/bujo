@@ -86,12 +86,85 @@ test("Use today instead moves the day to today and words the source as a fallbac
   await expect(page.getByTestId("scan-continue-today")).toBeHidden();
   await expect(page.getByTestId("scan-date")).not.toHaveText(continued ?? "");
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(0)));
-  await expect(page.getByTestId("scan-page-row")).toBeHidden();
+  await expect(page.getByTestId("scan-page-row")).toBeVisible();
+  await expect(page.locator("[data-testid=scan-pages] [data-page='2']")).toHaveAttribute("aria-pressed", "true");
 
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
   const today = await page.request.get(`${app.baseUrl}/api/entries?from=${day(0)}&to=${day(0)}`);
   expect((await today.json()).entries.map((e: { title: string }) => e.title)).toEqual(["Charlie"]);
+});
+
+const pressed = (page: Page, n: number) => page.locator(`[data-testid=scan-pages] [data-page='${n}']`);
+
+/** The titles of a day as the server lists them, with their page. */
+async function dayEntries(page: Page, date: string): Promise<Array<{ title: string; page: number | null }>> {
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${date}&to=${date}`);
+  return (await response.json()).entries.map((e: { title: string; page: number | null }) => ({ title: e.title, page: e.page }));
+}
+
+test("a dated page that is page 2 of its day files on that date after page 1, and the page can be changed", async ({ page }) => {
+  await seedPage(page, day(-1), ["Alpha"]);
+  app.ocr.setLines([headerLine(day(-1)), line("•", "Charlie", 0.9)]);
+  await page.goto(app.baseUrl);
+  await (await openScan(page)).setFiles(photo);
+  await expect(review(page)).toBeVisible();
+  await expect(page.getByTestId("scan-date")).toHaveText(heading(day(-1)));
+  await expect(page.getByTestId("scan-date-source")).toHaveText("Read from the page");
+  await expect(page.getByTestId("scan-continue-today")).toBeHidden();
+  await expect(page.getByTestId("scan-page-row")).toBeVisible();
+  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+
+  await pressed(page, 3).click();
+  await expect(pressed(page, 3)).toHaveAttribute("aria-pressed", "true");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  expect(await dayEntries(page, day(-1))).toEqual([{ title: "Alpha", page: 1 }, { title: "Charlie", page: 3 }]);
+});
+
+test("a dated page saved with its default page 2 lands after page 1", async ({ page }) => {
+  await seedPage(page, day(-1), ["Alpha"]);
+  app.ocr.setLines([headerLine(day(-1)), line("•", "Charlie", 0.9)]);
+  await page.goto(app.baseUrl);
+  await (await openScan(page)).setFiles(photo);
+  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  expect(await dayEntries(page, day(-1))).toEqual([{ title: "Alpha", page: 1 }, { title: "Charlie", page: 2 }]);
+});
+
+test("Use today instead keeps page 2 and the picker, and Save files page 2 of today", async ({ page }) => {
+  await seedPage(page, day(-1), ["Alpha"]);
+  await scanNoHeader(page, ["Charlie"]);
+  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("scan-continue-today").click();
+  await expect(page.getByTestId("scan-date")).toHaveText(heading(day(0)));
+  await expect(page.getByTestId("scan-page-row")).toBeVisible();
+  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  expect(await dayEntries(page, day(0))).toEqual([{ title: "Charlie", page: 2 }]);
+});
+
+test("changing the day with the date control keeps page 3", async ({ page }) => {
+  await seedPage(page, day(-1), ["Alpha"]);
+  await scanNoHeader(page, ["Charlie"]);
+  await pressed(page, 3).click();
+  await page.locator("[data-field=date]").fill(day(-2));
+  await expect(page.getByTestId("scan-date")).toHaveText(heading(day(-2)));
+  await expect(pressed(page, 3)).toHaveAttribute("aria-pressed", "true");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  expect(await dayEntries(page, day(-2))).toEqual([{ title: "Charlie", page: 3 }]);
+});
+
+test("a first scan of a day with no paper shows pages 1 to 3, defaults to page 1 and never says page 0", async ({ page }) => {
+  await scanNoHeader(page, ["Alpha"]);
+  await expect(page.getByTestId("scan-page-row")).toBeVisible();
+  await expect(page.locator("[data-testid=scan-pages] [data-page]")).toHaveText(["Page 1", "Page 2", "Page 3"]);
+  await expect(pressed(page, 1)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-page-note")).not.toContainText("page 0");
+  await expect(page.getByTestId("scan-page-note")).not.toBeEmpty();
 });
 
 test("a rescan of a day page stays on that day, with no continuation row", async ({ page }) => {

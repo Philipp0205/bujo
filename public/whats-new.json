@@ -6,6 +6,8 @@
     "bullets": [
       "A scanned page with no date continues the latest day you scanned.",
       "The review says which day it continues.",
+      "Pick which page of the day it is: page 1, 2, 3 or more.",
+      "Entries follow that page order on the day.",
       "Tap Use today instead to file it on today."
     ]
   },

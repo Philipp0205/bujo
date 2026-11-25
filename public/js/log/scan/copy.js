@@ -63,6 +63,7 @@
       page: function (page) { return 'Page ' + page; },
       pageRescan: function (page) { return 'Rescan of page ' + page + ': its lines are matched, nothing is replaced.'; },
       pageNew: function (page) { return 'A new page: its lines are added after page ' + (page - 1) + '.'; },
+      pageFirst: 'The first page of this day. Pick another page if it is not.',
       kinds: { daily: 'Daily', future: 'Future', calendar: 'Calendar', 'month-task': 'Month tasks' },
       kindSource: {
         llm: 'Kind read from the page',
