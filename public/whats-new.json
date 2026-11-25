@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-25-month-scan-apply",
+    "date": "2026-11-25",
+    "title": "Apply works on monthly log scans",
+    "bullets": [
+      "Apply now works when you scan a monthly log.",
+      "A line with no day starts unticked, so it no longer blocks the rest."
+    ]
+  },
+  {
     "id": "2026-11-25-indent-children",
     "date": "2026-11-25",
     "title": "Scanning keeps indented lines",

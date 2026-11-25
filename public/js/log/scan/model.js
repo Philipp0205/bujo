@@ -39,12 +39,14 @@
    */
   function defaultInclude(item) {
     if (item.noBullet) return false;
+    if (item.needsDay && dayOf(item) === null) return false;
     if (item.status === 'new') return item.title !== '';
     return item.status === 'edited' && !item.contested;
   }
 
-  function fromLine(line) {
+  function fromLine(line, kind) {
     return {
+      needsDay: kind === 'calendar' && !line.day,
       id: line.id,
       type: line.type,
       title: line.title,
@@ -111,7 +113,7 @@
       month: draft.month || monthOfDate(draft.fallbackDate),
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
-      items: draft.items.map(fromLine)
+      items: draft.items.map(function (line) { return fromLine(line, draft.kind); })
     };
   }
 
