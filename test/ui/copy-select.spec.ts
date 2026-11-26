@@ -307,3 +307,88 @@ test("starting select mode closes an open edit sheet first", async ({ page }) =>
   await expect(bar(page)).toHaveCount(0);
   await expect(page).toHaveURL(dayUrl(-6));
 });
+
+/** The titles the server holds for one day. */
+async function stored(page: Page, offset: number): Promise<string[]> {
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(offset)}&to=${day(offset)}`);
+  return ((await response.json()).entries as Array<{ title: string }>).map((entry) => entry.title);
+}
+
+const deleteButton = (page: Page) => page.getByTestId("select-delete");
+const dialog = (page: Page) => page.getByTestId("select-delete-dialog");
+
+test("Delete is on the bar in select mode, and off at zero", async ({ page }) => {
+  await seed(page, [{ date: day(8), type: "task", title: "Loeschbar" }]);
+  await openDay(page, 8);
+  await hold(page, "Loeschbar");
+  await expect(deleteButton(page)).toBeEnabled();
+  await page.waitForTimeout(400);
+  await row(page, "Loeschbar").click();
+  await expect(page.getByTestId("select-count")).toHaveText("0 selected");
+  await expect(deleteButton(page)).toBeDisabled();
+});
+
+test("the delete confirm shows the count, and Cancel keeps the entries and select mode", async ({ page }) => {
+  await seed(page, [{ date: day(9), type: "task", title: "Bleibt eins" }, { date: day(9), type: "task", title: "Bleibt zwei" }]);
+  await openDay(page, 9);
+  await hold(page, "Bleibt eins");
+  await row(page, "Bleibt zwei").click();
+  await deleteButton(page).click();
+  await expect(dialog(page)).toBeVisible();
+  await expect(page.getByTestId("select-delete-title")).toHaveText("Delete 2 entries?");
+
+  await page.getByTestId("select-delete-cancel").click();
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(bar(page)).toBeVisible();
+  await expect(page.getByTestId("select-count")).toHaveText("2 selected");
+  expect(await stored(page, 9)).toEqual(expect.arrayContaining(["Bleibt eins", "Bleibt zwei"]));
+
+  // The veil closes it too.
+  await deleteButton(page).click();
+  await page.getByTestId("select-delete-overlay").click({ position: { x: 5, y: 5 } });
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(bar(page)).toBeVisible();
+});
+
+test("confirming removes only the ticked entries, ends select mode and the server forgets them", async ({ page }) => {
+  await seed(page, [
+    { date: day(10), type: "task", title: "Weg eins" },
+    { date: day(10), type: "note", title: "Weg zwei" },
+    { date: day(10), type: "task", title: "Nachbar" },
+  ]);
+  await openDay(page, 10);
+  await hold(page, "Weg eins");
+  await row(page, "Weg zwei").click();
+  await deleteButton(page).click();
+  await expect(page.getByTestId("select-delete-title")).toHaveText("Delete 2 entries?");
+  await page.getByTestId("select-delete-confirm").click();
+
+  await expect(row(page, "Weg eins")).toHaveCount(0);
+  await expect(row(page, "Weg zwei")).toHaveCount(0);
+  await expect(row(page, "Nachbar")).toHaveCount(1);
+  await expect(bar(page)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
+  expect(await stored(page, 10)).toEqual(["Nachbar"]);
+});
+
+test("one ticked entry says entry, not entries", async ({ page }) => {
+  await seed(page, [{ date: day(11), type: "task", title: "Allein" }]);
+  await openDay(page, 11);
+  await hold(page, "Allein");
+  await deleteButton(page).click();
+  await expect(page.getByTestId("select-delete-title")).toHaveText("Delete 1 entry?");
+});
+
+test("a failed delete keeps select mode, leaves the entry ticked and says so", async ({ page }) => {
+  await seed(page, [{ date: day(12), type: "task", title: "Haelt fest" }]);
+  await openDay(page, 12);
+  await hold(page, "Haelt fest");
+  await page.route("**/api/entries/*", (route) => (route.request().method() === "DELETE" ? route.fulfill({ status: 500, body: "{}" }) : route.continue()));
+  await deleteButton(page).click();
+  await page.getByTestId("select-delete-confirm").click();
+
+  await expect(page.getByTestId("copy-failed-toast")).toHaveText("Could not delete 1 entry. Try again.");
+  await expect(bar(page)).toBeVisible();
+  await expect(row(page, "Haelt fest")).toHaveAttribute("aria-selected", "true");
+  expect(await stored(page, 12)).toEqual(["Haelt fest"]);
+});
