@@ -117,6 +117,6 @@ for (const theme of ["system", "light", "dark"] as const) {
 test("settings cards wear a pen outline", async ({ page }) => {
   await page.goto(`${app.baseUrl}/settings`);
   const cards = page.locator(".bj-card");
-  await expect(cards).toHaveCount(5);
-  for (let i = 0; i < 5; i++) await expect(cards.nth(i).locator(":scope > svg.ink-stroke")).toHaveCount(1);
+  await expect(cards).toHaveCount(6);
+  for (let i = 0; i < 6; i++) await expect(cards.nth(i).locator(":scope > svg.ink-stroke")).toHaveCount(1);
 });

@@ -90,3 +90,7 @@ Goals: keep the core modular, let every feature be switched on and off, and supp
 The assistant may use the cloud for text entries, but never for page photos. For Android Auto, voice capture into today is enough. The first implementation PR is the plugin registry.
 
 Still open: should habits become their own plugin (tracker plus a monthly-page parser), or stay a kind of monthly log line?
+
+## Status
+
+The plugin registry landed (step 1 of the migration). It lives in `public/js/plugins/`: manifest check, namespaced storage, the registry with saved on/off state, and Settings > Plugins. Bulk delete in select mode is the first first-party plugin. Community loading is not built; `registry.js` marks the seam.
