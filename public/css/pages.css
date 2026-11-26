@@ -114,7 +114,7 @@ html.is-editing .paper-page.daily-page { padding-bottom: 320px; }
   box-shadow: var(--paper-wash);
 }
 
-/* The way back to today: a small pen-ringed chip. Its tap area is taller than it looks. */
+/* The way back to this month on the Month view: a small pen-ringed chip. Its tap area is taller than it looks. */
 .page-today-jump {
   appearance: none;
   -webkit-appearance: none;

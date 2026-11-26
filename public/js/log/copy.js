@@ -27,8 +27,6 @@
       next: 'Next page',
       folio: function (number) { return 'Page ' + number; },
       pickDay: 'Choose a day',
-      toToday: 'Today',
-      toTodayLabel: 'Back to today',
       picker: {
         label: 'Choose a day',
         prevMonth: 'Previous month',

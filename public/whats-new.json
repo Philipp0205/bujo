@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-today-pill",
+    "date": "2026-11-26",
+    "title": "The Today mark stays on today",
+    "bullets": [
+      "Only today's daily log shows the Today mark.",
+      "Past and future days no longer show a Today pill."
+    ]
+  },
+  {
     "id": "2026-11-26-scan-routing",
     "date": "2026-11-26",
     "title": "Scans land on the right day",
