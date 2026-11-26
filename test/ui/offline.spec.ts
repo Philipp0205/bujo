@@ -105,10 +105,9 @@ test("a send that was lost on the way is repeated without making a second entry"
   expect(await serverTitles(page, "Answer got")).toEqual(["Answer got lost"]);
 });
 
-test("Notes keeps its last grid and says it is offline", async ({ page }) => {
-  await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: "2026-11-20", type: "note", title: "A saved note", body: "text" } });
+test("Notes keeps its last notebooks list and says it is offline", async ({ page }) => {
   await page.goto(`${app.baseUrl}/notes`);
-  await expect(page.getByTestId("note-grid")).toBeVisible();
+  await expect(page.getByTestId("notebook-list")).toBeVisible();
   // The log joins the document in the background; the tab switch below needs it there, as no page can load offline.
   await page.waitForFunction(() => !!document.querySelector("#log") && !!document.querySelector('script[src="/js/log/main.js"]'));
   await page.waitForTimeout(500);
@@ -118,7 +117,7 @@ test("Notes keeps its last grid and says it is offline", async ({ page }) => {
   await expect(page.getByTestId("offline-hint")).toBeVisible();
   await bar.locator("[data-tab=notes]").click();
   const notes = page.getByRole("main", { name: "Notes" });
-  await expect(notes.getByTestId("note-grid")).toBeVisible();
+  await expect(notes.getByTestId("notebook-list")).toBeVisible();
   await expect(notes.getByTestId("offline-hint")).toBeVisible();
   await expect(notes.locator("[data-state=error]")).toHaveCount(0);
 });

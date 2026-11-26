@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { openNotebook, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -34,6 +34,7 @@ async function seedNote(page: Page, title: string): Promise<string> {
 }
 
 const card = (page: Page, title: string) => grid(page).locator(".note-card", { hasText: title });
+const rows = (page: Page) => page.getByTestId("notebook-row");
 
 /** Watches the page for the loading line of the Notes screen. window.__loadingSeen turns true when it ever appears. */
 async function watchLoadingLine(page: Page): Promise<void> {
@@ -56,6 +57,7 @@ test("the tabs swap in place: Notes, Account and back to the log, with the bar k
   await tab(page, "notes").click();
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
   await expect(heading(page, "Notes")).toBeVisible();
+  await openNotebook(page);
   await expect(card(page, title)).toHaveCount(1);
   await expect(tab(page, "notes")).toHaveAttribute("aria-current", "page");
   await expect(tab(page, "add")).not.toHaveAttribute("aria-current", "page");
@@ -133,13 +135,14 @@ test("an open note sheet closes on the first Back and Notes stays, the second Ba
   await page.goto(app.baseUrl);
   await markDocument(page);
   await tab(page, "notes").click();
+  await openNotebook(page);
   await card(page, title).click();
   await expect(noteSheet(page)).toBeVisible();
 
   await page.goBack();
   await expect(noteSheet(page)).toHaveCount(0);
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
-  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(card(page, title)).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
@@ -195,36 +198,36 @@ for (const [path, name] of [["/settings", "Settings"], ["/notes", "Notes"]] as c
   });
 }
 
-test("a warm switch to Notes shows the grid and never the loading line", async ({ page }) => {
-  const title = await seedNote(page, "Watering plan");
+test("a warm switch to Notes shows the notebooks and never the loading line", async ({ page }) => {
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
-  await expect(card(page, title)).toHaveCount(1);
+  await expect(rows(page)).toHaveCount(1);
   await tab(page, "log").click();
   await expect(heading(page, "Daily Log")).toBeVisible();
 
   await watchLoadingLine(page);
   await tab(page, "notes").click();
-  // The grid is there in the same turn as the swap: no wait is needed for it.
-  await expect(card(page, title)).toHaveCount(1, { timeout: 500 });
+  // The list is there in the same turn as the swap: no wait is needed for it.
+  await expect(rows(page)).toHaveCount(1, { timeout: 500 });
   await tab(page, "log").click();
   await tab(page, "notes").click();
-  await expect(card(page, title)).toHaveCount(1);
+  await expect(rows(page)).toHaveCount(1);
   expect(await page.evaluate(() => (window as unknown as { __loadingSeen: boolean }).__loadingSeen)).toBe(false);
 });
 
-test("a warm switch to an empty Notes shows the empty note, not the loading line", async ({ page }) => {
+test("a notebook with no notes says so, and Notes is back on the notebooks list after a warm switch", async ({ page }) => {
   for (const entry of ((await (await page.request.get(`${app.baseUrl}/api/entries?kind=notes`)).json()).entries as Array<{ id: string }>)) {
     await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
   }
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
-  await expect(page.getByText("No notes yet.")).toBeVisible();
+  await openNotebook(page);
+  await expect(page.getByText("No collections or notes in this notebook yet.")).toBeVisible();
   await tab(page, "log").click();
 
   await watchLoadingLine(page);
   await tab(page, "notes").click();
-  await expect(page.getByText("No notes yet.")).toBeVisible({ timeout: 500 });
+  await expect(rows(page)).toHaveCount(1, { timeout: 500 });
   expect(await page.evaluate(() => (window as unknown as { __loadingSeen: boolean }).__loadingSeen)).toBe(false);
 });
 
@@ -241,34 +244,32 @@ test("a warm switch to Account shows the theme section and a filled main", async
 });
 
 test("the other tabs are warmed in the background, so the first switch to Notes paints from the cache", async ({ page }) => {
-  const title = await seedNote(page, "Warm note");
   await page.goto(app.baseUrl);
   // The cache of the list is filled while the log is on screen, before anybody taps Notes.
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("ak-swr:bujo-notes"))).toContain(title);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("ak-swr:bujo-notes"))).toContain("Notebook 1");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("ak-swr:bujo-settings"))).not.toBeNull();
 
-  await page.route("**/api/entries?kind=notes", async (route) => {
+  await page.route("**/api/notebooks", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
   await watchLoadingLine(page);
   await tab(page, "notes").click();
-  // The server is slow on purpose: the grid is on screen from the cache long before it answers.
-  await expect(card(page, title)).toBeVisible({ timeout: 800 });
+  // The server is slow on purpose: the list is on screen from the cache long before it answers.
+  await expect(rows(page)).toBeVisible({ timeout: 800 });
   expect(await page.evaluate(() => (window as unknown as { __loadingSeen: boolean }).__loadingSeen)).toBe(false);
 });
 
-test("a reload of Notes paints the cached grid before the list arrives", async ({ page }) => {
-  const title = await seedNote(page, "Cached card");
+test("a reload of Notes paints the cached notebooks before the list arrives", async ({ page }) => {
   await page.goto(`${app.baseUrl}/notes`);
-  await expect(card(page, title)).toBeVisible();
+  await expect(rows(page)).toBeVisible();
 
-  await page.route("**/api/entries?kind=notes", async (route) => {
+  await page.route("**/api/notebooks", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
   await page.reload();
-  await expect(card(page, title)).toBeVisible({ timeout: 800 });
+  await expect(rows(page)).toBeVisible({ timeout: 800 });
   await expect(page.getByText(LOADING)).toHaveCount(0);
 });
 

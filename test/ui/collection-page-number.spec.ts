@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { gotoNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -27,7 +27,7 @@ async function openSheet(page: Page, name: string): Promise<void> {
 test("a collection gets a notebook page number: shown in the header and the index, which is re-sorted; clearing removes it; a bad number saves nothing", async ({ page }) => {
   // Created in the opposite order of their numbers: "late" (page 40) first, "early" (page 7) second, "plain" without a number last.
   for (const name of ["late", "early", "plain"]) await page.request.post(`${app.baseUrl}/api/collections`, { data: { name } });
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await expect(page.getByTestId("collection-index")).toBeVisible();
   expect(await order(page)).toEqual(["late", "early", "plain"]);
   await expect(page.getByTestId("collection-row-page")).toHaveCount(0);
@@ -84,7 +84,7 @@ test("a collection gets a notebook page number: shown in the header and the inde
 
 test("a server refusal of the page number shows its text in the sheet", async ({ page }) => {
   await page.request.post(`${app.baseUrl}/api/collections`, { data: { name: "films" } });
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await openSheet(page, "films");
   await page.route("**/api/collections/*", (route) => route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: "paperPage must be null or a whole number from 1 to 9999" }) }));
   await page.getByTestId("collection-page-input").fill("12");

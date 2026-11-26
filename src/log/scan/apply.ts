@@ -121,14 +121,14 @@ function paperPlace(review: SentReview, plan: readonly Planned[], fallbackDate: 
 }
 
 /**
- * Keeps the notebook page number the review sent (none sent: nothing changes, a stored number is never cleared). A failure to
+ * Keeps the notebook page number the review sent in the user's active notebook (none sent: nothing changes, a stored number is never cleared). A failure to
  * store is logged and swallowed: in SQLite a failed statement leaves the transaction alive, so the entries already written stay.
  */
-function storePaperNumber(db: Db, userId: string, review: SentReview, plan: readonly Planned[], fallbackDate: string): void {
+function storePaperNumber(db: Db, userId: string, review: SentReview, plan: readonly Planned[], fallbackDate: string, now: number): void {
   const place = review.paperNumber === null ? null : paperPlace(review, plan, fallbackDate);
   if (!place || review.paperNumber === null) return;
   try {
-    createPaperPageStore(db).save(userId, place.kind, place.ref, place.page, review.paperNumber);
+    createPaperPageStore(db).save(userId, place.kind, place.ref, place.page, review.paperNumber, now);
   } catch (error) {
     console.error("paper page number not saved:", error instanceof Error ? error.name : "error");
   }
@@ -163,7 +163,7 @@ export function applyLogDraft(
     const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
     placeOnPaper(store, userId, review.page, plan, done);
     applyIndents(store, userId, review, plan, done);
-    storePaperNumber(db, userId, review, plan, draft.fallbackDate);
+    storePaperNumber(db, userId, review, plan, draft.fallbackDate, now);
     return done;
   });
   draft.applied = true;

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { gotoNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -47,9 +47,9 @@ async function applyReview(page: Page): Promise<void> {
   await expect(review(page)).toHaveCount(0);
 }
 
-/** The index as [number, label] rows, top to bottom, read on the Notes screen. */
+/** The index as [number, label] rows, top to bottom, read on the page list of the active notebook. */
 async function indexRows(page: Page): Promise<string[][]> {
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await page.getByTestId("open-index").click();
   await expect(page.getByTestId("index-title")).toBeVisible();
   await expect(page.getByTestId("index-list").or(page.locator("[data-state=empty]"))).toBeVisible();
@@ -110,14 +110,14 @@ test("a monthly log and a future log are listed in number order, with a collecti
   await expect(page.getByTestId("open-index")).toHaveCount(0);
 });
 
-test("the Notes screen has a Notebook index entry with the count of pages", async ({ page }) => {
-  await page.goto(`${app.baseUrl}/notes`);
+test("the notebook has a Notebook index entry with the count of pages", async ({ page }) => {
+  await gotoNotebook(page, app.baseUrl);
   await expect(page.getByTestId("open-index")).toContainText("Notebook index");
   await expect(page.getByTestId("index-count")).toHaveText("5 pages");
 });
 
 test("tapping an index row opens the day, the month log and the collection page", async ({ page }) => {
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   const open = async (label: string) => {
     await page.getByTestId("open-index").click();
     await page.getByTestId("index-row").filter({ hasText: label }).click();
@@ -127,16 +127,16 @@ test("tapping an index row opens the day, the month log and the collection page"
   await expect(page).toHaveURL(/day=2026-11-18/);
   await expect(page.locator("#log").getByText("Alpha")).toBeVisible();
 
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await open("March 2027");
   await expect(page).toHaveURL(/view=month/);
   await expect(page).toHaveURL(/month=2027-03/);
 
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await open("Future log, from Apr 2027");
   await expect(page).toHaveURL(/view=future/);
 
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await open("Books");
   await expect(page.getByTestId("collection-title")).toHaveText("Books");
   await expect(page.getByTestId("collection-page-mark")).toHaveText("p. 17");

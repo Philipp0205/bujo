@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -115,6 +115,7 @@ test("HTML and javascript links in a note render as text, with no script run and
 
 test("a new note starts in edit mode with the toolbar", async ({ page }) => {
   await page.goto(`${app.baseUrl}/notes.html`);
+  await openNotebook(page);
   await page.getByTestId("new-note").click();
   await expect(sheet(page)).toHaveAttribute("data-mode", "new");
   await expect(area(page)).toBeVisible();

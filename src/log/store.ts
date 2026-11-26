@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
 import { onPaper } from "./paper.ts";
 import { settleHorizon } from "./horizon.ts";
+import { createNotebookStore } from "./notebooks.ts";
 import type { DateRange, Entry, EntryHorizon, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
 
 /** A row with the scan provenance columns: the store reads them to derive onPaper, and listScan to hand out the snapshot. */
@@ -47,8 +48,8 @@ export type EntryStore = {
   list(userId: string, range: DateRange): Entry[];
   /** Every open task of the daily log from a day before `before`, with no limit on how far back, oldest day first then page order. For the migration review. */
   listOpenBefore(userId: string, before: string): Entry[];
-  /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. */
-  listNotes(userId: string): Entry[];
+  /** Every free note of the user (an entry with a non-empty body, whatever its day), newest day first, then newest created. With a notebook id: only that notebook's. */
+  listNotes(userId: string, notebookId?: string): Entry[];
   /** The entries filed on one collection, in their order on that page. */
   listCollection(userId: string, collectionId: string): Entry[];
   /** Like list for one horizon (day unless told otherwise), with the scan provenance of each entry (plus onPaper, like every entry). For the scan routes only: the snapshot never reaches the public API. */
@@ -265,6 +266,13 @@ export function createEntryStore(db: Db): EntryStore {
     }
   }
 
+  /** A free note (a body) with no notebook yet goes to the user's active one; a note already in one stays. Entries without a body are never filed. */
+  function fileNoteInNotebook(userId: string, id: string, now: number): void {
+    const note = db.prepare("SELECT 1 FROM entries WHERE user_id = ? AND id = ? AND notebook_id IS NULL AND body IS NOT NULL AND body <> ''").get(userId, id);
+    if (!note) return;
+    db.prepare("UPDATE entries SET notebook_id = ? WHERE user_id = ? AND id = ?").run(createNotebookStore(db).active(userId, now).id, userId, id);
+  }
+
   return {
     list(userId, range) {
       const rows = db
@@ -286,10 +294,11 @@ export function createEntryStore(db: Db): EntryStore {
       return groupEntries(userId, { collectionId, date: "", horizon: "day" });
     },
 
-    listNotes(userId) {
+    listNotes(userId, notebookId) {
+      const scoped = notebookId === undefined ? "" : " AND notebook_id = ?";
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND body IS NOT NULL AND body <> '' ORDER BY date DESC, created_at DESC, id DESC`)
-        .all(userId) as Row[];
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND body IS NOT NULL AND body <> ''${scoped} ORDER BY date DESC, created_at DESC, id DESC`)
+        .all(...(notebookId === undefined ? [userId] : [userId, notebookId])) as Row[];
       return rows.map(toEntry);
     },
 
@@ -363,6 +372,7 @@ export function createEntryStore(db: Db): EntryStore {
           now,
         );
         writeTags(id, input.tags);
+        fileNoteInNotebook(userId, id, now);
       });
       return get(userId, id)!;
     },
@@ -397,6 +407,7 @@ export function createEntryStore(db: Db): EntryStore {
           id,
         );
         if (patch.tags !== undefined) writeTags(id, patch.tags);
+        fileNoteInNotebook(userId, id, now);
       });
       settleIndent(userId, get(userId, id)!);
       if (!stays) renumber(userId, groupIds(userId, current));

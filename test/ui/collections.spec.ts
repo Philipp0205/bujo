@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openNoteEditor, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { gotoNotebook, openNoteEditor, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -20,8 +20,7 @@ function today(): string {
 const rowOf = (page: Page, title: string) => page.locator(".paper-row", { hasText: title });
 
 async function openNotes(page: Page): Promise<void> {
-  await page.goto(`${app.baseUrl}/notes`);
-  await expect(page.getByRole("heading", { name: "Notes", level: 1 })).toBeVisible();
+  await gotoNotebook(page, app.baseUrl);
   await expect(page.getByTestId("new-note")).toBeVisible();
 }
 

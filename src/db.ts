@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { FIRST_NOTEBOOK_NAME, firstPageCount, insertOpenNotebook, todayOf } from "./log/notebook-first.ts";
 
 export type Db = DatabaseSync;
 
@@ -137,6 +138,20 @@ CREATE TABLE IF NOT EXISTS paper_pages (
   PRIMARY KEY (user_id, kind, ref, page)
 );
 
+-- The physical notebooks the user owns. A scan, a collection or a free note belongs to one (notebook_id on paper_pages, collections and
+-- entries). Open while ended_on is null: at most one per user. Local only, never synced.
+CREATE TABLE IF NOT EXISTS notebooks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  page_count INTEGER NOT NULL,
+  started_on TEXT NOT NULL,
+  ended_on TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notebooks_user ON notebooks(user_id, started_on);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notebooks_open ON notebooks(user_id) WHERE ended_on IS NULL;
+
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
   name TEXT PRIMARY KEY
@@ -145,6 +160,7 @@ CREATE TABLE IF NOT EXISTS migrations (
 
 const SINGLE_TAGS_MIGRATION = "entry-tags-v1";
 const PAPER_PAGE_MIGRATION = "paper-page-v1";
+const NOTEBOOKS_MIGRATION = "notebooks-v1";
 
 /** Columns added after the first release of the entries table, with their SQL type. Older databases get them on open. */
 const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
@@ -170,6 +186,8 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["paper_page", "INTEGER"],
   // The custom collection the entry is filed on (collections.id). Null means the daily log.
   ["collection_id", "TEXT"],
+  // The physical notebook (notebooks.id) a free note belongs to. Only free notes (a body) carry one: logs are scoped by paper_pages.
+  ["notebook_id", "TEXT"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
@@ -180,12 +198,19 @@ const USER_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> =
 /** Columns added after the first release of the collections table. paper_page is the notebook page the collection is written on (null: none). */
 const COLLECTION_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
   ["paper_page", "INTEGER"],
+  // The physical notebook (notebooks.id) the collection is in.
+  ["notebook_id", "TEXT"],
+];
+
+/** Columns added after the first release of the paper_pages table: the notebook the scanned page is in. */
+const PAPER_PAGE_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> = [
+  ["notebook_id", "TEXT"],
 ];
 
 /** Adds the columns a table made before they existed lacks. Safe to run on every open. */
 function addMissingColumns(
   db: Db,
-  table: "users" | "entries" | "collections",
+  table: "users" | "entries" | "collections" | "paper_pages",
   columns: ReadonlyArray<readonly [name: string, type: string]>,
 ): void {
   const have = (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((column) => column.name);
@@ -199,10 +224,43 @@ function migrate(db: Db): void {
   addMissingColumns(db, "entries", ENTRY_EXTRA_COLUMNS);
   addMissingColumns(db, "users", USER_EXTRA_COLUMNS);
   addMissingColumns(db, "collections", COLLECTION_EXTRA_COLUMNS);
+  addMissingColumns(db, "paper_pages", PAPER_PAGE_EXTRA_COLUMNS);
   moveSingleTags(db);
   placeScannedOnFirstPage(db);
   allowCalendarTraces(db);
   allowDroppedType(db);
+  moveIntoFirstNotebook(db);
+}
+
+/** The highest page number a user has written down anywhere: a scanned page or a collection (0 when none). */
+function highestPageOf(db: Db, userId: string): number {
+  const row = db
+    .prepare("SELECT MAX(n) AS top FROM (SELECT number AS n FROM paper_pages WHERE user_id = ? UNION ALL SELECT paper_page AS n FROM collections WHERE user_id = ?)")
+    .get(userId, userId) as { top: number | null };
+  return Number(row.top ?? 0);
+}
+
+/** Makes the first notebook of one user and files every scanned page, collection and free note that has no notebook in it. */
+function fillFirstNotebook(db: Db, userId: string, now: number): void {
+  const earliest = db.prepare("SELECT MIN(date) AS day FROM entries WHERE user_id = ?").get(userId) as { day: string | null };
+  const id = insertOpenNotebook(db, userId, FIRST_NOTEBOOK_NAME, firstPageCount(highestPageOf(db, userId)), earliest.day ?? todayOf(now), now);
+  db.prepare("UPDATE paper_pages SET notebook_id = ? WHERE user_id = ? AND notebook_id IS NULL").run(id, userId);
+  db.prepare("UPDATE collections SET notebook_id = ? WHERE user_id = ? AND notebook_id IS NULL").run(id, userId);
+  db.prepare("UPDATE entries SET notebook_id = ? WHERE user_id = ? AND notebook_id IS NULL AND body IS NOT NULL AND body <> ''").run(id, userId);
+}
+
+/**
+ * Notebooks came after scans, collections and free notes. Every user who has none gets a first notebook (see fillFirstNotebook) holding
+ * what already exists. Runs once: the flag is set in the same transaction, so a second open changes nothing. A user made later gets
+ * their notebook when first needed (src/log/notebooks.ts).
+ */
+function moveIntoFirstNotebook(db: Db): void {
+  if (db.prepare("SELECT 1 FROM migrations WHERE name = ?").get(NOTEBOOKS_MIGRATION)) return;
+  inTransaction(db, () => {
+    const users = db.prepare("SELECT id FROM users WHERE id NOT IN (SELECT user_id FROM notebooks)").all() as Array<{ id: string }>;
+    for (const user of users) fillFirstNotebook(db, user.id, Date.now());
+    db.prepare("INSERT INTO migrations (name) VALUES (?)").run(NOTEBOOKS_MIGRATION);
+  });
 }
 
 /**

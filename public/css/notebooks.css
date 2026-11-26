@@ -1,0 +1,65 @@
+/*
+ * bujo notebooks: the list of physical notebooks on the Notes tab and the detail of one (its summary, sections and the grid of page
+ * numbers). Paper tokens only, no accent colour. Loaded after index.css, so the collection row look, the notes headings and the
+ * collection chooser (used by the start sheet) are already there. Nothing touches the left 24px of the screen: the phone's Back owns it.
+ */
+
+/* A notebook row: the name over a muted line of dates and pages, the active mark at the end. */
+.notebook-row { align-items: center; min-height: 72px; }
+.notebook-main { min-width: 0; display: flex; flex-direction: column; }
+.notebook-sub { color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+.notebook-active {
+  flex: none;
+  padding: 0 10px;
+  border: 1px solid var(--paper-muted);
+  border-radius: 12px;
+  color: var(--paper-ink);
+  font: var(--text-weight) 13px/22px var(--font-text);
+}
+
+/* The start sheet: each field on its own row under a small caption, the button under them. */
+.notebook-field-row { flex: 1 0 100%; display: flex; flex-direction: column; margin: 0; }
+.notebook-caption { color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+.notebook-field { flex: none; width: 100%; }
+
+/* The dates and the scanned count under the title of a notebook. */
+.notebook-summary { margin: 0; padding: 0 12px 8px 40px; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+.notebook-none { margin: 0; padding: 0 12px 4px 12px; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+.notebook-legend { margin: 0; padding: 0 12px 8px; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+
+/* The index: one cell per page number. A scanned page is filled with ink and opens; an unscanned one is a dotted outline. */
+.notebook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 4px 12px 16px;
+  list-style: none;
+}
+.notebook-cell-item { margin: 0; padding: 0; }
+.notebook-cell {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px dotted color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--paper-muted);
+  font: var(--text-weight) 16px/24px var(--font-text);
+  font-variant-numeric: tabular-nums;
+}
+.notebook-cell-scanned {
+  border: 1px solid var(--paper-ink);
+  background: var(--paper-ink);
+  color: var(--paper-bg);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+html.ak-base .notebook-cell-scanned:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }

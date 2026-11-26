@@ -17,15 +17,15 @@ function loadModel(): { cards(entries: unknown[], today: string): any[]; groups(
   return window.BujoNotes.model;
 }
 
-test("cards: one per note with its title, whether a photo is stored, and no notebook yet", () => {
+test("cards: one per note with its title, whether a photo is stored, and no collection yet", () => {
   const model = loadModel();
   const cards = model.cards([
     { id: "a", title: "Kitchen garden", hasPhoto: true, body: "x", date: TODAY, onPaper: true },
     { id: "b", title: "Weekend notes", hasPhoto: false, body: "y", date: TODAY, onPaper: false },
   ], TODAY);
   assert.deepEqual(JSON.parse(JSON.stringify(cards)), [
-    { id: "a", title: "Kitchen garden", hasPhoto: true, notebookId: null, onPaper: true, date: TODAY, unwritten: false },
-    { id: "b", title: "Weekend notes", hasPhoto: false, notebookId: null, onPaper: false, date: TODAY, unwritten: true },
+    { id: "a", title: "Kitchen garden", hasPhoto: true, collectionId: null, onPaper: true, date: TODAY, unwritten: false },
+    { id: "b", title: "Weekend notes", hasPhoto: false, collectionId: null, onPaper: false, date: TODAY, unwritten: true },
   ]);
 });
 
@@ -41,21 +41,21 @@ test("cards: the mark needs not-on-paper and a day inside the 14 day window; fut
   assert.deepEqual(cards.map((card) => [card.id, card.unwritten]), [["edge", true], ["old", false], ["future", true], ["written", false]]);
 });
 
-test("groups: without notebooks every card lands in one group, in the order given", () => {
+test("groups: without collections every card lands in one group, in the order given", () => {
   const model = loadModel();
   const groups = model.groups(model.cards([{ id: "a", title: "A" }, { id: "b", title: "B" }], TODAY));
   assert.equal(groups.length, 1);
-  assert.equal(groups[0].notebookId, null);
+  assert.equal(groups[0].collectionId, null);
   assert.deepEqual([...groups[0].cards.map((card: { id: string }) => card.id)], ["a", "b"]);
 });
 
-test("groups: cards of a notebook form a group of their own, after the cards that belong to none", () => {
+test("groups: cards of a collection form a group of their own, after the cards that are in none", () => {
   const model = loadModel();
   const groups = model.groups([
-    { id: "a", title: "A", hasPhoto: false, notebookId: "nb1" },
-    { id: "b", title: "B", hasPhoto: false, notebookId: null },
-    { id: "c", title: "C", hasPhoto: false, notebookId: "nb1" },
+    { id: "a", title: "A", hasPhoto: false, collectionId: "nb1" },
+    { id: "b", title: "B", hasPhoto: false, collectionId: null },
+    { id: "c", title: "C", hasPhoto: false, collectionId: "nb1" },
   ]);
-  assert.deepEqual([...groups.map((group: { notebookId: string | null }) => group.notebookId)], [null, "nb1"]);
+  assert.deepEqual([...groups.map((group: { collectionId: string | null }) => group.collectionId)], [null, "nb1"]);
   assert.deepEqual([...groups[1].cards.map((card: { id: string }) => card.id)], ["a", "c"]);
 });

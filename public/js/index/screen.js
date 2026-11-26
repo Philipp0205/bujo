@@ -1,6 +1,6 @@
 /*
  * The notebook index screen: every known notebook page, ascending by number, opened in place of the Notes list (the same open and
- * back pattern as the collection page). It reads GET /api/index each time it opens, keeps its own state, and hands a tapped row to
+ * back pattern as the collection page). It reads GET /api/index each time it opens (or the pages handlers.read gives, for one notebook), keeps its own state, and hands a tapped row to
  * the host (handlers.onOpen), which knows how to show a day, a month log, the future log or a collection. A failed read shows the
  * quiet error or offline note. Needs ak-dom.js, index/*, log/api.js and log/outbox/model.js (the offline check).
  */
@@ -32,7 +32,7 @@
   function load() {
     state.status = 'loading';
     draw();
-    return L.api.listIndex().then(function (pages) {
+    return (handlers.read || L.api.listIndex)().then(function (pages) {
       state.pages = pages;
       state.status = 'ready';
       draw();
@@ -42,7 +42,7 @@
     });
   }
 
-  /** Opens the index into the root. handlers: onBack(), onOpen(item). */
+  /** Opens the index into the root. handlers: onBack(), onOpen(item), and read() (a promise of the pages; the user's whole index when left out). */
   function open(into, given) {
     root = into;
     handlers = given;

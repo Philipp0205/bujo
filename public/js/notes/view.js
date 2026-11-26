@@ -1,5 +1,5 @@
 /*
- * Notes render functions: the header, the two ways to start (a note, a collection), the way into the notebook index, the collection rows, the two-column grid of ink cards and the quiet states. They build nodes and call back,
+ * Notes render functions: the two ways to start (a note, a collection), the way into the page list of a notebook, the collection rows, the two-column grid of ink cards and the quiet states. They build nodes and call back,
  * they never fetch. Needs ak-dom.js, notes/copy.js, collections/copy.js, index/copy.js, log/api.js (photo address), log/glyph.js and log/paper/view.js (the page mark).
  */
 (function () {
@@ -8,11 +8,6 @@
   var h = AppKit.h;
   var B = window.BujoNotes = window.BujoNotes || {};
   var L = window.BujoLog;
-
-  /** The page header: the italic title only. The tab bar does the navigation. */
-  function header() {
-    return h('div', { class: 'paper-head' }, h('h1', null, B.copy.title));
-  }
 
   /** The stand-in for a note without a photo: a few dotted-paper lines, so the card keeps its shape. */
   function placeholder() {
@@ -103,7 +98,7 @@
   /** A quiet line for loading, for an empty list, for no connection and no cached list, and for a failed load with a retry button. */
   function stateNote(kind, onRetry) {
     var copy = B.copy;
-    var texts = { error: copy.loadFailed, empty: copy.empty, offline: copy.offlineEmpty };
+    var texts = { error: copy.loadFailed, offline: copy.offlineEmpty };
     var note = h('p', { class: 'paper-state', 'data-state': kind, role: kind === 'error' ? 'alert' : 'status' }, texts[kind] || copy.loading);
     if (kind !== 'error') return note;
     return h('div', null, note,
@@ -115,5 +110,5 @@
     return h('p', { class: 'paper-hint', 'data-testid': 'offline-hint', role: 'status' }, B.copy.offlineHint);
   }
 
-  B.view = { header: header, noteSection: noteSection, collectionList: collectionList, actions: actions, indexEntry: indexEntry, stateNote: stateNote, offlineHint: offlineHint };
+  B.view = { noteSection: noteSection, collectionList: collectionList, actions: actions, indexEntry: indexEntry, stateNote: stateNote, offlineHint: offlineHint };
 })();

@@ -20,6 +20,20 @@ export async function openNoteEditor(sheet: import("@playwright/test").Locator):
   if ((await sheet.locator(".note-editor").getAttribute("data-state")) !== "edit") await sheet.locator('[data-action="note-edit"]').click();
 }
 
+/** Opens a notebook from the list on the Notes tab (the active one, the first row, unless a name is given) and waits for its detail. */
+export async function openNotebook(page: Page, name?: string): Promise<void> {
+  const rows = page.getByTestId("notebook-row");
+  await (name ? rows.filter({ hasText: name }) : rows.first()).click();
+  await page.getByTestId("notebook-title").waitFor();
+  await page.locator("#notes [data-state=loading]").waitFor({ state: "detached" });
+}
+
+/** Goes to the Notes tab by address and opens the active notebook, where the notes, collections and index are. */
+export async function gotoNotebook(page: Page, baseUrl: string): Promise<void> {
+  await page.goto(`${baseUrl}/notes`);
+  await openNotebook(page);
+}
+
 /** The localStorage keys of the two log reminders (public/js/log/remind/store.js). */
 export const REMIND_MONTHLY_KEY = "bujo-remind-month";
 export const REMIND_FUTURE_KEY = "bujo-remind-future";
