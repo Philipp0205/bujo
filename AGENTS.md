@@ -25,7 +25,6 @@ When a change alters what a user sees in the app:
 
 - Bump `version` by one in `public/sw.js`, inside `AppKitSW.setup`. The file already says to bump it whenever a file in `shell` changes.
 - Add a what's-new entry at the top of `public/whats-new.json` (newest first). Each entry is an object with `id`, `date`, `title`, `bullets`. The id is `YYYY-MM-DD-<slug>`, for example `2026-11-23-fonts`. Title and bullets are one-line user copy matching the existing entries (recent ones are short English sentences). To insert it, edit with the current first entry's opening as `oldString` (`[`, `{` and its `"id"` line); a bare `[` or `[\n` matches more than once and the edit fails.
-- Update `WHATS_NEW_NEWEST` in `test/ui/harness.ts` so it matches the newest catalog id (for example `2026-11-23-collections`). Specs that dismiss the what's-new sheet PUT that constant to `/api/whats-new/seen`. `test/ui/whats-new.spec.ts` derives the newest entry, the unseen count and the full-list count from `public/whats-new.json` and asserts the first catalog id equals the constant, so it needs no count, title or date edits. When you add a newer entry, bump the constant so the sheet does not cover the tests. `test/whats-new.test.ts` checks the shipped json generically and needs no id change if the entry follows the format.
 - Take the shots from the screenshot rule in Gates, and run `scripts/check.sh`.
 - Skip all of this (version bump, entry, fixture ids, shots) for docs-only or test-only changes that do not change what a user sees.
 
