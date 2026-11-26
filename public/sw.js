@@ -135,6 +135,7 @@ AppKitSW.setup({
     '/js/log/photo/shrink.js',
     '/js/log/gap/model.js',
     '/js/log/gap/store.js',
+    '/js/log/gap/scope.js',
     '/js/log/gap/copy.js',
     '/js/log/gap/banner.js',
     '/js/log/scan/copy.js',
