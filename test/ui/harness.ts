@@ -10,7 +10,7 @@ import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
 /** The id of the newest what's-new entry. Specs that mark everything as seen use this, so a new entry bumps one line. */
-export const WHATS_NEW_NEWEST = "2026-11-25-not-on-paper-migration";
+export const WHATS_NEW_NEWEST = "2026-11-26-bulk-delete";
 
 /** The localStorage keys of the two log reminders (public/js/log/remind/store.js). */
 export const REMIND_MONTHLY_KEY = "bujo-remind-month";

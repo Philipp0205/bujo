@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-bulk-delete",
+    "date": "2026-11-26",
+    "title": "Delete several entries at once",
+    "bullets": [
+      "Hold an entry in the daily log, tick more, and tap Delete to remove them together.",
+      "You see how many entries go and confirm before anything is deleted."
+    ]
+  },
+  {
     "id": "2026-11-25-not-on-paper-migration",
     "date": "2026-11-25",
     "title": "Migrate from Not on paper",

@@ -1,7 +1,7 @@
 /*
- * The top bar of select mode, on paper: Cancel, the count, "Select day" and Copy. It replaces the page header while selecting.
+ * The top bar of select mode, on paper: Cancel, the count, "Select day", Copy and Delete. It replaces the page header while selecting.
  * It builds a node and calls back, nothing else. Needs ak-dom.js and copy.js.
- * options: count, onCancel(), onDay(), onCopy(). Copy is off while the count is 0.
+ * options: count, onCancel(), onDay(), onCopy(), onDelete(). Copy and Delete are off while the count is 0.
  */
 (function () {
   'use strict';
@@ -22,7 +22,8 @@
       button('select-cancel', words.cancel, options.onCancel),
       h('span', { class: 'select-count', 'data-testid': 'select-count', role: 'status' }, words.count(options.count)),
       button('select-day', words.day, options.onDay),
-      button('select-copy', words.copy, options.onCopy, { class: 'select-btn select-copy', disabled: options.count === 0 }));
+      button('select-copy', words.copy, options.onCopy, { class: 'select-btn select-copy', disabled: options.count === 0 }),
+      button('select-delete', words.remove, options.onDelete, { 'data-testid': 'select-delete', disabled: options.count === 0 }));
   }
 
   L.select.bar = { build: build };

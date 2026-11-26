@@ -217,7 +217,13 @@
       count: function (count) { return count + ' selected'; },
       cancel: 'Cancel',
       day: 'Select day',
-      copy: 'Copy'
+      copy: 'Copy',
+      remove: 'Delete',
+      deleteTitle: function (count) { return count === 1 ? 'Delete 1 entry?' : 'Delete ' + count + ' entries?'; },
+      deleteBody: 'They are removed from the log.',
+      deleteConfirm: 'Delete',
+      deleteCancel: 'Cancel',
+      deleteFailed: function (count) { return count === 1 ? 'Could not delete 1 entry. Try again.' : 'Could not delete ' + count + ' entries. Try again.'; }
     },
     sheet: {
       editTitle: 'Edit entry',

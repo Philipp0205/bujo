@@ -2,7 +2,8 @@
  * Select mode of the rapid log: a long press on a row starts it, a tap on a row ticks or unticks it, and Copy writes the ticked
  * entries to the clipboard as paper lines. While it is on, the page shows the select bar instead of the header.
  * The phone's Back leaves it, through the one overlay stack (BujoNav.overlays, name "select"), and copies nothing.
- * Needs select/model.js, select/press.js, select/bar.js, clipboard.js, the inline editor (settle) and nav/overlays.js.
+ * Delete asks through select/confirm.js and removes through select/remove.js. The host also needs group, replaceGroup and forget (the inline editor's host).
+ * Needs select/model.js, select/press.js, select/bar.js, clipboard.js, toast.js, the inline editor (settle) and nav/overlays.js.
  * host: entries() the entries on screen, draw() redraws the page.
  */
 (function () {
@@ -63,13 +64,31 @@
     L.clipboard.copy(picked).then(function (ok) { if (ok) exit(); });
   }
 
+  /** After the delete loop: all gone ends select mode, a failure keeps it with the failed ones ticked and says so. */
+  function afterDelete(failed) {
+    if (!failed.length) { exit(); return; }
+    host.draw();
+    L.toast.show(L.copy.select.deleteFailed(failed.length), 'fail');
+  }
+
+  /** Delete: asks first with the count, then removes the ticked entries the way a single delete does. */
+  function askDelete() {
+    var picked = L.select.model.pick(host.entries());
+    if (!picked.length) return;
+    L.select.confirm.open({
+      count: picked.length,
+      onConfirm: function () { L.select.remove.removeAll(picked, host).then(afterDelete); }
+    });
+  }
+
   /** The select bar for the page, with the current count. */
   function bar() {
     return L.select.bar.build({
       count: L.select.model.pick(host.entries()).length,
       onCancel: exit,
       onDay: tickDay,
-      onCopy: copy
+      onCopy: copy,
+      onDelete: askDelete
     });
   }
 
