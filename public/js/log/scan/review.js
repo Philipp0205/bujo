@@ -333,6 +333,7 @@
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});
+    L.gap.banner.known().then(function (known) { state.knownPages = known; number.refresh(); });
     return sheet;
   }
 

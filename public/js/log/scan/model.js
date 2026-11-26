@@ -391,8 +391,15 @@
   }
 
   /** Where the person should land after an apply: the Daily view on the day, the Future view, or the Month view on the page's month
-   * (a month-task page on its tasks page, a calendar on its calendar page). */
+   * (a month-task page on its tasks page, a calendar on its calendar page). paperNumber is the notebook page the apply stored (or null). */
   function landing(state, result) {
+    var place = landingPlace(state, result);
+    place.paperNumber = paperNumberOf(state).value;
+    return place;
+  }
+
+  /** The view part of a landing. */
+  function landingPlace(state, result) {
     if (state.kind === 'daily') return { view: 'daily', date: result.date || state.date };
     if (state.kind === 'future') return { view: 'future', month: null };
     return { view: 'month', month: state.month, part: state.kind === 'calendar' ? 'calendar' : 'tasks' };

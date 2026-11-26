@@ -260,6 +260,7 @@
   function applied(result) {
     land(result);
     reload();
+    L.gap.banner.after(result.paperNumber);
   }
 
   /** Points the log at the place a result or a request names, without reading anything. */
