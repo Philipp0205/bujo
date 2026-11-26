@@ -297,11 +297,29 @@
     return day !== null && day <= Number(L.horizon.model.lastDay(state.month).slice(8));
   }
 
+  /** The kept calendar line with no usable day (none typed, or one the month does not have), or undefined. */
+  function dayProblemItem(state, kept) {
+    if (state.kind !== 'calendar') return undefined;
+    return kept.filter(function (item) { return !dayFits(state, dayOf(item)); })[0];
+  }
+
   /** The first kept line that cannot be filed for the kind, as a key: 'day' (calendar), 'month' (future), else ''. */
   function placeProblem(state, kept) {
-    if (state.kind === 'calendar' && kept.some(function (item) { return !dayFits(state, dayOf(item)); })) return 'day';
+    if (dayProblemItem(state, kept)) return 'day';
     if (state.kind === 'future' && kept.some(function (item) { return !item.month; })) return 'month';
     return '';
+  }
+
+  /** The kept line a 'day' problem is about: { title, day } where day is the typed text (empty when none), so the alert can name it. Null when no line lacks a day. */
+  function dayProblemOf(state) {
+    var item = dayProblemItem(state, keptItems(state));
+    return item ? { title: item.title.trim(), day: String(item.dayText || '').trim() } : null;
+  }
+
+  /** Sets what the person typed in a row's day field. A line the person has not ticked by hand follows the day: it is kept once it has a day, and not before. */
+  function setDayText(item, text) {
+    item.dayText = text;
+    if (!item.touched) item.include = defaultInclude(item);
   }
 
   /** 'paper' when the notebook page field is not a number from 1 to 9999, 'title' when a kept line has no title, 'day' or 'month' when a kept line has no place, 'none' when nothing is kept, else ''. */
@@ -434,6 +452,8 @@
     setPaperText: setPaperText,
     paperFromPhoto: paperFromPhoto,
     dayOf: dayOf,
+    setDayText: setDayText,
+    dayProblemOf: dayProblemOf,
     mergeChecks: mergeChecks,
     matchOf: matchOf,
     changeKey: changeKey,

@@ -83,18 +83,18 @@
     return { node: select, show: fill };
   }
 
-  /** The day input of a calendar row: a small number field. */
-  function dayInput(item, onChange) {
+  /** The day input of a calendar row: a small number field. Each key press updates the day and the Apply button (a phone's number pad has no key that leaves the field); leaving it re-sorts the rows and asks the server again. */
+  function dayInput(item, onChange, onType) {
     var copy = L.copy.scan.review;
     var input = h('input', { class: 'scan-place scan-place-day', type: 'text', inputmode: 'numeric', maxlength: 2, autocomplete: 'off', placeholder: copy.dayLabel, 'aria-label': copy.dayLabel, 'data-field': 'day', value: item.dayText });
-    input.addEventListener('input', function () { item.dayText = input.value; });
+    input.addEventListener('input', function () { L.scan.model.setDayText(item, input.value); onType(); });
     input.addEventListener('change', function () { onChange(); });
     return { node: input, show: function () { if (document.activeElement !== input) input.value = item.dayText; } };
   }
 
   /** The place field of a row for a kind: a day on a calendar page, a month on a future page, else nothing (node null). */
-  function placeField(state, item, onChange) {
-    if (state.kind === 'calendar') return dayInput(item, onChange);
+  function placeField(state, item, onChange, onType) {
+    if (state.kind === 'calendar') return dayInput(item, onChange, onType);
     if (state.kind === 'future') return monthSelect(item, onChange);
     return { node: null, show: function () {} };
   }

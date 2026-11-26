@@ -10,7 +10,7 @@ import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
 /** The id of the newest what's-new entry. Specs that mark everything as seen use this, so a new entry bumps one line. */
-export const WHATS_NEW_NEWEST = "2026-11-26-md-editor";
+export const WHATS_NEW_NEWEST = "2026-11-26-monthly-scan-apply";
 
 /** Switches an open saved note sheet from its rendered preview to the textarea. A sheet already in edit mode is left alone. */
 export async function openNoteEditor(sheet: import("@playwright/test").Locator): Promise<void> {

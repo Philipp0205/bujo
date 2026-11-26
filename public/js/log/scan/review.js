@@ -138,7 +138,7 @@
     var unmatch = matchToggle(item, function () { hooks.changed(true); });
     var picker = typePicker(item, L.scan.model.allowsEvent(state.kind), function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
-    var place = L.scan.kind.placeField(state, item, hooks.moved);
+    var place = L.scan.kind.placeField(state, item, hooks.moved, hooks.typed);
     var nest = nestToggle(state, item, function () { hooks.changed(false); });
     var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
     var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
@@ -234,10 +234,17 @@
     return (page ? page() : copy.monthLabel(state.month)) + ' \u00b7 ' + copy.writes(counts);
   }
 
-  /** The trouble line for a problem key ('' says nothing). */
-  function problemText(problem) {
+  /** The trouble line for a problem key ('' says nothing). A day problem names the line, and says so when the typed day is not in the month. */
+  function problemText(state, problem) {
     var errors = L.copy.scan.errors;
-    return { paper: errors.paperInvalid, title: errors.titleRequired, day: errors.dayRequired, month: errors.monthRequired }[problem] || '';
+    if (problem === 'day') return dayText(errors, L.scan.model.dayProblemOf(state));
+    return { paper: errors.paperInvalid, title: errors.titleRequired, month: errors.monthRequired }[problem] || '';
+  }
+
+  /** The alert for a kept line with no usable day: it names the line (a blank title reads as "this line"). */
+  function dayText(errors, found) {
+    var title = found && found.title ? found.title : L.copy.scan.review.thisLine;
+    return found && found.day ? errors.dayMissing(title, found.day) : errors.dayRequired(title);
   }
 
   /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save. */
@@ -253,6 +260,7 @@
     var kinds = L.scan.kind.kindSwitch(state, switchTo);
     var rows = rowsView(state, {
       changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
+      typed: function () { refreshAll(); },
       moved: function () { rows.relayout(); recheck(); }
     });
     var busy = false;
@@ -267,7 +275,7 @@
       subtitle.textContent = subtitleText(state, counts);
       apply.textContent = busy ? copy.applying : copy.apply(counts);
       apply.disabled = busy || problem !== '';
-      say(problemText(problem));
+      say(problemText(state, problem));
       kinds.show(busy);
       date.node.hidden = state.kind !== 'daily';
       month.node.hidden = state.kind !== 'calendar' && state.kind !== 'month-task';
