@@ -1,7 +1,7 @@
 /*
  * The free-note sheet (mock 06 without Obsidian): one paper sheet to review a scanned note and to view or edit a saved one.
  * It edits title, day and markdown, saves through /api/entries (and stores the scan photo with the note), and copies the markdown.
- * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js and note/photo.js (and note/match.js for a scan that looks like a saved note).
+ * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js, note/photo.js and note/editor/view.js (and note/match.js for a scan that looks like a saved note).
  */
 (function () {
   'use strict';
@@ -26,6 +26,11 @@
       date: h('input', { class: 'scan-date-input', type: 'date', name: 'date', required: true, 'data-field': 'date', 'aria-label': copy.date, value: values.date }),
       body: h('textarea', { class: 'ak-input note-body', name: 'body', spellcheck: 'false', 'data-field': 'body', 'aria-label': copy.body, value: values.body })
     };
+  }
+
+  /** The markdown editor: a saved note opens as rendered preview, a scan or a new note opens in edit mode. */
+  function editorView(inputs, options) {
+    return L.note.editor.view.create({ area: inputs.body, field: field(L.copy.note.body, inputs.body), editing: options.mode !== 'saved' });
   }
 
   /** The values to send, read from the controls. */
@@ -173,7 +178,7 @@
       event.preventDefault();
       submit();
     } },
-      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), field(copy.body, inputs.body), photoField(options), copyButton(inputs),
+      dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), editorView(inputs, options), photoField(options), copyButton(inputs),
       rescanButton(options, function () { sheet.close(); }));
     var offer = matchRow(options, inputs);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan sheet-note', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'note-title', 'data-testid': 'note-sheet', 'data-mode': options.mode },

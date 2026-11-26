@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-md-editor",
+    "date": "2026-11-26",
+    "title": "A better editor for free notes",
+    "bullets": [
+      "A small toolbar adds headings, bold, italic, lists, checkboxes and links.",
+      "A saved note shows rendered Markdown. Tap Edit to change it, Preview to see it again."
+    ]
+  },
+  {
     "id": "2026-11-26-today-pill",
     "date": "2026-11-26",
     "title": "The Today mark stays on today",

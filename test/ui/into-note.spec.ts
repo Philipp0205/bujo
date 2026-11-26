@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openNoteEditor, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -68,6 +68,7 @@ test("a task is filed into a free-form note as a line and leaves the log", async
 
   // The note on the page is the saved one, so editing it later starts from the new body.
   await page.locator(".paper-row", { hasText: "Ideas" }).click();
+  await openNoteEditor(page.getByTestId("note-sheet"));
   await expect(page.locator("[data-field=body]")).toHaveValue("- first\n- Stamps kaufen\n");
 });
 
