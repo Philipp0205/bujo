@@ -87,6 +87,7 @@
       before: line.before,
       after: line.after,
       contested: line.contested,
+      moveTo: line.moveTo || null,
       traced: line.traced === true,
       unmatched: false,
       wasMatch: null,
@@ -231,6 +232,7 @@
       item.before = check.before;
       item.after = check.after;
       item.contested = check.contested;
+      item.moveTo = check.moveTo || null;
       item.traced = check.traced === true;
       if (item.status === 'unchanged') {
         item.include = false;
@@ -265,6 +267,7 @@
     item.before = null;
     item.after = null;
     item.contested = false;
+    item.moveTo = null;
     item.traced = false;
     item.touched = false;
     item.include = defaultInclude(item);
@@ -281,11 +284,12 @@
     return state.items.filter(function (item) { return item.include && item.status !== 'unchanged'; });
   }
 
-  /** How many kept lines add an entry and how many change one. */
+  /** How many kept lines add an entry, how many change one, and how many matched entries move to the paper's place. */
   function counts(state) {
     var kept = keptItems(state);
     var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
-    return { created: kept.length - updated, updated: updated };
+    var moved = state.items.filter(function (item) { return item.moveTo && !item.unmatched; }).length;
+    return { created: kept.length - updated, updated: updated, moved: moved };
   }
 
   /** True when a calendar day exists in the month of the page (no 30 February). */
@@ -307,7 +311,7 @@
     if (kept.some(function (item) { return item.title.trim() === ''; })) return 'title';
     var place = placeProblem(state, kept);
     if (place) return place;
-    return kept.length ? '' : 'none';
+    return kept.length || counts(state).moved ? '' : 'none';
   }
 
   function isLowConfidence(item) {

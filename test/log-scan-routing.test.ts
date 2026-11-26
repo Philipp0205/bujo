@@ -72,6 +72,31 @@ test("routing: a day picked in the scan screen survives a kind switch", async ()
   });
 });
 
+test("reorder: a rescan of C,A,B over A,B,C puts the matched entries in the scanned order, with no duplicates", async () => {
+  await withScan(async (ctx) => {
+    const day = { date: YESTERDAY, query: "&picked=1" };
+    await applyReview(ctx, await scan(ctx, ["Alpha", "Bravo", "Charlie"], day));
+    const before = await stored(ctx, YESTERDAY);
+    const again = await scan(ctx, ["Charlie", "Alpha", "Bravo"], day);
+    assert.equal(again.page, 1);
+    assert.deepEqual(again.items.map((i: any) => i.moveTo ?? null), [1, null, null], "only Charlie is named as moved");
+    assert.equal((await applyReview(ctx, again)).status, 200);
+    const after = await stored(ctx, YESTERDAY);
+    assert.deepEqual(rows(after), [["Charlie", 1], ["Alpha", 1], ["Bravo", 1]]);
+    assert.deepEqual(after.map((e) => e.id).sort(), before.map((e) => e.id).sort(), "same entries");
+  });
+});
+
+test("reorder: a rescan that adds D in between keeps every entry and follows the paper", async () => {
+  await withScan(async (ctx) => {
+    const day = { date: YESTERDAY, query: "&picked=1" };
+    await applyReview(ctx, await scan(ctx, ["Alpha", "Bravo", "Charlie"], day));
+    await applyReview(ctx, await scan(ctx, ["Pack bag"], day));
+    await applyReview(ctx, await scan(ctx, ["Charlie", "Delta", "Alpha", "Bravo"], day));
+    assert.deepEqual(rows(await stored(ctx, YESTERDAY)), [["Charlie", 1], ["Delta", 1], ["Alpha", 1], ["Bravo", 1], ["Pack bag", 2]]);
+  });
+});
+
 test("rescan: page 1 of a day is updated in place and reordered, other pages and other entries are untouched, nothing is duplicated", async () => {
   await withScan(async (ctx) => {
     const day = { date: YESTERDAY, query: "&picked=1" };

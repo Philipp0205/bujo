@@ -101,6 +101,23 @@ test("the date read from the page is used when nothing is picked, and it can be 
   expect(await dayEntries(page, day(-3))).toEqual([]);
 });
 
+test("a rescan with the lines in another order moves the matched entries, says so in the review, and the log shows C, A, B", async ({ page }) => {
+  const date = day(-1);
+  await seedPage(page, date, 1, ["Alpha", "Bravo", "Charlie"]);
+  await page.goto(`${app.baseUrl}/?day=${date}`);
+  app.ocr.setLines(bullets(["Charlie", "Alpha", "Bravo"]));
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByTestId("rescan-page").click()]);
+  await chooser.setFiles(photo);
+  await expect(review(page)).toBeVisible();
+  await expect(review(page).locator("[data-role=match]").first()).toContainText("moves to position 1");
+  await expect(review(page).locator("[data-role=match]").nth(1)).not.toContainText("moves to");
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply new order");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  await expect(page.locator(".paper-row:not(.paper-trace) .paper-title")).toHaveText(["Charlie", "Alpha", "Bravo"]);
+  expect(await dayEntries(page, date)).toEqual([{ title: "Charlie", page: 1 }, { title: "Alpha", page: 1 }, { title: "Bravo", page: 1 }]);
+});
+
 test("a rescan of page 1 updates and reorders page 1 in the log and leaves page 2 alone", async ({ page }) => {
   const date = day(-1);
   await seedPage(page, date, 1, ["Call dentist", "Buy bread"]);

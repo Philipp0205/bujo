@@ -141,16 +141,19 @@
       rematchLabel: 'Match this line to its entry again',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
-      /** The subtitle and the button say what will be written: new entries and updates, never the unchanged lines. */
+      /** The faint line of a matched entry the paper puts in another place: a rescan moves it. */
+      movesTo: function (position) { return 'moves to position ' + position; },
+      /** The subtitle and the button say what will be written: new entries and updates, never the unchanged lines. Moved entries are named too. */
       writes: function (counts) {
         var parts = [];
         if (counts.created) parts.push(counts.created + (counts.created === 1 ? ' new entry' : ' new entries'));
         if (counts.updated) parts.push(counts.updated + (counts.updated === 1 ? ' update' : ' updates'));
+        if (counts.moved) parts.push(counts.moved + ' moved');
         return parts.length ? parts.join(', ') : 'nothing to write';
       },
       apply: function (counts) {
         var total = counts.created + counts.updated;
-        if (total === 0) return 'Nothing to apply';
+        if (total === 0) return counts.moved ? 'Apply new order' : 'Nothing to apply';
         if (!counts.updated) return 'Apply ' + counts.created + (counts.created === 1 ? ' entry' : ' entries');
         if (!counts.created) return 'Apply ' + counts.updated + (counts.updated === 1 ? ' update' : ' updates');
         return 'Apply ' + counts.created + ' new, ' + counts.updated + (counts.updated === 1 ? ' update' : ' updates');

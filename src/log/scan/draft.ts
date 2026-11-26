@@ -5,7 +5,7 @@ import type { ScanEntry } from "../types.ts";
 import { continuedDay } from "./continue.ts";
 import { detectKind, type Detected } from "./kind.ts";
 import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
-import { pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
+import { movesOf, pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
 import { MAX_PAPER_PAGE } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
 import type { Fields, Line, PageKind, Resolution, ScanStatus, ViewHint } from "./types.ts";
@@ -47,6 +47,8 @@ export type LineCheck = {
   after: Fields | null;
   /** True when the paper and the app both changed the entry since the last scan. Such a line starts unticked. */
   contested: boolean;
+  /** Only present when set: the 1-based position on the page the paper puts this line's existing entry at, when that entry sits elsewhere now (a rescan moves it). Else null. */
+  moveTo?: number;
   traced?: true;
 };
 
@@ -113,9 +115,10 @@ export function buildLogDraft(input: DraftInput): LogDraft {
 }
 
 /** The check of one resolved line, in the shape the API answers. */
-function toCheck(id: string, resolved: Resolution & { traced?: boolean }): LineCheck {
+function toCheck(id: string, resolved: Resolution & { traced?: boolean }, moveTo: number | null = null): LineCheck {
   const { status, target, before, after, contested, traced } = resolved;
-  const check: LineCheck = { id, status, target: target ? { id: target.id, title: target.title } : null, before, after, contested };
+  const base: LineCheck = { id, status, target: target ? { id: target.id, title: target.title } : null, before, after, contested };
+  const check = moveTo === null ? base : { ...base, moveTo };
   return traced ? { ...check, traced: true } : check;
 }
 
@@ -131,7 +134,8 @@ export function checkLines(lines: readonly Line[], existing: readonly ScanEntry[
 /** The checks of lines placed in slots (a day, or a month's lane), in the order given. Reads each slot once. */
 export function checkPlaced(placed: readonly Placed[], reader: SlotReader): LineCheck[] {
   const resolved = resolveSlots(placed, reader);
-  return placed.map(({ line }) => toCheck(line.id, resolved.get(line.id)!));
+  const moves = movesOf(placed, resolved, reader);
+  return placed.map(({ line }) => toCheck(line.id, resolved.get(line.id)!, moves.get(line.id) ?? null));
 }
 
 /**

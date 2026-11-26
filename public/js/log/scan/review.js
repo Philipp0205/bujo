@@ -30,7 +30,8 @@
     if (item.unmatched) return item.wasMatch ? copy.notMatched(item.wasMatch.title) : '';
     if (!match) return '';
     if (match.kind === 'trace') return copy.matchesTrace + ' \u00b7 ' + copy.traceChange;
-    return copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
+    var change = copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
+    return item.moveTo ? change + ' \u00b7 ' + copy.movesTo(item.moveTo) : change;
   }
 
   /** The un-match control: turns a matched line into a new entry, or a line that was un-matched back into a match. */

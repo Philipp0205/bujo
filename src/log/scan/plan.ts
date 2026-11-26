@@ -111,6 +111,44 @@ export function resolveSlots(placed: readonly Placed[], reader: SlotReader): Map
   return out;
 }
 
+/** The indexes of a longest strictly increasing run of `values` (patience sorting), so the entries outside it are the ones to move. */
+function longestRun(values: readonly number[]): Set<number> {
+  const tails: number[] = [];
+  const prev: number[] = [];
+  values.forEach((value, at) => {
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (values[tails[mid]] < value) low = mid + 1;
+      else high = mid;
+    }
+    prev[at] = low > 0 ? tails[low - 1] : -1;
+    tails[low] = at;
+  });
+  const keep = new Set<number>();
+  for (let at = tails.length > 0 ? tails[tails.length - 1] : -1; at >= 0; at = prev[at]) keep.add(at);
+  return keep;
+}
+
+/**
+ * The lines whose matched entry sits in another place than the paper puts it, as line id to its 1-based position on the page. Only entries
+ * already on paper count, and only those a line matched; the fewest entries are named (a C,A,B rescan of A,B,C moves C alone). Pure.
+ */
+export function movesOf(placed: readonly Placed[], resolved: Map<string, Planned>, reader: SlotReader): Map<string, number> {
+  const moves = new Map<string, number>();
+  for (const { slot, lines } of groupBySlot(placed).values()) {
+    const targets = lines.map((line, at) => ({ id: line.id, at, entry: resolved.get(line.id)?.target ?? null }));
+    const matched = targets.filter((item) => item.entry && item.entry.page !== null);
+    const order = reader.entries(slot).filter((entry) => entry.page !== null).map((entry) => entry.id);
+    const ranks = matched.map((item) => order.indexOf(item.entry!.id));
+    if (ranks.some((rank) => rank < 0)) continue;
+    const stay = longestRun(ranks);
+    matched.forEach((item, index) => { if (!stay.has(index)) moves.set(item.id, item.at + 1); });
+  }
+  return moves;
+}
+
 /**
  * A reader that shows only the entries of one physical page plus the ones not on paper. A scan of page 2 then never matches a
  * line of page 1, and a rescan of page 1 never matches page 2. Traces are not paged.

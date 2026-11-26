@@ -7,7 +7,7 @@ import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
 import type { LogDraft } from "./draft.ts";
 import { snapshotOf } from "./fields.ts";
-import { pageReader, resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
+import { movesOf, pageReader, resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
 import { placeReview, type SentItem, type SentReview } from "./request.ts";
 import type { Slot } from "./types.ts";
 
@@ -33,6 +33,12 @@ function planReview(reader: SlotReader, review: SentReview, fallbackDate: string
   const placed = placeReview(review, fallbackDate);
   const resolved = resolveSlots(placed, reader);
   return review.items.map((item, index) => ({ item, index, slot: placed[index].slot, resolution: resolved.get(item.id)! }));
+}
+
+/** True when the paper puts an existing entry of the page in another place than it sits now: a rescan that only reorders is still worth applying. */
+function reorders(reader: SlotReader, review: SentReview, plan: readonly Planned[], fallbackDate: string): boolean {
+  const resolved = new Map(plan.map(({ item, resolution }) => [item.id, resolution]));
+  return movesOf(placeReview(review, fallbackDate), resolved, reader).size > 0;
 }
 
 /** A bad title, tags or time on a kept line is a 400 that names the line, and so is a kept line with no real day or month. Throws before anything is written. */
@@ -148,9 +154,10 @@ export function applyLogDraft(
   now: number,
 ): ApplyOutcome[] {
   if (draft.applied) throw new HttpError(409, "This scan was already applied.");
-  const plan = planReview(pageReader(reader, review.page), review, draft.fallbackDate);
+  const paged = pageReader(reader, review.page);
+  const plan = planReview(paged, review, draft.fallbackDate);
   checkKept(plan);
-  if (!plan.some(isWrite)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
+  if (!plan.some(isWrite) && !reorders(paged, review, plan, draft.fallbackDate)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
   const outcomes = inTransaction(db, () => {
     plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
     const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
