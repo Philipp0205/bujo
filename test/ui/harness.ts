@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { BrowserContext, Page } from "@playwright/test";
 import { test } from "@playwright/test";
 import { loadCalDavConfig } from "../../src/caldav/config.ts";
@@ -9,8 +10,10 @@ import { fakeEnv, startFakeCalDav, SYNC_SETTINGS, syncEnv, type FakeCalDav } fro
 import { startFakeOcr, type FakeOcr } from "../fake-ocr.ts";
 import { startApp, signUp, type TestApp } from "../helpers.ts";
 
-/** The id of the newest what's-new entry. Specs that mark everything as seen use this, so a new entry bumps one line. */
-export const WHATS_NEW_NEWEST = "2026-11-26-monthly-scan-apply";
+/** The id of the newest what's-new entry, read from the shipped catalog (newest first) so a new entry needs no test edit. */
+export const WHATS_NEW_NEWEST: string = JSON.parse(
+  readFileSync(new URL("../../public/whats-new.json", import.meta.url), "utf8"),
+)[0].id;
 
 /** Switches an open saved note sheet from its rendered preview to the textarea. A sheet already in edit mode is left alone. */
 export async function openNoteEditor(sheet: import("@playwright/test").Locator): Promise<void> {
