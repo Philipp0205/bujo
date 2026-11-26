@@ -55,6 +55,13 @@ async function shown(page: Page): Promise<string | null> {
   return body(page).getAttribute("data-date");
 }
 
+/** Opens the day picker on a page shown at the given day offset and taps today (steps to the next month first when today lies in it). */
+async function pickToday(page: Page, shownOffset: number): Promise<void> {
+  await page.getByTestId("page-date").click();
+  if (day(shownOffset).slice(0, 7) !== day(0).slice(0, 7)) await page.getByTestId(shownOffset < 0 ? "picker-next" : "picker-prev").click();
+  await page.locator(`[data-testid=picker-day][data-date="${day(0)}"]`).click();
+}
+
 /** The ?day= of the address, or null. */
 function addressDay(page: Page): string | null {
   return new URL(page.url()).searchParams.get("day");
@@ -102,7 +109,7 @@ test("today opens by default, with its heading, the Today mark, the page number 
   expect(addressDay(page)).toBeNull();
 });
 
-test("another day shows its own date and no Today mark, and the Today chip only jumps back", async ({ page }) => {
+test("another day shows its own date and no Today mark or chip, and the picker brings today back", async ({ page }) => {
   await seed(page, [{ offset: -3, title: "Vor Tagen" }, { offset: 2, title: "Bald" }]);
   await openLog(page);
   const heading = (offset: number) => new Date(`${day(offset)}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" }) + ` ${day(offset).slice(8)}.${day(offset).slice(5, 7)}`;
@@ -113,11 +120,10 @@ test("another day shows its own date and no Today mark, and the Today chip only 
     await expect(page.getByTestId("page-date")).toHaveText(heading(offset));
     await expect(page.getByTestId("page-date")).not.toContainText("Today");
     await expect(page.getByTestId("today-mark")).toHaveCount(0);
-    await expect(page.getByTestId("today-jump")).toHaveText("Today");
-    await expect(page.getByTestId("today-jump")).toHaveAccessibleName("Back to today");
+    await expect(page.getByTestId("today-jump")).toHaveCount(0);
   }
 
-  await page.getByTestId("today-jump").click();
+  await pickToday(page, 2);
   await expect(body(page)).toHaveAttribute("data-date", day(0));
   await expect(page.getByTestId("page-date")).toHaveText(heading(0));
   await expect(page.getByTestId("today-mark")).toHaveText("Today");
@@ -226,19 +232,32 @@ test("the phone's Back closes the day picker first and leaves the log on the sam
   await expect.poll(() => addressDay(page)).toBe(day(1));
 });
 
-test("the Today jump shows on other pages only and brings the page of today back", async ({ page }) => {
-  await seed(page, [{ offset: -2, title: "Vorgestern" }]);
+test("the day heading opens the picker, which is the way back to today from another page", async ({ page }) => {
+  await seed(page, [{ offset: -2, title: "Vorgestern" }, { offset: 0, title: "Heute" }]);
   await openLog(page, -2);
 
   await expect(body(page)).toHaveAttribute("data-date", day(-2));
   await expect(page.getByTestId("today-mark")).toHaveCount(0);
-  const jump = page.getByTestId("today-jump");
-  await expect(jump).toHaveText("Today");
-  await jump.click();
+  await pickToday(page, -2);
   await expect(body(page)).toHaveAttribute("data-date", day(0));
-  await expect(jump).toHaveCount(0);
   await expect(page.getByTestId("today-mark")).toBeVisible();
   await expect.poll(() => addressDay(page)).toBeNull();
+});
+
+test("only today's page head shows the Today mark: yesterday and a future day show no Today pill", async ({ page }) => {
+  await seed(page, [{ offset: -1, title: "Gestern" }, { offset: 0, title: "Heute" }, { offset: 3, title: "Bald" }]);
+  await openLog(page);
+  await expect(page.getByTestId("today-mark")).toBeVisible();
+  await expect(page.getByTestId("today-mark")).toHaveText("Today");
+
+  for (const offset of [-1, 3]) {
+    await openLog(page, offset);
+    await expect(body(page)).toHaveAttribute("data-date", day(offset));
+    await expect(page.getByTestId("today-mark")).toHaveCount(0);
+    await expect(page.getByTestId("today-jump")).toHaveCount(0);
+    await expect(page.getByTestId("page-date")).not.toContainText("Today");
+    await expect(page.getByTestId("page-head")).not.toContainText("Today");
+  }
 });
 
 test("+ Add entry on another page writes to that day and the entry is still there after a reload", async ({ page }) => {

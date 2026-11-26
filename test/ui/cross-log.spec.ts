@@ -322,7 +322,7 @@ test("an entry moved with > to a day beyond the loaded days is on that day's log
   await page.locator(`[data-testid="picker-day"][data-date="${day(12)}"]`).click();
   await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(12));
   await expect(live(page, "Weit weg")).toHaveCount(1);
-  await page.getByTestId("today-jump").click();
+  await page.goto(app.baseUrl);
   await expect(traceRows(page)).toHaveCount(1);
   expect(await entryOf(page, "Weit weg")).toMatchObject({ id, date: day(12), horizon: "day" });
 });
@@ -345,7 +345,7 @@ test("Moved offers Today when the entry is on another day, and a pick lands it o
   const now = await stored(page);
   expect(now.entries[0]).toMatchObject({ id, date: day(0), horizon: "day", type: "task" });
   expect(now.traces).toMatchObject([{ entryId: id, date: day(-2), horizon: "day", kind: "migrated" }]);
-  await page.getByTestId("today-jump").click();
+  await page.goto(app.baseUrl);
   await expect(live(page, "Heute nachholen")).toHaveCount(1);
 });
 

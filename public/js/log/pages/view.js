@@ -1,9 +1,9 @@
 /*
- * Render functions of one daily page: the date row (heading, Today jump, arrows, page number), the body of rows and the edge
+ * Render functions of one daily page: the date row (heading, arrows, page number), the body of rows and the edge
  * turn targets. They build nodes and call back, they never fetch and know nothing of the state. Needs ak-dom.js, copy.js, dates.js,
  * glyph.js and view.js (the Today mark). The cards of the day come in as the body.
  * page(ctx): date, ready, isToday, number, around { prev, next }, locked (selecting or editing), turn ('next' | 'prev' | null), body (nodes),
- *            nav { turn(direction), pick(), home() }, switcher (the view switcher row, or nothing).
+ *            nav { turn(direction), pick() }, switcher (the view switcher row, or nothing).
  * shell(ctx, key, headNode) is the same page around any head row: the Month and Future views use it with their own head.
  */
 (function () {
@@ -41,19 +41,10 @@
       ctx.isToday ? L.view.todayMark() : null);
   }
 
-  /** The way back to today, on every page but today's. */
-  function jump(ctx) {
-    if (ctx.isToday) return null;
-    return h('button', {
-      class: 'page-today-jump', type: 'button', 'data-testid': 'today-jump', 'aria-label': L.copy.pages.toTodayLabel,
-      disabled: !ctx.ready || ctx.locked, onclick: ctx.nav.home
-    }, L.copy.pages.toToday);
-  }
-
-  /** The date row: heading and Today jump on the left, the arrows around the page number on the right. Room is left in it for a later switcher. */
+  /** The date row: the heading on the left, the arrows around the page number on the right. Room is left in it for a later switcher. */
   function head(ctx) {
     return h('div', { class: 'page-head', 'data-testid': 'page-head' },
-      h('div', { class: 'page-title' }, heading(ctx), jump(ctx)),
+      h('div', { class: 'page-title' }, heading(ctx)),
       h('div', { class: 'page-nav' }, arrow('prev', ctx), folio(ctx), arrow('next', ctx)));
   }
 
