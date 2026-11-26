@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-plugins",
+    "date": "2026-11-26",
+    "title": "Switch features on and off",
+    "bullets": [
+      "Settings now has a Plugins section with an on/off switch per feature.",
+      "Bulk delete is the first one. Switch it off and the Delete button leaves the select bar."
+    ]
+  },
+  {
     "id": "2026-11-26-monthly-scan-apply",
     "date": "2026-11-26",
     "title": "Apply works on a monthly log scan",

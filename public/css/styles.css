@@ -142,6 +142,19 @@ html.ak-base {
 .bj-font-on .bj-font-name { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
 .bj-font-on .bj-font-sample { color: var(--paper-ink); }
 
+/* Settings > Plugins: a text block and a small on/off switch per row. */
+.bj-plugin-list { list-style: none; margin: 0; padding: 0; }
+.bj-plugin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid color-mix(in srgb, var(--paper-ink) 14%, transparent);
+}
+.bj-plugin-text { flex: 1; min-width: 0; }
+.bj-plugin-text p { margin: 0; }
+.bj-plugin-switch { width: 72px; flex: none; }
+
 /* Links are italic ink with a thin underline, never the browser blue. */
 .bj-app a,
 .bj-link {
