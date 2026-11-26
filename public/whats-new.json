@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-monthly-scan-apply",
+    "date": "2026-11-26",
+    "title": "Apply works on a monthly log scan",
+    "bullets": [
+      "Typing a day into a line now counts at once, so Apply no longer stays grey.",
+      "If a line still has no day, the message names that line."
+    ]
+  },
+  {
     "id": "2026-11-26-md-editor",
     "date": "2026-11-26",
     "title": "A better editor for free notes",

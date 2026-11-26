@@ -51,7 +51,8 @@
       scanFailed: 'Could not read the page. Try again.',
       applyFailed: 'Could not save the entries. Try again.',
       titleRequired: 'Give every kept line a title.',
-      dayRequired: 'Give every kept line a day of this month.',
+      dayRequired: function (title) { return 'Give \u201c' + title + '\u201d a day of this month.'; },
+      dayMissing: function (title, day) { return 'Day ' + day + ' is not a day of this month. Fix \u201c' + title + '\u201d.'; },
       monthRequired: 'Give every kept line a month.',
       kindFailed: 'Could not switch the page kind. Try again.',
       paperInvalid: 'The notebook page must be a whole number from 1 to 9999, or empty.'
@@ -88,6 +89,7 @@
         return L.copy.pages.picker.months[Number(month.slice(5, 7)) - 1] + ' ' + month.slice(0, 4);
       },
       dayLabel: 'Day',
+      thisLine: 'this line',
       noMonth: 'No month yet',
       noDay: 'No day yet',
       type: 'Type',
