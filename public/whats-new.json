@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-26-page-gap-reminder",
+    "date": "2026-11-26",
+    "title": "A reminder for pages you skipped scanning",
+    "bullets": [
+      "After you scan a later page, the app names the pages in between that are not scanned yet.",
+      "Tap Skip these pages for blank pages, and they are left out of later reminders."
+    ]
+  },
+  {
     "id": "2026-11-26-monthly-scan-apply",
     "date": "2026-11-26",
     "title": "Apply works on a monthly log scan",

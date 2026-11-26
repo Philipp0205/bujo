@@ -1,7 +1,8 @@
 /*
  * The notebook page row of the scan review: the page number written in the notebook, read from the photo and editable.
  * Shown for daily, future and month reviews. Empty is allowed. A view only: the rules live in scan/model.js.
- * Needs ak-dom.js, scan/copy.js and scan/model.js.
+ * Under the field a quiet line names the pages the typed number would leave unscanned (never blocks Apply).
+ * Needs ak-dom.js, scan/copy.js, scan/model.js and gap/banner.js.
  */
 (function () {
   'use strict';
@@ -25,8 +26,9 @@
       'data-field': 'paper-number', 'data-testid': 'scan-paper-number', value: state.paperText
     });
     var note = h('p', { class: 'scan-number-note', 'data-testid': 'scan-paper-note', role: 'status' });
+    var gap = h('p', { class: 'scan-number-note scan-number-gap', 'data-testid': 'scan-gap-hint', hidden: true });
     var node = h('div', { class: 'scan-number', 'data-testid': 'scan-paper-row' },
-      h('label', { class: 'scan-number-line' }, h('span', { class: 'scan-number-label' }, copy.paperLabel), input), note);
+      h('label', { class: 'scan-number-line' }, h('span', { class: 'scan-number-label' }, copy.paperLabel), input), note, gap);
     input.addEventListener('input', function () {
       L.scan.model.setPaperText(state, input.value);
       onChange();
@@ -40,6 +42,9 @@
         input.setAttribute('aria-invalid', L.scan.model.paperNumberOf(state).invalid ? 'true' : 'false');
         note.hidden = text === '';
         note.textContent = text;
+        var runs = L.gap.model.ranges(L.gap.banner.leaves(state.knownPages || [], L.scan.model.paperNumberOf(state).value));
+        gap.hidden = runs.length === 0;
+        gap.textContent = runs.length ? L.copy.gap.hint(runs) : '';
       }
     };
   }
