@@ -62,7 +62,8 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   const fallbackDate = fallbackDay(ctx, now);
   const ocr = await deps.ocr(image, contentType);
   const pinned = ctx.url.searchParams.get("pinned") === "1";
-  const draft = buildLogDraft({ ocr, fallbackDate, pinned, now, ttlMs: DRAFT_TTL_MS, hint });
+  const picked = ctx.url.searchParams.get("picked") === "1";
+  const draft = buildLogDraft({ ocr, fallbackDate, pinned, picked, now, ttlMs: DRAFT_TTL_MS, hint });
   deps.drafts.add(draft);
   sendJson(ctx.res, 201, { draft: startReview(draft, readerOf(ctx, session.user.id)) });
 }
@@ -124,7 +125,8 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *                                   (daily, future, calendar or month-task) is found from the OCR lines, the LLM's word and the view
  *                                   (daily, future or month) the person had open. A daily page with no date header continues the latest
  *                                   day within 3 days before `date` that has paper entries (the review answers `continues`), unless
- *                                   pinned=1 says the day was named on purpose (a rescan of that day).
+ *                                   pinned=1 says the day was named on purpose (a rescan of that day). picked=1 says the person chose `date`
+ *                                   on the scan screen: it then beats a date read from the page header (the review answers picked).
  *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note, and `match`: the
  *                                   person's saved note this page most likely is (id, title, date, body), or null. Keeps and writes
  *                                   nothing: the note is saved by the review through POST /api/entries (or PATCHed when updating).

@@ -16,7 +16,12 @@
       rapid: 'Log page',
       note: 'Free note',
       shutter: 'Take a photo',
-      gallery: 'Choose from gallery'
+      gallery: 'Choose from gallery',
+      /** The day row on the camera screen: the day to file on, and whether the person picked it (a picked day beats the date on the page). */
+      day: function (heading) { return heading; },
+      dayDefault: 'a date on the page wins',
+      dayPicked: 'picked by you',
+      dayLabel: 'Day to file on'
     },
     progress: {
       step: 'Reading your page\u2026',
@@ -58,6 +63,7 @@
       date: 'Date',
       dateFromPage: 'Read from the page',
       dateFallback: 'Today, no date found',
+      dateOpenDay: 'Open day, no date found',
       datePicked: 'Picked by you',
       dateContinues: function (day) { return 'Continues ' + day + ', no date on this page'; },
       useToday: 'Use today instead',

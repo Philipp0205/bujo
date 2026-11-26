@@ -135,8 +135,9 @@
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
+      picked: !!draft.picked,
       continues: draft.continues || null,
-      dateSource: draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback'),
+      dateSource: draft.picked ? 'picked' : (draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback')),
       month: month,
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
@@ -182,10 +183,12 @@
     state.page = page;
   }
 
-  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. The notebook page number stays as it is. */
+  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle.
+   * The notebook page number stays as it is, and so does a day the person picked in the review. */
   function replaceDraft(state, draft) {
     var number = { paperText: state.paperText, paperRead: state.paperRead, paperEdited: state.paperEdited };
-    Object.assign(state, fromDraft(draft), number);
+    var mine = state.dateSource === 'picked' ? { date: state.date, dateSource: 'picked' } : null;
+    Object.assign(state, fromDraft(draft), number, mine || {});
   }
 
   /** True when the kind files lines on days of the log (events are allowed there). */
@@ -196,7 +199,8 @@
   /** Sets the day. The note under it says where it came from: the page, the day it continues, the fallback, or the person. The page number is kept (the check then says which pages the new day has). */
   function setDate(state, date) {
     state.date = date;
-    if (date === state.pageDate) state.dateSource = 'page';
+    if (state.picked && date === state.fallbackDate) state.dateSource = 'picked';
+    else if (date === state.pageDate) state.dateSource = 'page';
     else if (!state.pageDate && state.continues && date === state.continues) state.dateSource = 'continues';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';

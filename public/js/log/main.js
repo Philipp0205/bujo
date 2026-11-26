@@ -127,9 +127,9 @@
     L.inline.editor.addLine();
   }
 
-  /** The day a scanned page falls back to when it names none: today, or the first of the month on screen when that is another month. */
+  /** The day a scanned page falls back to when it names none: the day on screen in the Daily log, else today or the first of the month on screen. */
   function scanDay() {
-    if (state.view === 'daily') return state.today;
+    if (state.view === 'daily') return shownPage().date;
     var month = shownMonth();
     return month === L.pages.model.monthOf(state.today) ? state.today : month + '-01';
   }
@@ -140,9 +140,9 @@
     L.scan.flow.start({ day: scanDay(), view: state.view, onApplied: applied, autoCapture: true });
   }
 
-  /** Scans the page of one day again: the page's day is the fallback day, so a photo with no printed date files on it and matches its entries. */
+  /** Scans the page of one day again: the day is named on purpose (picked), so a photo files on it and matches its entries, whatever date the page header shows. */
   function rescanDay(date) {
-    L.scan.flow.start({ day: date, view: 'daily', pinned: true, onApplied: applied, autoCapture: true });
+    L.scan.flow.start({ day: date, view: 'daily', pinned: true, picked: true, onApplied: applied, autoCapture: true });
   }
 
   /** Scans a saved note again: the camera opens in note mode and the review offers to update that note. */

@@ -24,6 +24,8 @@ export type LogDraft = {
   fallbackDate: string;
   /** True when the request named the day on purpose (a rescan of a day page): a page with no date is never taken as a continuation. */
   pinned: boolean;
+  /** True when the person chose the day on the scan screen: it then beats the date read from the page header. */
+  picked: boolean;
   image: { width: number; height: number };
   /** The OCR lines in page order. Line ids are l1, l2, ... by position here, whatever the kind. */
   page: PageLine[];
@@ -63,6 +65,8 @@ export type Review = {
   /** The date the page header named, or null. The review words its date row from these two. */
   pageDate: string | null;
   fallbackDate: string;
+  /** True when `date` is the day the person picked on the scan screen (it beats the page header). */
+  picked: boolean;
   /** The earlier day this page continues (it names no date and that day already has paper), else null. Then `date` is that day. */
   continues: string | null;
   /** The month (YYYY-MM) of a calendar or month-task page, else null. */
@@ -81,6 +85,8 @@ export type DraftInput = {
   fallbackDate: string;
   /** The day was named on purpose, so no continuation is looked for. Left out means false. */
   pinned?: boolean;
+  /** The day was picked on the scan screen: it beats the page header. Left out means false. */
+  picked?: boolean;
   now: number;
   ttlMs: number;
   /** The log view open when scanning. Left out means none. */
@@ -97,6 +103,7 @@ export function buildLogDraft(input: DraftInput): LogDraft {
     expires: input.now + input.ttlMs,
     fallbackDate: input.fallbackDate,
     pinned: input.pinned ?? false,
+    picked: input.picked ?? false,
     image: { width: input.ocr.width, height: input.ocr.height },
     page,
     llm: { kind: input.ocr.kind ?? null, period: input.ocr.period ?? null, pageNumber: asPageNumber(input.ocr.pageNumber) },
@@ -168,8 +175,9 @@ function pageChoice(kind: PageKind, date: string, placed: readonly Placed[], rea
 /** The review a draft starts with for one kind (the detected one unless the person picked another). `reader` gives each slot's entries. */
 export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind = draft.detected.kind): Review {
   const parsed = parsePage(draft.page, draft.fallbackDate, kind, draft.llm.period);
-  const continues = kind === "daily" && parsed.pageDate === null && !draft.pinned ? continuedDay(draft.fallbackDate, reader) : null;
-  const date = parsed.pageDate ?? continues ?? draft.fallbackDate;
+  const named = draft.picked || draft.pinned;
+  const continues = kind === "daily" && parsed.pageDate === null && !named ? continuedDay(draft.fallbackDate, reader) : null;
+  const date = draft.picked ? draft.fallbackDate : (parsed.pageDate ?? continues ?? draft.fallbackDate);
   const where: Where = { kind, date, month: parsed.month };
   const placed = parsed.lines.map((line) => ({ line, slot: slotOf(where, line) }));
   const { page, pages } = pageChoice(kind, date, placed, reader);
@@ -182,6 +190,7 @@ export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind 
     date,
     pageDate: parsed.pageDate,
     fallbackDate: draft.fallbackDate,
+    picked: draft.picked,
     continues,
     month: parsed.month,
     page,

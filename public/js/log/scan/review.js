@@ -190,7 +190,7 @@
     return {
       node: h('div', { class: 'scan-date-block' }, node, today),
       refresh: function () {
-        var texts = { page: copy.dateFromPage, fallback: copy.dateFallback, picked: copy.datePicked };
+        var texts = { page: copy.dateFromPage, fallback: state.fallbackDate === L.dates.todayIso() ? copy.dateFallback : copy.dateOpenDay, picked: copy.datePicked };
         day.textContent = L.dates.dayHeading(state.date);
         source.textContent = state.dateSource === 'continues' ? copy.dateContinues(L.dates.dayHeading(state.continues)) : texts[state.dateSource];
         today.hidden = state.dateSource !== 'continues';
@@ -295,7 +295,7 @@
         L.scan.model.replaceDraft(state, draft);
         busy = false;
         rows.rebuild();
-        refreshAll();
+        recheck();
       }, function (error) {
         busy = false;
         refreshAll();
