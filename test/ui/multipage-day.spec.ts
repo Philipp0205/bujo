@@ -176,7 +176,7 @@ test("a rescan of a day page stays on that day, with no continuation row", async
   await chooser.setFiles(photo);
   await expect(review(page)).toBeVisible();
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(-2)));
-  await expect(page.getByTestId("scan-date-source")).toHaveText("Today, no date found");
+  await expect(page.getByTestId("scan-date-source")).toHaveText("Picked by you");
   await expect(page.getByTestId("scan-continue-today")).toBeHidden();
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);

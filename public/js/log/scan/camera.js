@@ -25,6 +25,7 @@
     parts.title.textContent = note ? copy.titleNote : copy.title;
     parts.frame.replaceChildren(L.glyph.use(note ? 'g-scan-prose' : 'g-scan-guide', { viewBox: '0 0 120 160' }));
     parts.node.setAttribute('data-mode', mode);
+    parts.day.hidden = note;
     parts.buttons.forEach(function (button) {
       button.setAttribute('aria-pressed', button.getAttribute('data-mode') === mode ? 'true' : 'false');
     });
@@ -38,6 +39,29 @@
     var rapid = button('rapid', copy.rapid);
     var note = button('note', copy.note);
     return { node: h('div', { class: 'scan-modes', role: 'group', 'aria-label': copy.modes }, rapid, note), buttons: [rapid, note] };
+  }
+
+  /**
+   * The day row: the day the page files on and a date input over it. Changing the day marks it picked, which beats the date on the page.
+   * pick() is the picked day, or null while it is still the default.
+   */
+  function dayRow(copy, day) {
+    var picked = null;
+    var text = h('span', { class: 'scan-pickday-text', 'data-testid': 'scan-pick-text' });
+    var note = h('span', { class: 'scan-pickday-note', 'data-testid': 'scan-pick-note' });
+    var input = h('input', { class: 'scan-pickday-input', type: 'date', 'aria-label': copy.dayLabel, 'data-field': 'scan-day', value: day });
+    function show() {
+      text.textContent = copy.day(L.dates.dayHeading(picked || day));
+      note.textContent = picked ? copy.dayPicked : copy.dayDefault;
+    }
+    input.addEventListener('change', function () {
+      if (!input.value) return;
+      picked = input.value;
+      show();
+    });
+    show();
+    var node = h('label', { class: 'scan-pickday', 'data-testid': 'scan-pick' }, text, note, input);
+    return { node: node, pick: function () { return picked; } };
   }
 
   /** A hidden file input. Only the camera one sets capture, so the gallery one can pick any existing photo. */
@@ -110,7 +134,8 @@
   }
 
   /**
-   * Opens the screen. options.onPhoto(file, mode) gets a photo and the mode ('rapid' or 'note'), options.onClose() the close button.
+   * Opens the screen. options.day is the day it offers to file on, options.onPhoto(file, mode, pickedDay) gets a photo, the mode ('rapid' or 'note') and
+   * the day the person picked on this screen (null when they did not), options.onClose() the close button.
    * options.mode is the mode it opens in (default 'rapid').
    * With options.autoCapture the camera input opens at once (call it inside a tap, or the browser may refuse); the screen stays up under it.
    */
@@ -125,13 +150,14 @@
     var close = h('button', { class: 'scan-close', type: 'button', 'aria-label': copy.close, 'data-action': 'scan-close', onclick: options.onClose },
       L.glyph.use('g-close', { viewBox: '0 0 24 24', width: 24, height: 24 }));
     var picker = modes(copy, function (next) { mode = next; showMode(mode, parts, copy); });
+    var pickDay = dayRow(copy, options.day);
     var guide = frame();
     var node = h('div', { class: 'scan-screen', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-title', 'data-testid': 'scan-screen', 'data-mode': mode },
-      h('div', { class: 'scan-top' }, close, title), guide, slot, picker.node, buttons.row, cameraInput, galleryInput);
-    var parts = { node: node, title: title, frame: guide, buttons: picker.buttons };
+      h('div', { class: 'scan-top' }, close, title), guide, slot, picker.node, pickDay.node, buttons.row, cameraInput, galleryInput);
+    var parts = { node: node, title: title, frame: guide, buttons: picker.buttons, day: pickDay.node };
     if (mode !== 'rapid') showMode(mode, parts, copy);
 
-    function photo(file) { options.onPhoto(file, mode); }
+    function photo(file) { options.onPhoto(file, mode, pickDay.pick()); }
     feed(cameraInput, photo);
     feed(galleryInput, photo);
     node.addEventListener('keydown', function (event) {

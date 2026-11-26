@@ -22,10 +22,10 @@
   }
 
   /** Reads one log-page photo. view is the open log view (a hint for the kind). Resolves with the draft, or rejects with a message for the camera screen. */
-  function readPhoto(file, day, view, pinned) {
+  function readPhoto(file, day, view, pinned, picked) {
     var errors = L.copy.scan.errors;
     return checkedPhoto(file).then(function (photo) {
-      return L.scan.api.scan(photo, day, view, pinned).then(function (draft) {
+      return L.scan.api.scan(photo, day, view, pinned, picked).then(function (draft) {
         if (!draft.items.length) throw new Error(L.copy.scan.review.noLines);
         return draft;
       }, function (error) {
@@ -83,18 +83,21 @@
     });
   }
 
-  /** Reads a photo for the mode the camera is in, then shows the screen that mode ends in, unless the camera was closed meanwhile. */
-  function readFor(mode, file, camera, options, isClosed) {
+  /** Reads a photo for the mode the camera is in, then shows the screen that mode ends in, unless the camera was closed meanwhile.
+   * pickedDay is the day the person picked on the camera screen, or null: it replaces options.day and beats a date on the page. */
+  function readFor(mode, file, camera, options, isClosed, pickedDay) {
+    var day = pickedDay || options.day;
     if (mode === 'note') {
-      return readNote(file, options.day).then(function (read) { if (!isClosed()) showNote(camera, read, options); });
+      return readNote(file, day).then(function (read) { if (!isClosed()) showNote(camera, read, options); });
     }
-    return readPhoto(file, options.day, options.view, options.pinned).then(function (draft) { if (!isClosed()) showReview(camera, draft, options); });
+    return readPhoto(file, day, options.view, options.pinned, !!pickedDay || !!options.picked).then(function (draft) { if (!isClosed()) showReview(camera, draft, options); });
   }
 
   /**
    * Opens the camera screen. options.day is the day to use when a page names none, options.view the open log view ('daily', 'future'
    * or 'month', a hint for the page kind), options.onApplied({ view, date, month }) runs after a save and says where the lines landed.
    * options.pinned (a rescan of a day) keeps a page with no date on options.day, never on an earlier day it might continue.
+   * options.picked (a rescan of a day) files on options.day even when the page shows another date.
    * options.autoCapture opens the phone camera at once, so the tab needs no second tap. options.replaceNote ({ id, title, date }) is a saved
    * note being scanned again: the camera opens in note mode and the review has that note chosen as the one to update. Closing the screen while a photo is read
    * drops the late answer: no review opens and no error shows.
@@ -104,12 +107,12 @@
     var working = false;
     var closed = false;
 
-    function onPhoto(file, mode) {
+    function onPhoto(file, mode, pickedDay) {
       if (working) return;
       working = true;
       camera.error('');
       camera.busy(true, file);
-      readFor(mode, file, camera, options, function () { return closed; }).then(null, function (error) {
+      readFor(mode, file, camera, options, function () { return closed; }, pickedDay).then(null, function (error) {
         if (closed) return;
         camera.busy(false);
         camera.error(error.message);
@@ -122,7 +125,7 @@
       camera.close();
     }
 
-    camera = L.scan.camera.open({ onPhoto: onPhoto, onClose: onClose, autoCapture: !!options.autoCapture, mode: options.replaceNote ? 'note' : 'rapid' });
+    camera = L.scan.camera.open({ day: options.day, onPhoto: onPhoto, onClose: onClose, autoCapture: !!options.autoCapture, mode: options.replaceNote ? 'note' : 'rapid' });
   }
 
   L.scan.flow = { start: start };

@@ -87,6 +87,7 @@
       before: line.before,
       after: line.after,
       contested: line.contested,
+      moveTo: line.moveTo || null,
       traced: line.traced === true,
       unmatched: false,
       wasMatch: null,
@@ -135,8 +136,9 @@
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
+      picked: !!draft.picked,
       continues: draft.continues || null,
-      dateSource: draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback'),
+      dateSource: draft.picked ? 'picked' : (draft.pageDate ? 'page' : (draft.continues ? 'continues' : 'fallback')),
       month: month,
       page: draft.page || 1,
       pages: (draft.pages || []).slice(),
@@ -182,10 +184,12 @@
     state.page = page;
   }
 
-  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle. The notebook page number stays as it is. */
+  /** Puts a re-read draft (after a kind switch) into the same state object, so the open review keeps its handle.
+   * The notebook page number stays as it is, and so does a day the person picked in the review. */
   function replaceDraft(state, draft) {
     var number = { paperText: state.paperText, paperRead: state.paperRead, paperEdited: state.paperEdited };
-    Object.assign(state, fromDraft(draft), number);
+    var mine = state.dateSource === 'picked' ? { date: state.date, dateSource: 'picked' } : null;
+    Object.assign(state, fromDraft(draft), number, mine || {});
   }
 
   /** True when the kind files lines on days of the log (events are allowed there). */
@@ -196,7 +200,8 @@
   /** Sets the day. The note under it says where it came from: the page, the day it continues, the fallback, or the person. The page number is kept (the check then says which pages the new day has). */
   function setDate(state, date) {
     state.date = date;
-    if (date === state.pageDate) state.dateSource = 'page';
+    if (state.picked && date === state.fallbackDate) state.dateSource = 'picked';
+    else if (date === state.pageDate) state.dateSource = 'page';
     else if (!state.pageDate && state.continues && date === state.continues) state.dateSource = 'continues';
     else if (!state.pageDate && date === state.fallbackDate) state.dateSource = 'fallback';
     else state.dateSource = 'picked';
@@ -227,6 +232,7 @@
       item.before = check.before;
       item.after = check.after;
       item.contested = check.contested;
+      item.moveTo = check.moveTo || null;
       item.traced = check.traced === true;
       if (item.status === 'unchanged') {
         item.include = false;
@@ -261,6 +267,7 @@
     item.before = null;
     item.after = null;
     item.contested = false;
+    item.moveTo = null;
     item.traced = false;
     item.touched = false;
     item.include = defaultInclude(item);
@@ -277,11 +284,12 @@
     return state.items.filter(function (item) { return item.include && item.status !== 'unchanged'; });
   }
 
-  /** How many kept lines add an entry and how many change one. */
+  /** How many kept lines add an entry, how many change one, and how many matched entries move to the paper's place. */
   function counts(state) {
     var kept = keptItems(state);
     var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
-    return { created: kept.length - updated, updated: updated };
+    var moved = state.items.filter(function (item) { return item.moveTo && !item.unmatched; }).length;
+    return { created: kept.length - updated, updated: updated, moved: moved };
   }
 
   /** True when a calendar day exists in the month of the page (no 30 February). */
@@ -303,7 +311,7 @@
     if (kept.some(function (item) { return item.title.trim() === ''; })) return 'title';
     var place = placeProblem(state, kept);
     if (place) return place;
-    return kept.length ? '' : 'none';
+    return kept.length || counts(state).moved ? '' : 'none';
   }
 
   function isLowConfidence(item) {

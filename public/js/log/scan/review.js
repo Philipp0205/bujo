@@ -30,7 +30,8 @@
     if (item.unmatched) return item.wasMatch ? copy.notMatched(item.wasMatch.title) : '';
     if (!match) return '';
     if (match.kind === 'trace') return copy.matchesTrace + ' \u00b7 ' + copy.traceChange;
-    return copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
+    var change = copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
+    return item.moveTo ? change + ' \u00b7 ' + copy.movesTo(item.moveTo) : change;
   }
 
   /** The un-match control: turns a matched line into a new entry, or a line that was un-matched back into a match. */
@@ -190,7 +191,7 @@
     return {
       node: h('div', { class: 'scan-date-block' }, node, today),
       refresh: function () {
-        var texts = { page: copy.dateFromPage, fallback: copy.dateFallback, picked: copy.datePicked };
+        var texts = { page: copy.dateFromPage, fallback: state.fallbackDate === L.dates.todayIso() ? copy.dateFallback : copy.dateOpenDay, picked: copy.datePicked };
         day.textContent = L.dates.dayHeading(state.date);
         source.textContent = state.dateSource === 'continues' ? copy.dateContinues(L.dates.dayHeading(state.continues)) : texts[state.dateSource];
         today.hidden = state.dateSource !== 'continues';
@@ -295,7 +296,7 @@
         L.scan.model.replaceDraft(state, draft);
         busy = false;
         rows.rebuild();
-        refreshAll();
+        recheck();
       }, function (error) {
         busy = false;
         refreshAll();
