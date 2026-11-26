@@ -279,7 +279,19 @@
       bodyRequired: 'Write something in the note.',
       saveFailed: 'Could not save the note. Try again.',
       scanAgain: 'Scan again',
-      save: 'Save'
+      save: 'Save',
+      editor: {
+        modes: 'Note view',
+        edit: 'Edit',
+        preview: 'Preview',
+        toolbar: 'Formatting',
+        tools: { heading: 'Heading', bold: 'Bold', italic: 'Italic', list: 'List', checkbox: 'Checkbox', link: 'Link' },
+        marks: { heading: 'H', bold: 'B', italic: 'I', list: '\u2022', checkbox: '\u2610', link: '\u21aa' },
+        boldHint: 'bold',
+        italicHint: 'italic',
+        linkText: 'text',
+        linkUrl: 'https://'
+      }
     }
   };
 })();

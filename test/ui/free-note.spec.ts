@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { openNoteEditor, useBujo } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -130,6 +130,7 @@ test("edit title and markdown, save, see the note in the log, open it, copy it, 
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Garten im Frühjahr");
   await expect(sheet(page).locator(".sync-mark, [data-testid=sync-line]")).toHaveCount(0);
   await expect(sheet(page)).not.toContainText(/not synced/i);
+  await openNoteEditor(sheet(page));
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(`${MARKDOWN}\n- Kompost umschichten`);
 
   const copy = sheet(page).locator('[data-action="copy-note"]');
@@ -142,6 +143,7 @@ test("edit title and markdown, save, see the note in the log, open it, copy it, 
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
   await page.locator(".paper-row", { hasText: "Garten im Frühjahr" }).click();
+  await openNoteEditor(sheet(page));
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# Neu\n- nur das");
   expect(errors).toEqual([]);
 });
@@ -256,6 +258,7 @@ test("saving a saved note again keeps its photo, and a note with no photo shows 
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
   await page.locator(".paper-row", { hasText: "Küchengarten, Frühjahr" }).click();
+  await sheet(page).locator('[data-action="note-edit"]').click();
   await sheet(page).locator('[data-field="body"]').fill("# Neu\n- nur das");
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
@@ -266,6 +269,7 @@ test("saving a saved note again keeps its photo, and a note with no photo shows 
   expect(made.status()).toBe(201);
   await page.reload();
   await page.locator(".paper-row", { hasText: "Ohne Foto" }).click();
+  await openNoteEditor(sheet(page));
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# nur Text");
   await expect(sheet(page).getByTestId("note-photo")).toHaveCount(0);
 });

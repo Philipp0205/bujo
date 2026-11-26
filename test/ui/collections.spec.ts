@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openNoteEditor, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -56,6 +56,7 @@ test("a free-form note is written on the Notes screen without a scan: several li
   await expect(card).toBeVisible();
   await expect(page.getByTestId("note-placeholder").first()).toBeVisible();
   await card.click();
+  await openNoteEditor(page.getByTestId("note-sheet"));
   await expect(page.getByTestId("note-sheet").locator("[data-field=body]")).toHaveValue("# Trip\n\n- the coast\n- the hills");
 
   const listed = await page.request.get(`${app.baseUrl}/api/entries?kind=notes`);
