@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-26-notebooks",
+    "date": "2026-11-26",
+    "title": "Notes are now organised by notebook",
+    "bullets": [
+      "The Notes tab lists your physical notebooks. Tap one to see its logs, collections and notes.",
+      "Each notebook has an index of its page numbers, with the scanned pages filled in.",
+      "Use Start new notebook when you begin a new one. New scans go to it."
+    ]
+  },
+  {
     "id": "2026-11-26-page-gap-reminder",
     "date": "2026-11-26",
     "title": "A reminder for pages you skipped scanning",

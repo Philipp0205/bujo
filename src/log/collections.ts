@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
 import type { Checked, Collection } from "./types.ts";
+import { createNotebookStore } from "./notebooks.ts";
 
 /** The longest collection name, in characters. */
 export const COLLECTION_NAME_MAX = 60;
@@ -13,9 +14,9 @@ export const PAPER_PAGE_MAX = 9999;
 /** The named pages of one user. Local only: nothing here ever reaches a sync target. */
 export type CollectionStore = {
   /** Every collection of the user with how many entries it holds, like an index: those with a page number first by number, then the rest in the order they were made. */
-  list(userId: string): Collection[];
+  list(userId: string, notebookId?: string): Collection[];
   get(userId: string, id: string): Collection | undefined;
-  /** A new, empty collection without a page number. A name the user already has (ignoring case) answers that collection and makes no second one. */
+  /** A new, empty collection without a page number, in the user's active notebook. A name the user already has (ignoring case) answers that collection and makes no second one. */
   create(userId: string, name: string, now: number): Collection;
   /** Sets or (with null) clears the notebook page number. Undefined for an unknown id. */
   setPaperPage(userId: string, id: string, page: number | null): Collection | undefined;
@@ -73,8 +74,10 @@ export function createCollectionStore(db: Db): CollectionStore {
   }
 
   return {
-    list(userId) {
-      return (db.prepare(`${select} ORDER BY c.paper_page IS NULL, c.paper_page, c.created_at, c.id`).all(userId) as Row[]).map(toCollection);
+    list(userId, notebookId) {
+      const scoped = notebookId === undefined ? "" : " AND c.notebook_id = ?";
+      const args = notebookId === undefined ? [userId] : [userId, notebookId];
+      return (db.prepare(`${select}${scoped} ORDER BY c.paper_page IS NULL, c.paper_page, c.created_at, c.id`).all(...args) as Row[]).map(toCollection);
     },
 
     get,
@@ -83,7 +86,8 @@ export function createCollectionStore(db: Db): CollectionStore {
       const same = db.prepare(`${select} AND lower(c.name) = lower(?)`).get(userId, name) as Row | undefined;
       if (same) return toCollection(same);
       const id = crypto.randomUUID();
-      db.prepare("INSERT INTO collections (id, user_id, name, created_at) VALUES (?, ?, ?, ?)").run(id, userId, name, now);
+      const notebookId = createNotebookStore(db).active(userId, now).id;
+      db.prepare("INSERT INTO collections (id, user_id, name, created_at, notebook_id) VALUES (?, ?, ?, ?, ?)").run(id, userId, name, now, notebookId);
       return get(userId, id)!;
     },
 

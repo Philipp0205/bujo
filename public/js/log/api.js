@@ -67,6 +67,25 @@
     });
   }
 
+  /** Every physical notebook, the active one first: [{ id, name, pageCount, startedOn, endedOn, active }]. */
+  function listNotebooks() {
+    return call('GET', '/api/notebooks').then(function (body) {
+      return body.notebooks;
+    });
+  }
+
+  /** One notebook with its numbered pages, collections and free notes: { notebook, pages, collections, notes }. */
+  function getNotebook(id) {
+    return call('GET', '/api/notebooks/' + encodeURIComponent(id));
+  }
+
+  /** Starts a new notebook: the active one ends today. Resolves with the new notebook; rejects with the server's text in message. */
+  function startNotebook(name, pageCount) {
+    return call('POST', '/api/notebooks', { name: name, pageCount: pageCount }).then(function (body) {
+      return body.notebook;
+    });
+  }
+
   /** A new collection with this name. Resolves with it (the one that exists already when the name is taken). */
   function createCollection(name) {
     return call('POST', '/api/collections', { name: name }).then(function (body) {
@@ -155,5 +174,5 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, listNotebooks: listNotebooks, getNotebook: getNotebook, startNotebook: startNotebook, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

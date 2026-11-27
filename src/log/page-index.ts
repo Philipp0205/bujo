@@ -15,13 +15,13 @@ function byPosition(a: IndexPage, b: IndexPage): number {
   return a.number - b.number || KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.ref.localeCompare(b.ref) || a.page - b.page;
 }
 
-/** Every known paper page of the user: stored scan numbers plus collections that have a page number. Gaps are fine, nothing is invented. */
-export function listIndex(db: Db, userId: string): IndexPage[] {
+/** Every known paper page of the user: stored scan numbers plus collections that have a page number. Gaps are fine, nothing is invented. With a notebook id: only that notebook's pages. */
+export function listIndex(db: Db, userId: string, notebookId?: string): IndexPage[] {
   const scanned: IndexPage[] = createPaperPageStore(db)
-    .list(userId)
+    .list(userId, notebookId)
     .map(({ kind, ref, page, number }) => ({ number, kind, ref, page }));
   const collections: IndexPage[] = createCollectionStore(db)
-    .list(userId)
+    .list(userId, notebookId)
     .flatMap((collection) =>
       collection.paperPage === null ? [] : [{ number: collection.paperPage, kind: "collection" as const, ref: collection.id, page: 1, label: collection.name }],
     );

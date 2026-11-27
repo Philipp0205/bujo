@@ -161,7 +161,7 @@ test("a database made without paper_pages gets the table on open", () => {
     first.close();
     const db = openDb(file);
     const columns = (db.prepare("PRAGMA table_info(paper_pages)").all() as Array<{ name: string }>).map((c) => c.name);
-    assert.deepEqual(columns, ["user_id", "kind", "ref", "page", "number"]);
+    assert.deepEqual(columns, ["user_id", "kind", "ref", "page", "number", "notebook_id"]);
     db.close();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

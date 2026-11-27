@@ -5,12 +5,14 @@ import vm from "node:vm";
 
 type Gap = {
   model: { missing(known: number[], added: number, skipped?: number[]): number[]; ranges(numbers: number[]): number[][] };
-  store: { list(): number[]; skip(numbers: number[]): void };
+  store: { list(id: string, first: boolean): number[]; skip(id: string, first: boolean, numbers: number[]): void };
+  scope: { pick(notebooks: unknown[]): { id: string; first: boolean } | null; load(): Promise<{ id: string; first: boolean; numbers: number[] } | null> };
 };
 type Words = { pagesText(runs: number[][]): string; reminder(runs: number[][]): string; hint(runs: number[][]): string };
+type Api = { listNotebooks(): Promise<unknown[]>; getNotebook(id: string): Promise<{ pages: Array<{ number: number }> }> };
 
-/** The real gap model, store and copy in a page-like sandbox with a fake localStorage (or one that always throws). */
-function load(options: { saved?: string; blocked?: boolean } = {}): { gap: Gap; words: Words; data: Map<string, string> } {
+/** The real gap model, store, scope and copy in a page-like sandbox with a fake localStorage (or one that always throws) and a fake notebooks api. */
+function load(options: { saved?: string; blocked?: boolean; api?: Api } = {}): { gap: Gap; words: Words; data: Map<string, string> } {
   const data = new Map<string, string>();
   if (options.saved !== undefined) data.set("bujo-page-gap-skipped", options.saved);
   const localStorage = {
@@ -23,9 +25,9 @@ function load(options: { saved?: string; blocked?: boolean } = {}): { gap: Gap; 
       data.set(key, value);
     },
   };
-  const window: { BujoLog: { gap?: Gap; copy: { gap?: Words } }; localStorage: typeof localStorage } = { BujoLog: { copy: {} }, localStorage };
-  const context = vm.createContext({ window, String, Math, JSON, Array, Number });
-  for (const file of ["gap/model.js", "gap/store.js", "gap/copy.js"]) {
+  const window: { BujoLog: { gap?: Gap; copy: { gap?: Words }; api?: Api }; localStorage: typeof localStorage } = { BujoLog: { copy: {}, api: options.api }, localStorage };
+  const context = vm.createContext({ window, String, Math, JSON, Array, Number, Promise });
+  for (const file of ["gap/model.js", "gap/store.js", "gap/scope.js", "gap/copy.js"]) {
     vm.runInContext(readFileSync(new URL(`../public/js/log/${file}`, import.meta.url), "utf8"), context);
   }
   return { gap: window.BujoLog.gap!, words: window.BujoLog.copy.gap!, data };
@@ -133,15 +135,53 @@ test("the reminder and hint never use an em dash", () => {
   assert.equal(words.reminder(gap.model.ranges([12, 13, 14, 16])), "Pages 12\u201314 and 16 are not scanned yet.");
 });
 
-test("skips are kept ascending and unique, and blocked or damaged storage never throws", () => {
+test("skips are kept per notebook, ascending and unique, and blocked or damaged storage never throws", () => {
   const first = load();
-  first.gap.store.skip([9, 7]);
-  first.gap.store.skip([7, 8]);
-  assert.deepEqual(plain(first.gap.store.list()), [7, 8, 9]);
-  assert.equal(first.data.get("bujo-page-gap-skipped"), "[7,8,9]");
-  assert.deepEqual(plain(load({ saved: "not json" }).gap.store.list()), []);
-  assert.deepEqual(plain(load({ saved: '{"a":1}' }).gap.store.list()), []);
+  first.gap.store.skip("a", false, [9, 7]);
+  first.gap.store.skip("a", false, [7, 8]);
+  assert.deepEqual(plain(first.gap.store.list("a", false)), [7, 8, 9]);
+  assert.equal(first.data.get("bujo-page-gap-skipped:a"), "[7,8,9]");
+  assert.deepEqual(plain(load({ saved: "not json" }).gap.store.list("a", true)), []);
+  assert.deepEqual(plain(load({ saved: '{"a":1}' }).gap.store.list("a", true)), []);
   const blocked = load({ blocked: true });
-  blocked.gap.store.skip([3]);
-  assert.deepEqual(plain(blocked.gap.store.list()), []);
+  blocked.gap.store.skip("a", true, [3]);
+  assert.deepEqual(plain(blocked.gap.store.list("a", true)), []);
+});
+
+test("a skip in notebook A does not hide the gap in notebook B", () => {
+  const { gap: loaded } = load();
+  loaded.store.skip("a", false, [13, 14]);
+  assert.deepEqual(plain(loaded.store.list("b", false)), []);
+  assert.deepEqual(plain(loaded.model.missing([11], 15, loaded.store.list("b", false))), [12, 13, 14]);
+  assert.deepEqual(plain(loaded.model.missing([11], 15, loaded.store.list("a", false))), [12]);
+});
+
+test("the old single key is the skip list of the first notebook only, until it has a key of its own", () => {
+  const old = load({ saved: "[3,4]" });
+  assert.deepEqual(plain(old.gap.store.list("a", true)), [3, 4]);
+  assert.deepEqual(plain(old.gap.store.list("b", false)), []);
+  old.gap.store.skip("a", true, [6]);
+  assert.deepEqual(plain(old.gap.store.list("a", true)), [3, 4, 6], "nothing the old key held is lost");
+  assert.equal(old.data.get("bujo-page-gap-skipped"), "[3,4]", "the old key is left as it was");
+});
+
+const book = (id: string, active: boolean, createdAt: number) => ({ id, active, createdAt });
+
+test("scope: the active notebook, and whether it is the oldest one", () => {
+  const { gap: loaded } = load();
+  assert.deepEqual(plain(loaded.scope.pick([book("b", true, 20), book("a", false, 10)])), { id: "b", first: false });
+  assert.deepEqual(plain(loaded.scope.pick([book("a", true, 10)])), { id: "a", first: true });
+  assert.equal(loaded.scope.pick([book("a", false, 10)]), null);
+});
+
+test("scope: known pages come from the active notebook only, so an ended notebook's pages are ignored", async () => {
+  const pages: Record<string, number[]> = { a: [1, 2, 3, 40], b: [1] };
+  const api: Api = {
+    listNotebooks: async () => [book("b", true, 20), book("a", false, 10)],
+    getNotebook: async (id) => ({ pages: pages[id].map((number) => ({ number })) }),
+  };
+  const found = plain(await load({ api }).gap.scope.load());
+  assert.deepEqual(found, { id: "b", first: false, numbers: [1] });
+  const failing: Api = { listNotebooks: async () => { throw new Error("offline"); }, getNotebook: api.getNotebook };
+  assert.equal(await load({ api: failing }).gap.scope.load(), null);
 });

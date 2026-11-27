@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { gotoNotebook, openNotebook, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -99,7 +99,7 @@ const DATED = [
 
 test("a note not on paper wears the dashed page mark; a written one, and one older than 14 days, do not", async ({ page }) => {
   await seedDated(page, DATED, ["Schon notiert"]);
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await expect(grid(page).locator(".note-card")).toHaveCount(5);
   await expect(markOf(page, "Frische Idee")).toHaveCount(1);
   await expect(markOf(page, "Frische Idee")).toHaveAttribute("aria-label", "Not on paper yet");
@@ -113,7 +113,7 @@ test("a note not on paper wears the dashed page mark; a written one, and one old
 
 test("the mark is drawn on a cold load of /notes: the icon has a size and the muted paper colour", async ({ page }) => {
   await seedDated(page, [{ title: "Frische Idee", date: day(0) }]);
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   const mark = markOf(page, "Frische Idee");
   await expect(mark).toBeVisible();
   const box = await mark.locator("svg").boundingBox();
@@ -129,6 +129,7 @@ test("the mark also shows after switching from the log to Notes", async ({ page 
   await seedDated(page, [{ title: "Frische Idee", date: day(0) }]);
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
+  await openNotebook(page);
   await expect(markOf(page, "Frische Idee")).toBeVisible();
   expect(Math.round((await markOf(page, "Frische Idee").locator("svg").boundingBox())!.width)).toBe(16);
 });
@@ -160,7 +161,7 @@ test("there is no settings link in the log header, and Account opens settings wi
 
 test("the notes grid shows a card per note, newest first: a photo or a placeholder, and the title", async ({ page }) => {
   await seedNotes(page);
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
 
   await expect(grid(page).locator(".note-card")).toHaveCount(3);
   await expect(grid(page).locator(".note-title")).toHaveText(SHOWN);
@@ -175,7 +176,7 @@ test("the notes grid shows a card per note, newest first: a photo or a placehold
 
 /** Opens /notes and waits until the three seeded cards are drawn, their photos decoded and the fonts in, so geometry and taps are stable. */
 async function openNotes(page: Page): Promise<void> {
-  await page.goto(`${app.baseUrl}/notes`);
+  await gotoNotebook(page, app.baseUrl);
   await expect(grid(page).locator(".note-card")).toHaveCount(3);
   await expect.poll(() => grid(page).locator("img").evaluateAll((imgs) => imgs.every((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
   await page.evaluate(() => document.fonts.ready);
@@ -214,6 +215,7 @@ test("with a note sheet open, the first Back closes the sheet and stays on Notes
   await seedNotes(page);
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
+  await openNotebook(page);
   await card(page, "Weekend notes").click();
   await expect(noteSheet(page)).toBeVisible();
 
