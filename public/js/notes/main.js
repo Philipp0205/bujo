@@ -50,16 +50,16 @@
   /** A tapped page: a collection opens its page here, any other page opens in the log (a day, the month log or the future log). */
   function openPage(item) {
     var target = BujoIndex.model.targetOf(item);
-    if (!target.collection) return BujoNav.router.go('log', { open: target });
+    if (!target.collection) { BujoNotebooks.screen.keepForBack(); return BujoNav.router.go('log', { open: target }); }
     BujoIndex.screen.close();
     openCollection({ id: item.ref, name: item.label || '', count: 0, paperPage: item.number });
   }
 
-  /** The router shows Notes: leaves an open collection page or page list, then shows the notebooks list. */
-  function show() {
+  /** The router shows Notes: leaves an open collection page or page list, then shows the notebooks list (or the notebook Back returns to). */
+  function show(ctx) {
     L.collections.page.close();
     BujoIndex.screen.close();
-    return BujoNotebooks.screen.show();
+    return BujoNotebooks.screen.show(ctx);
   }
 
   BujoNotebooks.screen.init(root, { onOpenCollection: openCollection, onOpenPage: openPage, onOpenIndex: openIndex, leaveSub: leaveSub, suspended: suspended });

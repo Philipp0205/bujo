@@ -34,8 +34,11 @@
   gap: 8px;
   margin: 0;
   padding: 4px 12px 16px;
+  scroll-margin-top: 48px;
   list-style: none;
 }
+/* When the grid is the end of the page, it scrolls clear of the tab bar and the Add button (--ak-tab already holds the safe area). */
+html.has-tabbar .notebook-grid:last-child { padding-bottom: calc(var(--ak-tab, 0px) + 24px); }
 .notebook-cell-item { margin: 0; padding: 0; }
 .notebook-cell {
   appearance: none;

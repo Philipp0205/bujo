@@ -18,6 +18,7 @@
   var root = null;
   var handlers = null;
   var booted = false;
+  var returnTo = null;
   var LAYER = 'notebook';
 
   /** What the list holds and the cache keeps: the notebooks, the active one first. */
@@ -142,6 +143,16 @@
     state.detailStatus = 'ready';
     state.offline = false;
     if (!same) draw();
+    revealIndex();
+  }
+
+  /** After a way back from an index page: scrolls the index grid to the top of the screen, once the drawn detail has it. */
+  function revealIndex() {
+    var grid = state.toIndex && root.querySelector('.notebook-grid');
+    if (!grid) return;
+    state.toIndex = false;
+    // The browser restores its own scroll after a Back; scroll once that has run.
+    window.setTimeout(function () { grid.scrollIntoView({ block: 'start' }); }, 50);
   }
 
   /** A failed detail read keeps the detail on screen; with none it shows the offline or error note. */
@@ -154,13 +165,15 @@
   }
 
   /** Opens one notebook: the cached detail at once when there is one, then the server's. */
-  function openDetail(notebook) {
+  function openDetail(notebook, toIndex) {
     var id = typeof notebook === 'string' ? notebook : notebook.id;
+    state.toIndex = toIndex === true;
     state.mode = 'detail';
     state.id = id;
     state.detail = null;
     state.detailStatus = 'loading';
-    hold();
+    // After a Back the kit's own popstate listener is still to run; a layer opened now would be taken for that Back and closed.
+    if (state.toIndex) window.setTimeout(hold, 0); else hold();
     draw();
     window.scrollTo(0, 0);
     var stale = function (value) { if (state.detailStatus !== 'ready') acceptDetail(id, value); };
@@ -205,8 +218,21 @@
     BujoNav.overlays.release(LAYER);
   }
 
-  /** The router shows Notes: the notebooks list, the cached list at once on the first show, then read quietly. */
-  function show() {
+  /** An index page is about to open elsewhere (the log): the next show that comes from Back opens this notebook again, not the list. */
+  function keepForBack() {
+    if (state.mode === 'detail') returnTo = state.id;
+  }
+
+  /** The router shows Notes: the notebook an index page was opened from when ctx.back says so, else the list. */
+  function show(ctx) {
+    var id = returnTo;
+    returnTo = null;
+    if (id && ctx && ctx.back) { booted = true; return openDetail(id, true); }
+    return showList();
+  }
+
+  /** The notebooks list, the cached list at once on the first show, then read quietly. */
+  function showList() {
     release();
     state.mode = 'list';
     state.id = null;
@@ -240,5 +266,5 @@
     window.addEventListener('online', onOnline);
   }
 
-  N.screen = { init: init, show: show, warm: warm, draw: draw, refreshDetail: refreshDetail, leave: release };
+  N.screen = { init: init, show: show, warm: warm, draw: draw, refreshDetail: refreshDetail, keepForBack: keepForBack, leave: release };
 })();
