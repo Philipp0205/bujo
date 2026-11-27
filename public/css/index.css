@@ -50,3 +50,46 @@ html.ak-base .index-row:focus-visible { outline: 1px solid var(--paper-muted); o
 
 /* The last row stays clear of the tab bar. */
 html.has-tabbar .index-page { padding-bottom: calc(var(--ak-tab, 0px) + 48px); }
+
+/* A page row with a kept photo: the row and a 44px thumbnail side by side. The thumbnail is its own button, so a row never nests one. */
+.collection-item-photo { display: flex; align-items: center; border-bottom: 1px dotted color-mix(in srgb, var(--paper-ink) 30%, transparent); }
+.collection-item-photo .collection-row { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
+.page-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  margin: 0 12px 0 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 30%, transparent);
+  border-radius: 3px;
+  background: transparent;
+  overflow: hidden;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.page-thumb-gap { flex: none; width: 44px; height: 44px; margin: 0 12px 0 0; }
+html.ak-base .page-thumb:focus-visible { outline: 1px solid var(--paper-muted); outline-offset: 2px; }
+
+/* The step through to the older photos of a page, a quiet text button at the foot of the viewer. */
+.photo-view-step {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(16px + var(--ak-safe-bottom, 0px));
+  transform: translateX(-50%);
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px dotted var(--paper-muted);
+  background: var(--paper-bg);
+  color: var(--paper-ink);
+  font: italic var(--text-weight) 16px/24px var(--font-text);
+  cursor: pointer;
+}
+.page-photo-view { padding-bottom: calc(72px + var(--ak-safe-bottom, 0px)); }

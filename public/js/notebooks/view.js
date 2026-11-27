@@ -1,7 +1,7 @@
 /*
  * Notebooks render functions: the header, the list of notebooks, the detail of one notebook (its dates, its sections of logs, the grid
  * of page numbers) and the start button. They build nodes and call back, they never fetch. Needs ak-dom.js, notebooks/copy.js,
- * notebooks/model.js, index/model.js (the label of a page) and index/copy.js.
+ * notebooks/model.js, index/model.js (the label of a page), index/copy.js and index/photo.js (a page's kept photo).
  */
 (function () {
   'use strict';
@@ -52,22 +52,25 @@
     return h('h2', { class: 'notes-heading' }, text);
   }
 
-  /** One scanned log page as a row: its label ("Wed 18.11"), its page number on the right. A tap opens it in the log. */
-  function pageRow(item, onOpen) {
+  /** One scanned log page as a row: its label ("Wed 18.11"), its page number on the right, then its photo thumbnail. A tap opens it in the log.
+   * When another row of the section has a thumbnail, a row without one keeps the space, so the page numbers line up. */
+  function pageRow(item, onOpen, reserve) {
     var label = window.BujoIndex.model.labelOf(item);
     var mark = window.BujoIndex.copy.pageMark(item.number);
-    return h('li', { class: 'collection-item' },
+    var thumb = window.BujoIndex.photo.thumb(item) || (reserve ? h('span', { class: 'page-thumb-gap', 'aria-hidden': 'true' }) : null);
+    return h('li', { class: 'collection-item' + (thumb ? ' collection-item-photo' : '') },
       h('button', {
         class: 'collection-row', type: 'button', 'data-testid': 'log-row', 'data-kind': item.kind, 'data-ref': item.ref,
         'aria-label': window.BujoIndex.copy.openLabel(mark, label), onclick: function () { onOpen(item); }
-      }, h('span', { class: 'collection-row-name' }, label), h('span', { class: 'collection-row-meta' }, h('span', { class: 'collection-row-page' }, mark))));
+      }, h('span', { class: 'collection-row-name' }, label), h('span', { class: 'collection-row-meta' }, h('span', { class: 'collection-row-page' }, mark))), thumb);
   }
 
   /** A section of scanned log pages under its heading, or a quiet line when none is scanned. */
   function logSection(title, key, pages, onOpen) {
+    var reserve = pages.some(window.BujoIndex.photo.has);
     return h('section', { class: 'notes-section', 'data-testid': 'section-' + key },
       heading(title),
-      pages.length ? h('ul', { class: 'collection-list' }, pages.map(function (item) { return pageRow(item, onOpen); })) : h('p', { class: 'notebook-none' }, N.copy.sectionEmpty));
+      pages.length ? h('ul', { class: 'collection-list' }, pages.map(function (item) { return pageRow(item, onOpen, reserve); })) : h('p', { class: 'notebook-none' }, N.copy.sectionEmpty));
   }
 
   /** The Daily, Monthly and Future sections of a notebook. */
@@ -91,11 +94,14 @@
         h('span', { class: 'notebook-cell', 'data-testid': 'index-cell', 'data-scanned': '0', 'data-number': String(entry.number) }, String(entry.number)));
     }
     var label = window.BujoIndex.model.labelOf(entry.item);
-    return h('li', { class: 'notebook-cell-item' },
-      h('button', {
-        class: 'notebook-cell notebook-cell-scanned', type: 'button', 'data-testid': 'index-cell', 'data-scanned': '1', 'data-number': String(entry.number),
-        'aria-label': copy.openPage(entry.number, label), onclick: function () { onOpen(entry.item); }
-      }, String(entry.number)));
+    var photo = window.BujoIndex.photo.has(entry.item);
+    var button = h('button', {
+      class: 'notebook-cell notebook-cell-scanned', type: 'button', 'data-testid': 'index-cell', 'data-scanned': '1', 'data-number': String(entry.number), 'data-photo': photo ? '1' : '0',
+      'aria-label': photo ? copy.openPagePhoto(entry.number, label) : copy.openPage(entry.number, label)
+    }, String(entry.number));
+    // A page with a kept photo opens the photo here. Its row in the lists above still opens the page itself.
+    button.addEventListener('click', function () { if (photo) window.BujoIndex.photo.open(entry.item, button); else onOpen(entry.item); });
+    return h('li', { class: 'notebook-cell-item' }, button);
   }
 
   /** The index: every page number of the notebook, scanned ones filled and tappable. */

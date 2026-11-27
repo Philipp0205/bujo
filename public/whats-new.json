@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-27-page-photos",
+    "date": "2026-11-27",
+    "title": "Your page photos are kept",
+    "bullets": [
+      "The photo of each scanned page is now saved in the app, linked to its paper page.",
+      "Tap a scanned page number in a notebook to see its photo, or the small thumbnail next to a page.",
+      "A rescan keeps the older photos too. Use Older photos to step back through them."
+    ]
+  },
+  {
     "id": "2026-11-27-rescan-status",
     "date": "2026-11-27",
     "title": "Rescans handle moved and done items better",

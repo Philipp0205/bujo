@@ -174,5 +174,19 @@
     return '/api/entries/' + encodeURIComponent(id) + '/photo';
   }
 
-  L.api = { list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, listNotebooks: listNotebooks, getNotebook: getNotebook, startNotebook: startNotebook, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  /** Keeps the photo (a JPEG Blob) of a scanned page. place is { kind, ref, page } (kind day, month or future) or { collection }. Resolves with the new photo id. */
+  function uploadPagePhoto(place, blob) {
+    var query = place.collection ? 'collection=' + encodeURIComponent(place.collection)
+      : 'kind=' + encodeURIComponent(place.kind) + '&ref=' + encodeURIComponent(place.ref) + '&page=' + encodeURIComponent(place.page || 1);
+    return Bujo.upload('/api/page-photos?' + query, blob, { guarded: true }).then(function (body) {
+      return body.id;
+    });
+  }
+
+  /** The address of a kept page photo. The server answers it for the signed-in owner only. */
+  function pagePhotoUrl(id) {
+    return '/api/page-photos/' + encodeURIComponent(id);
+  }
+
+  L.api = { uploadPagePhoto: uploadPagePhoto, pagePhotoUrl: pagePhotoUrl, list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, listNotebooks: listNotebooks, getNotebook: getNotebook, startNotebook: startNotebook, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

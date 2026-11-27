@@ -152,6 +152,23 @@ CREATE TABLE IF NOT EXISTS notebooks (
 CREATE INDEX IF NOT EXISTS idx_notebooks_user ON notebooks(user_id, started_on);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notebooks_open ON notebooks(user_id) WHERE ended_on IS NULL;
 
+-- The photo of a scanned notebook page. The JPEG itself is a file (<id>.jpg in the page-photos folder next to the database), this row says
+-- which page it shows: number as written on paper (null when none was read) plus kind/ref/page like paper_pages, or kind 'collection'
+-- with collection_id. A rescan adds a row: every photo of a page is kept. Older databases get the table on open.
+CREATE TABLE IF NOT EXISTS page_photos (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notebook_id TEXT,
+  number INTEGER,
+  kind TEXT NOT NULL CHECK (kind IN ('day', 'month', 'future', 'collection')),
+  ref TEXT NOT NULL,
+  page INTEGER NOT NULL DEFAULT 1,
+  collection_id TEXT REFERENCES collections(id) ON DELETE CASCADE,
+  bytes INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_page_photos_page ON page_photos(user_id, kind, ref, page, created_at);
+
 -- One row per one-time data migration that has run.
 CREATE TABLE IF NOT EXISTS migrations (
   name TEXT PRIMARY KEY

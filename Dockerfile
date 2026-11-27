@@ -18,7 +18,7 @@ COPY src ./src
 COPY public ./public
 
 # The database lives in /data. Mount a volume there (compose declares one; Railway rejects VOLUME in a Dockerfile).
-# The photo of a page is never written anywhere.
+# Page photos are stored as files in a page-photos folder next to the database, so on the same volume (/data/page-photos).
 RUN mkdir -p /data && chown node:node /data
 USER node
 

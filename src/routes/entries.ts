@@ -8,7 +8,7 @@ import { createEntryStore, EntryIdTaken, type EntryStore } from "../log/store.ts
 import { createTraceStore } from "../log/trace.ts";
 import { checkEntryPatch, checkNewEntry, checkRange, isValidDate } from "../log/validation.ts";
 import type { Checked, Entry, NewEntry } from "../log/types.ts";
-import { readPhoto } from "../scan/photo.ts";
+import { looksLikeJpeg, readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
@@ -230,11 +230,6 @@ function retrySync(ctx: RouteContext, store: EntryStore, userId: string, id: str
   if (!ctx.sync) throw new HttpError(503, SYNC_MESSAGES.notSetUp);
   if (entry.sync !== "error") throw new HttpError(409, SYNC_MESSAGES.retryNotNeeded);
   return ctx.sync.enqueue(userId, entry);
-}
-
-/** True when the bytes start like a JPEG file (the client sends JPEG only, so anything else is not a photo). */
-function looksLikeJpeg(image: Buffer): boolean {
-  return image.length > 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
 }
 
 /** GET sends the stored photo of the owner's note, POST stores one (the page photo of a scan). 404 when there is none or it is not theirs. */
