@@ -1,9 +1,10 @@
 /*
  * The scan flow: camera, then one OCR read, then the review sheet, then apply (log page) or save (note or collection).
  * The photo is read once. The review starts on the guessed type and the person can switch it, so the same read shows as log lines or as a note.
- * It joins camera.js, review.js, type.js, note/sheet.js and api.js.
+ * It joins camera.js, review.js, type.js, note/sheet.js, keep.js and api.js.
  * Nothing reaches the log until the person applies or saves: a log draft lives on the server in memory and is dropped when
- * the review is dismissed, and a note exists only in the open sheet, with its shrunk photo held in memory. Needs every scan/ file, note/ and photo/.
+ * the review is dismissed, and a note exists only in the open sheet, with its shrunk photo held in memory. After a log apply
+ * the shrunk photo of the page is kept on the server (keep.js). Needs every scan/ file, note/ and photo/.
  */
 (function () {
   'use strict';
@@ -22,28 +23,28 @@
     return Promise.resolve(L.scan.model.uploadable(file));
   }
 
-  /** The page of one answer: the log draft, the note reading and its photo, and the type the review starts on (a rescan of a saved note starts on note). */
-  function pageOf(answer, photo, options) {
+  /** The page of one answer: the log draft, the note reading and its photo, the shrink promise (for keeping a log page), and the type the review starts on (a rescan of a saved note starts on note). */
+  function pageOf(answer, photo, options, shrunk) {
     var guess = options.replaceNote ? { type: 'note', source: 'rescan' } : answer.draft.guess;
-    return { draft: answer.draft, note: answer.note, match: answer.match, photo: photo, guess: guess, type: guess.type, state: null, sheet: null };
+    return { draft: answer.draft, note: answer.note, match: answer.match, photo: photo, shrunk: shrunk, guess: guess, type: guess.type, state: null, sheet: null };
   }
 
-  /** Reads one photo once. Resolves with a page that holds both readings (log lines and note), or rejects with a message for the camera screen.
-   * The photo is shrunk meanwhile for a note to keep; if that fails the note is saved without it. */
+  /** Reads one photo once. Resolves with a page that holds both readings (log lines and a note), or rejects with a message for the camera screen.
+   * The photo is shrunk meanwhile (keep.begin): a note keeps it in the sheet, a log apply uploads it after save; if shrink fails the page is saved without it. */
   function readPage(file, day, options, picked) {
     return checkedPhoto(file).then(function (photo) {
-      var shrunk = L.photo.shrink(file).then(null, function () { return null; });
+      var shrunk = L.scan.keep.begin(file);
       return L.scan.api.scan(photo, day, options.view, options.pinned, picked).then(function (answer) {
         if (!answer.draft.items.length) throw new Error(L.copy.scan.review.noLines);
         if (!answer.note.body.trim()) throw new Error(L.copy.scan.note.noText);
-        return shrunk.then(function (kept) { return pageOf(answer, kept, options); });
+        return shrunk.then(function (kept) { return pageOf(answer, kept, options, shrunk); });
       }, function (error) {
         throw new Error(messageOf(error, L.copy.scan.errors.scanFailed));
       });
     });
   }
 
-  /** Opens the log review of a page. The state is made once, so edits survive a switch to note and back. A save reports where the lines landed. */
+  /** Opens the log review of a page. The state is made once, so edits survive a switch to note and back. A save reports where the lines landed, and keeps the shrunk photo. */
   function openReview(page, options) {
     var draft = page.draft;
     page.state = page.state || L.scan.model.fromDraft(draft);
@@ -53,6 +54,7 @@
       setKind: function (current, kind) { return L.scan.api.setKind(draft.id, kind); },
       apply: function (current) {
         return L.scan.api.apply(draft.id, L.scan.model.applyBody(current)).then(function (result) {
+          L.scan.keep.upload(page.shrunk, current, result);
           return L.scan.model.landing(current, result);
         });
       },

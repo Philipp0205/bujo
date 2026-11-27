@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { BrowserContext, Page } from "@playwright/test";
 import { test } from "@playwright/test";
 import { loadCalDavConfig } from "../../src/caldav/config.ts";
@@ -68,6 +70,8 @@ export type Harness = {
   ocr: FakeOcr;
   /** The recovery code of the seeded account. Empty when seedUser is false. */
   recoveryCode: string;
+  /** The folder this app keeps page photos in (a temp dir). */
+  photoDir: string;
   /** The mails the app "sent". Nothing real is ever sent. */
   mailer: TestApp["mailer"];
   /** Puts the seeded account's session cookie into the page's browser context. */
@@ -82,7 +86,7 @@ export type Harness = {
  * The browser, viewport and color scheme come from the Playwright project (playwright.config.ts).
  */
 export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emailOff?: boolean; sync?: boolean } = {}): Harness {
-  const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; sync?: SyncService; cookie?: string; recoveryCode?: string } = {};
+  const ctx: { fake?: FakeCalDav; ocr?: FakeOcr; app?: TestApp; sync?: SyncService; cookie?: string; recoveryCode?: string; photoDir?: string } = {};
   const seed = options.seedUser !== false;
   test.beforeAll(async () => {
     const fake = await startFakeCalDav(options.failCalDav ? { failWith: options.failCalDav } : {});
@@ -92,9 +96,12 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
     const sync = options.sync
       ? createSyncService({ db, caldav: loadCalDavConfig(env)!, sync: { ...SYNC_SETTINGS }, log: () => undefined })
       : undefined;
+    // Page photos go to a temp folder that is removed after the spec, never next to a real database.
+    ctx.photoDir = mkdtempSync(path.join(os.tmpdir(), "bujo-ui-page-photos-"));
     const app = await startApp(caldavSource(loadCalDavConfig(env)!), {
       db,
       sync,
+      photoDir: ctx.photoDir,
       ocr: createOcrClient(ocr.url),
       ...(options.emailOff ? { mailer: undefined } : {}),
     });
@@ -114,6 +121,7 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
     await ctx.app?.close();
     await ctx.ocr?.close();
     await ctx.fake?.close();
+    if (ctx.photoDir) rmSync(ctx.photoDir, { recursive: true, force: true });
   });
   return {
     get baseUrl() {
@@ -127,6 +135,9 @@ export function useBujo(options: { failCalDav?: number; seedUser?: boolean; emai
     },
     get recoveryCode() {
       return ctx.recoveryCode ?? "";
+    },
+    get photoDir() {
+      return ctx.photoDir!;
     },
     get mailer() {
       return ctx.app!.mailer;

@@ -15,6 +15,7 @@ import { isRead, requireSession, type RouteContext } from "./routes/context.ts";
 import { handleEntryRoutes } from "./routes/entries.ts";
 import { handleCollectionRoutes } from "./routes/collections.ts";
 import { handlePageIndex } from "./routes/page-index.ts";
+import { handlePagePhotos } from "./routes/page-photos.ts";
 import { handleNotebookRoutes } from "./routes/notebooks.ts";
 import { handleLogScan, type LogScanDeps } from "./routes/log-scan.ts";
 import { handleMcp } from "./routes/mcp.ts";
@@ -59,6 +60,8 @@ export type AppOptions = {
   drafts?: DraftStore;
   /** Pushes task entries to Nextcloud. Leave out to keep every entry local. */
   sync?: SyncService;
+  /** The folder the page photos (JPEG files) are kept in. Leave out to keep none: the upload route then answers 503. */
+  photoDir?: string;
 };
 
 /** Pages that need a session. The file is what is served once the person is signed in. */
@@ -172,6 +175,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleScan(ctx, scan)) return;
       if (await handleLogScan(ctx, logScan)) return;
       if (await handleEntryRoutes(ctx)) return;
+      if (await handlePagePhotos(ctx, options.photoDir)) return;
       if (await handleCollectionRoutes(ctx)) return;
       if (await handleNotebookRoutes(ctx)) return;
       if (handlePageIndex(ctx)) return;

@@ -41,7 +41,8 @@
     },
     sectionEmpty: 'Nothing scanned yet.',
     collectionsEmpty: 'No collections or notes in this notebook yet.',
-    indexLegend: 'Filled numbers are scanned. Tap one to open it.',
-    openPage: function (number, label) { return 'Open page ' + number + ', ' + label; }
+    indexLegend: 'Filled numbers are scanned. Tap one to open it, or its photo if it has one.',
+    openPage: function (number, label) { return 'Open page ' + number + ', ' + label; },
+    openPagePhoto: function (number, label) { return 'Open the photo of page ' + number + ', ' + label; }
   };
 })();

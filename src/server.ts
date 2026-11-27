@@ -1,4 +1,5 @@
 import http from "node:http";
+import path from "node:path";
 import { installGracefulShutdown } from "./app-kit/shutdown.ts";
 import { createMailer } from "./accounts/mail.ts";
 import { createApp } from "./app.ts";
@@ -14,6 +15,8 @@ const host = process.env.HOST || "127.0.0.1";
 const origin = (process.env.BUJO_ORIGIN || `http://localhost:${port}`).replace(/\/+$/, "");
 const dbFile = process.env.BUJO_DB || "data/bujo.db";
 const trustProxy = process.env.BUJO_TRUST_PROXY === "1" || process.env.BUJO_TRUST_PROXY === "true";
+// Page photos are files next to the database (on the /data volume on Railway). An in-memory database has no such place.
+const photoDir = dbFile === ":memory:" ? undefined : path.join(path.dirname(path.resolve(dbFile)), "page-photos");
 
 const config = loadCalDavConfig();
 const source = config ? caldavSource(config) : demoSource();
@@ -23,7 +26,7 @@ const syncConfig = loadSyncConfig();
 const sync = config ? createSyncService({ db, caldav: config, sync: syncConfig }) : undefined;
 failInterrupted(db);
 
-const server = http.createServer(createApp({ source, db, origin, mailer: createMailer(), trustProxy, sync }));
+const server = http.createServer(createApp({ source, db, origin, mailer: createMailer(), trustProxy, sync, photoDir }));
 
 server.listen(port, host, () => {
   console.log("bujo");

@@ -3,6 +3,7 @@ import { createCollectionStore } from "../log/collections.ts";
 import { checkNotebookName, checkPageCount, createNotebookStore, type Notebook } from "../log/notebooks.ts";
 import { pageStatus } from "../log/notebook-pages.ts";
 import { listIndex } from "../log/page-index.ts";
+import { photoKey, photosByPage } from "../log/page-photos.ts";
 import { createEntryStore } from "../log/store.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
 
@@ -15,7 +16,8 @@ import { isRead, requireSession, type RouteContext } from "./context.ts";
  *   POST  /api/notebooks       { name, pageCount } starts a new notebook (201): the active one gets today as its end date and the new one
  *                              starts today and is active, in one transaction. name is one line (at most 60 characters), pageCount a whole number 1..9999
  *   GET   /api/notebooks/:id   { notebook, pages, collections, notes }: the same pages as GET /api/index (ascending by number) but only
- *                              those of this notebook, its collections (with entry counts) and its free notes (newest first). 404 unknown
+ *                              those of this notebook, each with photos [{ id, createdAt }] (its kept page photos, newest first, see
+ *                              /api/page-photos), its collections (with entry counts) and its free notes (newest first). 404 unknown
  *   PATCH /api/notebooks/:id   { name?, pageCount? } at least one: { notebook }. 400 bad value, empty body, or a pageCount below the highest
  *                              page number of that notebook (a scanned page or a collection number). 404 unknown
  * GET /api/index is unchanged: it lists the pages of every notebook of the user, not only the active one.
@@ -74,9 +76,11 @@ function sendDetail(ctx: RouteContext, userId: string, id: string): boolean {
   const db = ctx.accounts.db;
   const notebook = createNotebookStore(db).get(userId, id);
   if (!notebook) throw new HttpError(404, "unknown notebook");
+  const photos = photosByPage(db, userId);
+  const pages = listIndex(db, userId, id).map((page) => ({ ...page, photos: photos.get(photoKey(page)) ?? [] }));
   sendJson(ctx.res, 200, {
     notebook,
-    pages: listIndex(db, userId, id),
+    pages,
     collections: createCollectionStore(db).list(userId, id),
     notes: createEntryStore(db).listNotes(userId, id),
   });

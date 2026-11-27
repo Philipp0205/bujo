@@ -21,6 +21,15 @@
     empty: 'No page numbers yet. Scan a page with a number, or give a collection one.',
     pageMark: function (n) { return 'p. ' + n; },
     openLabel: function (mark, label) { return 'Open ' + mark + ', ' + label; },
+    photo: {
+      alt: function (label) { return 'Photo of ' + label; },
+      thumbLabel: function (label) { return 'Show the photo of ' + label; },
+      openLabel: function (mark, label) { return 'Open the photo of ' + mark + ', ' + label; },
+      close: 'Close the photo',
+      older: function (n) { return 'Older photos (' + n + ')'; },
+      newest: 'Newest photo',
+      position: function (index, total) { return 'Photo ' + (index + 1) + ' of ' + total; }
+    },
     monthLabel: function (month) { return L().copy.pages.picker.months[Number(month.slice(5, 7)) - 1] + ' ' + month.slice(0, 4); },
     shortMonth: function (month) { return L().copy.pages.picker.months[Number(month.slice(5, 7)) - 1].slice(0, 3) + ' ' + month.slice(0, 4); },
     futureLabel: function (month) { return 'Future log, from ' + I.copy.shortMonth(month); },
