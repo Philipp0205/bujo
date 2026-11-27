@@ -647,6 +647,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
  * A matched line says so in one short italic note under the title (see scan/note.js). The "Not the same"
  * button under it turns the line into a new entry, and reads "Match again" once it has. Paper tokens only.
  */
+.scan-unmatch {
   appearance: none;
   -webkit-appearance: none;
   display: inline-block;
