@@ -126,7 +126,7 @@ test("a person who says the later line is a different task keeps both: the old o
     const later = await scan(ctx, [header(NEXT), line("•", "Post abholen")]);
     const items = later.items.map((i) => ({ id: i.id, type: i.type, title: i.title, tags: i.tags, time: i.time, include: true, unmatched: true }));
     assert.equal((await api(ctx.base, "POST", `/api/log/scan/${later.id}/apply`, { body: { date: NEXT, items }, headers: ctx.signed.headers })).status, 200);
-    assert.deepEqual(await candidates(ctx), [`${DAY} Post abholen`]);
+    assert.deepEqual(await candidates(ctx), [`${DAY} Post abholen`, `${NEXT} Post abholen`]);
     assert.equal((await entries(ctx)).filter((e) => e.title === "Post abholen" && !e.isTrace).length, 2);
   });
 });
