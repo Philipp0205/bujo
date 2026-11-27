@@ -150,6 +150,11 @@
       /** A ">" or "<" line that matched the trace a move left on this page: nothing to write. */
       matchesTrace: 'matches the trace of a moved entry',
       traceChange: 'already on paper, nothing to write',
+      /** A task line that is an open task of an earlier day written again: applying moves that task here, no copy. date is YYYY-MM-DD. */
+      movedFrom: function (date) {
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return 'moved from ' + Number(date.slice(8, 10)) + ' ' + months[Number(date.slice(5, 7)) - 1];
+      },
       /** What applying does to the matched entry, by the kind of change the paper carries. */
       matchChange: {
         same: 'already matches, only marked on paper',

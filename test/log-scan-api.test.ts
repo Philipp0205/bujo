@@ -248,7 +248,7 @@ test("rescan: an entry the person changed in the app is not overwritten by an un
   });
 });
 
-test("rescan: when the paper and the app both changed the line, it is edited but starts unticked, and a tick applies the paper", async () => {
+test("rescan: when the paper closes a task the app only retagged, the paper wins and the line starts ticked", async () => {
   await withLogScan(async (ctx) => {
     const first = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
     await applyTo(ctx, first, [{ id: "l2", type: "task", title: "Brot kaufen" }]);
@@ -258,12 +258,27 @@ test("rescan: when the paper and the app both changed the line, it is edited but
 
     const second = await scanLines(ctx, [line("none", "20.11.2026"), line("x", "Brot kaufen")]);
     const [item] = second.items;
-    assert.deepEqual([item.status, item.include, item.contested], ["edited", false, true]);
+    assert.deepEqual([item.status, item.include, item.contested], ["edited", true, true]);
     assert.deepEqual(item.before, { type: "task", title: "Brot kaufen", tags: ["Haushalt"], time: null });
     assert.deepEqual(item.after, { type: "done", title: "Brot kaufen", tags: ["Haushalt"], time: null });
     const applied = await applyTo(ctx, second, [{ id: "l2", type: "done", title: "Brot kaufen", tags: [], include: true }]);
     assert.deepEqual(applied.json.results.map((r: any) => r.outcome), ["updated"]);
-    assert.equal((await entriesOf(ctx.base, ctx.signed))[0].type, "done");
+    const [done] = await entriesOf(ctx.base, ctx.signed);
+    assert.deepEqual([done.type, done.tags], ["done", ["Haushalt"]]);
+  });
+});
+
+test("rescan: when the app also changed the type, a contested line stays unticked", async () => {
+  await withLogScan(async (ctx) => {
+    const first = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen")]);
+    await applyTo(ctx, first, [{ id: "l2", type: "task", title: "Brot kaufen" }]);
+    const [entry] = await entriesOf(ctx.base, ctx.signed);
+    await sleep(5);
+    await api(ctx.base, "PATCH", `/api/entries/${entry.id}`, { body: { type: "done" }, headers: ctx.signed.headers });
+
+    const second = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen und Milch")]);
+    const [item] = second.items;
+    assert.deepEqual([item.status, item.include, item.contested], ["edited", false, true]);
   });
 });
 

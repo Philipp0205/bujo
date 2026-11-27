@@ -33,16 +33,23 @@
     return file.type === type ? file : new Blob([file], { type: type });
   }
 
+  var CLOSED_TYPES = ['done', 'migrated', 'scheduled', 'dropped'];
+
+  /** True when the paper closes a task that is still open in the app: that symbol wins over an app edit of title or tags. */
+  function paperClosesTask(item) {
+    return !!item.before && !!item.after && item.before.type === 'task' && CLOSED_TYPES.indexOf(item.after.type) >= 0;
+  }
+
   /**
    * A line starts ticked when it would write something and can be trusted: a new line with a bullet and text, or an edit
-   * with a bullet that the app did not also change. An unchanged line never writes, so it is never ticked.
+   * with a bullet that the app did not also change (a paper close of an open task counts as trusted). An unchanged line never writes, so it is never ticked.
    */
   function defaultInclude(item) {
     if (item.noBullet) return false;
     if (item.needsDay && dayOf(item) === null) return false;
     if (isPast(item)) return false;
     if (item.status === 'new') return item.title !== '';
-    return item.status === 'edited' && !item.contested;
+    return item.status === 'edited' && (!item.contested || paperClosesTask(item));
   }
 
   /** Where the scan flow reads today from. Tests replace it to fix the day. */
@@ -89,9 +96,9 @@
       contested: line.contested,
       moveTo: line.moveTo || null,
       traced: line.traced === true,
+      movedFrom: line.movedFrom || null,
       offPaper: line.offPaper === true,
       unmatched: false,
-      wasMatch: null,
       include: line.include,
       month: line.month || null,
       dayText: line.day ? String(line.day) : '',
@@ -235,6 +242,7 @@
       item.contested = check.contested;
       item.moveTo = check.moveTo || null;
       item.traced = check.traced === true;
+      item.movedFrom = check.movedFrom || null;
       item.offPaper = check.offPaper === true;
       if (item.status === 'unchanged') {
         item.include = false;
@@ -245,9 +253,10 @@
     });
   }
 
-  /** What a line is matched to: { kind: 'entry', title }, { kind: 'trace' } or null. An un-matched line is matched to nothing. */
+  /** What a line is matched to: { kind: 'entry', title }, { kind: 'trace' }, { kind: 'moved', date } or null. An un-matched line is matched to nothing. */
   function matchOf(item) {
     if (item.unmatched) return null;
+    if (item.movedFrom) return { kind: 'moved', title: '', date: item.movedFrom.date };
     if (item.target && item.status !== 'new') return { kind: 'entry', title: item.target.title };
     return item.traced ? { kind: 'trace', title: '' } : null;
   }
@@ -271,6 +280,7 @@
     item.contested = false;
     item.moveTo = null;
     item.traced = false;
+    item.movedFrom = null;
     item.offPaper = false;
     item.touched = false;
     item.include = defaultInclude(item);
@@ -290,7 +300,7 @@
   /** How many kept lines add an entry, how many change one, and how many matched entries move to the paper's place. */
   function counts(state) {
     var kept = keptItems(state);
-    var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
+    var updated = kept.filter(function (item) { return item.status === 'edited' || !!item.movedFrom; }).length;
     var moved = state.items.filter(function (item) { return item.moveTo && !item.unmatched; }).length;
     var confirmed = state.items.filter(function (item) { return item.status === 'unchanged' && item.offPaper && !item.unmatched; }).length;
     return { created: kept.length - updated, updated: updated, moved: moved, confirmed: confirmed };

@@ -14,6 +14,7 @@ const PNG = Buffer.from(
 const DAY = "2026-11-20";
 const NEXT = "2026-11-25";
 const TODAY = "2026-11-25";
+const LATER = "2026-11-27";
 const header = (date: string) => line("none", `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)}`);
 
 type Ctx = { base: string; ocr: FakeOcr; signed: Signed };
@@ -54,7 +55,7 @@ function apply(ctx: Ctx, draft: { id: string; items: Item[] }, date: string, inc
 
 const entries = async (ctx: Ctx) =>
   (await api(ctx.base, "GET", "/api/entries?from=2026-11-01&to=2026-12-31&traces=1", { headers: ctx.signed.headers })).json.entries as Entry[];
-const candidates = async (ctx: Ctx) => MODEL.open(await entries(ctx), TODAY).map((e) => `${e.date} ${e.title}`);
+const candidates = async (ctx: Ctx, today = TODAY) => MODEL.open(await entries(ctx), today).map((e) => `${e.date} ${e.title}`);
 const seed = (ctx: Ctx, date: string, title: string) => api(ctx.base, "POST", "/api/entries", { body: { date, type: "task", title }, headers: ctx.signed.headers });
 
 async function firstPage(ctx: Ctx, date: string, titles: string[]) {
@@ -126,7 +127,7 @@ test("a person who says the later line is a different task keeps both: the old o
     const later = await scan(ctx, [header(NEXT), line("•", "Post abholen")]);
     const items = later.items.map((i) => ({ id: i.id, type: i.type, title: i.title, tags: i.tags, time: i.time, include: true, unmatched: true }));
     assert.equal((await api(ctx.base, "POST", `/api/log/scan/${later.id}/apply`, { body: { date: NEXT, items }, headers: ctx.signed.headers })).status, 200);
-    assert.deepEqual(await candidates(ctx), [`${DAY} Post abholen`, `${NEXT} Post abholen`]);
+    assert.deepEqual(await candidates(ctx, LATER), [`${DAY} Post abholen`, `${NEXT} Post abholen`]);
     assert.equal((await entries(ctx)).filter((e) => e.title === "Post abholen" && !e.isTrace).length, 2);
   });
 });

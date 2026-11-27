@@ -29,6 +29,7 @@
     var match = L.scan.model.matchOf(item);
     if (item.unmatched) return item.wasMatch ? copy.notMatched(item.wasMatch.title) : '';
     if (!match) return '';
+    if (match.kind === 'moved') return copy.movedFrom(match.date);
     if (match.kind === 'trace') return copy.matchesTrace + ' \u00b7 ' + copy.traceChange;
     var change = copy.matches(match.title) + ' \u00b7 ' + copy.matchChange[L.scan.model.changeKey(item)];
     return item.moveTo ? change + ' \u00b7 ' + copy.movesTo(item.moveTo) : change;
