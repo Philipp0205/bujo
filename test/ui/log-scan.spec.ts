@@ -274,8 +274,8 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 3 new entries`);
   await expect(rows(page)).toHaveCount(3);
   await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Tasche für Stuttgart packen");
-  await expect(rows(page).nth(0).locator(".scan-note")).toHaveText("94%");
-  await expect(rows(page).nth(1).locator(".scan-note")).toHaveText("71%, check spelling");
+  await expect(rows(page).nth(0).locator(".scan-note")).toBeHidden();
+  await expect(rows(page).nth(1).locator(".scan-note")).toHaveText("hard to read, check the text");
   await expect(rows(page).nth(1)).toHaveAttribute("data-low", "true");
   await expect(rows(page).nth(0)).toHaveAttribute("data-low", "false");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 3 entries");
