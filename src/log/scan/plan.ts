@@ -64,26 +64,35 @@ function titleScore(a: string, b: string): number {
   return Math.max(similarity(a, b), similarity(b, a));
 }
 
-/** The unclaimed trace of the same kind whose title best matches the line, or undefined when none is close enough. */
+/** True when an unchanged line's entry still has to be recorded on paper: it is matched, not an app-side edit, and has no page or no matching snapshot. */
+export function needsStamp(resolution: Planned): boolean {
+  const target = resolution.target;
+  return resolution.status === "unchanged" && !!target && !resolution.protectedEdit && (!target.onPaper || target.page === null);
+}
+
+/** Line types that are tasks in some state: only these can be the old page's line for a moved task. */
+const TASK_FAMILY: ReadonlySet<string> = new Set(["task", "done", "migrated", "scheduled", "dropped"]);
+
+/** The unclaimed trace whose title best matches the line (a trace of the same kind wins a tie), or undefined when none is close enough. */
 function bestTrace(line: Line, traces: readonly Trace[], claimed: Set<string>): Trace | undefined {
   const key = matchKey(line.title);
   if (key === "") return undefined;
   const scored = traces
-    .filter((trace) => !claimed.has(trace.id) && trace.kind === line.type)
-    .map((trace) => ({ trace, score: titleScore(key, matchKey(trace.title)) }))
+    .filter((trace) => !claimed.has(trace.id))
+    .map((trace) => ({ trace, score: titleScore(key, matchKey(trace.title)), same: trace.kind === line.type ? 1 : 0 }))
     .filter((item) => item.score >= MATCH_THRESHOLD)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || b.same - a.same);
   return scored[0]?.trace;
 }
 
 /**
- * A ">" or "<" line with no entry of its own is often the trace a move left on this page: the paper shows where the entry went.
- * Such a line is unchanged with no target (nothing to stamp or write). Each trace answers one line. An un-matched line answers none.
+ * A task-family line with no entry of its own is often the trace a move left on this page: the paper still shows the old state of an
+ * entry that went elsewhere. Such a line is unchanged with no target (nothing to stamp or write). Each trace answers one line. An un-matched line answers none.
  */
 function matchTraces(lines: readonly Line[], resolved: Map<string, Planned>, traces: readonly Trace[]): void {
   const claimed = new Set<string>();
   for (const line of lines) {
-    if (line.unmatched || resolved.get(line.id)?.status !== "new" || (line.type !== "migrated" && line.type !== "scheduled")) continue;
+    if (line.unmatched || resolved.get(line.id)?.status !== "new" || !TASK_FAMILY.has(line.type)) continue;
     const trace = bestTrace(line, traces, claimed);
     if (!trace) continue;
     claimed.add(trace.id);

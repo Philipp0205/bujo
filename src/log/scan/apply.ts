@@ -7,7 +7,7 @@ import type { Entry, NewEntry } from "../types.ts";
 import { checkNewEntry } from "../validation.ts";
 import type { LogDraft } from "./draft.ts";
 import { snapshotOf } from "./fields.ts";
-import { movesOf, pageReader, resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
+import { movesOf, needsStamp, pageReader, resolveSlots, type Planned as Resolved, type SlotReader } from "./plan.ts";
 import { placeReview, type SentItem, type SentReview } from "./request.ts";
 import type { Slot } from "./types.ts";
 
@@ -157,7 +157,8 @@ export function applyLogDraft(
   const paged = pageReader(reader, review.page);
   const plan = planReview(paged, review, draft.fallbackDate);
   checkKept(plan);
-  if (!plan.some(isWrite) && !reorders(paged, review, plan, draft.fallbackDate)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
+  const confirms = plan.some(({ resolution }) => needsStamp(resolution));
+  if (!plan.some(isWrite) && !confirms && !reorders(paged, review, plan, draft.fallbackDate)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
   const outcomes = inTransaction(db, () => {
     plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
     const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));

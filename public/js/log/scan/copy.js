@@ -157,10 +157,12 @@
         if (counts.created) parts.push(counts.created + (counts.created === 1 ? ' new entry' : ' new entries'));
         if (counts.updated) parts.push(counts.updated + (counts.updated === 1 ? ' update' : ' updates'));
         if (counts.moved) parts.push(counts.moved + ' moved');
+        if (counts.confirmed) parts.push(counts.confirmed + ' marked on paper');
         return parts.length ? parts.join(', ') : 'nothing to write';
       },
       apply: function (counts) {
         var total = counts.created + counts.updated;
+        if (total === 0 && counts.confirmed && !counts.moved) return 'Mark ' + counts.confirmed + ' on paper';
         if (total === 0) return counts.moved ? 'Apply new order' : 'Nothing to apply';
         if (!counts.updated) return 'Apply ' + counts.created + (counts.created === 1 ? ' entry' : ' entries');
         if (!counts.created) return 'Apply ' + counts.updated + (counts.updated === 1 ? ' update' : ' updates');

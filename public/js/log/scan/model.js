@@ -89,6 +89,7 @@
       contested: line.contested,
       moveTo: line.moveTo || null,
       traced: line.traced === true,
+      offPaper: line.offPaper === true,
       unmatched: false,
       wasMatch: null,
       include: line.include,
@@ -234,6 +235,7 @@
       item.contested = check.contested;
       item.moveTo = check.moveTo || null;
       item.traced = check.traced === true;
+      item.offPaper = check.offPaper === true;
       if (item.status === 'unchanged') {
         item.include = false;
         item.touched = false;
@@ -269,6 +271,7 @@
     item.contested = false;
     item.moveTo = null;
     item.traced = false;
+    item.offPaper = false;
     item.touched = false;
     item.include = defaultInclude(item);
   }
@@ -289,7 +292,8 @@
     var kept = keptItems(state);
     var updated = kept.filter(function (item) { return item.status === 'edited'; }).length;
     var moved = state.items.filter(function (item) { return item.moveTo && !item.unmatched; }).length;
-    return { created: kept.length - updated, updated: updated, moved: moved };
+    var confirmed = state.items.filter(function (item) { return item.status === 'unchanged' && item.offPaper && !item.unmatched; }).length;
+    return { created: kept.length - updated, updated: updated, moved: moved, confirmed: confirmed };
   }
 
   /** True when a calendar day exists in the month of the page (no 30 February). */
@@ -329,7 +333,7 @@
     if (kept.some(function (item) { return item.title.trim() === ''; })) return 'title';
     var place = placeProblem(state, kept);
     if (place) return place;
-    return kept.length || counts(state).moved ? '' : 'none';
+    return kept.length || counts(state).moved || counts(state).confirmed ? '' : 'none';
   }
 
   function isLowConfidence(item) {

@@ -5,7 +5,7 @@ import type { ScanEntry } from "../types.ts";
 import { continuedDay } from "./continue.ts";
 import { detectKind, type Detected } from "./kind.ts";
 import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
-import { movesOf, pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
+import { movesOf, needsStamp, pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
 import { MAX_PAPER_PAGE } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
 import { guessType, type TypeGuess } from "./type.ts";
@@ -53,6 +53,8 @@ export type LineCheck = {
   /** Only present when set: the 1-based position on the page the paper puts this line's existing entry at, when that entry sits elsewhere now (a rescan moves it). Else null. */
   moveTo?: number;
   traced?: true;
+  /** Only present (true) for an unchanged line whose entry is not on paper yet: applying it marks the entry on paper. */
+  offPaper?: true;
 };
 
 /** A line as the review starts: the parsed line, its check and whether it starts ticked. */
@@ -124,7 +126,8 @@ export function buildLogDraft(input: DraftInput): LogDraft {
 function toCheck(id: string, resolved: Resolution & { traced?: boolean }, moveTo: number | null = null): LineCheck {
   const { status, target, before, after, contested, traced } = resolved;
   const base: LineCheck = { id, status, target: target ? { id: target.id, title: target.title } : null, before, after, contested };
-  const check = moveTo === null ? base : { ...base, moveTo };
+  const moved = moveTo === null ? base : { ...base, moveTo };
+  const check = needsStamp(resolved) ? { ...moved, offPaper: true as const } : moved;
   return traced ? { ...check, traced: true } : check;
 }
 
