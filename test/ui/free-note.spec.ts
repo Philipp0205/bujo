@@ -31,37 +31,25 @@ function localDay(): string {
 const sheet = (page: Page) => page.getByTestId("note-sheet");
 const screen = (page: Page) => page.getByTestId("scan-screen");
 
-/** Opens the camera screen in free-note mode. The camera chooser the tab opens is ignored: the photo goes through an input after. */
+/** Opens the camera screen. The camera chooser the tab opens is ignored: the photo goes through an input after. */
 async function openNoteCamera(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
   await openScan(page);
-  await screen(page).getByRole("button", { name: "Free note" }).click();
 }
 
-/** Scans a photo in free-note mode, through the given input. The review sheet is up after this. */
+/** Scans a free-form page (the default settings, no mode choice), through the given input. The note review sheet is up after this. */
 async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
   await openNoteCamera(page);
   await page.locator(input).setInputFiles(photo);
   await expect(sheet(page)).toBeVisible();
 }
 
-test("the Free note toggle works: pressed state and title follow it, and back again", async ({ page }) => {
-  await page.goto(app.baseUrl);
-  await openScan(page);
-  const rapid = screen(page).getByRole("button", { name: "Log page" });
-  const note = screen(page).getByRole("button", { name: "Free note" });
-  await expect(screen(page).getByRole("heading", { name: "Align the log page" })).toBeVisible();
-
-  await note.click();
-  await expect(note).toHaveAttribute("aria-pressed", "true");
-  await expect(rapid).toHaveAttribute("aria-pressed", "false");
-  await expect(screen(page).getByRole("heading", { name: "Align the note page" })).toBeVisible();
-  await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-prose");
-
-  await rapid.click();
-  await expect(rapid).toHaveAttribute("aria-pressed", "true");
-  await expect(screen(page).getByRole("heading", { name: "Align the log page" })).toBeVisible();
-  await expect(screen(page).locator(".scan-frame use")).toHaveAttribute("href", "#g-scan-guide");
+test("the camera screen has no mode choice: no Log page or Free note toggle", async ({ page }) => {
+  await openNoteCamera(page);
+  await expect(screen(page).getByRole("heading", { name: "Align the page" })).toBeVisible();
+  await expect(screen(page).getByRole("button", { name: "Free note" })).toHaveCount(0);
+  await expect(screen(page).getByRole("button", { name: "Log page" })).toHaveCount(0);
+  await expect(screen(page).getByTestId("scan-pick")).toBeVisible();
 });
 
 test("a free-note photo reaches the review with the transcribed markdown, and nothing is written yet", async ({ page }) => {
@@ -78,7 +66,7 @@ test("a free-note photo reaches the review with the transcribed markdown, and no
   expect(JSON.stringify(await stored.json())).not.toContain("Küchengarten");
 });
 
-test("the gallery input works in free-note mode too", async ({ page }) => {
+test("the gallery input reaches the note review too", async ({ page }) => {
   await scanNote(page, "#scan-gallery");
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue(MARKDOWN);
 });

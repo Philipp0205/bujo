@@ -53,7 +53,7 @@ function readerOf(ctx: RouteContext, userId: string) {
   return storeReader(createEntryStore(ctx.accounts.db), createTraceStore(ctx.accounts.db), userId);
 }
 
-/** POST /api/log/scan: reads the photo, runs OCR, keeps a draft in memory and answers the review. Writes nothing. */
+/** POST /api/log/scan: reads the photo once, keeps a draft in memory and answers the log review plus the note reading of the same text. Writes nothing. */
 async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   const session = requireSession(ctx.who);
   const hint = viewHint(ctx);
@@ -65,7 +65,9 @@ async function scanPhoto(ctx: RouteContext, deps: LogScanDeps): Promise<void> {
   const picked = ctx.url.searchParams.get("picked") === "1";
   const draft = buildLogDraft({ ocr, fallbackDate, pinned, picked, now, ttlMs: DRAFT_TTL_MS, hint });
   deps.drafts.add(draft);
-  sendJson(ctx.res, 201, { draft: startReview(draft, readerOf(ctx, session.user.id)) });
+  const note = suggestNote(ocr.lines, fallbackDate);
+  const match = matchNote(note, createEntryStore(ctx.accounts.db).listNotes(session.user.id));
+  sendJson(ctx.res, 201, { draft: startReview(draft, readerOf(ctx, session.user.id)), note, match });
 }
 
 /** POST /api/log/scan/note: reads the photo, runs OCR and answers a suggested title, day and markdown. Keeps nothing, writes nothing. */
@@ -127,6 +129,8 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *                                   day within 3 days before `date` that has paper entries (the review answers `continues`), unless
  *                                   pinned=1 says the day was named on purpose (a rescan of that day). picked=1 says the person chose `date`
  *                                   on the scan screen: it then beats a date read from the page header (the review answers picked).
+ *                                   The answer is { draft, note, match }: draft.guess ({ type: log|note, source }) says whether the page looks like a
+ *                                   log or a free note, and note and match are what POST /api/log/scan/note answers, read from the same OCR text.
  *   POST /api/log/scan/note?date=   raw image body. OCR, then a suggested title, day and markdown for a free note, and `match`: the
  *                                   person's saved note this page most likely is (id, title, date, body), or null. Keeps and writes
  *                                   nothing: the note is saved by the review through POST /api/entries (or PATCHed when updating).

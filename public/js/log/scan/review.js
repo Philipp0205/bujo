@@ -247,7 +247,8 @@
     return found && found.day ? errors.dayMissing(title, found.day) : errors.dayRequired(title);
   }
 
-  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save. */
+  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save.
+   * handlers.typeRow is the log or note switch node shown on top. */
   function open(state, handlers) {
     var copy = L.copy.scan.review;
     var subtitle = h('p', { class: 'sheet-sub', 'data-testid': 'scan-sub' });
@@ -329,7 +330,7 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
-      h('div', { class: 'ak-sheet-scroll' }, slot, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
+      h('div', { class: 'ak-sheet-scroll' }, slot, handlers.typeRow, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, {});

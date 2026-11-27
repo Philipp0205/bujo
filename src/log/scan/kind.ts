@@ -37,6 +37,11 @@ function weakKind(lines: readonly PageLine[]): PageKind | null {
   return countAscendingDays(lines) >= CALENDAR_MIN_DAYS ? "calendar" : null;
 }
 
+/** True when the page itself shows log structure: a date or month heading, a future heading, or climbing day rows. */
+export function showsLogStructure(lines: readonly PageLine[], fallbackDate: string): boolean {
+  return strongKind(lines, fallbackDate) !== null || weakKind(lines) !== null;
+}
+
 /**
  * Names the kind of a page. A valid LLM kind decides, then a strong signal on the page, then the view the person had open,
  * then a weak signal, then daily. The result is a guess: the review shows it and lets the person change it.

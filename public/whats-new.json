@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-scan-type-in-review",
+    "date": "2026-11-27",
+    "title": "Pick log or note after scanning",
+    "bullets": [
+      "The camera no longer asks what you are scanning. You choose log page or note after the photo is read.",
+      "The review guesses the type from the page, and you can switch it without scanning again."
+    ]
+  },
+  {
     "id": "2026-11-27-notebook-back",
     "date": "2026-11-27",
     "title": "Back from a notebook returns to the list",
