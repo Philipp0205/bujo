@@ -140,6 +140,7 @@
       past.hidden = !L.scan.model.isPast(item);
       note.hidden = note.textContent === '';
       under.hidden = note.hidden && past.hidden && unmatch.node.hidden;
+      node.setAttribute('data-quiet', under.hidden ? 'true' : 'false');
       picker.show();
       place.show();
       keep.show();

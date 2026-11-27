@@ -444,6 +444,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   box-sizing: border-box;
   padding-right: 8px;
 }
+.scan-row[data-quiet="true"] { min-height: 72px; }
 .scan-row[data-include="false"]:not([data-status="unchanged"]) { opacity: 0.45; }
 /* A nested line sits one step in (24px), like a nested entry in the daily log (.card-child). */
 .scan-row[data-indent="1"] { margin-left: 24px; }
