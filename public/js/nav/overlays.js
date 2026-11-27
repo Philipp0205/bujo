@@ -11,6 +11,9 @@
   var N = window.BujoNav = window.BujoNav || {};
   var layers = [];
   var queued = false;
+  var synced = 0;
+  var undoing = false;
+  var SETTLE_MS = 400;
 
   /** A layer that Back has asked to close is not counted: its entry is already gone, even while its close is still running. */
   function counted(layer) {
@@ -28,14 +31,34 @@
     var top = open[open.length - 1];
     if (!top) return;
     top.closing = true;
+    synced = depth();
     top.close();
     schedule();
   }
 
-  /** Brings history in line with the open layers. */
+  /** Brings history in line with the open layers. Notes when the kit will step history back (a layer was closed by the app). */
   function flush() {
     queued = false;
+    if (depth() < synced) undoing = true;
+    synced = depth();
     AppKit.nav.syncOverlayHistory({ depth: depth, onPop: onPop });
+  }
+
+  /** Runs next once history has settled after the app closed a layer (the kit's step back has landed), so a tab change that follows
+   * is not undone by it. Runs at once when no step back is pending. A timeout covers a popstate that never comes. */
+  function whenSettled(next) {
+    flush();
+    if (!undoing) { next(); return; }
+    var done = false;
+    var finish = function () {
+      if (done) return;
+      done = true;
+      undoing = false;
+      window.removeEventListener('popstate', finish);
+      next();
+    };
+    window.addEventListener('popstate', finish);
+    window.setTimeout(finish, SETTLE_MS);
   }
 
   /** Syncs once after the current task, so one layer closing as another opens (a swap) costs no history change. */
@@ -82,5 +105,5 @@
     return sheet;
   }
 
-  N.overlays = { open: open, release: release, restore: restore, showSheet: showSheet };
+  N.overlays = { open: open, release: release, restore: restore, whenSettled: whenSettled, showSheet: showSheet };
 })();

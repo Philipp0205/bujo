@@ -2,8 +2,8 @@
  * The notebooks screen: the list of the physical notebooks (the active one marked, a button to start a new one) and the detail of one
  * (its daily, monthly and future logs, its collections and free notes, and the index grid of page numbers). It keeps its own state,
  * reads through the tab cache (the list) and a cache per notebook (the detail), and hands what only the Notes host can do to handlers:
- * onOpenCollection(collection), onOpenPage(item), onOpenIndex(pages) and suspended() (true while a collection page or the page list
- * is drawn into the same root). Needs ak-dom.js, notebooks/*, notes/model.js and notes/view.js (cards, collection rows), index/*,
+ * onOpenCollection(collection), onOpenPage(item), onOpenIndex(pages), leaveSub() and suspended() (true while a collection page or the page list
+ * is drawn into the same root; leaveSub closes it). An open notebook is a Back layer (nav/overlays.js). Needs ak-dom.js, notebooks/*, notes/model.js and notes/view.js (cards, collection rows), index/*,
  * collections/chooser.js, log/note/*, log/ink/decorate.js, log/api.js, log/outbox/model.js and the nav files (data cache).
  */
 (function () {
@@ -18,6 +18,7 @@
   var root = null;
   var handlers = null;
   var booted = false;
+  var LAYER = 'notebook';
 
   /** What the list holds and the cache keeps: the notebooks, the active one first. */
   function fetchList() {
@@ -126,6 +127,7 @@
 
   /** Reads the list again with the loading note (after starting a notebook): the server alone, so the list holds that change. */
   function reloadList() {
+    release();
     state.mode = 'list';
     state.status = 'loading';
     draw();
@@ -158,6 +160,7 @@
     state.id = id;
     state.detail = null;
     state.detailStatus = 'loading';
+    hold();
     draw();
     window.scrollTo(0, 0);
     var stale = function (value) { if (state.detailStatus !== 'ready') acceptDetail(id, value); };
@@ -176,6 +179,7 @@
 
   /** Back from a notebook to the list. */
   function back() {
+    release();
     state.mode = 'list';
     state.id = null;
     state.detail = null;
@@ -184,8 +188,26 @@
     loadList(false);
   }
 
+  /** The phone's Back on a notebook: a collection page or page list on top closes first (the detail stays), else the list shows. */
+  function closeLayer() {
+    if (!handlers.suspended()) { back(); return; }
+    handlers.leaveSub();
+    BujoNav.overlays.restore(LAYER);
+  }
+
+  /** The notebook detail is on screen: one history entry, so Back shows the list and stays on Notes. */
+  function hold() {
+    BujoNav.overlays.open(LAYER, closeLayer);
+  }
+
+  /** The notebook detail is left (any way): its history entry goes. */
+  function release() {
+    BujoNav.overlays.release(LAYER);
+  }
+
   /** The router shows Notes: the notebooks list, the cached list at once on the first show, then read quietly. */
   function show() {
+    release();
     state.mode = 'list';
     state.id = null;
     state.detail = null;
@@ -218,5 +240,5 @@
     window.addEventListener('online', onOnline);
   }
 
-  N.screen = { init: init, show: show, warm: warm, draw: draw, refreshDetail: refreshDetail };
+  N.screen = { init: init, show: show, warm: warm, draw: draw, refreshDetail: refreshDetail, leave: release };
 })();

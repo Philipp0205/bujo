@@ -211,7 +211,7 @@ test("Back from the notes screen returns to the log", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
 });
 
-test("with a note sheet open, the first Back closes the sheet and stays on Notes, the second returns to the log", async ({ page }) => {
+test("with a note sheet open, Back closes the sheet, then the notebook, then returns to the log", async ({ page }) => {
   await seedNotes(page);
   await page.goto(app.baseUrl);
   await tab(page, "notes").click();
@@ -223,6 +223,10 @@ test("with a note sheet open, the first Back closes the sheet and stays on Notes
   await expect(noteSheet(page)).toHaveCount(0);
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
   await expect(grid(page)).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(`${app.baseUrl}/notes`);
+  await expect(page.getByTestId("notebook-row").first()).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);
