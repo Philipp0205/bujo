@@ -17,3 +17,10 @@ export async function openScan(page: Page): Promise<FileChooser> {
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), scanTab(page).click()]);
   return chooser;
 }
+
+/** Opens the camera screen, then taps its gallery button. The chooser it returns takes several files at once. */
+export async function openGallery(page: Page): Promise<FileChooser> {
+  await openScan(page);
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("[data-action=gallery]").click()]);
+  return chooser;
+}

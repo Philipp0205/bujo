@@ -143,6 +143,7 @@
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    * options.match is the saved note a scan looks like ({ id, title, date, keepDate, explicit }): the review offers to update it. options.onRescan(values)
    * adds Scan again to a saved note. options.typeRow is the log or note switch node of a scan, shown above the form.
+   * options.onClosed() (optional) runs when the sheet closes, however it closes. The returned handle has values(): the form as it is now.
    */
   function open(options) {
     var copy = L.copy.note;
@@ -185,7 +186,8 @@
       head(options, function () { sheet.close(); }),
       h('div', { class: 'ak-sheet-scroll' }, slot, options.typeRow, offer, form),
       h('div', { class: 'ak-sheet-dock' }, save));
-    sheet = BujoNav.overlays.showSheet(node, {});
+    sheet = BujoNav.overlays.showSheet(node, { onClose: options.onClosed });
+    if (sheet) sheet.values = function () { return readValues(options.values.id, inputs); };
     return sheet;
   }
 

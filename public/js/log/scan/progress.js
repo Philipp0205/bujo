@@ -44,15 +44,16 @@
     return function () { window.clearInterval(timer); };
   }
 
-  /** Starts the progress state for a photo. Returns { node, stop }: put node in the screen, call stop() when it goes. */
-  function start(file) {
+  /** Starts the progress state for a photo; text is the step line (the page of a batch), else the single-page one.
+   * Returns { node, stop }: put node in the screen, call stop() when it goes. */
+  function start(file, text) {
     var copy = L.copy.scan.progress;
     var img = h('img', { class: 'scan-progress-img', alt: '', hidden: true });
     var elapsed = h('p', { class: 'scan-progress-time', 'data-testid': 'scan-elapsed' }, copy.elapsed(0));
     var node = h('div', { class: 'scan-progress', 'data-testid': 'scan-progress' },
       photoBox(img),
       h('div', { class: 'scan-progress-text' },
-        h('p', { class: 'scan-progress-step', role: 'status', 'data-testid': 'scan-step' }, copy.step),
+        h('p', { class: 'scan-progress-step', role: 'status', 'data-testid': 'scan-step' }, text || copy.step),
         elapsed,
         h('p', { class: 'scan-progress-hint' }, copy.hint)));
     var stopped = false;

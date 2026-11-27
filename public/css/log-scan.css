@@ -297,6 +297,72 @@
 /* The type switch reuses the kind pills with two equal ones. */
 .scan-pagetype .scan-kind-pills { grid-template-columns: 1fr 1fr; }
 
+/* The gallery hint under the camera buttons. */
+.scan-hint { flex: none; margin: 16px 0 0; font: 14px/24px var(--font-ui); color: var(--paper-muted); text-align: center; }
+
+/* The page steps of a multi-page scan: previous and next around "Page x of N", a row of state dots, and a quiet Skip link. */
+.scan-batch { margin: 0 0 24px; }
+.scan-batch .scan-kinds { margin-bottom: 0; }
+.scan-steps { margin: 0 0 16px var(--text-col); padding-right: 16px; }
+.scan-steps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scan-steps-title { font: 500 16px/24px var(--font-ui); color: var(--paper-ink); }
+.scan-step {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper-ink) 10%, var(--paper-bg));
+  color: var(--paper-ink);
+  font: 500 24px/24px var(--font-ui);
+  cursor: pointer;
+}
+.scan-step:disabled { opacity: 0.4; cursor: default; }
+.scan-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 0; }
+.scan-dot {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.scan-dot::before {
+  content: "";
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--paper-muted);
+  border-radius: 50%;
+}
+.scan-dot[data-status="applied"]::before, .scan-dot[data-status="saved"]::before { background: var(--paper-ink); border-color: var(--paper-ink); }
+.scan-dot[data-status="skipped"]::before { background: color-mix(in srgb, var(--paper-muted) 40%, transparent); }
+.scan-dot[data-status="failed"]::before { border-style: dashed; border-color: var(--paper-ink); }
+.scan-dot[aria-current="true"]::before { outline: 2px solid var(--paper-ink); outline-offset: 2px; }
+.scan-skip {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 500 14px/24px var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--paper-ink) 40%, transparent);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.scan-status-text { margin: 0 0 24px var(--text-col); padding-right: 16px; font: italic var(--text-weight) 18px/24px var(--font-text); color: var(--paper-ink); }
+
 /* The notebook page row: a label and a small numeric field on one 48px line, then a quiet note ("read from the photo", or why Apply waits). */
 .scan-number { margin: 0 0 24px var(--text-col); padding-right: 16px; }
 .scan-number[hidden] { display: none; }

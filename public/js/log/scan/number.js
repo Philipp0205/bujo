@@ -1,7 +1,8 @@
 /*
  * The notebook page row of the scan review: the page number written in the notebook, read from the photo and editable.
  * Shown for daily, future and month reviews. Empty is allowed. A view only: the rules live in scan/model.js.
- * Under the field a quiet line names the pages the typed number would leave unscanned (never blocks Apply).
+ * Under the field a quiet line names the pages the typed number would leave unscanned (never blocks Apply). In a batch, state.otherNumbers()
+ * lists the numbers of the other pages of the batch, which count as known so a page that is still to be reviewed is not nagged about.
  * Needs ak-dom.js, scan/copy.js, scan/model.js and gap/banner.js.
  */
 (function () {
@@ -42,7 +43,8 @@
         input.setAttribute('aria-invalid', L.scan.model.paperNumberOf(state).invalid ? 'true' : 'false');
         note.hidden = text === '';
         note.textContent = text;
-        var runs = L.gap.model.ranges(L.gap.banner.leaves(state.knownPages || [], L.scan.model.paperNumberOf(state).value));
+        var known = (state.knownPages || []).concat(state.otherNumbers ? state.otherNumbers() : []);
+        var runs = L.gap.model.ranges(L.gap.banner.leaves(known, L.scan.model.paperNumberOf(state).value));
         gap.hidden = runs.length === 0;
         gap.textContent = runs.length ? L.copy.gap.hint(runs) : '';
       }
