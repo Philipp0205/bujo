@@ -587,6 +587,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   min-height: 24px;
   color: var(--paper-muted);
 }
+.scan-under[hidden] { display: none; }
 .scan-note {
   flex: 1;
   min-width: 0;

@@ -117,8 +117,10 @@ for (const scheme of ["light", "dark"] as const) {
 
   test(`each row has one short note under its title, in ${scheme}`, async ({ page }) => {
     await openMarkedReview(page, scheme);
-    await expect(row(page, "Semmeln kaufen").locator('[data-role="note"]')).toHaveText("92% match, will be marked as done");
-    await expect(row(page, "Post abholen").locator('[data-role="note"]')).toHaveText("90%");
+    await expect(row(page, "Semmeln kaufen").locator('[data-role="note"]')).toHaveText("matches, will be marked as done");
+    await expect(row(page, "Idee Urlaub").locator('[data-role="note"]')).toHaveText("already matches");
+    await expect(row(page, "Post abholen").locator('[data-role="note"]')).toBeHidden();
+    await expect(row(page, "Post abholen").locator(".scan-under")).toBeHidden();
     await expect(row(page, "Semmeln kaufen").locator(".scan-was, .scan-match, .scan-meta")).toHaveCount(0);
   });
 

@@ -143,7 +143,7 @@
         skipped: 'Skipped, will not be applied',
         typeChanged: ', type changes'
       },
-      checkSpelling: 'check spelling',
+      hardToRead: 'hard to read, check the text',
       changedInApp: 'also changed in the app',
       /** The quiet mark on a line dated before today, and its spoken form. Such a line starts unticked. */
       past: 'past',
@@ -151,9 +151,8 @@
       important: 'important',
       keep: 'Keep this line',
       keepLabel: 'Keep',
-      /** The one note under a row. Its parts are joined with commas. */
-      percent: function (value) { return value + '%'; },
-      percentMatch: function (value) { return value + '% match'; },
+      /** The one note under a row. Its parts are joined with commas. It never shows the OCR confidence. */
+      matches: 'matches',
       /** The old state of a matched entry, only when its text differs: its bullet, its title, and what the paper turns it into. */
       was: function (type, title, change) {
         return 'was ' + (wasMark[type] ? wasMark[type] + ' ' : '') + title + (change ? ' \u2192 ' + change : '');

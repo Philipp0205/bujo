@@ -345,10 +345,6 @@
     return item.confidence < LOW_CONFIDENCE;
   }
 
-  function percent(item) {
-    return Math.round(item.confidence * 100);
-  }
-
   /** The tags a row holds: the ones read from the page. The review has no tag field, so they pass through unchanged. */
   function tagsOf(item) {
     return item.tags.slice();
@@ -490,7 +486,6 @@
     counts: counts,
     problem: problem,
     isLowConfidence: isLowConfidence,
-    percent: percent,
     checkBody: checkBody,
     applyBody: applyBody,
     landing: landing,

@@ -120,9 +120,10 @@
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var place = L.scan.kind.placeField(state, item, hooks.moved, hooks.typed);
     var title = titlePill(item, hooks.changed);
+    var under = h('div', { class: 'scan-under' }, note, past, unmatch.node);
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title.node, h('div', { class: 'scan-under' }, note, past, unmatch.node), place.node),
+      h('div', { class: 'scan-main' }, title.node, under, place.node),
       keep.node);
 
     function refresh() {
@@ -137,6 +138,8 @@
       note.textContent = L.scan.note.note(item);
       unmatch.show(L.scan.note.hasMatch(item));
       past.hidden = !L.scan.model.isPast(item);
+      note.hidden = note.textContent === '';
+      under.hidden = note.hidden && past.hidden && unmatch.node.hidden;
       picker.show();
       place.show();
       keep.show();

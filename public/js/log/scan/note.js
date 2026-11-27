@@ -29,40 +29,41 @@
     return copy.was(type, oldTitleOf(item, match), copy.changeTo[L.scan.model.changeKey(item)]);
   }
 
-  /** The first words when nothing differs: the confidence (with "match" for a matched line) and what applying does. */
+  /** The first words when nothing differs: "matches" and what applying does (a line that already matches says only that). Nothing for a new line. */
   function matchPart(item, match) {
     var copy = L.copy.scan.review;
-    var percent = L.scan.model.percent(item);
-    if (!match) return [copy.percent(percent)];
-    var change = { entry: copy.matchChange[L.scan.model.changeKey(item)], moved: match.kind === 'moved' ? copy.movedFrom(match.date) : '', trace: copy.traceChange }[match.kind];
-    return [copy.percentMatch(percent), change];
+    if (!match) return [];
+    var key = L.scan.model.changeKey(item);
+    if (match.kind === 'trace') return [copy.traceChange];
+    if (match.kind === 'entry' && key === 'same') return [copy.matchChange.same];
+    var change = match.kind === 'moved' ? copy.movedFrom(match.date) : copy.matchChange[key];
+    return [copy.matches, change];
   }
 
-  /** The leading parts of the note: the un-match words, the old state, or the confidence and the change. */
+  /** The leading parts of the note: the un-match words, the old state, or what the line matches and the change. */
   function leadParts(item, match) {
     var copy = L.copy.scan.review;
-    var percent = copy.percent(L.scan.model.percent(item));
-    if (item.unmatched) return [percent, item.wasMatch ? copy.notMatched(item.wasMatch.title) : ''];
-    if (match && match.kind === 'entry' && titleChanged(item, match)) return [wasPart(item, match)].concat(L.scan.model.isLowConfidence(item) ? [percent] : []);
+    if (item.unmatched) return [item.wasMatch ? copy.notMatched(item.wasMatch.title) : ''];
+    if (match && match.kind === 'entry' && titleChanged(item, match)) return [wasPart(item, match)];
     return matchPart(item, match);
   }
 
-  /** The trailing facts: the time (and the old one), importance, a spelling hint, a move, and a change made in the app. */
+  /** The trailing facts: a hint for a hard to read line, the time (and the old one), importance, a move, and a change made in the app. */
   function factParts(item) {
     var copy = L.copy.scan.review;
     var fields = L.scan.model.changedFields(item);
     var match = L.scan.model.matchOf(item);
     var parts = [];
+    if (L.scan.model.isLowConfidence(item)) parts.push(copy.hardToRead);
     if (item.time) parts.push(item.time);
     if (fields && fields.time) parts.push(copy.timeWas(fields.time.value));
     if (item.important) parts.push(copy.important);
-    if (L.scan.model.isLowConfidence(item)) parts.push(copy.checkSpelling);
     if (match && match.kind === 'entry' && item.moveTo) parts.push(copy.movesTo(item.moveTo));
     if (item.status === 'edited' && item.contested) parts.push(copy.changedInApp);
     return parts;
   }
 
-  /** The one note line of a row: confidence, what the line matches and what applying does, then the facts. */
+  /** The one note line of a row (empty when there is nothing to say): what the line matches and what applying does, then the facts. */
   function note(item) {
     var match = L.scan.model.matchOf(item);
     return leadParts(item, match).concat(factParts(item)).filter(function (part) { return part !== ''; }).join(', ');

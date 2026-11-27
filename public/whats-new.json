@@ -6,7 +6,7 @@
     "bullets": [
       "Each line is circled by pen in a color: matched, new, updated or skipped.",
       "A changed type shows its bullet in a hand-drawn circle.",
-      "Each line has one short handwritten note instead of three.",
+      "Each line has one short handwritten note instead of three. A new line has none, and a hard to read line says so.",
       "Not the same is now a small pen icon at the end of the note.",
       "The tag field and the nest switch are gone from the review."
     ]
