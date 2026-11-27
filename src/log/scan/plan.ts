@@ -1,7 +1,9 @@
-import { MATCH_THRESHOLD, matchKey, similarity } from "../../scan/match.ts";
+import { MATCH_THRESHOLD, matchKey } from "../../scan/match.ts";
 import { isValidDate } from "../validation.ts";
 import { lastDayOfMonth } from "../horizon.ts";
 import type { Entry, ScanEntry, Trace } from "../types.ts";
+import { titleScore } from "./align.ts";
+import { canCarry, carriedFrom, openBefore } from "./carry.ts";
 import { NEW, resolveLines } from "./resolve.ts";
 import type { Line, PageKind, Resolution, Slot } from "./types.ts";
 
@@ -14,13 +16,15 @@ export type Position = { day?: number | null; month?: string | null };
 /** A line with the slot it files in. A null slot means the line cannot be placed (a calendar line with no real day). */
 export type Placed = { line: Line; slot: Slot | null };
 
-/** A resolution that may say a trace on the old page matched the line. */
-export type Planned = Resolution & { traced?: boolean };
+/** A resolution that may say a trace on the old page matched the line, or that the line is an open task of an earlier day written again (`movedFrom`). */
+export type Planned = Resolution & { traced?: boolean; movedFrom?: { id: string; date: string } };
 
 /** Reads what is on a slot: its entries (with scan provenance) and the traces left on it. Reads are made once per slot. */
 export type SlotReader = {
   entries(slot: Slot): ScanEntry[];
   traces(slot: Slot): Trace[];
+  /** The entries of the days in the paper window before `date` (see CARRY_WINDOW_DAYS), of any page. */
+  earlier(date: string): ScanEntry[];
 };
 
 /** A slot's key, for grouping lines. */
@@ -59,10 +63,6 @@ function groupBySlot(placed: readonly Placed[]): Map<string, { slot: Slot; lines
   return groups;
 }
 
-/** Title similarity both ways, like the entry matcher: a short line against a long title, and the reverse. */
-function titleScore(a: string, b: string): number {
-  return Math.max(similarity(a, b), similarity(b, a));
-}
 
 /** True when an unchanged line's entry still has to be recorded on paper: it is matched, not an app-side edit, and has no page or no matching snapshot. */
 export function needsStamp(resolution: Planned): boolean {
@@ -100,10 +100,28 @@ function matchTraces(lines: readonly Line[], resolved: Map<string, Planned>, tra
   }
 }
 
-/** Decides the lines of one slot against that slot's entries, then against its traces. */
+/**
+ * A new task line on a day page may be an open task of an earlier day written again on the carry-over page. It then links to that
+ * task (`movedFrom`) instead of adding a copy; the status stays "new". Each task answers one line. An un-matched line stays plain.
+ */
+function matchCarried(slot: Slot, lines: readonly Line[], resolved: Map<string, Planned>, reader: SlotReader): void {
+  if (slot.horizon !== "day") return;
+  const open = openBefore(reader.earlier(slot.date), slot.date);
+  const claimed = new Set<string>();
+  for (const line of lines) {
+    if (resolved.get(line.id)?.status !== "new" || resolved.get(line.id)?.traced || !canCarry(line)) continue;
+    const entry = carriedFrom(line, open, claimed);
+    if (!entry) continue;
+    claimed.add(entry.id);
+    resolved.set(line.id, { ...NEW, movedFrom: { id: entry.id, date: entry.date } });
+  }
+}
+
+/** Decides the lines of one slot against that slot's entries, then against its traces, then against open tasks of earlier days. */
 function resolveGroup(slot: Slot, lines: readonly Line[], reader: SlotReader): Map<string, Planned> {
   const resolved: Map<string, Planned> = resolveLines(lines, reader.entries(slot));
   matchTraces(lines, resolved, reader.traces(slot));
+  matchCarried(slot, lines, resolved, reader);
   return resolved;
 }
 
@@ -164,11 +182,15 @@ export function movesOf(placed: readonly Placed[], resolved: Map<string, Planned
  */
 export function pageReader(reader: SlotReader, page: number): SlotReader {
   const onPage = (entry: ScanEntry): boolean => entry.page === null || entry.page === page;
-  return { entries: (slot) => reader.entries(slot).filter(onPage), traces: (slot) => reader.traces(slot) };
+  return { entries: (slot) => reader.entries(slot).filter(onPage), traces: (slot) => reader.traces(slot), earlier: (date) => reader.earlier(date) };
 }
 
 /** A reader over fixed lists, for a pure test or a single-slot check. Entries and traces are filtered to the slot asked for. */
 export function fixedReader(entries: readonly ScanEntry[], traces: readonly Trace[] = []): SlotReader {
   const same = (item: Pick<Entry, "date" | "horizon">, slot: Slot): boolean => item.date === slot.date && item.horizon === slot.horizon;
-  return { entries: (slot) => entries.filter((entry) => same(entry, slot)), traces: (slot) => traces.filter((trace) => same(trace, slot)) };
+  return {
+    entries: (slot) => entries.filter((entry) => same(entry, slot)),
+    traces: (slot) => traces.filter((trace) => same(trace, slot)),
+    earlier: (date) => entries.filter((entry) => entry.date < date),
+  };
 }

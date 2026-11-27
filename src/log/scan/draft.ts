@@ -5,11 +5,11 @@ import type { ScanEntry } from "../types.ts";
 import { continuedDay } from "./continue.ts";
 import { detectKind, type Detected } from "./kind.ts";
 import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
-import { movesOf, needsStamp, pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
+import { movesOf, needsStamp, pageReader, resolveSlots, slotOf, type Placed, type Planned, type SlotReader, type Where } from "./plan.ts";
 import { MAX_PAPER_PAGE } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
 import { guessType, type TypeGuess } from "./type.ts";
-import type { Fields, Line, PageKind, Resolution, ScanStatus, ViewHint } from "./types.ts";
+import type { Fields, Line, PageKind, ScanStatus, ViewHint } from "./types.ts";
 
 /**
  * A log-page scan draft: the OCR lines of one photo (text and bullet, never the box or the photo), held in memory (the store in
@@ -53,6 +53,8 @@ export type LineCheck = {
   /** Only present when set: the 1-based position on the page the paper puts this line's existing entry at, when that entry sits elsewhere now (a rescan moves it). Else null. */
   moveTo?: number;
   traced?: true;
+  /** Only present when the line is an open task of an earlier day written again on this page: applying moves that entry here (status stays "new") instead of adding a copy. */
+  movedFrom?: { id: string; date: string };
   /** Only present (true) for an unchanged line whose entry is not on paper yet: applying it marks the entry on paper. */
   offPaper?: true;
 };
@@ -123,12 +125,13 @@ export function buildLogDraft(input: DraftInput): LogDraft {
 }
 
 /** The check of one resolved line, in the shape the API answers. */
-function toCheck(id: string, resolved: Resolution & { traced?: boolean }, moveTo: number | null = null): LineCheck {
-  const { status, target, before, after, contested, traced } = resolved;
+function toCheck(id: string, resolved: Planned, moveTo: number | null = null): LineCheck {
+  const { status, target, before, after, contested, traced, movedFrom } = resolved;
   const base: LineCheck = { id, status, target: target ? { id: target.id, title: target.title } : null, before, after, contested };
   const moved = moveTo === null ? base : { ...base, moveTo };
   const check = needsStamp(resolved) ? { ...moved, offPaper: true as const } : moved;
-  return traced ? { ...check, traced: true } : check;
+  const carried = movedFrom ? { ...check, movedFrom } : check;
+  return traced ? { ...carried, traced: true } : carried;
 }
 
 /**
@@ -147,15 +150,23 @@ export function checkPlaced(placed: readonly Placed[], reader: SlotReader): Line
   return placed.map(({ line }) => toCheck(line.id, resolved.get(line.id)!, moves.get(line.id) ?? null));
 }
 
-/**
- * A line starts ticked when it would write something and can be trusted: a new line with a bullet and text, or an edit with a
- * bullet that the app did not also change. An unchanged line, a line with no bullet (maybe a stray mark) and a calendar line with
+/** The types a task is closed with on paper. */
+const TASK_CLOSED: ReadonlySet<string> = new Set(["done", "migrated", "scheduled", "dropped"]);
+
+/** True when the paper shows closed (done, migrated, scheduled, dropped) a task that is still open in the app: a symbol on paper wins over an app edit of title or tags. */
+function paperClosesTask(check: LineCheck): boolean {
+  return check.before?.type === "task" && !!check.after && check.after.type !== "task" && TASK_CLOSED.has(check.after.type);
+}
+
+/** when it would write something and can be trusted: a new line with a bullet and text, or an edit
+ * with a bullet that the app did not also change, unless the paper closes a task that is still open in the app (the paper wins
+ * there, see paperClosesTask). An unchanged line, a line with no bullet (maybe a stray mark) and a calendar line with
  * no day yet (it cannot be filed until the person gives one) start off.
  */
 function startsIncluded(line: ParsedLine, check: LineCheck): boolean {
   if (line.noBullet || line.day === null) return false;
   if (check.status === "new") return line.title !== "";
-  return check.status === "edited" && !check.contested;
+  return check.status === "edited" && (!check.contested || paperClosesTask(check));
 }
 
 /** The page numbers a day already has paper for, ascending. */

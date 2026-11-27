@@ -1,6 +1,7 @@
 import { HttpError } from "../../app-kit/http.ts";
 import { inTransaction, type Db } from "../../db.ts";
 import { settleHorizon } from "../horizon.ts";
+import { updateEntry } from "../move.ts";
 import { createPaperPageStore, type PaperKind } from "../paper-pages.ts";
 import type { EntryStore } from "../store.ts";
 import type { Entry, NewEntry } from "../types.ts";
@@ -51,15 +52,31 @@ function checkKept(plan: readonly Planned[]): void {
   }
 }
 
-/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one. Never touches date, indent or body (the page filing sets the position, then applyIndents the indent). */
-function writeOne(store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): ApplyOutcome {
+/** The mark a line puts on an entry: a * on the paper (or turned on in the review) sets important, a line without one never clears it, unless the review turned it off. */
+function importantMark(item: SentItem): { important?: boolean } {
+  return item.important ? { important: true } : item.unflag ? { important: false } : {};
+}
+
+/**
+ * Carries an open task of an earlier day to this page's day through the move path: the entry keeps its id and sync link, the old day
+ * keeps a > trace, and the type becomes the line's (task or done). Title and tags stay as the app has them. Reported as updated so sync pushes.
+ */
+function moveCarried(db: Db, store: EntryStore, userId: string, now: number, { item, slot, resolution }: Planned): ApplyOutcome {
+  const change = { date: slot!.date, type: item.type, trace: "migrated" as const, ...importantMark(item) };
+  const moved = updateEntry(db, userId, resolution.movedFrom!.id, change, now)!;
+  store.setScanProvenance(userId, moved.id, snapshotOf(moved, now));
+  return { id: item.id, outcome: "updated", entry: moved, unflag: item.unflag && !item.important };
+}
+
+/** Adds a new entry at the end of its slot, or changes the four scanned fields of the matched one, or moves the task a line carries over. Never touches indent or body (the page filing sets the position, then applyIndents the indent). */
+function writeOne(db: Db, store: EntryStore, userId: string, now: number, planned: Planned): ApplyOutcome {
+  const { item, slot, resolution } = planned;
   const paper = validFields(item, slot!);
   if (!paper.ok) throw new HttpError(400, paper.error);
+  if (resolution.movedFrom) return moveCarried(db, store, userId, now, planned);
   if (resolution.status === "edited" && resolution.target && resolution.after) {
     const { type, title, tags, time } = resolution.after;
-    // A * on the paper (or turned on in the review) sets important. A line without one never clears it, unless the review turned it off.
-    const mark = item.important ? { important: true } : item.unflag ? { important: false } : {};
-    const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...mark }, now)!;
+    const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...importantMark(item) }, now)!;
     // The paper state is what the entry now says: a title the paper only misspelled stays as the entry has it.
     store.setScanProvenance(userId, updated.id, snapshotOf(updated, now));
     return { id: item.id, outcome: "updated", entry: updated, unflag: item.unflag && !item.important };
@@ -161,7 +178,7 @@ export function applyLogDraft(
   if (!plan.some(isWrite) && !confirms && !reorders(paged, review, plan, draft.fallbackDate)) throw new HttpError(400, "nothing to apply: keep at least one new or changed line");
   const outcomes = inTransaction(db, () => {
     plan.forEach((planned) => stampUnchanged(store, userId, now, planned));
-    const done = plan.filter(isWrite).map((planned) => writeOne(store, userId, now, planned));
+    const done = plan.filter(isWrite).map((planned) => writeOne(db, store, userId, now, planned));
     placeOnPaper(store, userId, review.page, plan, done);
     applyIndents(store, userId, review, plan, done);
     storePaperNumber(db, userId, review, plan, draft.fallbackDate, now);

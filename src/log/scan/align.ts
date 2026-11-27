@@ -47,7 +47,7 @@ function exactPass(slots: readonly Slot[], pool: Pool, keyOf: (entry: ScanEntry)
 }
 
 /** Title similarity both ways: similarity() credits a short line against a long title, and a title reworded longer on paper is the reverse. */
-function titleScore(a: string, b: string): number {
+export function titleScore(a: string, b: string): number {
   return Math.max(similarity(a, b), similarity(b, a));
 }
 

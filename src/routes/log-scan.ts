@@ -138,6 +138,10 @@ async function applyReview(ctx: RouteContext, deps: LogScanDeps, id: string): Pr
  *   POST /api/log/scan/:id/check    the review's kind, day or month, page and lines. Answers new, edited (with before and after) or unchanged
  *                                   per line, each against its own slot and the entries of that physical page (and those not on paper).
  *                                   Also answers the pages the day has paper for. Writes nothing.
+ *                                   A new task or done line on a day page may carry `movedFrom: { id, date }` (status stays "new"): it is
+ *                                   that one open task of an earlier day (14 days back) written again. Apply then moves that entry to the
+ *                                   page's day (id and sync link kept, a > trace left on the old day) and answers outcome "updated".
+ *                                   A line sent with unmatched: true never carries one.
  *   POST /api/log/scan/:id/apply    the same body. Adds the kept new lines and updates the kept edited ones (outcome "created" or
  *                                   "updated") and files them on the page, in the order of the paper. A page left out is page 1.
  *                                   Skipped lines may be sent so unchanged ones are recorded. Once per draft.
