@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-index-dock",
+    "date": "2026-11-27",
+    "title": "The notebook index stays in reach",
+    "bullets": [
+      "The last row of the index grid now scrolls clear of the tab bar.",
+      "Back from a page opened in the index returns to the same notebook, at the index."
+    ]
+  },
+  {
     "id": "2026-11-27-page-photos",
     "date": "2026-11-27",
     "title": "Your page photos are kept",

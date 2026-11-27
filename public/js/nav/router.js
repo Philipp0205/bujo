@@ -168,7 +168,7 @@
     whenReady(id, function () {
       if (mine !== seq) return;
       if (id !== 'log' && state && state.bujoPage) N.tabs.remember(true);
-      swap(id, {});
+      swap(id, { back: true });
     }, function () {
       if (mine === seq) window.location.reload();
     });
