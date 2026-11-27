@@ -36,5 +36,10 @@
     return draw(L.scan.scribble.ring(seed), 'scan-ring');
   }
 
-  L.scan.marker = { pill: pill, ring: ring };
+  /** The small pen icon of the match button: a cross-out, or the "again" arrow once the line was un-matched. */
+  function icon(kind, seed) {
+    return draw(L.scan.scribble[kind](seed), 'scan-hand-icon');
+  }
+
+  L.scan.marker = { pill: pill, ring: ring, icon: icon };
 })();

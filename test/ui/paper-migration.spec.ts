@@ -64,14 +64,14 @@ test("a line that carries an open task of an earlier day says where it moved fro
   const from = new Date(`${day(-5)}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   await expect(first).toHaveAttribute("data-match", "matched");
-  await expect(note).toHaveText(new RegExp(`^\\d+% match \\u00b7 moved from ${from}$`));
+  await expect(note).toHaveText(new RegExp(`^\\d+% match, moved from ${from}$`));
   await expect(apply(page)).toHaveText("Apply 1 update");
 
   await unmatch.click();
   await expect(first).toHaveAttribute("data-match", "unmatched");
   await expect(apply(page)).toHaveText("Apply 1 entry");
   await unmatch.click();
-  await expect(note).toHaveText(new RegExp(`^\\d+% match \\u00b7 moved from ${from}$`));
+  await expect(note).toHaveText(new RegExp(`^\\d+% match, moved from ${from}$`));
 });
 
 test("after the later page is applied the migration review no longer asks about the carried task, only the other one", async ({ page }) => {

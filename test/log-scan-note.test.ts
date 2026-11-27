@@ -64,8 +64,8 @@ test("a ring is centered on the middle of its box", () => {
 });
 
 test("a matched line with the same text says its confidence and change on one short line, without repeating the title", () => {
-  assert.equal(note(edited()), "92% match \u00b7 will be marked done");
-  assert.equal(note(edited({ before: { type: "task", title: "Semmeln kaufen" }, after: { type: "task" }, status: "unchanged" })), "92% match \u00b7 already matches");
+  assert.equal(note(edited()), "92% match, will be marked as done");
+  assert.equal(note(edited({ before: { type: "task", title: "Semmeln kaufen" }, after: { type: "task" }, status: "unchanged" })), "92% match, already matches");
 });
 
 test("an entry whose text differs shows the old text once, with the change after the arrow", () => {
@@ -76,19 +76,19 @@ test("an entry whose text differs shows the old text once, with the change after
 test("a new line shows only its confidence, and a low one adds the spelling hint", () => {
   const fresh = { confidence: 0.94, status: "new", title: "Brief", tags: [] };
   assert.equal(note(fresh), "94%");
-  assert.equal(note({ ...fresh, confidence: 0.71 }), "71% \u00b7 check spelling");
+  assert.equal(note({ ...fresh, confidence: 0.71 }), "71%, check spelling");
   assert.equal(hasMatch(fresh), false);
 });
 
 test("time, the old time, importance and an app change join the same line", () => {
   const line = note(edited({ time: "09:00", important: true, contested: true, before: { type: "task", title: "Semmeln kaufen", time: "08:00" } }));
-  assert.equal(line, "92% match \u00b7 will be marked done \u00b7 09:00 \u00b7 time was 08:00 \u00b7 important \u00b7 also changed in the app");
+  assert.equal(line, "92% match, will be marked as done, 09:00, time was 08:00, important, also changed in the app");
   assert.ok(!line.includes("\n"));
   assert.equal(note(edited({ time: "09:00", before: { type: "task", title: "Semmeln kaufen", time: null } })).includes("time was none"), true);
 });
 
 test("an un-matched line says it is new, and can match again", () => {
   const unmatched = { confidence: 0.9, status: "new", title: "Brief", tags: [], unmatched: true, wasMatch: { kind: "entry", title: "Brief alt" } };
-  assert.equal(note(unmatched), "90% \u00b7 new entry, not Brief alt");
+  assert.equal(note(unmatched), "90%, new entry, not Brief alt");
   assert.equal(hasMatch(unmatched), true);
 });

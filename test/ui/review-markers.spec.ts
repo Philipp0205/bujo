@@ -117,9 +117,29 @@ for (const scheme of ["light", "dark"] as const) {
 
   test(`each row has one short note under its title, in ${scheme}`, async ({ page }) => {
     await openMarkedReview(page, scheme);
-    await expect(row(page, "Semmeln kaufen").locator('[data-role="note"]')).toHaveText("92% match \u00b7 will be marked done");
+    await expect(row(page, "Semmeln kaufen").locator('[data-role="note"]')).toHaveText("92% match, will be marked as done");
     await expect(row(page, "Post abholen").locator('[data-role="note"]')).toHaveText("90%");
     await expect(row(page, "Semmeln kaufen").locator(".scan-was, .scan-match, .scan-meta")).toHaveCount(0);
+  });
+
+  test(`the note is handwritten in its state color and ends in a 44px pen icon button, in ${scheme}`, async ({ page }) => {
+    await openMarkedReview(page, scheme);
+    const note = row(page, "Idee Urlaub").locator('[data-role="note"]');
+    const style = await note.evaluate((node) => ({ font: getComputedStyle(node).fontFamily, size: getComputedStyle(node).fontSize, color: getComputedStyle(node).color }));
+    expect(style.font).toContain("Caveat");
+    expect(style.size).toBe("20px");
+    const pen = await row(page, "Idee Urlaub").getByTestId("scan-pill").locator("svg.scan-scribble path").first().evaluate((node) => getComputedStyle(node).stroke);
+    expect(style.color).toBe(pen);
+
+    const button = row(page, "Idee Urlaub").locator('[data-field="unmatch"]');
+    await expect(button).toHaveAccessibleName("Not the same");
+    await expect(button.locator("svg.scan-hand-icon")).toHaveCount(1);
+    const box = (await button.boundingBox())!;
+    const text = (await note.boundingBox())!;
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+    expect(Math.abs(box.y + box.height / 2 - (text.y + text.height / 2))).toBeLessThan(6);
+    await button.focus();
+    expect(await button.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
   });
 }
 

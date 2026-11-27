@@ -590,10 +590,14 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-note {
   flex: 1;
   min-width: 0;
-  color: var(--paper-ink);
-  font: italic var(--text-weight) 14px/24px var(--font-text);
+  color: var(--mark, var(--paper-ink));
+  font: 500 20px/24px var(--font-hand);
   overflow-wrap: anywhere;
 }
+.scan-row[data-marker="matched"] { --mark: var(--mark-matched); }
+.scan-row[data-marker="new"] { --mark: var(--mark-new); }
+.scan-row[data-marker="updated"] { --mark: var(--mark-updated); }
+.scan-row[data-marker="skipped"] { --mark: var(--mark-skipped); }
 .scan-row[data-low="true"] .scan-note { color: var(--paper-today); }
 .scan-past {
   flex: none;
@@ -644,27 +648,38 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-row[hidden] { display: none; }
 
 /*
- * A matched line says so in one short italic note under the title (see scan/note.js). The "Not the same"
- * button under it turns the line into a new entry, and reads "Match again" once it has. Paper tokens only.
+ * A matched line says so in one short handwritten note under the title (see scan/note.js). A small pen icon
+ * ends that line: a cross-out ("Not the same") turns the line into a new entry, an arrow ("Match again") undoes it.
+ * The visual is 24px; the button is 44px square and uses negative margins so the line stays one line tall.
  */
 .scan-unmatch {
   appearance: none;
   -webkit-appearance: none;
-  display: inline-block;
-  min-height: 44px;
-  margin: 0 0 4px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -10px -10px -10px 0;
   padding: 0;
   border: 0;
+  border-radius: 12px;
   background: transparent;
   color: var(--paper-ink);
-  font: 500 14px/24px var(--font-ui);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--paper-ink) 40%, transparent);
-  text-underline-offset: 4px;
   cursor: pointer;
 }
 .scan-unmatch[hidden] { display: none; }
-.scan-unmatch:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
+.scan-unmatch:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: -4px; }
+.scan-hand-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.scan-hand-icon path { stroke: currentColor; vector-effect: non-scaling-stroke; }
 
 
 /* ----- The free-note sheet ----- */

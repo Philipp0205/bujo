@@ -151,7 +151,7 @@
       important: 'important',
       keep: 'Keep this line',
       keepLabel: 'Keep',
-      /** The one note under a row. Its parts are joined with a middle dot. */
+      /** The one note under a row. Its parts are joined with commas. */
       percent: function (value) { return value + '%'; },
       percentMatch: function (value) { return value + '% match'; },
       /** The old state of a matched entry, only when its text differs: its bullet, its title, and what the paper turns it into. */
@@ -173,10 +173,10 @@
       /** What applying does to the matched entry, by the kind of change the paper carries. */
       matchChange: {
         same: 'already matches',
-        done: 'will be marked done',
-        migrated: 'will be marked migrated',
-        scheduled: 'will be marked scheduled',
-        dropped: 'will be marked dropped',
+        done: 'will be marked as done',
+        migrated: 'will be marked as migrated',
+        scheduled: 'will be marked as scheduled',
+        dropped: 'will be marked as dropped',
         task: 'will be set to a task',
         note: 'will be set to a note',
         event: 'will be set to an event',
@@ -186,12 +186,9 @@
       notMatched: function (title) {
         return 'new entry, not ' + (title ? title : 'the moved entry');
       },
+      /** The accessible names of the small hand-drawn button at the end of the note line. */
       unmatch: 'Not the same',
-      unmatchLabel: function (title) {
-        return 'Treat as a new entry, not ' + (title ? title : 'the moved entry');
-      },
       rematch: 'Match again',
-      rematchLabel: 'Match this line to its entry again',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
       /** The faint line of a matched entry the paper puts in another place: a rescan moves it. */

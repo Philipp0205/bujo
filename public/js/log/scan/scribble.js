@@ -86,5 +86,43 @@
     return { viewBox: '0 0 ' + RING.size + ' ' + RING.size, strokes: strokes('ring:' + seed, { cx: half, cy: half, rx: 9, ry: 9, power: 2, steps: 16 }) };
   }
 
-  L.scan.scribble = { seedOf: seedOf, pill: pill, ring: ring };
+  /** A point of a hand-drawn stroke, nudged by the pen's jitter. */
+  function nudge(next, x, y) {
+    return { x: x + (next() - 0.5) * 1.6, y: y + (next() - 0.5) * 1.6 };
+  }
+
+  /** A slightly bowed pen line from one point to another, as three points. */
+  function line(next, from, to) {
+    var mid = nudge(next, (from.x + to.x) / 2, (from.y + to.y) / 2);
+    return smooth([nudge(next, from.x, from.y), mid, nudge(next, to.x, to.y)]);
+  }
+
+  /** The cross-out mark of "Not the same": two crossing pen lines in a 24 by 24 box. */
+  function cross(seed) {
+    var next = random(seedOf('cross:' + seed));
+    return { viewBox: '0 0 24 24', strokes: [{ d: line(next, { x: 5.5, y: 5.5 }, { x: 18.5, y: 18.5 }), width: 1.8 }, { d: line(next, { x: 18.5, y: 5.5 }, { x: 5.5, y: 18.5 }), width: 1.8 }] };
+  }
+
+  /** The "Match again" mark: an open pen circle that ends in a small arrowhead, in a 24 by 24 box. */
+  function again(seed) {
+    var next = random(seedOf('again:' + seed));
+    var start = -0.2;
+    var end = 4.9;
+    var points = [];
+    for (var step = 0; step <= 10; step++) {
+      var angle = start + (end - start) * step / 10;
+      points.push(nudge(next, 12 + 7.5 * Math.cos(angle), 12 + 7.5 * Math.sin(angle)));
+    }
+    var tip = { x: 12 + 7.5 * Math.cos(end), y: 12 + 7.5 * Math.sin(end) };
+    var along = { x: -Math.sin(end), y: Math.cos(end) };
+    var across = { x: Math.cos(end), y: Math.sin(end) };
+    var head = smooth([
+      { x: tip.x - 4.5 * along.x + 3.5 * across.x, y: tip.y - 4.5 * along.y + 3.5 * across.y },
+      tip,
+      { x: tip.x - 4.5 * along.x - 3.5 * across.x, y: tip.y - 4.5 * along.y - 3.5 * across.y }
+    ]);
+    return { viewBox: '0 0 24 24', strokes: [{ d: smooth(points), width: 1.8 }, { d: head, width: 1.8 }] };
+  }
+
+  L.scan.scribble = { seedOf: seedOf, pill: pill, ring: ring, cross: cross, again: again };
 })();

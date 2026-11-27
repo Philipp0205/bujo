@@ -12,7 +12,7 @@
 
   var ICON = { viewBox: '0 0 16 16', width: 16, height: 16 };
 
-  /** The un-match control: turns a matched line into a new entry, or a line that was un-matched back into a match. */
+  /** The un-match control: a small pen icon ending the note line. Turns a matched line into a new entry, or a line that was un-matched back into a match. */
   function matchToggle(item, onToggle) {
     var copy = L.copy.scan.review;
     var button = h('button', { class: 'scan-unmatch', type: 'button', 'data-field': 'unmatch', onclick: function () {
@@ -24,9 +24,9 @@
       node: button,
       show: function (visible) {
         button.hidden = !visible;
-        button.textContent = item.unmatched ? copy.rematch : copy.unmatch;
-        var was = item.wasMatch;
-        button.setAttribute('aria-label', item.unmatched ? copy.rematchLabel : copy.unmatchLabel(was ? was.title : (item.target && item.target.title)));
+        button.setAttribute('data-state', item.unmatched ? 'unmatched' : 'matched');
+        button.setAttribute('aria-label', item.unmatched ? copy.rematch : copy.unmatch);
+        button.replaceChildren(L.scan.marker.icon(item.unmatched ? 'again' : 'cross', item.id));
       }
     };
   }
@@ -122,7 +122,7 @@
     var title = titlePill(item, hooks.changed);
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title.node, h('div', { class: 'scan-under' }, note, past), unmatch.node, place.node),
+      h('div', { class: 'scan-main' }, title.node, h('div', { class: 'scan-under' }, note, past, unmatch.node), place.node),
       keep.node);
 
     function refresh() {

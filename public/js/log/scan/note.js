@@ -65,7 +65,7 @@
   /** The one note line of a row: confidence, what the line matches and what applying does, then the facts. */
   function note(item) {
     var match = L.scan.model.matchOf(item);
-    return leadParts(item, match).concat(factParts(item)).filter(function (part) { return part !== ''; }).join(' \u00b7 ');
+    return leadParts(item, match).concat(factParts(item)).filter(function (part) { return part !== ''; }).join(', ');
   }
 
   /** True when the row can offer "Not the same": it matched something, or was un-matched from something. */
