@@ -139,6 +139,9 @@ for (const scheme of ["light", "dark"] as const) {
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
     expect(Math.abs(box.y + box.height / 2 - (text.y + text.height / 2))).toBeLessThan(6);
     await button.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(button).toBeFocused();
     expect(await button.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
   });
 }

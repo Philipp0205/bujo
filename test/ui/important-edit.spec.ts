@@ -105,7 +105,7 @@ test("scan review: no important control, the page's * still shows and saves, and
 });
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`scan review: a matched line's note is in paper ink, not muted (${scheme})`, async ({ page }) => {
+  test(`scan review: a matched line's note is in its sage pen color, not muted (${scheme})`, async ({ page }) => {
     await seed(page, "Schon da", false);
     await page.emulateMedia({ colorScheme: scheme });
     app.ocr.setLines([header(), line("•", "Schon da"), line("•", "Ganz neu")]);
@@ -124,9 +124,9 @@ for (const scheme of ["light", "dark"] as const) {
         span.remove();
         return value;
       };
-      return { own: getComputedStyle(el).color, ink: probe("--paper-ink"), muted: probe("--paper-muted") };
+      return { own: getComputedStyle(el).color, pen: probe("--mark-matched"), muted: probe("--paper-muted") };
     });
-    expect(colors.own).toBe(colors.ink);
+    expect(colors.own).toBe(colors.pen);
     expect(colors.own).not.toBe(colors.muted);
   });
 }
