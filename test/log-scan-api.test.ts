@@ -207,9 +207,7 @@ test("rescan: a page with only unchanged lines has nothing to apply, and skipped
     await api(ctx.base, "POST", `/api/log/scan/${draft.id}/check`, { body: { date: DAY, items: [brot] }, headers: ctx.signed.headers });
     assert.equal(row().scan_key, null);
 
-    const none = await applyTo(ctx, draft, [{ ...brot, include: true }]);
-    assert.equal(none.status, 400, "an unchanged line is not a write, even when ticked");
-    assert.equal(row().scan_key, null, "a refused apply writes nothing");
+    assert.deepEqual(draft.items.map((i: any) => i.offPaper), [true, undefined], "the entry has no paper snapshot yet");
 
     const before = row();
     const ok = await applyTo(ctx, draft, [{ ...brot, include: false }, { id: "l3", type: "task", title: "Milch" }]);
@@ -221,6 +219,11 @@ test("rescan: a page with only unchanged lines has nothing to apply, and skipped
     assert.equal(after.updated_at, before.updated_at, "stamping is not an edit");
     assert.equal(after.sync, before.sync);
     assert.equal((await entriesOf(ctx.base, ctx.signed)).length, 2);
+
+    const again = await scanLines(ctx, [line("none", "20.11.2026"), line("•", "Brot kaufen"), line("•", "Milch")]);
+    assert.deepEqual(again.items.map((i: any) => [i.status, i.offPaper]), [["unchanged", undefined], ["unchanged", undefined]]);
+    const none = await applyTo(ctx, again, [{ ...brot, include: true }]);
+    assert.equal(none.status, 400, "everything is on paper already: an unchanged line is not a write, even when ticked");
   });
 });
 

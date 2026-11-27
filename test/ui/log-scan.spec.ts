@@ -341,7 +341,7 @@ test("an x line over an open task is an update with before and after, and a repe
   await expect(rows(page).nth(2).locator('[data-role="match"]')).toBeHidden();
   await expect(rows(page).nth(2).locator('[data-field="unmatch"]')).toBeHidden();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 1 update");
-  await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 1 new entry, 1 update`);
+  await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 1 new entry, 1 update, 1 marked on paper`);
 
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -447,11 +447,17 @@ test("a rescan shows updates, new lines and matched lines, and applies without t
   await expect(logRow(page, "Nicht mehr auf dem Blatt")).toHaveCount(1);
 });
 
-test("a page that only repeats the log shows its matched line and nothing to apply", async ({ page }) => {
+test("a page that only repeats an entry not yet on paper shows its matched line and offers to mark it on paper", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Nur wiederholt" }]);
   await scanPage(page, [headerLine(day(0)), line("•", "Nur wiederholt", 0.9)]);
   await expect(rows(page).nth(0)).toBeVisible();
   await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Nur wiederholt");
+  await expect(review(page).locator("[data-action=apply]")).toBeEnabled();
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Mark 1 on paper");
+  await review(page).locator("[data-action=apply]").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await scanPage(page, [headerLine(day(0)), line("•", "Nur wiederholt", 0.9)]);
   await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Nothing to apply");
 });
@@ -494,7 +500,7 @@ test("a page with no date uses today, and picking another day rechecks the lines
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "false");
   await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Butter holen");
-  await expect(review(page).locator("[data-action=apply]")).toBeDisabled();
+  await expect(review(page).locator("[data-action=apply]")).toHaveText("Mark 1 on paper");
 
   // Edit the line so it differs from the entry: it becomes an update to that day's entry, not a second row.
   await rows(page).nth(0).locator('[data-field="title"]').fill("Butter und Brot holen");

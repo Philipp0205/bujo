@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-rescan-status",
+    "date": "2026-11-27",
+    "title": "Rescans handle moved and done items better",
+    "bullets": [
+      "A rescan now marks items as on paper when the page already shows their done, migrated or scheduled status.",
+      "A line for a task you already moved to another day no longer adds a second copy."
+    ]
+  },
+  {
     "id": "2026-11-27-scan-type-in-review",
     "date": "2026-11-27",
     "title": "Pick log or note after scanning",
