@@ -247,7 +247,8 @@
     return found && found.day ? errors.dayMissing(title, found.day) : errors.dayRequired(title);
   }
 
-  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save.
+  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save,
+   * handlers.closed() (optional) runs when the sheet closes, however it closes.
    * handlers.typeRow is the log or note switch node shown on top. */
   function open(state, handlers) {
     var copy = L.copy.scan.review;
@@ -333,7 +334,7 @@
       h('div', { class: 'ak-sheet-scroll' }, slot, handlers.typeRow, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
-    sheet = BujoNav.overlays.showSheet(node, {});
+    sheet = BujoNav.overlays.showSheet(node, { onClose: handlers.closed });
     L.gap.banner.known().then(function (known) { state.knownPages = known; number.refresh(); });
     return sheet;
   }

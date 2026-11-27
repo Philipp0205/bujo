@@ -6,6 +6,8 @@ import type { OcrLine } from "../src/scan/ocr-client.ts";
 // count and content type, never the bytes). It listens on 127.0.0.1 only. Not a test file: `npm test` only
 // runs `test/**/*.test.ts`.
 
+export type OcrStep = { lines?: OcrLine[]; pageNumber?: unknown; status?: number };
+
 export type FakeOcr = {
   /** http://127.0.0.1:<port> */
   url: string;
@@ -18,6 +20,9 @@ export type FakeOcr = {
   setPageNumber(value: unknown): void;
   /** Answer the next calls with this status and no result (0 = answer normally). */
   failWith(status: number): void;
+  /** Answer the next calls one by one from this list (each call takes the first step), then go back to the settings above.
+   * A step can name its own lines, notebook page number or error status. */
+  script(steps: OcrStep[]): void;
   /** Never answer (for the timeout test). */
   hang(on: boolean): void;
   /** Wait this many ms before each answer of POST /ocr (0 = answer at once). */
@@ -51,6 +56,7 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
   let failStatus = 0;
   let hanging = false;
   let delayMs = 0;
+  const steps: OcrStep[] = [];
   const requests: FakeOcr["requests"] = [];
   const server = http.createServer((req, res) => {
     let bytes = 0;
@@ -66,11 +72,15 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
         res.writeHead(404).end();
         return;
       }
-      if (failStatus) {
-        res.writeHead(failStatus, { "content-type": "application/json" }).end('{"error":"nope"}');
+      const step = steps.shift();
+      const status = step?.status ?? failStatus;
+      if (status) {
+        res.writeHead(status, { "content-type": "application/json" }).end('{"error":"nope"}');
         return;
       }
-      const result = { lines, width: 900, height: 700, ms: 12, ...(llm.kind ? { kind: llm.kind } : {}), ...(llm.period ? { period: llm.period } : {}), ...(pageNumber === undefined ? {} : { pageNumber }) };
+      const answered = step?.lines ?? lines;
+      const number = step && "pageNumber" in step ? step.pageNumber : pageNumber;
+      const result = { lines: answered, width: 900, height: 700, ms: 12, ...(llm.kind ? { kind: llm.kind } : {}), ...(llm.period ? { period: llm.period } : {}), ...(number === undefined ? {} : { pageNumber: number }) };
       const body = JSON.stringify(result);
       const answer = () => {
         res.writeHead(200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body) });
@@ -95,6 +105,9 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
     },
     failWith: (status) => {
       failStatus = status;
+    },
+    script: (next) => {
+      steps.splice(0, steps.length, ...next);
     },
     hang: (on) => {
       hanging = on;

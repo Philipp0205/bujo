@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-multi-page-scan",
+    "date": "2026-11-27",
+    "title": "Scan several pages at once",
+    "bullets": [
+      "Pick up to 10 photos from the gallery and review them page by page.",
+      "Each page is applied, saved or skipped on its own, and a page that cannot be read can be tried again."
+    ]
+  },
+  {
     "id": "2026-11-27-index-dock",
     "date": "2026-11-27",
     "title": "The notebook index stays in reach",

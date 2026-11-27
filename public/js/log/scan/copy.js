@@ -17,10 +17,14 @@
       day: function (heading) { return heading; },
       dayDefault: 'a date on the page wins',
       dayPicked: 'picked by you',
-      dayLabel: 'Day to file on'
+      dayLabel: 'Day to file on',
+      /** The quiet line under the buttons: the gallery takes several pages, up to max. */
+      galleryHint: function (max) { return 'Pick up to ' + max + ' pages from the gallery at once.'; }
     },
     progress: {
       step: 'Reading your page\u2026',
+      /** The step line of a batch: which page is being read now. */
+      page: function (number, total) { return 'Reading page ' + number + ' of ' + total + '\u2026'; },
       hint: 'This can take a little while.',
       /** The time since the photo was sent, as m:ss. */
       elapsed: function (seconds) {
@@ -44,6 +48,7 @@
     errors: {
       type: 'This file is not a JPEG, PNG, WebP or HEIC photo.',
       size: 'The photo is too large (at most 15 MB).',
+      tooMany: function (max) { return 'Pick at most ' + max + ' pages at once.'; },
       scanFailed: 'Could not read the page. Try again.',
       applyFailed: 'Could not save the entries. Try again.',
       titleRequired: 'Give every kept line a title.',
@@ -52,6 +57,26 @@
       monthRequired: 'Give every kept line a month.',
       kindFailed: 'Could not switch the page kind. Try again.',
       paperInvalid: 'The notebook page must be a whole number from 1 to 9999, or empty.'
+    },
+    /** The steps of a batch of pages: the header, the dots and the sheet of a page that is not up for review. */
+    batch: {
+      heading: function (number, total) { return 'Page ' + number + ' of ' + total; },
+      group: 'Pages of this scan',
+      prev: 'Previous page',
+      next: 'Next page',
+      skip: 'Skip this page',
+      /** The spoken name of a page dot. */
+      dot: function (number, status) { return 'Page ' + number + ', ' + status; },
+      status: { pending: 'to review', applied: 'applied', saved: 'saved', skipped: 'skipped', failed: 'not read' },
+      statusSub: function (status) { return { applied: 'Applied', saved: 'Saved', skipped: 'Skipped', failed: 'Not read' }[status]; },
+      text: {
+        applied: 'This page is applied to your log.',
+        saved: 'This page is saved as a note.',
+        skipped: 'You skipped this page. Nothing was saved.'
+      },
+      retry: 'Retry',
+      retrying: 'Reading\u2026',
+      reviewAgain: 'Review this page'
     },
     review: {
       title: 'Review scan',
