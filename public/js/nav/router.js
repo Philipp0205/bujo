@@ -9,8 +9,8 @@
  * The overlay Back (nav/overlays.js, ak-nav.js) is not touched: its entries keep the page's address, so they change no tab.
  * A tab that cannot be shown here (its files fail to load, the session is gone) falls back to the old full navigation.
  *
- * A tab page's boot calls start(id, view) once. view = { show(ctx), scan(), add(), warm() }: show runs each time the tab comes to the
- * front (ctx.scan asks the log to start a scan, ctx.add to open a new entry), scan and add are what a scan link and the Add tab
+ * A tab page's boot calls start(id, view) once. view = { show(ctx), scan(), add(), warm(), leave(), reselect() }: show runs each time the tab comes to the
+ * front (ctx.scan asks the log to start a scan, ctx.add to open a new entry), leave runs when another tab is about to replace it (it drops its Back layers), reselect when its own tab is tapped again, scan and add are what a scan link and the Add tab
  * do on that page, warm gets the tab ready (data in the cache, the editor set up) while another tab is on screen. The page that was loaded cold also gets the one-time setup here (theme colour, service worker, the
  * bar) and its first show. Needs nav/pages.js, nav/tabs.js, ak-tabbar.js. Nothing here knows what a tab looks like.
  */
@@ -115,13 +115,17 @@
     swap(to, ctx);
   }
 
-  /** Goes to a tab. ctx.scan (log only) starts the scan flow there. ctx.open (log only) shows a place of the notebook: { view, date } or { view, month, part }. A newer call cancels one that is still loading. */
+  /** Goes to a tab. ctx.scan (log only) starts the scan flow there. ctx.open (log only) shows a place of the notebook: { view, date } or { view, month, part }. A newer call cancels one that is still loading.
+   * A tap on the tab on screen is a reselect (the page's own reset, if it has one). A page's leave() runs first, and history changes wait for its Back layer's entry to go. */
   function go(to, ctx) {
     var options = ctx || {};
-    if (to === current || !N.tabs.PATHS[to]) return;
+    if (to === current) { if (views[current] && views[current].reselect) views[current].reselect(); return; }
+    if (!N.tabs.PATHS[to]) return;
     var mine = ++seq;
     whenReady(to, function () {
-      if (mine === seq) navigate(to, options);
+      if (mine !== seq) return;
+      if (views[current] && views[current].leave) views[current].leave();
+      N.overlays.whenSettled(function () { if (mine === seq) navigate(to, options); });
     }, function () {
       if (mine === seq) hardGo(to, options);
     });

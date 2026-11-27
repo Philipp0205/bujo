@@ -41,6 +41,12 @@
     BujoNotebooks.screen.draw();
   }
 
+  /** The phone's Back on a collection page or page list: closes it and shows its notebook again. */
+  function leaveSub() {
+    if (BujoIndex.screen.isOpen()) leaveIndex();
+    else leaveCollection();
+  }
+
   /** A tapped page: a collection opens its page here, any other page opens in the log (a day, the month log or the future log). */
   function openPage(item) {
     var target = BujoIndex.model.targetOf(item);
@@ -56,6 +62,6 @@
     return BujoNotebooks.screen.show();
   }
 
-  BujoNotebooks.screen.init(root, { onOpenCollection: openCollection, onOpenPage: openPage, onOpenIndex: openIndex, suspended: suspended });
-  BujoNav.router.start('notes', { show: show, warm: BujoNotebooks.screen.warm });
+  BujoNotebooks.screen.init(root, { onOpenCollection: openCollection, onOpenPage: openPage, onOpenIndex: openIndex, leaveSub: leaveSub, suspended: suspended });
+  BujoNav.router.start('notes', { show: show, warm: BujoNotebooks.screen.warm, leave: BujoNotebooks.screen.leave, reselect: show });
 })();

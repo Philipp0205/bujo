@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-notebook-back",
+    "date": "2026-11-27",
+    "title": "Back from a notebook returns to the list",
+    "bullets": [
+      "The phone's Back button now takes you from a notebook to the notebooks list.",
+      "Each notebook in the list shows how many of its pages are scanned."
+    ]
+  },
+  {
     "id": "2026-11-26-notebooks",
     "date": "2026-11-26",
     "title": "Notes are now organised by notebook",

@@ -175,6 +175,10 @@ test("routes: new collections, free notes and page numbers go to the active note
     // The old notebook cannot shrink below its highest page.
     assert.equal((await call("PATCH", `/api/notebooks/${oldBook.id}`, { pageCount: 11 })).status, 400);
     assert.equal((await call("PATCH", `/api/notebooks/${oldBook.id}`, { pageCount: 12 })).status, 200);
+
+    // The list carries each notebook's scanned count: the same pages the detail shows (a scan and a numbered collection).
+    const counts = (await call("GET", "/api/notebooks")).json.notebooks.map((n: any) => [n.name, n.scannedCount]);
+    assert.deepEqual(counts, [["Second", 1], ["Notebook 1", 2]]);
   });
 });
 

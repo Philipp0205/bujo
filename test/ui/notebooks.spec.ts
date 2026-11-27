@@ -93,6 +93,8 @@ test("start a new notebook, see both in the list, open one and tap a scanned pag
 
   await page.locator("[data-action=notebook-back]").click();
   await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page).nth(1).getByTestId("notebook-scanned")).toHaveText("2 of 100 pages scanned");
+  await expect(rows(page).nth(0).getByTestId("notebook-scanned")).toHaveText("1 of 40 pages scanned");
   await openNotebook(page, "Notebook 2");
   await expect(page.getByTestId("index-cell")).toHaveCount(40);
   await expect(cell(page, 7)).toHaveAttribute("data-scanned", "1");
@@ -101,4 +103,75 @@ test("start a new notebook, see both in the list, open one and tap a scanned pag
   await cell(page, 7).click();
   await expect(page).toHaveURL(/day=2026-11-19/);
   await expect(page.locator("#log").getByText("Bravo")).toBeVisible();
+});
+
+const listTitle = (page: Page) => page.getByTestId("notebooks-title");
+const detailTitle = (page: Page) => page.getByTestId("notebook-title");
+const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Main" }).locator(`[data-tab=${name.toLowerCase().replace("rapid log", "log")}]`);
+const logMain = (page: Page) => page.getByRole("heading", { name: "Daily Log", level: 1 });
+
+/** Waits until no overlay entry is left on top of history (the kit steps back one entry after a layer closes on its own). */
+async function layerGone(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => (history.state as { akOverlay?: number } | null)?.akOverlay)).toBeUndefined();
+}
+
+test("Back from a notebook shows the list and stays on Notes, the in-page button still works, and a second open behaves the same", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/notes`);
+  await openNotebook(page);
+  await page.goBack();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/notes$/);
+
+  await openNotebook(page);
+  await page.locator("[data-action=notebook-back]").click();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/notes$/);
+
+  await openNotebook(page);
+  await page.goBack();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/notes$/);
+});
+
+test("Back after the in-page button leaves no stale entry: one more Back goes to the log, not a hidden notebook", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/`);
+  await tab(page, "Notes").click();
+  await expect(listTitle(page)).toBeVisible();
+  await openNotebook(page);
+  await page.locator("[data-action=notebook-back]").click();
+  await expect(listTitle(page)).toBeVisible();
+  await layerGone(page);
+  await page.goBack();
+  await expect(logMain(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+});
+
+test("tapping Notes on a notebook shows the list, and Back then goes to the log", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/`);
+  await tab(page, "Notes").click();
+  await openNotebook(page);
+  await tab(page, "Notes").click();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+  await layerGone(page);
+  await page.goBack();
+  await expect(logMain(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+});
+
+test("leaving a notebook for the log by the tab bar keeps history short: Notes later opens the list", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/`);
+  await tab(page, "Notes").click();
+  await openNotebook(page);
+  await tab(page, "Rapid log").click();
+  await expect(logMain(page)).toBeVisible();
+  await tab(page, "Notes").click();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(detailTitle(page)).toHaveCount(0);
+  await layerGone(page);
+  await page.goBack();
+  await expect(logMain(page)).toBeVisible();
 });

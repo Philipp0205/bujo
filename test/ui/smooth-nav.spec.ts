@@ -130,7 +130,7 @@ test("Notes and Account replace each other: Back from Account lands on the log, 
   await expect(tab(page, "account")).toHaveAttribute("aria-current", "page");
 });
 
-test("an open note sheet closes on the first Back and Notes stays, the second Back returns to the log", async ({ page }) => {
+test("an open note sheet closes on the first Back, the notebook on the second, the third Back returns to the log", async ({ page }) => {
   const title = await seedNote(page, "Weekend notes");
   await page.goto(app.baseUrl);
   await markDocument(page);
@@ -143,6 +143,11 @@ test("an open note sheet closes on the first Back and Notes stays, the second Ba
   await expect(noteSheet(page)).toHaveCount(0);
   await expect(page).toHaveURL(`${app.baseUrl}/notes`);
   await expect(card(page, title)).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(`${app.baseUrl}/notes`);
+  await expect(heading(page, "Notes")).toBeVisible();
+  await expect(rows(page).first()).toBeVisible();
 
   await page.goBack();
   await expect(page).toHaveURL(`${app.baseUrl}/`);

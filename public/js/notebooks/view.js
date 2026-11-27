@@ -36,7 +36,9 @@
         'aria-label': copy.openLabel(notebook.name), onclick: function () { onOpen(notebook); }
       }, h('span', { class: 'notebook-main' },
         h('span', { class: 'collection-row-name', 'data-testid': 'notebook-name' }, notebook.name),
-        h('span', { class: 'notebook-sub', 'data-testid': 'notebook-dates' }, N.model.datesOf(notebook) + ' \u00b7 ' + copy.pageCount(notebook.pageCount))),
+        h('span', { class: 'notebook-sub', 'data-testid': 'notebook-dates' }, N.model.datesOf(notebook) + ' \u00b7 ' + copy.pageCount(notebook.pageCount)),
+        typeof notebook.scannedCount === 'number'
+          ? h('span', { class: 'notebook-sub', 'data-testid': 'notebook-scanned' }, copy.scannedCount(notebook.scannedCount, notebook.pageCount)) : null),
         notebook.active ? h('span', { class: 'notebook-active', 'data-testid': 'notebook-active' }, copy.activeMark) : null));
   }
 
