@@ -107,15 +107,26 @@ test("a task written again on a later page does not stay open on its old day, an
   });
 });
 
-test("the old day's page still matches a later > line after the copy moved to the new page", async () => {
+test("the old day's page afterwards shows a > line that is the trace of the move: no second copy, nothing asked", async () => {
   await withLogScan(async (ctx) => {
     await firstPage(ctx, DAY, ["Post abholen"]);
     const later = await scan(ctx, [header(NEXT), line("•", "Post abholen")]);
     assert.equal((await apply(ctx, later, NEXT)).status, 200);
     const old = await scan(ctx, [header(DAY), line(">", "Post abholen")]);
-    assert.equal((await apply(ctx, old, DAY)).status, 200);
+    assert.deepEqual(old.items.map((i) => [i.status, i.traced]), [["unchanged", true]]);
     const all = await entries(ctx);
-    assert.equal(all.filter((e) => e.title === "Post abholen" && !e.isTrace).length, 1, "no second copy");
+    assert.deepEqual(all.filter((e) => e.title === "Post abholen" && !e.isTrace).map((e) => `${e.date} ${e.type}`), [`${NEXT} task`], "one copy, on the later page");
     assert.deepEqual(await candidates(ctx), []);
+  });
+});
+
+test("a person who says the later line is a different task keeps both: the old one stays open", async () => {
+  await withLogScan(async (ctx) => {
+    await firstPage(ctx, DAY, ["Post abholen"]);
+    const later = await scan(ctx, [header(NEXT), line("•", "Post abholen")]);
+    const items = later.items.map((i) => ({ id: i.id, type: i.type, title: i.title, tags: i.tags, time: i.time, include: true, unmatched: true }));
+    assert.equal((await api(ctx.base, "POST", `/api/log/scan/${later.id}/apply`, { body: { date: NEXT, items }, headers: ctx.signed.headers })).status, 200);
+    assert.deepEqual(await candidates(ctx), [`${DAY} Post abholen`]);
+    assert.equal((await entries(ctx)).filter((e) => e.title === "Post abholen" && !e.isTrace).length, 2);
   });
 });
