@@ -99,6 +99,7 @@
       movedFrom: line.movedFrom || null,
       offPaper: line.offPaper === true,
       unmatched: false,
+      wasMatch: null,
       include: line.include,
       month: line.month || null,
       dayText: line.day ? String(line.day) : '',
