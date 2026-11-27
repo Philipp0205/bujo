@@ -109,8 +109,8 @@ test("a rescan with the lines in another order moves the matched entries, says s
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByTestId("rescan-page").click()]);
   await chooser.setFiles(photo);
   await expect(review(page)).toBeVisible();
-  await expect(review(page).locator("[data-role=match]").first()).toContainText("moves to position 1");
-  await expect(review(page).locator("[data-role=match]").nth(1)).not.toContainText("moves to");
+  await expect(review(page).locator("[data-role=note]").first()).toContainText("moves to position 1");
+  await expect(review(page).locator("[data-role=note]").nth(1)).not.toContainText("moves to");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply new order");
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
