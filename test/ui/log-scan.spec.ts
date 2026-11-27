@@ -291,7 +291,7 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   expect(parseFloat(await boxEdge())).toBeGreaterThan(0);
   await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAccessibleName("Keep this line");
 
-  // Drop the second line, edit the third: its type, title and tag.
+  // Drop the second line, edit the third: its type and title (the review has no tag field).
   await rows(page).nth(1).locator('[data-field="include"]').click();
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
   await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAttribute("aria-checked", "false");
@@ -301,14 +301,12 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 2 entries");
   await rows(page).nth(2).locator('[data-field="type"]').selectOption("task");
   await rows(page).nth(2).locator('[data-field="title"]').fill("Library card expires in January");
-  await rows(page).nth(2).locator('[data-field="tag"]').fill("Errands");
   await review(page).locator("[data-action=apply]").click();
 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(logRow(page, "Tasche für Stuttgart packen")).toHaveAttribute("data-type", "task");
   const edited = logRow(page, "Library card expires in January");
   await expect(edited).toHaveAttribute("data-type", "task");
-  await expect(edited.locator(".pill")).toHaveText(["Errands"]);
   await expect(logRow(page, "Lunch with Mira")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -427,10 +425,9 @@ test("a rescan shows updates, new lines and matched lines, and applies without t
   await expect(review(page).locator('.scan-row[data-status="unchanged"]')).toBeVisible();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 2 updates");
   const tagged = review(page).locator('.scan-row[data-id="l3"]');
-  await expect(tagged.locator('[data-role="was"]')).toContainText("no tag");
   await expect(tagged.locator('[data-role="was"]')).toContainText("no time");
   await expect(tagged.locator('[data-role="match"]')).toHaveText("matches: Kieferorthopaede anrufen \u00b7 will update the entry");
-  await expect(tagged.locator('[data-field="tag"]')).toHaveValue("health");
+  await expect(tagged.locator('[data-field="tag"]')).toHaveCount(0);
 
   // Skipping the new line leaves only the two updates to write.
   await review(page).locator('.scan-row[data-id="l5"] [data-field="include"]').click();

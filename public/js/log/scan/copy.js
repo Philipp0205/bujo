@@ -125,8 +125,22 @@
       noDay: 'No day yet',
       type: 'Type',
       titleLabel: 'Title',
-      tagLabel: 'Tag',
-      tag: 'tag',
+      /** The legend under the header and the spoken state of each row: the pill colour never carries the meaning alone. */
+      legend: {
+        group: 'What the colours mean',
+        matched: 'Matched',
+        new: 'New',
+        updated: 'Updated',
+        skipped: 'Skipped',
+        typeChanged: 'Type changed'
+      },
+      marker: {
+        matched: 'Matched, unchanged on paper',
+        new: 'New, will create an entry',
+        updated: 'Updated, will change the entry',
+        skipped: 'Skipped, will not be applied',
+        typeChanged: ', type changes'
+      },
       checkSpelling: 'check spelling',
       changedInApp: 'also changed in the app',
       /** The quiet mark on a line dated before today, and its spoken form. Such a line starts unticked. */
@@ -134,15 +148,9 @@
       pastLabel: 'Date has passed, so this line starts unticked',
       important: 'important',
       was: 'was',
-      noTag: 'no tag',
       noTime: 'no time',
       keep: 'Keep this line',
       keepLabel: 'Keep',
-      /** The quiet switch that nests a line under the line above it (a note under a meeting). */
-      nest: 'Nest under line above',
-      unnest: 'Nested under line above',
-      nestLabel: 'Nest this line under the line above',
-      unnestLabel: 'Take this line out from under the line above',
       /** The faint line of a line that matched an entry of the day: it is that item, not a new one. */
       matches: function (title) {
         return 'matches: ' + title;

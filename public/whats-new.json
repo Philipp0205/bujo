@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-27-review-markers",
+    "date": "2026-11-27",
+    "title": "Colors in the scan review",
+    "bullets": [
+      "Each line sits in a colored pill: matched, new, updated or skipped.",
+      "A changed type shows its bullet in a circle.",
+      "The tag field and the nest switch are gone from the review."
+    ]
+  },
+  {
     "id": "2026-11-27-paper-migration",
     "date": "2026-11-27",
     "title": "Paper migration clears the app",

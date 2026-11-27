@@ -54,13 +54,12 @@
     };
   }
 
-  /** The "was" line of an edited row: the old glyph and title, then the old tag or time when those changed. */
+  /** The "was" line of an edited row: the old glyph and title, then the old time when that changed. */
   function wasLine(item) {
     var copy = L.copy.scan.review;
     var was = L.scan.model.changedFields(item);
     if (!was) return null;
     var parts = [h('span', { class: 'scan-was-label' }, copy.was), h('span', { class: 'scan-was-glyph' }, L.glyph.typeGlyph(was.type)), h('span', { class: 'scan-was-title' }, was.title)];
-    if (was.tags) parts.push(h('span', { class: 'scan-was-extra' }, was.tags.value.length ? was.tags.value.map(function (tag) { return '#' + tag; }).join(' ') : copy.noTag));
     if (was.time) parts.push(h('span', { class: 'scan-was-extra' }, was.time.value || copy.noTime));
     return parts;
   }
@@ -94,23 +93,30 @@
     return input;
   }
 
-  /** The nest switch of a row (daily pages): a quiet underlined word that nests the line under the one above, or takes it out again. Hidden on the first line. */
-  function nestToggle(state, item, onToggle) {
+  /** The title field inside its colored pill. */
+  function titlePill(item, onChange) {
+    var input = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, onChange);
+    return { node: h('div', { class: 'scan-pill', role: 'group', 'data-testid': 'scan-pill' }, input) };
+  }
+
+  /** The legend under the header: a sample pill per state and the circled bullet, each with its word. */
+  function legend() {
+    var copy = L.copy.scan.review.legend;
+    var items = ['matched', 'new', 'updated', 'skipped'].map(function (state) {
+      return h('li', { class: 'scan-legend-item', 'data-state': state }, h('span', { class: 'scan-swatch scan-pill-' + state, 'aria-hidden': 'true' }), copy[state]);
+    });
+    items.push(h('li', { class: 'scan-legend-item', 'data-state': 'type-changed' },
+      h('span', { class: 'scan-swatch-bullet', 'aria-hidden': 'true' }), copy.typeChanged));
+    return h('ul', { class: 'scan-legend', 'data-testid': 'scan-legend', 'aria-label': copy.group }, items);
+  }
+
+  /** Colors the pill and the bullet for the row's marker state, with a spoken label so color is never the only signal. */
+  function markRow(node, pill, marker) {
     var copy = L.copy.scan.review;
-    var button = h('button', { class: 'scan-nest', type: 'button', 'data-field': 'nest', 'data-testid': 'scan-nest', onclick: function () {
-      L.scan.model.toggleNest(state, item);
-      onToggle();
-    } });
-    return {
-      node: button,
-      show: function () {
-        var nested = L.scan.model.indentOf(state, item) === 1;
-        button.hidden = !L.scan.model.canNest(state, item);
-        button.textContent = nested ? copy.unnest : copy.nest;
-        button.setAttribute('aria-pressed', nested ? 'true' : 'false');
-        button.setAttribute('aria-label', nested ? copy.unnestLabel : copy.nestLabel);
-      }
-    };
+    node.setAttribute('data-marker', marker.state);
+    node.setAttribute('data-type-changed', marker.typeChanged ? 'true' : 'false');
+    pill.className = 'scan-pill scan-pill-' + marker.state;
+    pill.setAttribute('aria-label', copy.marker[marker.state] + (marker.typeChanged ? copy.marker.typeChanged : ''));
   }
 
   /** The keep check at the end of a row: a box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
@@ -140,17 +146,18 @@
     var picker = typePicker(item, L.scan.model.allowsEvent(state.kind), function () { hooks.changed(true); });
     var keep = keepToggle(item, function () { hooks.changed(false); });
     var place = L.scan.kind.placeField(state, item, hooks.moved, hooks.typed);
-    var nest = nestToggle(state, item, function () { hooks.changed(false); });
-    var title = textInput(item, 'title', { maxlength: 200, 'aria-label': L.copy.scan.review.titleLabel }, hooks.changed);
-    var tag = textInput(item, 'tagText', { maxlength: 120, placeholder: L.copy.scan.review.tag, 'aria-label': L.copy.scan.review.tagLabel, 'data-field': 'tag' }, function (leave) { hooks.changed(false, leave); });
+    var title = titlePill(item, hooks.changed);
     var node = h('div', { class: 'scan-row', 'data-id': item.id },
       picker.node,
-      h('div', { class: 'scan-main' }, title, was, h('div', { class: 'scan-under' }, meta, past, tag), matched, unmatch.node, nest.node, place.node),
+      h('div', { class: 'scan-main' }, title.node, was, h('div', { class: 'scan-under' }, meta, past), matched, unmatch.node, place.node),
       keep.node);
 
     function refresh() {
       var parts = wasLine(item);
       var text = matchText(item);
+      var marker = L.scan.model.markerOf(item);
+      markRow(node, title.node, marker);
+      node.classList.toggle('is-type-changed', marker.typeChanged);
       node.setAttribute('data-include', item.include ? 'true' : 'false');
       node.setAttribute('data-indent', String(L.scan.model.indentOf(state, item)));
       node.setAttribute('data-status', item.status);
@@ -164,7 +171,6 @@
       meta.textContent = metaText(item);
       past.hidden = !L.scan.model.isPast(item);
       picker.show();
-      nest.show();
       place.show();
       keep.show();
     }
@@ -331,7 +337,7 @@
 
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
-      h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle),
+      h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle, legend()),
       h('div', { class: 'ak-sheet-scroll' }, slot, handlers.typeRow, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
