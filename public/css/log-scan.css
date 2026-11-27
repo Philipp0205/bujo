@@ -141,33 +141,7 @@
 .scan-progress-time { font: 500 16px/24px var(--font-ui); font-variant-numeric: tabular-nums; color: var(--paper-ink); }
 .scan-progress-hint { font: 14px/24px var(--font-ui); color: var(--paper-muted); }
 
-.scan-modes {
-  flex: none;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 360px;
-  padding: 4px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--paper-ink) 10%, var(--paper-bg));
-}
-
-.scan-mode {
-  appearance: none;
-  -webkit-appearance: none;
-  min-height: 44px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--paper-muted);
-  font: 500 16px/24px var(--font-ui);
-  cursor: pointer;
-}
-.scan-mode[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
-
-/* The day row under the mode toggle: the day the page files on, with an invisible date input over it. Picking a day here beats the date on the page. */
+/* The day row under the frame: the day the page files on, with an invisible date input over it. Picking a day here beats the date on the page. */
 .scan-pickday {
   position: relative;
   flex: none;
@@ -185,10 +159,9 @@
   cursor: pointer;
 }
 .scan-pickday-note { color: var(--paper-muted); font-weight: 400; }
-.scan-pickday[hidden] { display: none; }
 .scan-pickday-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
-/* The actions row under the mode toggle: gallery left of the shutter, a matching slot on the right so the shutter stays centred. */
+/* The actions row under the day row: gallery left of the shutter, a matching slot on the right so the shutter stays centred. */
 .scan-actions {
   flex: none;
   display: grid;
@@ -321,6 +294,8 @@
 .scan-kind[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
 .scan-kind:disabled { opacity: 0.6; cursor: default; }
 .scan-kind-note { margin: 0; padding-top: 4px; font: italic var(--text-weight) 14px/24px var(--font-text); color: var(--paper-muted); }
+/* The type switch reuses the kind pills with two equal ones. */
+.scan-pagetype .scan-kind-pills { grid-template-columns: 1fr 1fr; }
 
 /* The notebook page row: a label and a small numeric field on one 48px line, then a quiet note ("read from the photo", or why Apply waits). */
 .scan-number { margin: 0 0 24px var(--text-col); padding-right: 16px; }

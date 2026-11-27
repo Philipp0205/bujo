@@ -154,7 +154,7 @@ test("the kind control and its rows fit a phone, and the last row sits above the
   const pills = (await review(page).getByTestId("scan-kinds").boundingBox())!;
   expect(pills.x).toBeGreaterThanOrEqual(0);
   expect(pills.x + pills.width).toBeLessThanOrEqual(390);
-  await expect(review(page).locator(".scan-kind")).toHaveCount(4);
+  await expect(review(page).locator(".scan-kind[data-kind]")).toHaveCount(4);
 
   await rows(page).last().scrollIntoViewIfNeeded();
   const [last, dock] = [await rows(page).last().boundingBox(), await review(page).locator(".ak-sheet-dock").boundingBox()];

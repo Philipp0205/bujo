@@ -55,11 +55,10 @@ async function notes(page: Page): Promise<Array<{ id: string; title: string; bod
   return (await response.json()).entries.filter((entry: { type: string }) => entry.type === "note");
 }
 
-/** Scans a photo in free-note mode from the Scan tab. The review sheet is up after this. */
+/** Scans a free-form page from the Scan tab. The page is headed by a title, so the review starts on the note type. */
 async function scanNote(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
   await openScan(page);
-  await screen(page).getByRole("button", { name: "Free note" }).click();
   await page.locator("#scan-file").setInputFiles(photo);
   await expect(sheet(page)).toBeVisible();
 }
@@ -129,7 +128,7 @@ test("Scan again on a saved note opens the note camera, ends in the review with 
   // The page read is unrelated to the saved text: an explicit rescan still names that note.
   app.ocr.setLines([line("none", "Gartenplan neu"), line("•", "Zaun streichen")]);
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), sheet(page).locator("[data-action=rescan-note]").click()]);
-  await expect(screen(page)).toHaveAttribute("data-mode", "note");
+  await expect(screen(page)).toBeVisible();
   await chooser.setFiles(photo);
   // The saved sheet may still be leaving while the review comes up, so the review is picked by its mode.
   const review = page.locator("[data-testid=note-sheet][data-mode=review]");

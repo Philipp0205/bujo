@@ -1,0 +1,125 @@
+import { expect, test, type Page } from "@playwright/test";
+import { line } from "../fake-ocr.ts";
+import { useBujo } from "./harness.ts";
+import { openScan } from "./scan-helpers.ts";
+
+const app = useBujo();
+
+// A 1x1 PNG. The fake OCR service ignores the pixels and answers the lines the test sets.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
+
+const FREE_FORM = [line("none", "Reading list"), line("•", "Dune"), line("•", "Solaris")];
+const LOG_PAGE = [line("•", "Brot kaufen", 0.9), line("•", "Post abholen", 0.9)];
+
+test.beforeEach(async ({ page }) => {
+  await app.signIn(page);
+  app.ocr.failWith(0);
+  app.ocr.delay(0);
+  app.ocr.setPage(null);
+});
+
+/** Every entry of the days the tests use goes after each test, so each starts empty. */
+test.afterEach(async ({ page }) => {
+  for (const entry of await entriesAround(page)) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
+});
+
+/** A calendar day as YYYY-MM-DD in the local time zone, n days from today. */
+function day(offset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+type Stored = { id: string; type: string; title: string; body: string | null };
+
+/** All entries of the days around today, as the API lists them. */
+async function entriesAround(page: Page): Promise<Stored[]> {
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`);
+  return (await response.json()).entries;
+}
+
+const review = (page: Page) => page.getByTestId("scan-review");
+const noteSheet = (page: Page) => page.getByTestId("note-sheet");
+const typePill = (page: Page, type: "log" | "note") => page.locator(`.scan-kind[data-type="${type}"]`);
+
+/** How many times the OCR service was called so far. */
+const ocrCalls = () => app.ocr.requests.filter((request) => request.path === "/ocr").length;
+
+/** Scans a page with the default settings (nothing chosen on the camera screen). */
+async function scan(page: Page, lines: ReturnType<typeof line>[]): Promise<void> {
+  app.ocr.setLines(lines);
+  await page.goto(app.baseUrl);
+  const chooser = await openScan(page);
+  await chooser.setFiles(photo);
+}
+
+test("a free-form page scanned with default settings opens on the note type, and saving ends with a note and no log lines", async ({ page }) => {
+  await scan(page, FREE_FORM);
+  await expect(noteSheet(page)).toBeVisible();
+  await expect(review(page)).toHaveCount(0);
+  await expect(typePill(page, "note")).toHaveAttribute("aria-pressed", "true");
+  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a note or collection: it starts with a title, not a date");
+  await expect(noteSheet(page).locator('[data-field="title"]')).toHaveValue("Reading list");
+
+  await noteSheet(page).locator("[data-action=save-note]").click();
+  await expect(noteSheet(page)).toHaveCount(0);
+  const stored = await entriesAround(page);
+  expect(stored.map((entry) => entry.type)).toEqual(["note"]);
+  expect(stored[0].body).toBe("Reading list\n- Dune\n- Solaris");
+});
+
+test("a bullet page opens on the log type, and flipping it to note shows the note from the same read and saves a note only", async ({ page }) => {
+  const before = ocrCalls();
+  await scan(page, LOG_PAGE);
+  await expect(review(page)).toBeVisible();
+  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a log page: it has bullet lines");
+
+  await typePill(page, "note").click();
+  await expect(noteSheet(page)).toBeVisible();
+  await expect(review(page)).toHaveCount(0);
+  await expect(typePill(page, "note")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-type-source")).toHaveText("Type picked by you");
+  await expect(noteSheet(page).locator('[data-field="body"]')).toHaveValue("- Brot kaufen\n- Post abholen");
+  expect(ocrCalls() - before).toBe(1);
+
+  await noteSheet(page).locator("[data-action=save-note]").click();
+  await expect(noteSheet(page)).toHaveCount(0);
+  expect((await entriesAround(page)).map((entry) => entry.type)).toEqual(["note"]);
+});
+
+test("a free-form guess flipped to log shows the log review from the same read and saves log lines only", async ({ page }) => {
+  const before = ocrCalls();
+  await scan(page, FREE_FORM);
+  await expect(noteSheet(page)).toBeVisible();
+
+  await typePill(page, "log").click();
+  await expect(review(page)).toBeVisible();
+  await expect(noteSheet(page)).toHaveCount(0);
+  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-type-source")).toHaveText("Type picked by you");
+  await expect(review(page).locator(".scan-row")).toHaveCount(3);
+  expect(ocrCalls() - before).toBe(1);
+
+  await review(page).locator("[data-action=apply]").click();
+  await expect(review(page)).toHaveCount(0);
+  const stored = await entriesAround(page);
+  expect(stored.length).toBeGreaterThan(0);
+  expect(stored.some((entry) => entry.type === "note")).toBe(false);
+});
+
+test("switching to note and back keeps the log review edits", async ({ page }) => {
+  await scan(page, LOG_PAGE);
+  await review(page).locator(".scan-row").first().locator('[data-field="title"]').fill("Brot und Butter");
+  await typePill(page, "note").click();
+  await expect(noteSheet(page)).toBeVisible();
+  await typePill(page, "log").click();
+  await expect(review(page).locator(".scan-row").first().locator('[data-field="title"]')).toHaveValue("Brot und Butter");
+  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a log page: it has bullet lines");
+});

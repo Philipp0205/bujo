@@ -10,11 +10,7 @@
   L.copy.scan = {
     camera: {
       close: 'Close',
-      title: 'Align the log page',
-      titleNote: 'Align the note page',
-      modes: 'What to scan',
-      rapid: 'Log page',
-      note: 'Free note',
+      title: 'Align the page',
       shutter: 'Take a photo',
       gallery: 'Choose from gallery',
       /** The day row on the camera screen: the day to file on, and whether the person picked it (a picked day beats the date on the page). */
@@ -69,6 +65,16 @@
       dateContinues: function (day) { return 'Continues ' + day + ', no date on this page'; },
       useToday: 'Use today instead',
       kindGroup: 'Kind of page',
+      typeGroup: 'Type of page',
+      types: { log: 'Log page', note: 'Note or collection' },
+      typeSource: {
+        structure: 'Looks like a log page: it has a date or month heading',
+        bullets: 'Looks like a log page: it has bullet lines',
+        title: 'Looks like a note or collection: it starts with a title, not a date',
+        plain: 'Looks like a note or collection: no log bullets found',
+        rescan: 'Scanning a saved note again',
+        picked: 'Type picked by you'
+      },
       pageGroup: 'Page of the day',
       page: function (page) { return 'Page ' + page; },
       pageRescan: function (page) { return 'Rescan of page ' + page + ': its lines are matched, nothing is replaced.'; },

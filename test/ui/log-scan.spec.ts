@@ -128,7 +128,7 @@ test("tapping the Scan tab opens the file chooser in the same tap, from Notes an
   expect(await chooser.element().getAttribute("id")).toBe("scan-file");
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the page" })).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(addTab(page)).not.toHaveAttribute("aria-current", "page");
@@ -225,21 +225,19 @@ test("a failed read leaves the progress state and shows the trouble on the camer
   await expect(screen.locator(".scan-frame")).toBeVisible();
 });
 
-test("the camera screen has the title, frame, toggle, shutter, and close", async ({ page }) => {
+test("the camera screen has the title, frame, shutter, and close, and no mode toggle", async ({ page }) => {
   await page.goto(app.baseUrl);
   await openScan(page);
 
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("heading", { name: "Align the log page" })).toBeVisible();
+  await expect(screen.getByRole("heading", { name: "Align the page" })).toBeVisible();
   await expect(screen.locator(".scan-frame")).toBeVisible();
   await expect(screen.locator("#scan-file")).toHaveAttribute("capture", "environment");
   await expect(screen.locator("#scan-file")).toHaveAttribute("accept", "image/*");
   await expect(screen.locator("#scan-gallery")).not.toHaveAttribute("capture");
   await expect(screen.locator("#scan-gallery")).toHaveAttribute("accept", "image/*");
-  await expect(screen.getByRole("button", { name: "Log page" })).toHaveAttribute("aria-pressed", "true");
-  const note = screen.getByRole("button", { name: "Free note" });
-  await expect(note).not.toHaveAttribute("aria-disabled");
-  await expect(note).toHaveAttribute("aria-pressed", "false");
+  await expect(screen.getByRole("button", { name: "Log page" })).toHaveCount(0);
+  await expect(screen.getByRole("button", { name: "Free note" })).toHaveCount(0);
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
   await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();
   const [gallery, shutter] = [await screen.locator(".scan-gallery").boundingBox(), await screen.locator(".scan-shutter").boundingBox()];

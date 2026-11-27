@@ -142,7 +142,7 @@
    * Opens the sheet. options.mode is 'review' (a scan, not saved yet), 'new' (a note typed by hand, not saved yet) or 'saved'. options.values come from the model.
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    * options.match is the saved note a scan looks like ({ id, title, date, keepDate, explicit }): the review offers to update it. options.onRescan(values)
-   * adds Scan again to a saved note.
+   * adds Scan again to a saved note. options.typeRow is the log or note switch node of a scan, shown above the form.
    */
   function open(options) {
     var copy = L.copy.note;
@@ -183,7 +183,7 @@
     var offer = matchRow(options, inputs);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan sheet-note', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'note-title', 'data-testid': 'note-sheet', 'data-mode': options.mode },
       head(options, function () { sheet.close(); }),
-      h('div', { class: 'ak-sheet-scroll' }, slot, offer, form),
+      h('div', { class: 'ak-sheet-scroll' }, slot, options.typeRow, offer, form),
       h('div', { class: 'ak-sheet-dock' }, save));
     sheet = BujoNav.overlays.showSheet(node, {});
     return sheet;

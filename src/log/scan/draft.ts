@@ -8,6 +8,7 @@ import { parsePage, type PageLine, type ParsedLine } from "./parse.ts";
 import { movesOf, pageReader, resolveSlots, slotOf, type Placed, type SlotReader, type Where } from "./plan.ts";
 import { MAX_PAPER_PAGE } from "./request.ts";
 import { resolveLines } from "./resolve.ts";
+import { guessType, type TypeGuess } from "./type.ts";
 import type { Fields, Line, PageKind, Resolution, ScanStatus, ViewHint } from "./types.ts";
 
 /**
@@ -33,6 +34,8 @@ export type LogDraft = {
   llm: { kind: string | null; period: string | null; pageNumber: number | null };
   /** The kind found when the photo came in, and what it was found from. */
   detected: Detected;
+  /** Whether the page looks like a log or a note, and why. The review preselects it and the person can change it. */
+  guess: TypeGuess;
   applied: boolean;
 };
 
@@ -62,6 +65,8 @@ export type Review = {
   kind: PageKind;
   /** The kind found on the photo and where that came from: the LLM, the page, the open view, or nothing. */
   detected: Detected;
+  /** The log or note guess of the page, and where it came from. */
+  guess: TypeGuess;
   /** The day a daily page files on to start with: the page date, else the fallback. Also what a switch to daily starts on. */
   date: string;
   /** The date the page header named, or null. The review words its date row from these two. */
@@ -110,6 +115,7 @@ export function buildLogDraft(input: DraftInput): LogDraft {
     page,
     llm: { kind: input.ocr.kind ?? null, period: input.ocr.period ?? null, pageNumber: asPageNumber(input.ocr.pageNumber) },
     detected: detectKind(page, input.hint ?? null, input.fallbackDate, input.ocr.kind),
+    guess: guessType(page, input.fallbackDate),
     applied: false,
   };
 }
@@ -191,6 +197,7 @@ export function startReview(draft: LogDraft, reader: SlotReader, kind: PageKind 
     expires: draft.expires,
     kind,
     detected: draft.detected,
+    guess: draft.guess,
     date,
     pageDate: parsed.pageDate,
     fallbackDate: draft.fallbackDate,
