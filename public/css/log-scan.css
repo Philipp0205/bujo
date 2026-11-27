@@ -455,28 +455,22 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   height: 48px;
   color: var(--paper-ink);
 }
+/* The bullet sits in a fixed 24px square, centered by grid, so the ring around it shares its exact center. */
 .scan-glyph {
   position: absolute;
-  left: 28px;
-  top: 16px;
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-}
-.scan-glyph svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
-/* A changed type draws the bullet as a dot inside a circle, in the type-changed color. */
-.scan-row.is-type-changed .scan-glyph { color: var(--mark-type); }
-.scan-row.is-type-changed .scan-glyph::after {
-  content: "";
-  position: absolute;
-  left: -6px;
-  top: -6px;
+  left: 24px;
+  top: 12px;
+  display: grid;
+  place-items: center;
   width: 24px;
   height: 24px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--mark-type);
-  border-radius: 50%;
+  pointer-events: none;
 }
+.scan-glyph > svg:not(.scan-ring) { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
+/* A changed type draws a hand-drawn ring around the bullet, in the type-changed color. */
+.scan-glyph .scan-ring { display: none; inset: 0; width: 24px; height: 24px; color: var(--mark-type); }
+.scan-row.is-type-changed .scan-glyph { color: var(--mark-type); }
+.scan-row.is-type-changed .scan-glyph .scan-ring { display: block; }
 .scan-star {
   position: absolute;
   left: 14px;
@@ -524,24 +518,39 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   font-variation-settings: "opsz" 17, "wght" var(--text-weight);
 }
 
-/* The title sits in a rounded outline pill, colored by the row's marker state (--mark is set per state). */
+/* The title sits in a hand-drawn pen loop, colored by the row's marker state (--mark is set per state). */
 .scan-pill {
   --mark: var(--mark-matched);
+  position: relative;
   box-sizing: border-box;
   height: 40px;
   margin: 4px 0;
   padding: 0 16px;
-  border: 1.5px solid var(--mark);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--mark) 14%, transparent);
 }
 .scan-pill:focus-within { box-shadow: 0 0 0 2px var(--paper-bg), 0 0 0 4px var(--paper-ink); }
 .scan-pill-matched { --mark: var(--mark-matched); }
 .scan-pill-new { --mark: var(--mark-new); }
 .scan-pill-updated { --mark: var(--mark-updated); }
-.scan-pill-skipped { --mark: var(--mark-skipped); border-style: dashed; background: transparent; }
+.scan-pill-skipped { --mark: var(--mark-skipped); }
 
-/* The legend under the header: a sample of each pill and of the circled bullet. */
+/* The scribble: a loose pen loop behind the input (and the legend swatches), stretched to the box, pen width fixed. */
+.scan-scribble,
+.scan-ring {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.scan-scribble { inset: 0; width: 100%; height: 100%; color: var(--mark); }
+.scan-scribble path,
+.scan-ring path { stroke: currentColor; vector-effect: non-scaling-stroke; }
+.scan-pill-skipped .scan-scribble path { stroke-dasharray: 7 5; }
+.scan-input-title { position: relative; }
+
+/* The legend under the header: a sample scribble of each state and of the circled bullet. */
 .scan-legend {
   display: flex;
   flex-wrap: wrap;
@@ -554,35 +563,38 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 }
 .scan-legend-item { display: flex; align-items: center; gap: 6px; }
 .scan-swatch {
+  --mark: var(--mark-matched);
+  position: relative;
   display: inline-block;
-  box-sizing: border-box;
-  width: 24px;
+  width: 28px;
   height: 14px;
-  border: 1.5px solid var(--mark, var(--mark-matched));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--mark, var(--mark-matched)) 14%, transparent);
 }
-.scan-swatch.scan-pill-skipped { border-style: dashed; background: transparent; }
+.scan-swatch .scan-scribble { overflow: visible; }
 .scan-swatch-bullet {
-  display: inline-block;
-  box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid var(--mark-type);
-  border-radius: 50%;
-  background: radial-gradient(circle at center, var(--mark-type) 2.2px, transparent 2.6px);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--mark-type);
 }
+.scan-swatch-bullet .scan-ring { inset: 0; width: 20px; height: 20px; display: block; }
+.scan-swatch-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--mark-type); }
 
 .scan-under {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 12px;
-  height: 24px;
+  min-height: 24px;
   color: var(--paper-muted);
-  font: 12.5px/24px var(--font-ui);
 }
-.scan-meta { flex: none; }
-.scan-row[data-low="true"] .scan-meta { color: var(--paper-today); }
+.scan-note {
+  flex: 1;
+  min-width: 0;
+  font: italic var(--text-weight) 14px/24px var(--font-text);
+  overflow-wrap: anywhere;
+}
+.scan-row[data-low="true"] .scan-note { color: var(--paper-today); }
 .scan-past {
   flex: none;
   align-self: flex-start;
@@ -629,37 +641,12 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-keep[aria-checked="false"] svg { visibility: hidden; }
 .scan-row[data-status="unchanged"] .scan-keep { visibility: hidden; }
 
-/* An edited row: the proposal is the editable row, and the entry as it is now sits under it as a struck-through "was" line. */
 .scan-row[hidden] { display: none; }
-.scan-was {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-  margin-top: 4px;
-  color: var(--paper-muted);
-  font: 13px/24px var(--font-ui);
-}
-.scan-was[hidden] { display: none; }
-.scan-was-label { flex: none; font-style: italic; font-family: var(--font-text); }
-.scan-was-glyph { flex: none; width: 16px; height: 16px; }
-.scan-was-glyph svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; }
-.scan-was-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--paper-muted) 70%, transparent); }
-.scan-was-extra { flex: none; text-decoration: line-through; }
-.scan-row[data-status="edited"] { min-height: 120px; }
 
 /*
- * A matched line says so in italics under the title: what it matches and what applying does to it. The "Not the same"
+ * A matched line says so in one short italic note under the title (see scan/note.js). The "Not the same"
  * button under it turns the line into a new entry, and reads "Match again" once it has. Paper tokens only.
  */
-.scan-match {
-  margin-top: 4px;
-  color: var(--paper-ink);
-  font: italic var(--text-weight) 14px/24px var(--font-text);
-  overflow-wrap: anywhere;
-}
-.scan-match[hidden] { display: none; }
-.scan-unmatch {
   appearance: none;
   -webkit-appearance: none;
   display: inline-block;

@@ -7,6 +7,8 @@
 
   var L = window.BujoLog = window.BujoLog || {};
 
+  var wasMark = { task: '\u2022', note: '\u2013', event: 'o', done: 'x', migrated: '>', scheduled: '<', dropped: '~' };
+
   L.copy.scan = {
     camera: {
       close: 'Close',
@@ -147,17 +149,22 @@
       past: 'past',
       pastLabel: 'Date has passed, so this line starts unticked',
       important: 'important',
-      was: 'was',
-      noTime: 'no time',
       keep: 'Keep this line',
       keepLabel: 'Keep',
-      /** The faint line of a line that matched an entry of the day: it is that item, not a new one. */
-      matches: function (title) {
-        return 'matches: ' + title;
+      /** The one note under a row. Its parts are joined with a middle dot. */
+      percent: function (value) { return value + '%'; },
+      percentMatch: function (value) { return value + '% match'; },
+      /** The old state of a matched entry, only when its text differs: its bullet, its title, and what the paper turns it into. */
+      was: function (type, title, change) {
+        return 'was ' + (wasMark[type] ? wasMark[type] + ' ' : '') + title + (change ? ' \u2192 ' + change : '');
       },
+      /** The typed form of each bullet, for the old state. */
+      wasMark: wasMark,
+      /** What the paper turns the entry into, after the arrow of the old state. Empty when it stays as it is. */
+      changeTo: { same: '', done: 'done', migrated: 'migrated', scheduled: 'scheduled', dropped: 'dropped', task: 'task', note: 'note', event: 'event', fields: 'updated' },
+      timeWas: function (time) { return 'time was ' + (time || 'none'); },
       /** A ">" or "<" line that matched the trace a move left on this page: nothing to write. */
-      matchesTrace: 'matches the trace of a moved entry',
-      traceChange: 'already on paper, nothing to write',
+      traceChange: 'already on paper',
       /** A task line that is an open task of an earlier day written again: applying moves that task here, no copy. date is YYYY-MM-DD. */
       movedFrom: function (date) {
         var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -165,7 +172,7 @@
       },
       /** What applying does to the matched entry, by the kind of change the paper carries. */
       matchChange: {
-        same: 'already matches, only marked on paper',
+        same: 'already matches',
         done: 'will be marked done',
         migrated: 'will be marked migrated',
         scheduled: 'will be marked scheduled',
