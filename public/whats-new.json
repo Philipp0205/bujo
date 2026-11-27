@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-27-paper-migration",
+    "date": "2026-11-27",
+    "title": "Paper migration clears the app",
+    "bullets": [
+      "A task you carry to a later page is moved, not copied, and leaves the migration review.",
+      "A > < x or dropped mark on paper wins over a tag you added in the app."
+    ]
+  },
+  {
     "id": "2026-11-27-multi-page-scan",
     "date": "2026-11-27",
     "title": "Scan several pages at once",
