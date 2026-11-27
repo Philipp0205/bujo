@@ -13,7 +13,7 @@ const PNG = Buffer.from(
 );
 const DAY = "2026-11-20";
 const NEXT = "2026-11-25";
-const TODAY = "2026-11-27";
+const TODAY = "2026-11-25";
 const header = (date: string) => line("none", `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)}`);
 
 type Ctx = { base: string; ocr: FakeOcr; signed: Signed };
