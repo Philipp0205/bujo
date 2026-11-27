@@ -274,8 +274,8 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 3 new entries`);
   await expect(rows(page)).toHaveCount(3);
   await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Tasche für Stuttgart packen");
-  await expect(rows(page).nth(0).locator(".scan-meta")).toHaveText("94%");
-  await expect(rows(page).nth(1).locator(".scan-meta")).toHaveText("71% \u00b7 check spelling");
+  await expect(rows(page).nth(0).locator(".scan-note")).toHaveText("94%");
+  await expect(rows(page).nth(1).locator(".scan-note")).toHaveText("71% \u00b7 check spelling");
   await expect(rows(page).nth(1)).toHaveAttribute("data-low", "true");
   await expect(rows(page).nth(0)).toHaveAttribute("data-low", "false");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 3 entries");
@@ -319,12 +319,8 @@ test("an x line over an open task is an update with before and after, and a repe
   await scanPage(page, [headerLine(day(0)), line("x", "Water the office plants", 0.91), line("–", "Idee Wochenende", 0.9), line("•", "Kuchen backen", 0.9)]);
 
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "edited");
-  await expect(rows(page).nth(0).locator(".scan-meta")).toHaveText("91%");
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Water the office plants \u00b7 will be marked done");
+  await expect(rows(page).nth(0).locator('[data-role="note"]')).toHaveText("91% match \u00b7 will be marked done");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "true");
-  await expect(rows(page).nth(0).locator('[data-role="was"]')).toContainText("was");
-  await expect(rows(page).nth(0).locator('[data-role="was"]')).toContainText("Water the office plants");
-  await expect(rows(page).nth(0).locator(".scan-was-glyph svg use")).toHaveAttribute("href", "#g-task");
   await expect(rows(page).nth(0).locator(".scan-glyph svg use")).toHaveAttribute("href", "#g-done");
   await expect(rows(page)).toHaveCount(3);
 
@@ -334,9 +330,9 @@ test("an x line over an open task is an update with before and after, and a repe
   await expect(rows(page).nth(1)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(1)).toHaveAttribute("data-match", "matched");
   await expect(rows(page).nth(1)).toHaveAttribute("data-include", "false");
-  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText("matches: Idee Wochenende \u00b7 already matches, only marked on paper");
+  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText("90% match \u00b7 already matches");
   await expect(rows(page).nth(2)).toHaveAttribute("data-status", "new");
-  await expect(rows(page).nth(2).locator('[data-role="match"]')).toBeHidden();
+  await expect(rows(page).nth(2).locator('[data-role="note"]')).toHaveText("90%");
   await expect(rows(page).nth(2).locator('[data-field="unmatch"]')).toBeHidden();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 1 update");
   await expect(page.getByTestId("scan-sub")).toHaveText(`${heading(day(0))} \u00b7 1 new entry, 1 update, 1 marked on paper`);
@@ -354,9 +350,9 @@ test("a line with OCR noise is shown as matching the existing item, and apply ad
   await scanPage(page, [headerLine(day(0)), line("•", "Fensterputzer anrufcn", 0.78), line("x", "Roggenbrot kaufn", 0.9)]);
 
   await expect(rows(page).nth(0)).toBeVisible();
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Fensterputzer anrufen \u00b7 already matches, only marked on paper");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText(/^\d+% match \u00b7 already matches$/);
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
-  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText("matches: Roggenbrot kaufen \u00b7 will be marked done");
+  await expect(rows(page).nth(1).locator('[data-role="match"]')).toHaveText(/^\d+% match \u00b7 will be marked done$/);
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 update");
 
   await review(page).locator("[data-action=apply]").click();
@@ -383,8 +379,7 @@ test("Not the same turns a matched line into a new entry, and Match again puts i
   await expect(first).toHaveAttribute("data-status", "new");
   await expect(first).toHaveAttribute("data-match", "unmatched");
   await expect(first).toHaveAttribute("data-include", "true");
-  await expect(first.locator('[data-role="match"]')).toHaveText("new entry, not Steuererklaerung abgeben");
-  await expect(first.locator('[data-role="was"]')).toBeHidden();
+  await expect(first.locator('[data-role="note"]')).toHaveText(/\d+% \u00b7 new entry, not Steuererklaerung abgeben$/);
   await expect(unmatch).toHaveText("Match again");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 entry");
 
@@ -394,7 +389,7 @@ test("Not the same turns a matched line into a new entry, and Match again puts i
 
   await unmatch.click();
   await expect(first).toHaveAttribute("data-status", "edited");
-  await expect(first.locator('[data-role="match"]')).toHaveText("matches: Steuererklaerung abgeben \u00b7 will be marked done");
+  await expect(first.locator('[data-role="match"]')).toHaveText(/^\d+% match \u00b7 will be marked done$/);
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 update");
 
   await unmatch.click();
@@ -425,8 +420,9 @@ test("a rescan shows updates, new lines and matched lines, and applies without t
   await expect(review(page).locator('.scan-row[data-status="unchanged"]')).toBeVisible();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Apply 1 new, 2 updates");
   const tagged = review(page).locator('.scan-row[data-id="l3"]');
-  await expect(tagged.locator('[data-role="was"]')).toContainText("no time");
-  await expect(tagged.locator('[data-role="match"]')).toHaveText("matches: Kieferorthopaede anrufen \u00b7 will update the entry");
+  await expect(tagged.locator('[data-role="note"]')).toContainText("will update the entry");
+  await expect(tagged.locator('[data-role="note"]')).toContainText("time was none");
+  await expect(tagged.locator('[data-role="note"]')).not.toContainText("Kieferorthopaede");
   await expect(tagged.locator('[data-field="tag"]')).toHaveCount(0);
 
   // Skipping the new line leaves only the two updates to write.
@@ -448,7 +444,7 @@ test("a page that only repeats an entry not yet on paper shows its matched line 
   await seed(page, [{ date: day(0), type: "task", title: "Nur wiederholt" }]);
   await scanPage(page, [headerLine(day(0)), line("•", "Nur wiederholt", 0.9)]);
   await expect(rows(page).nth(0)).toBeVisible();
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Nur wiederholt");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("% match");
   await expect(review(page).locator("[data-action=apply]")).toBeEnabled();
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Mark 1 on paper");
   await review(page).locator("[data-action=apply]").click();
@@ -459,9 +455,9 @@ test("a page that only repeats an entry not yet on paper shows its matched line 
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Nothing to apply");
 });
 
-test("a new line has no match line and no Not the same button", async ({ page }) => {
+test("a new line has no match words and no Not the same button", async ({ page }) => {
   await scanPage(page, [headerLine(day(0)), line("•", "Ganz neu", 0.9)]);
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toBeHidden();
+  await expect(rows(page).nth(0).locator('[data-role="note"]')).toHaveText(/^\d+%$/);
   await expect(rows(page).nth(0).locator('[data-field="unmatch"]')).toBeHidden();
 });
 
@@ -496,7 +492,7 @@ test("a page with no date uses today, and picking another day rechecks the lines
   await expect(page.getByTestId("scan-date-source")).toHaveText("Picked by you");
   await expect(rows(page).nth(0)).toHaveAttribute("data-status", "unchanged");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "false");
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches: Butter holen");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("% match");
   await expect(review(page).locator("[data-action=apply]")).toHaveText("Mark 1 on paper");
 
   // Edit the line so it differs from the entry: it becomes an update to that day's entry, not a second row.
@@ -596,7 +592,7 @@ test("a struck-through line shows as dropped, can be corrected, and apply writes
   await scanPage(page, [headerLine(day(0)), line("~", "Fenster putzen", 0.9, 1), line("~", "Alte Idee", 0.8, 2), line("~", "Nur ein Strich", 0.7, 3)]);
 
   await expect(rows(page).nth(0).locator('[data-field="type"]')).toHaveValue("dropped");
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText("matches: Fenster putzen \u00b7 will be marked dropped");
+  await expect(rows(page).nth(0).locator('[data-role="match"]')).toHaveText(/^\d+% match \u00b7 will be marked dropped$/);
   await expect(rows(page).nth(1).locator(".scan-glyph use")).toHaveAttribute("href", "#g-dropped");
   await rows(page).nth(2).locator('[data-field="type"]').selectOption("task");
   await expect(rows(page).nth(2).locator(".scan-glyph use")).toHaveAttribute("href", "#g-task");

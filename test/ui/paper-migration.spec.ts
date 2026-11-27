@@ -59,19 +59,19 @@ async function scanCarryPage(page: Page): Promise<void> {
 test("a line that carries an open task of an earlier day says where it moved from, and Not the same undoes it", async ({ page }) => {
   await scanCarryPage(page);
   const first = rows(page).nth(0);
-  const note = first.locator('[data-role="match"]');
+  const note = first.locator('[data-role="note"]');
   const unmatch = first.locator('[data-field="unmatch"]');
   const from = new Date(`${day(-5)}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   await expect(first).toHaveAttribute("data-match", "matched");
-  await expect(note).toHaveText(`moved from ${from}`);
+  await expect(note).toHaveText(new RegExp(`^\\d+% match \\u00b7 moved from ${from}$`));
   await expect(apply(page)).toHaveText("Apply 1 update");
 
   await unmatch.click();
   await expect(first).toHaveAttribute("data-match", "unmatched");
   await expect(apply(page)).toHaveText("Apply 1 entry");
   await unmatch.click();
-  await expect(note).toHaveText(`moved from ${from}`);
+  await expect(note).toHaveText(new RegExp(`^\\d+% match \\u00b7 moved from ${from}$`));
 });
 
 test("after the later page is applied the migration review no longer asks about the carried task, only the other one", async ({ page }) => {

@@ -2,10 +2,11 @@
   {
     "id": "2026-11-27-review-markers",
     "date": "2026-11-27",
-    "title": "Colors in the scan review",
+    "title": "Hand-drawn markers in the scan review",
     "bullets": [
-      "Each line sits in a colored pill: matched, new, updated or skipped.",
-      "A changed type shows its bullet in a circle.",
+      "Each line is circled by pen in a color: matched, new, updated or skipped.",
+      "A changed type shows its bullet in a hand-drawn circle.",
+      "Each line has one short note instead of three.",
       "The tag field and the nest switch are gone from the review."
     ]
   },

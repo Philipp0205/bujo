@@ -113,7 +113,7 @@ for (const scheme of ["light", "dark"] as const) {
     await (await openScan(page)).setFiles(photo);
     await expect(review(page)).toBeVisible();
 
-    const note = review(page).locator(".scan-row[data-match=matched] .scan-match");
+    const note = review(page).locator(".scan-row[data-match=matched] .scan-note");
     await expect(note).toBeVisible();
     const colors = await note.evaluate((el) => {
       const probe = (token: string) => {

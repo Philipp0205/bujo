@@ -34,18 +34,18 @@ test.afterEach(async ({ page }) => {
 });
 
 const review = (page: Page) => page.getByTestId("scan-review");
-const ORDER = ["Semmeln kaufen", "Idee Urlaub", "Post abholen", "Brief schreiben"];
+const ORDER = ["Semmeln kaufen", "Idee Urlaub", "Post abholen", "Brief schreiben", "Termin verschieben"];
 const row = (page: Page, title: string) => review(page).locator(".scan-row").nth(ORDER.indexOf(title));
 
-/** Opens a review with one line per state: updated with a type change, matched, new, and a new line the person skips. */
+/** Opens a review with one line per state: updated with a type change (x and >), matched, new, and a new line the person skips. */
 async function openMarkedReview(page: Page, scheme: "light" | "dark"): Promise<void> {
   await page.emulateMedia({ colorScheme: scheme });
   const day = today();
-  for (const entry of [{ type: "task", title: "Semmeln kaufen" }, { type: "note", title: "Idee Urlaub" }]) {
+  for (const entry of [{ type: "task", title: "Semmeln kaufen" }, { type: "note", title: "Idee Urlaub" }, { type: "task", title: "Termin verschieben" }]) {
     expect((await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: day, ...entry } })).status()).toBe(201);
   }
   const header = line("none", `${day.slice(8, 10)}.${day.slice(5, 7)}.${day.slice(0, 4)}`, 0.9);
-  app.ocr.setLines([header, line("x", "Semmeln kaufen", 0.92), line("–", "Idee Urlaub", 0.9), line("•", "Post abholen", 0.9), line("•", "Brief schreiben", 0.9)]);
+  app.ocr.setLines([header, line("x", "Semmeln kaufen", 0.92), line("–", "Idee Urlaub", 0.9), line("•", "Post abholen", 0.9), line("•", "Brief schreiben", 0.9), line(">", "Termin verschieben", 0.9)]);
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
@@ -68,29 +68,58 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(marked.getByTestId("scan-pill")).toHaveAccessibleName(label);
     }
 
-    // Every state has its own outline color, and a skipped line has a dashed outline besides.
-    const outline = async (title: string) => row(page, title).getByTestId("scan-pill").evaluate((node) => {
+    // Every state is drawn in its own pen color, and a skipped line is drawn dashed.
+    const pen = async (title: string) => row(page, title).getByTestId("scan-pill").locator("svg.scan-scribble path").first().evaluate((node) => {
       const style = getComputedStyle(node);
-      return { color: style.borderTopColor, style: style.borderTopStyle };
+      return { color: style.stroke, dash: style.strokeDasharray, fill: getComputedStyle(node).fill };
     });
-    const looks = await Promise.all(expected.map(([title]) => outline(title)));
+    const looks = await Promise.all(expected.map(([title]) => pen(title)));
     expect(new Set(looks.map((look) => look.color)).size).toBe(4);
-    expect(looks.map((look) => look.style)).toEqual(["solid", "solid", "solid", "dashed"]);
+    expect(looks.map((look) => look.dash === "none")).toEqual([true, true, true, false]);
+    expect(looks.every((look) => look.fill === "none")).toBe(true);
+    for (const [title] of expected) {
+      const svg = row(page, title).getByTestId("scan-pill").locator("svg.scan-scribble");
+      await expect(svg).toHaveAttribute("aria-hidden", "true");
+      expect(await svg.evaluate((node) => getComputedStyle(node).pointerEvents)).toBe("none");
+    }
   });
 
-  test(`a changed type draws the bullet as a dot in a circle, and the legend names every state, in ${scheme}`, async ({ page }) => {
+  test(`a changed type draws a hand-drawn ring centered on the bullet, and the legend names every state, in ${scheme}`, async ({ page }) => {
     await openMarkedReview(page, scheme);
-    const circled = await row(page, "Semmeln kaufen").locator(".scan-glyph").evaluate((node) => getComputedStyle(node, "::after").borderTopStyle);
-    expect(circled).toBe("solid");
-    await expect(row(page, "Semmeln kaufen")).toHaveAttribute("data-type-changed", "true");
+    for (const title of ["Semmeln kaufen", "Termin verschieben"]) {
+      await expect(row(page, title)).toHaveAttribute("data-type-changed", "true");
+      const ring = row(page, title).locator(".scan-glyph .scan-ring");
+      await expect(ring).toBeVisible();
+      const centers = await row(page, title).locator(".scan-glyph").evaluate((box) => {
+        const middle = (rect: DOMRect) => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        const bullet = box.querySelector("svg:not(.scan-ring)")!.getBoundingClientRect();
+        const loops = [...box.querySelectorAll(".scan-ring path")].map((path) => path.getBoundingClientRect());
+        const left = Math.min(...loops.map((r) => r.left));
+        const right = Math.max(...loops.map((r) => r.right));
+        const top = Math.min(...loops.map((r) => r.top));
+        const bottom = Math.max(...loops.map((r) => r.bottom));
+        return { bullet: middle(bullet), ring: { x: (left + right) / 2, y: (top + bottom) / 2 }, drawn: loops.length };
+      });
+      expect(centers.drawn).toBe(2);
+      expect(Math.abs(centers.ring.x - centers.bullet.x)).toBeLessThan(1.5);
+      expect(Math.abs(centers.ring.y - centers.bullet.y)).toBeLessThan(1.5);
+    }
     for (const title of ["Idee Urlaub", "Post abholen", "Brief schreiben"]) {
       await expect(row(page, title)).toHaveAttribute("data-type-changed", "false");
-      expect(await row(page, title).locator(".scan-glyph").evaluate((node) => getComputedStyle(node, "::after").content)).not.toBe('""');
+      await expect(row(page, title).locator(".scan-glyph .scan-ring")).toBeHidden();
     }
 
     const legend = review(page).getByTestId("scan-legend");
     await expect(legend).toBeVisible();
     await expect(legend.locator("li")).toHaveText(["Matched", "New", "Updated", "Skipped", "Type changed"]);
+    await expect(legend.locator("svg.scan-scribble")).toHaveCount(4);
+  });
+
+  test(`each row has one short note under its title, in ${scheme}`, async ({ page }) => {
+    await openMarkedReview(page, scheme);
+    await expect(row(page, "Semmeln kaufen").locator('[data-role="note"]')).toHaveText("92% match \u00b7 will be marked done");
+    await expect(row(page, "Post abholen").locator('[data-role="note"]')).toHaveText("90%");
+    await expect(row(page, "Semmeln kaufen").locator(".scan-was, .scan-match, .scan-meta")).toHaveCount(0);
   });
 }
 

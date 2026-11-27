@@ -511,7 +511,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   font-synthesis: none;
 }
 .scan-input-title {
-  height: 36px;
+  height: 40px;
   padding: 0;
   font-size: 17px;
   line-height: 24px;
@@ -525,7 +525,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   box-sizing: border-box;
   height: 40px;
   margin: 4px 0;
-  padding: 0 16px;
+  padding: 0 22px;
   border-radius: 999px;
 }
 .scan-pill:focus-within { box-shadow: 0 0 0 2px var(--paper-bg), 0 0 0 4px var(--paper-ink); }
@@ -544,7 +544,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.scan-scribble { inset: 0; width: 100%; height: 100%; color: var(--mark); }
+.scan-scribble { inset: 0; width: 100%; height: 100%; color: var(--mark, var(--mark-matched)); }
 .scan-scribble path,
 .scan-ring path { stroke: currentColor; vector-effect: non-scaling-stroke; }
 .scan-pill-skipped .scan-scribble path { stroke-dasharray: 7 5; }
@@ -563,7 +563,6 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 }
 .scan-legend-item { display: flex; align-items: center; gap: 6px; }
 .scan-swatch {
-  --mark: var(--mark-matched);
   position: relative;
   display: inline-block;
   width: 28px;
@@ -591,6 +590,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-note {
   flex: 1;
   min-width: 0;
+  color: var(--paper-ink);
   font: italic var(--text-weight) 14px/24px var(--font-text);
   overflow-wrap: anywhere;
 }
