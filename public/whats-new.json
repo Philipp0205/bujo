@@ -1,5 +1,13 @@
 [
   {
+    "id": "2026-11-28-ocr-json-retry",
+    "date": "2026-11-28",
+    "title": "Fewer failed page scans",
+    "bullets": [
+      "If the AI reader sends back an unusable answer, the scan now tries once more before giving up."
+    ]
+  },
+  {
     "id": "2026-11-28-type-picker",
     "date": "2026-11-28",
     "title": "One picker for the page type",
