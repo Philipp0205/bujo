@@ -36,14 +36,14 @@ test("a free note with a photo: the photo is stored, the list flags it, the byte
   await withApp(demoSource(), async ({ base }) => {
     const signed = await signUp(base);
     const id = await newNote(base, signed.headers);
-    const before = await api(base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers: signed.headers });
+    const before = await api(base, "GET", "/api/entries?kind=notes", { headers: signed.headers });
     assert.equal(before.json.entries[0].hasPhoto, false);
 
     const stored = await postPhoto(base, id, signed.headers);
     assert.equal(stored.status, 200);
     assert.equal((await stored.json()).entry.hasPhoto, true);
 
-    const list = await api(base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers: signed.headers });
+    const list = await api(base, "GET", "/api/entries?kind=notes", { headers: signed.headers });
     assert.equal(list.json.entries[0].hasPhoto, true);
     assert.equal(JSON.stringify(list.json).includes(JPEG.toString("base64")), false, "the list never carries the bytes");
 

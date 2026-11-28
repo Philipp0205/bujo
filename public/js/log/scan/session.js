@@ -188,7 +188,7 @@
       match: offeredNote(page, session.options),
       typeRow: topOf(session, page).node,
       noteKind: function () { return L.scan.picker.model.subOf(page); },
-      onSaved: function (entry) { settle(session, page, 'saved', { view: 'daily', date: entry.date }); },
+      onSaved: function () { settle(session, page, 'saved', { view: 'notes' }); },
       onClosed: closed
     });
   }

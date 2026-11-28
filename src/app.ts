@@ -176,7 +176,7 @@ export function createApp(options: AppOptions): http.RequestListener {
       if (await handleLogScan(ctx, logScan)) return;
       if (await handleEntryRoutes(ctx)) return;
       if (await handlePagePhotos(ctx, options.photoDir)) return;
-      if (await handleCollectionRoutes(ctx)) return;
+      if (await handleCollectionRoutes(ctx, options.photoDir)) return;
       if (await handleNotebookRoutes(ctx)) return;
       if (handlePageIndex(ctx)) return;
       if (await handleMcp(ctx)) return;

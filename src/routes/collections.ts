@@ -1,5 +1,6 @@
 import { HttpError, readJson, sendJson } from "../app-kit/http.ts";
 import { checkCollectionName, checkPaperPage, createCollectionStore } from "../log/collections.ts";
+import { collectionPhotoIds, deletePhotoFiles } from "../log/page-photos.ts";
 import { isRead, requireSession, type RouteContext } from "./context.ts";
 import type { Collection } from "../log/types.ts";
 
@@ -11,11 +12,11 @@ import type { Collection } from "../log/types.ts";
  * The entries of a page are GET /api/entries?collection=<id>. An entry joins one with collectionId on POST or PATCH /api/entries.
  *   PATCH  /api/collections/:id   { name? , paperPage? } at least one: { collection }. paperPage is null or a whole number 1..9999 (null clears it).
  *                                 400 bad value or empty body, 404 unknown, 409 another page has that name (ignoring case)
- *   DELETE /api/collections/:id   removes the page. Its entries stay on the log with collectionId cleared: { ok: true }. 404 unknown
+ *   DELETE /api/collections/:id   removes the page with its entries, page photos (rows and JPEG files) and index listing. Nothing goes back to the daily log: { ok: true }. 404 unknown
  */
-export async function handleCollectionRoutes(ctx: RouteContext): Promise<boolean> {
+export async function handleCollectionRoutes(ctx: RouteContext, photoDir?: string): Promise<boolean> {
   const one = /^\/api\/collections\/([^/]+)$/.exec(ctx.pathname);
-  if (one) return handleOne(ctx, decodeURIComponent(one[1]!));
+  if (one) return handleOne(ctx, decodeURIComponent(one[1]!), photoDir);
   if (ctx.pathname !== "/api/collections") return false;
   const userId = requireSession(ctx.who).user.id;
   const store = createCollectionStore(ctx.accounts.db);
@@ -37,12 +38,14 @@ export async function handleCollectionRoutes(ctx: RouteContext): Promise<boolean
   return true;
 }
 
-/** PATCH renames and/or sets the page number of one collection, DELETE removes it and frees its entries. Local only: no sync target is touched. */
-async function handleOne(ctx: RouteContext, id: string): Promise<boolean> {
+/** PATCH renames and/or sets the page number of one collection, DELETE removes it with its entries and photos. Local only: no sync target is touched. */
+async function handleOne(ctx: RouteContext, id: string, photoDir: string | undefined): Promise<boolean> {
   const userId = requireSession(ctx.who).user.id;
   const store = createCollectionStore(ctx.accounts.db);
   if (ctx.method === "DELETE") {
+    const photoIds = collectionPhotoIds(ctx.accounts.db, userId, id);
     if (!store.remove(userId, id)) throw new HttpError(404, "unknown collection");
+    if (photoDir) deletePhotoFiles(photoDir, photoIds);
     sendJson(ctx.res, 200, { ok: true });
     return true;
   }

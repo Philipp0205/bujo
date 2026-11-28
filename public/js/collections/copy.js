@@ -48,18 +48,18 @@
     renameFailed: 'Could not rename the collection. Try again.',
     delete: 'Delete page',
     deleteTitle: function (name) { return 'Delete \u201c' + name + '\u201d?'; },
-    deleteBody: 'This page will be removed. Its entries are not deleted: they stay in the log, on their days.',
+    deleteBody: 'This page, its entries and its photos will be deleted from bujo. Nothing in Nextcloud is touched.',
     deleteConfirm: 'Delete page',
     deleteCancel: 'Cancel',
     deleteFailed: 'Could not delete the page. Try again.',
 
     pageMark: function (n) { return 'p. ' + n; },
-    pageAction: 'Page number',
-    pageTitle: 'Page number in your notebook',
+    pageAction: 'Add to index',
+    pageTitle: 'Add to the index of your notebook',
     pageLabel: 'Notebook page number (1 to 9999)',
     pagePlaceholder: 'Page 1 to 9999',
-    pageSave: 'Save',
-    pageClear: 'No page number',
+    pageSave: 'Add to index',
+    pageClear: 'Remove from index',
     pageInvalid: 'Use a whole number from 1 to 9999.',
     pageFailed: 'Could not save the page number. Try again.'
   };

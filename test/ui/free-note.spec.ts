@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
-import { openNoteEditor, useBujo } from "./harness.ts";
+import { openNoteCard, openNoteEditor, openSavedNote, useBujo } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -95,7 +95,7 @@ test("a page with no readable text stays on the camera screen with a message", a
   await expect(screen(page)).toBeVisible();
 });
 
-test("edit title and markdown, save, see the note in the log, open it, copy it, edit it again", async ({ page }) => {
+test("edit title and markdown, save, land on the Notes tab (not the log), open it, copy it, edit it again", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(String(error)));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -106,14 +106,12 @@ test("edit title and markdown, save, see the note in the log, open it, copy it, 
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
 
-  const row = page.locator(".paper-row", { hasText: "Garten im Frühjahr" });
-  await expect(row).toHaveCount(1);
-  await expect(row).toHaveAttribute("data-type", "note");
-  await expect(row).toHaveAttribute("data-sync", "local");
-  await expect(row.locator(".sync-mark")).toHaveCount(0);
-  await expect(row).not.toContainText(/not synced/i);
+  await expect(page.getByTestId("notebook-row").first()).toBeVisible();
+  await expect(page.locator(".paper-row", { hasText: "Garten im Frühjahr" })).toHaveCount(0);
+  const stored = await page.request.get(`${app.baseUrl}/api/entries?from=${localDay()}&to=${localDay()}`);
+  expect(JSON.stringify(await stored.json())).not.toContain("Garten im Frühjahr");
 
-  await row.click();
+  await openNoteCard(page, "Garten im Frühjahr");
   await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
   await expect(sheet(page).locator('[data-field="title"]')).toHaveValue("Garten im Frühjahr");
   await expect(sheet(page).locator(".sync-mark, [data-testid=sync-line]")).toHaveCount(0);
@@ -130,7 +128,7 @@ test("edit title and markdown, save, see the note in the log, open it, copy it, 
   await sheet(page).locator('[data-field="body"]').fill("# Neu\n- nur das");
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
-  await page.locator(".paper-row", { hasText: "Garten im Frühjahr" }).click();
+  await openNoteCard(page, "Garten im Frühjahr");
   await openNoteEditor(sheet(page));
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# Neu\n- nur das");
   expect(errors).toEqual([]);
@@ -208,7 +206,7 @@ test("the photo shows on the review sheet, is stored with the note as a JPEG of 
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
 
-  await page.locator(".paper-row", { hasText: "Mit Foto" }).click();
+  await openNoteCard(page, "Mit Foto");
   await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
   const saved = sheet(page).getByTestId("note-photo");
   await expect(saved).toBeVisible();
@@ -245,18 +243,17 @@ test("saving a saved note again keeps its photo, and a note with no photo shows 
   await scanNote(page);
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
-  await page.locator(".paper-row", { hasText: "Küchengarten, Frühjahr" }).click();
+  await openNoteCard(page, "Küchengarten, Frühjahr");
   await sheet(page).locator('[data-action="note-edit"]').click();
   await sheet(page).locator('[data-field="body"]').fill("# Neu\n- nur das");
   await sheet(page).locator('[data-action="save-note"]').click();
   await expect(sheet(page)).toHaveCount(0);
-  await page.locator(".paper-row", { hasText: "Küchengarten, Frühjahr" }).click();
+  await openNoteCard(page, "Küchengarten, Frühjahr");
   await expect(sheet(page).getByTestId("note-photo")).toBeVisible();
 
   const made = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: localDay(), type: "note", title: "Ohne Foto", body: "# nur Text" } });
   expect(made.status()).toBe(201);
-  await page.reload();
-  await page.locator(".paper-row", { hasText: "Ohne Foto" }).click();
+  await openSavedNote(page, app.baseUrl, "Ohne Foto");
   await openNoteEditor(sheet(page));
   await expect(sheet(page).locator('[data-field="body"]')).toHaveValue("# nur Text");
   await expect(sheet(page).getByTestId("note-photo")).toHaveCount(0);
@@ -274,3 +271,31 @@ test("a short note with no body is typed in place, and its details sheet is the 
   await expect(page.getByTestId("sync-line")).toHaveCount(0);
   await expect(sheet(page)).toHaveCount(0);
 });
+
+test("a saved note is deleted from its sheet after a confirm: cancel keeps it, confirm removes it from the Notes screen and the API", async ({ page }) => {
+  const made = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: localDay(), type: "note", title: "Zu loeschen", body: "# weg" } });
+  expect(made.status()).toBe(201);
+  await openSavedNote(page, app.baseUrl, "Zu loeschen");
+  const open = sheet(page).getByTestId("note-delete");
+  expect((await open.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+  await open.click();
+  await expect(page.getByTestId("note-delete-dialog")).toContainText("Delete \u201cZu loeschen\u201d?");
+  await expect(page.getByTestId("note-delete-dialog")).toContainText("Nothing in Nextcloud is touched.");
+  await page.getByTestId("note-delete-cancel").click();
+  await expect(page.getByTestId("note-delete-dialog")).toHaveCount(0);
+  await expect(sheet(page)).toBeVisible();
+  expect(await savedTitles(page)).toContain("Zu loeschen");
+
+  await open.click();
+  await page.getByTestId("note-delete-confirm").click();
+  await expect(sheet(page)).toHaveCount(0);
+  await expect(page.getByTestId("note-grid").locator(".note-card", { hasText: "Zu loeschen" })).toHaveCount(0);
+  expect(await savedTitles(page)).not.toContain("Zu loeschen");
+});
+
+/** The titles of every saved free note, as the API lists them. */
+async function savedTitles(page: Page): Promise<string[]> {
+  const listed = await page.request.get(`${app.baseUrl}/api/entries?kind=notes`);
+  return ((await listed.json()).entries as Array<{ title: string }>).map((entry) => entry.title);
+}

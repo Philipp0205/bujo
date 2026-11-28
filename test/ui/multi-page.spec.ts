@@ -39,10 +39,11 @@ function day(offset: number): string {
 
 type Stored = { id: string; type: string; title: string };
 
-/** All entries of the days around today, as the API lists them. */
+/** All entries of the days around today plus every free note (notes are on no day), as the API lists them. */
 async function entriesAround(page: Page): Promise<Stored[]> {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`);
-  return (await response.json()).entries;
+  const days = (await (await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`)).json()).entries;
+  const notes = (await (await page.request.get(`${app.baseUrl}/api/entries?kind=notes`)).json()).entries;
+  return [...days, ...notes];
 }
 
 const review = (page: Page) => page.getByTestId("scan-review");
@@ -103,7 +104,11 @@ test("three pages from the gallery open on page 1 of 3, and each page is applied
   const stored = await entriesAround(page);
   expect(stored.filter((entry) => entry.type === "note")).toHaveLength(1);
   expect(stored.some((entry) => entry.title.startsWith("Drei"))).toBe(false);
+  // The last page settled was the saved note, so the batch lands on the Notes tab. The applied log line is on the log.
+  await expect(page.getByTestId("notebook-row").first()).toBeVisible();
+  await page.goto(app.baseUrl);
   await expect(page.locator("#log").getByText("Eins Brot und Butter")).toBeVisible();
+  await expect(page.locator("#log").getByText("Reading list")).toHaveCount(0);
 });
 
 test("dismissing the review drops only the pages that were not saved", async ({ page }) => {

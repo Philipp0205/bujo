@@ -69,6 +69,17 @@ export function createPagePhotoStore(db: Db, dir: string): PagePhotoStore {
   };
 }
 
+/** The ids of a collection's kept photos, read before the collection is deleted so their files can follow. */
+export function collectionPhotoIds(db: Db, userId: string, collectionId: string): string[] {
+  const rows = db.prepare("SELECT id FROM page_photos WHERE user_id = ? AND collection_id = ?").all(userId, collectionId) as Array<{ id: string }>;
+  return rows.map((row) => row.id);
+}
+
+/** Deletes the JPEG files of these photo ids from the folder. A file that is already gone is fine. */
+export function deletePhotoFiles(dir: string, ids: readonly string[]): void {
+  for (const id of ids) fs.rmSync(path.join(dir, `${id}.jpg`), { force: true });
+}
+
 /** Every photo of the user, newest first, grouped by `photoKey`. One query for a whole notebook detail. Needs no folder: it only reads rows. */
 export function photosByPage(db: Db, userId: string): Map<string, PagePhoto[]> {
   const rows = db.prepare("SELECT id, kind, ref, page, created_at FROM page_photos WHERE user_id = ? ORDER BY created_at DESC, rowid DESC").all(userId) as Row[];

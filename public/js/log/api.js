@@ -107,7 +107,7 @@
     });
   }
 
-  /** Deletes a collection. Its entries stay in the log, back on their days. */
+  /** Deletes a collection with its entries and photos. Nothing goes back to a day. */
   function deleteCollection(id) {
     return call('DELETE', '/api/collections/' + encodeURIComponent(id));
   }

@@ -134,7 +134,7 @@ test("a collection is renamed from its page: the title and the index row change,
   await expect(index.getByTestId("collection-row").filter({ hasText: /^recipes/ })).toHaveCount(0);
 });
 
-test("deleting a collection asks first: cancel keeps the page, confirm removes it and its entry is back on the log", async ({ page }) => {
+test("deleting a collection asks first: cancel keeps the page, confirm removes it with its entries, none is back on the log", async ({ page }) => {
   const made = await page.request.post(`${app.baseUrl}/api/collections`, { data: { name: "herb beds" } });
   const collection = (await made.json()).collection as { id: string };
   const task = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: today(), type: "task", title: "Sow basil", collectionId: collection.id } });
@@ -143,7 +143,7 @@ test("deleting a collection asks first: cancel keeps the page, confirm removes i
   await openNotes(page);
   await page.getByTestId("collection-row").filter({ hasText: "herb beds" }).click();
   await page.getByTestId("collection-delete-open").click();
-  await expect(page.getByTestId("collection-confirm")).toContainText("they stay in the log");
+  await expect(page.getByTestId("collection-confirm")).toContainText("its entries and its photos will be deleted");
   await page.getByTestId("collection-delete-cancel").click();
   await expect(page.getByTestId("collection-confirm")).toHaveCount(0);
   await expect(page.getByTestId("collection-title")).toHaveText("herb beds");
@@ -155,7 +155,28 @@ test("deleting a collection asks first: cancel keeps the page, confirm removes i
   await expect(page.getByTestId("collection-row").filter({ hasText: "herb beds" })).toHaveCount(0);
 
   await page.goto(app.baseUrl);
-  await expect(rowOf(page, "Sow basil")).toBeVisible();
-  const entry = (await (await page.request.get(`${app.baseUrl}/api/entries?from=${today()}&to=${today()}`)).json()).entries as Array<{ title: string; collectionId: string | null }>;
-  expect(entry.find((item) => item.title === "Sow basil")?.collectionId).toBeNull();
+  await expect(page.getByRole("heading", { name: "Daily Log", level: 1 })).toBeVisible();
+  await expect(rowOf(page, "Sow basil")).toHaveCount(0);
+  const day = (await (await page.request.get(`${app.baseUrl}/api/entries?from=${today()}&to=${today()}`)).json()).entries as Array<{ title: string }>;
+  expect(day.map((item) => item.title)).not.toContain("Sow basil");
+});
+
+test("add to index: a page number lists the collection with that number, and clearing it removes the listing", async ({ page }) => {
+  const made = await page.request.post(`${app.baseUrl}/api/collections`, { data: { name: "herb beds" } });
+  const collection = (await made.json()).collection as { id: string };
+  await openNotes(page);
+  await page.getByTestId("collection-row").filter({ hasText: "herb beds" }).click();
+  await expect(page.getByTestId("collection-page-open")).toHaveText("Add to index");
+  await page.getByTestId("collection-page-open").click();
+  await page.getByTestId("collection-page-input").fill("31");
+  await page.locator("[data-action=save-page]").click();
+  await expect(page.getByTestId("collection-page-mark")).toHaveText("p. 31");
+
+  const listed = async () => ((await (await page.request.get(`${app.baseUrl}/api/index`)).json()).pages as Array<{ number: number; ref: string }>).filter((item) => item.ref === collection.id);
+  expect((await listed()).map((item) => item.number)).toEqual([31]);
+
+  await page.getByTestId("collection-page-open").click();
+  await page.getByTestId("collection-page-clear").click();
+  await expect(page.getByTestId("collection-page-mark")).toHaveCount(0);
+  expect(await listed()).toEqual([]);
 });

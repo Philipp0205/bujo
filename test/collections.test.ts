@@ -123,7 +123,7 @@ test("an unknown, foreign or malformed collection is refused", async () => {
   });
 });
 
-// --- Rename and delete: local only, entries stay. ---
+// --- Rename and delete: local only. ---
 
 test("a collection is renamed: listed under the new name, a case-only change is fine, a clash or a bad name is refused", async () => {
   await withApp(demoSource(), async ({ base }) => {
@@ -159,13 +159,13 @@ test("another user's collection can be neither renamed nor deleted (the store is
   });
 });
 
-test("deleting a collection keeps its entries: collectionId cleared, same day and fields, listed on their day", async () => {
+test("deleting a collection deletes its entries too: none goes back to a day", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const signed = await signUp(base);
     const id = await makeCollection(base, signed, "books");
     await addTask(base, signed, "already here");
     const first = await addTask(base, signed, "Dune", { collectionId: id });
-    const second = await addTask(base, signed, "Emma", { collectionId: id, date: "2026-11-01", type: "note", important: true });
+    await addTask(base, signed, "Emma", { collectionId: id, date: "2026-11-01", type: "note", important: true });
 
     const gone = await api(base, "DELETE", `/api/collections/${id}`, { headers: signed.headers });
     assert.equal(gone.status, 200);
@@ -174,14 +174,8 @@ test("deleting a collection keeps its entries: collectionId cleared, same day an
     assert.equal((await api(base, "GET", `/api/entries?collection=${id}`, { headers: signed.headers })).status, 404);
 
     const day = await api(base, "GET", `/api/entries?from=2026-11-01&to=${DAY}`, { headers: signed.headers });
-    const byId = new Map<string, { collectionId: string | null; date: string; type: string; title: string; important: boolean; position: number }>(
-      day.json.entries.map((entry: { id: string }) => [entry.id, entry]),
-    );
-    assert.equal(day.json.entries.length, 3);
-    assert.deepEqual([byId.get(first.id)!.collectionId, byId.get(first.id)!.date, byId.get(first.id)!.title], [null, DAY, "Dune"]);
-    assert.deepEqual([byId.get(second.id)!.collectionId, byId.get(second.id)!.date, byId.get(second.id)!.type, byId.get(second.id)!.important], [null, "2026-11-01", "note", true]);
-    const sameDay = day.json.entries.filter((entry: { date: string }) => entry.date === DAY).map((entry: { position: number }) => entry.position);
-    assert.deepEqual(sameDay, [0, 1], "the freed entry goes to the end of its day, no position collides");
+    assert.deepEqual(day.json.entries.map((entry: { title: string }) => entry.title), ["already here"], "nothing was unfiled onto a day");
+    assert.equal((await api(base, "DELETE", `/api/entries/${first.id}`, { headers: signed.headers })).status, 404, "the entry is gone");
     assert.equal((await api(base, "DELETE", `/api/collections/${id}`, { headers: signed.headers })).status, 404);
   });
 });

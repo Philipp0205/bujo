@@ -4,7 +4,7 @@
 // signed out, and a redirect must never be stored as the page. Registered only from signed-in pages.
 importScripts('/app-kit/ak-sw.js');
 AppKitSW.setup({
-  version: 'v103',
+  version: 'v105',
   prefix: 'bujo',
   shell: [
     '/index.html',
@@ -138,6 +138,7 @@ AppKitSW.setup({
     '/js/log/note/editor/keymap.js',
     '/js/log/note/editor/toolbar.js',
     '/js/log/note/editor/view.js',
+    '/js/log/note/remove.js',
     '/js/log/note/sheet.js',
     '/js/log/note/match.js',
     '/js/log/note/into.js',

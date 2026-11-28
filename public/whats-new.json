@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-28-collections-standalone",
+    "date": "2026-11-28",
+    "title": "Notes and collections stand on their own",
+    "bullets": [
+      "Scanned notes and collections no longer land on a daily page.",
+      "You can delete a note or a collection, with its photos.",
+      "You can add a collection to the index with its page number."
+    ]
+  },
+  {
     "id": "2026-11-28-paper-details",
     "date": "2026-11-28",
     "title": "Paper details",
