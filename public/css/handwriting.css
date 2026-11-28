@@ -33,12 +33,13 @@
 
 /* A short slide with a soft curl: the edge the page comes from carries a faint fold shadow that fades as the page settles.
    Transform, opacity and a shadow on a pseudo element only. Reduced motion turns it all off. */
+/* The slide is 36px, like the turn it replaces: a swipe that starts while it settles must still clear the 24px screen edge zone of turn.js. */
 @keyframes page-curl-next {
-  from { transform: translateX(40px); opacity: 0.35; }
+  from { transform: translateX(36px); opacity: 0.35; }
   to { transform: none; opacity: 1; }
 }
 @keyframes page-curl-prev {
-  from { transform: translateX(-40px); opacity: 0.35; }
+  from { transform: translateX(-36px); opacity: 0.35; }
   to { transform: none; opacity: 1; }
 }
 @keyframes page-fold {
