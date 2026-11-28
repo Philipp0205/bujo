@@ -58,7 +58,9 @@ test("POST /api/log/scan/note: answers match for a saved note of the user and nu
       ocr.setLines([line("none", "Reiseplan"), line("•", "Zug buchen")]);
       assert.equal((await post(signed.headers)).match, null);
       const list = await api(base, "GET", "/api/entries?from=2026-11-01&to=2026-11-30", { headers: signed.headers });
-      assert.equal(list.json.entries.length, 1, "the scan wrote nothing");
+      assert.equal(list.json.entries.length, 0, "a free note is not on the day list");
+      const notes = await api(base, "GET", "/api/entries?kind=notes", { headers: signed.headers });
+      assert.equal(notes.json.entries.length, 1, "the scan wrote nothing");
     }, { ocr: createOcrClient(ocr.url, { timeoutMs: 1500 }) });
   } finally {
     await ocr.close();

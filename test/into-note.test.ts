@@ -52,8 +52,8 @@ test("a task is filed into a free-form note as a line, and leaves the log", asyn
     const filed = await fileInto(ctx, task.id, note.id);
     assert.equal(filed.status, 200, JSON.stringify(filed.json));
     assert.equal(filed.json.note.body, "- first\n- Buy stamps\n");
-    assert.deepEqual(filed.json.entries.map((e: { title: string }) => e.title), ["Ideas", "Stay here"]);
-    assert.deepEqual((await day(ctx)).map((e: { title: string }) => e.title), ["Ideas", "Stay here"]);
+    assert.deepEqual(filed.json.entries.map((e: { title: string }) => e.title), ["Stay here"]);
+    assert.deepEqual((await day(ctx)).map((e: { title: string }) => e.title), ["Stay here"]);
     assert.equal((await notes(ctx))[0].body, "- first\n- Buy stamps\n");
     assert.ok(!JSON.stringify(await notes(ctx)).includes(task.id), "no pointer to the old entry");
     assert.equal((await fileInto(ctx, task.id, note.id)).status, 404, "the task is gone");
@@ -93,7 +93,7 @@ test("filing is refused cleanly: a missing note, a dash note, an event, a note a
     assert.equal((await api(base, "POST", `/api/entries/${task.id}/into-note`, { body: { noteId: note.id } })).status, 401);
 
     assert.equal((await notes(ctx)).find((e: { id: string }) => e.id === note.id).body, "text", "nothing was written");
-    assert.deepEqual((await day(ctx)).map((e: { title: string }) => e.title).sort(), ["Buy stamps", "Dentist", "Full", "Ideas", "short dash note"]);
+    assert.deepEqual((await day(ctx)).map((e: { title: string }) => e.title).sort(), ["Buy stamps", "Dentist", "short dash note"]);
   });
 });
 

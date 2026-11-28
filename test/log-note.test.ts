@@ -113,7 +113,9 @@ test("/api/entries: a free note keeps its markdown, lists it, a PATCH edits it, 
     assert.equal(patched.json.entry.title, "Garten");
 
     const list = await api(base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers });
-    assert.deepEqual(list.json.entries.map((e: any) => [e.title, e.body]), [["Garten", "# Küchengarten\n- Beet 3"], ["kurz", null]]);
+    assert.deepEqual(list.json.entries.map((e: any) => [e.title, e.body]), [["kurz", null]], "the free note is not on the day, the dash note is");
+    const notes = await api(base, "GET", "/api/entries?kind=notes", { headers });
+    assert.deepEqual(notes.json.entries.map((e: any) => [e.title, e.body]), [["Garten", "# Küchengarten\n- Beet 3"]]);
     assert.equal((await api(base, "PATCH", `/api/entries/${short.json.entry.id}`, { headers, body: { body: 5 } })).status, 400);
   });
 });
