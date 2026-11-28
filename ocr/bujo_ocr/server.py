@@ -5,11 +5,12 @@
                    -> {"lines": [{symbol, text, confidence, bbox:[x,y,w,h], engine, tags, time, indent}], "date", "kind", "period", "pageNumber", "width", "height", "ms"}
 
 The image is decoded from memory and dropped after the answer. Nothing is written to disk.
-With OCR_LLM_BASE and OCR_LLM_KEY set, a vision LLM reads the whole page first (see llm.py, engine "llm:<model>").
+A vision LLM reads the whole page (see llm.py, engine "llm:<model>"). It needs OCR_LLM_BASE and OCR_LLM_KEY.
 It also names the page kind (daily, future, calendar, month-task), its period (YYYY or YYYY-MM) and the notebook
-page number (pageNumber, integer or null).
-Any problem there falls back to the detector and recognizer, where tags are [] and time, date, kind, period and
-pageNumber are null.
+page number (pageNumber, integer or null). Line boxes are always [0, 0, 0, 0].
+There is no other reader. When the LLM is not configured or fails, the answer is an error:
+  503 {"error", "category": "not configured"}   502 {"error", "category": <LlmError category or "failed">}
+  400 unreadable image, 411 / 413 / 415 as before.
 Env: OCR_HOST (default 0.0.0.0; "::" listens on IPv6 and IPv4), OCR_PORT (default 8090).
 """
 from __future__ import annotations
@@ -25,80 +26,60 @@ from typing import Callable
 
 import numpy as np
 
-from . import detector, llm
-from .recognize import Reading, recognize_lines
+from . import image as imaging, llm
 
 log = logging.getLogger("bujo_ocr")
 
 MAX_BYTES = 15 * 1024 * 1024
 ALLOWED_TYPES = ("image/jpeg", "image/png", "image/webp")
 
-Recognize = Callable[[list[np.ndarray]], list[Reading]]
 ReadPage = Callable[[np.ndarray], llm.LlmPage]
 
 _WORK = threading.Lock()
 NO_BBOX = [0, 0, 0, 0]
+NOT_CONFIGURED = "not configured"
+FAILED = "failed"
 
 
-def _local_answer(image: np.ndarray, recognize: Recognize) -> dict:
-    """The detector plus recognizer path: one line per detected line, with empty tags and no time."""
-    page = detector.analyse(image)
-    crops = [detector.crop_text_region(page, line) for line in page.lines]
-    readings = recognize(crops) if crops else []
-    lines = []
-    for line, reading in zip(page.lines, readings):
-        lines.append(
-            {
-                "symbol": line.symbol,
-                "text": reading.text,
-                "confidence": round(float(reading.confidence), 3),
-                "bbox": detector.line_bbox(page, line),
-                "engine": reading.engine,
-                "tags": [],
-                "time": None,
-                "indent": 0,
-            }
-        )
-    return {"lines": lines, "date": None, "kind": None, "period": None, "pageNumber": None}
+class OcrFailure(Exception):
+    """The page could not be read. `status` is the HTTP status, `category` a short reason safe to show."""
+
+    def __init__(self, status: int, error: str, category: str) -> None:
+        super().__init__(category)
+        self.status, self.error, self.category = status, error, category
 
 
-def _llm_boxes(image: np.ndarray, count: int) -> list[list[int]]:
-    """Line boxes from the detector (no model) when it finds as many lines as the LLM did, else empty boxes."""
-    try:
-        page = detector.analyse(image)
-    except Exception:
-        return [NO_BBOX] * count
-    if len(page.lines) != count:
-        return [NO_BBOX] * count
-    return [detector.line_bbox(page, line) for line in page.lines]
+def _failure(category: str) -> OcrFailure:
+    """The error answer for an LLM problem: 503 when it is not configured, else 502."""
+    if category == NOT_CONFIGURED:
+        return OcrFailure(503, "ocr reader is not configured", category)
+    return OcrFailure(502, "ocr reader failed", category)
 
 
 def _with_date_line(result: llm.LlmPage) -> list[llm.LlmLine]:
     """The LLM lines with the page date as a leading bullet-less line when the model put it only in `date`.
-    The app finds the page date in such a line, and the detector counts it as a line too."""
+    The app finds the page date in such a line."""
     if not result.date or any(line.symbol == "none" and line.text == result.date for line in result.lines):
         return result.lines
     return [llm.LlmLine("none", result.date, [], None, 1.0), *result.lines]
 
 
 def _llm_answer(image: np.ndarray, read_page: ReadPage) -> dict:
-    """The whole-page LLM path, shaped like the local answer."""
+    """The whole-page LLM answer in the service's JSON shape."""
     result = read_page(image)
-    page_lines = _with_date_line(result)
-    boxes = _llm_boxes(image, len(page_lines))
     engine = f"llm:{result.model}"
     lines = [
         {
             "symbol": line.symbol,
             "text": line.text,
             "confidence": round(float(line.confidence), 3),
-            "bbox": box,
+            "bbox": NO_BBOX,
             "engine": engine,
             "tags": line.tags,
             "time": line.time,
             "indent": line.indent,
         }
-        for line, box in zip(page_lines, boxes)
+        for line in _with_date_line(result)
     ]
     return {
         "lines": lines, "date": result.date, "kind": result.kind, "period": result.period,
@@ -106,36 +87,33 @@ def _llm_answer(image: np.ndarray, read_page: ReadPage) -> dict:
     }
 
 
-def _try_llm(image: np.ndarray, read_page: ReadPage | None) -> dict | None:
-    """The LLM answer, or None when it is not configured or anything goes wrong (the caller then falls back)."""
+def _read(image: np.ndarray, read_page: ReadPage | None) -> dict:
+    """The LLM answer, or an OcrFailure when it is not configured or anything goes wrong. No fallback."""
     if read_page is None:
         if not llm.configured():
-            return None
+            log.warning("llm read failed: %s (model %s)", NOT_CONFIGURED, llm._env_settings().model)
+            raise _failure(NOT_CONFIGURED)
         read_page = llm.read_page
     try:
         return _llm_answer(image, read_page)
-    except llm.LlmError:  # already logged by the reader
-        return None
+    except llm.LlmError as error:  # already logged by the reader
+        raise _failure(error.category) from None
     except Exception as error:
-        log.warning("llm path failed: %s", type(error).__name__)
-        return None
+        log.warning("llm read failed: %s (model %s)", type(error).__name__, llm._env_settings().model)
+        raise _failure(FAILED) from None
 
 
-def run_ocr(data: bytes, recognize: Recognize = recognize_lines, read_page: ReadPage | None = None) -> dict:
-    """Image bytes in, the JSON-ready result out. Raises detector.ImageError for bytes that are not an image.
-
-    With the LLM configured (or `read_page` given) the whole page goes to it first. Any problem there falls back
-    to the detector and recognizer."""
+def run_ocr(data: bytes, read_page: ReadPage | None = None) -> dict:
+    """Image bytes in, the JSON-ready result out. Raises image.ImageError for bytes that are not an image
+    and OcrFailure when the LLM cannot read the page."""
     started = time.perf_counter()
-    image = detector.decode_image(data)
+    image = imaging.decode_image(data)
     height, width = image.shape[:2]
-    answer = _try_llm(image, read_page) or _local_answer(image, recognize)
+    answer = _read(image, read_page)
     return {**answer, "width": width, "height": height, "ms": round((time.perf_counter() - started) * 1000)}
 
 
-def make_handler(
-    recognize: Recognize = recognize_lines, read_page: ReadPage | None = None
-) -> type[BaseHTTPRequestHandler]:
+def make_handler(read_page: ReadPage | None = None) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         server_version = "bujo-ocr"
         protocol_version = "HTTP/1.1"
@@ -186,10 +164,13 @@ def make_handler(
                 self._send(400, {"error": "incomplete body"}, close=True)
                 return
             try:
-                with _WORK:  # one page at a time: a CPU-only box gains nothing from two
-                    result = run_ocr(data, recognize, read_page)
-            except detector.ImageError:
+                with _WORK:  # one page at a time keeps gateway load and memory low
+                    result = run_ocr(data, read_page)
+            except imaging.ImageError:
                 self._send(400, {"error": "not a readable image"})
+                return
+            except OcrFailure as failure:
+                self._send(failure.status, {"error": failure.error, "category": failure.category})
                 return
             except Exception:
                 log.exception("ocr failed")
@@ -212,11 +193,9 @@ class _DualStackServer(ThreadingHTTPServer):
         super().server_bind()
 
 
-def make_server(
-    host: str, port: int, recognize: Recognize = recognize_lines, read_page: ReadPage | None = None
-) -> ThreadingHTTPServer:
+def make_server(host: str, port: int, read_page: ReadPage | None = None) -> ThreadingHTTPServer:
     server_class = _DualStackServer if ":" in host else ThreadingHTTPServer
-    server = server_class((host, port), make_handler(recognize, read_page))
+    server = server_class((host, port), make_handler(read_page))
     server.daemon_threads = True
     return server
 

@@ -1,28 +1,42 @@
-"""HTTP service tests. The recognizer is a fake, so no model and no tesseract are needed."""
+"""HTTP service tests. The page reader is a fake, so no gateway is needed."""
 import http.client
 import json
 import threading
 
 import pytest
 
-from bujo_ocr import server
-from bujo_ocr.recognize import Reading
+from bujo_ocr import llm, server
 from fixtures import make_page, to_jpeg, to_webp
 
+PAGE = llm.LlmPage(
+    date="20.11.2025",
+    lines=[llm.LlmLine("•", "Müller anrufen", ["arbeit"], "09:30", 0.9), llm.LlmLine("–", "Notiz ä ö ü ß", [], None, 0.8, 1)],
+    model="fake-model",
+)
 
-def fake_recognizer(crops):
-    return [Reading(text=f"zeile {i + 1} ä ö ü ß", confidence=0.9, engine="fake") for i, _ in enumerate(crops)]
+
+def fake_reader(image):
+    return PAGE
+
+
+def start(read_page=fake_reader, host="127.0.0.1"):
+    httpd = server.make_server(host, 0, read_page)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return httpd, thread
+
+
+def stop(httpd, thread):
+    httpd.shutdown()
+    httpd.server_close()
+    thread.join(timeout=5)
 
 
 @pytest.fixture()
 def service():
-    httpd = server.make_server("127.0.0.1", 0, fake_recognizer)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
+    httpd, thread = start()
     yield httpd.server_address[1]
-    httpd.shutdown()
-    httpd.server_close()
-    thread.join(timeout=5)
+    stop(httpd, thread)
 
 
 def call(port, method, path, body=None, content_type=None, headers=None):
@@ -44,9 +58,7 @@ def test_healthz(service):
 
 
 def test_dual_stack_host_answers_on_ipv4_and_ipv6():
-    httpd = server.make_server("::", 0, fake_recognizer)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
+    httpd, thread = start(host="::")
     try:
         port = httpd.server_address[1]
         assert call(port, "GET", "/healthz") == (200, {"ok": True})
@@ -57,9 +69,7 @@ def test_dual_stack_host_answers_on_ipv4_and_ipv6():
         finally:
             conn.close()
     finally:
-        httpd.shutdown()
-        httpd.server_close()
-        thread.join(timeout=5)
+        stop(httpd, thread)
 
 
 def test_unknown_path_is_404(service):
@@ -76,24 +86,24 @@ def test_post_ocr_returns_the_json_shape(service, encode, content_type):
     status, body = call(service, "POST", "/ocr", encode(fixture.png), content_type)
     assert status == 200
     assert set(body) == {"lines", "date", "kind", "period", "pageNumber", "width", "height", "ms"}
-    assert body["date"] is None
+    assert body["date"] == "20.11.2025"
     assert body["kind"] is None and body["period"] is None and body["pageNumber"] is None
     assert body["width"] == fixture.width and body["height"] == fixture.height
     assert isinstance(body["ms"], int)
-    assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]
-    for index, line in enumerate(body["lines"]):
+    assert [(line["symbol"], line["text"]) for line in body["lines"]] == [
+        ("none", "20.11.2025"), ("•", "Müller anrufen"), ("–", "Notiz ä ö ü ß"),
+    ]
+    for line in body["lines"]:
         assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
-        assert line["tags"] == [] and line["time"] is None and line["indent"] == 0
-        assert line["text"] == f"zeile {index + 1} ä ö ü ß"
-        assert line["engine"] == "fake"
+        assert line["engine"] == "llm:fake-model"
+        assert line["bbox"] == [0, 0, 0, 0]
         assert 0 <= line["confidence"] <= 1
-        x, y, w, h = line["bbox"]
-        assert x >= 0 and y >= 0 and x + w <= body["width"] and y + h <= body["height"]
+    assert body["lines"][1]["tags"] == ["arbeit"] and body["lines"][1]["time"] == "09:30"
+    assert body["lines"][2]["indent"] == 1
 
 
 def test_content_type_parameters_are_accepted(service):
-    fixture = make_page()
-    status, _ = call(service, "POST", "/ocr", fixture.png, "image/png; charset=binary")
+    status, _ = call(service, "POST", "/ocr", make_page().png, "image/png; charset=binary")
     assert status == 200
 
 
@@ -102,6 +112,17 @@ def test_wrong_content_type_is_415(service, content_type):
     status, body = call(service, "POST", "/ocr", make_page().png, content_type)
     assert status == 415
     assert "content-type" in body["error"]
+
+
+def test_post_without_content_length_is_411(service):
+    conn = http.client.HTTPConnection("127.0.0.1", service, timeout=20)
+    try:
+        conn.putrequest("POST", "/ocr")
+        conn.putheader("content-type", "image/png")
+        conn.endheaders()
+        assert conn.getresponse().status == 411
+    finally:
+        conn.close()
 
 
 def test_oversize_is_413_without_reading_the_body(service):
@@ -133,11 +154,47 @@ def test_empty_body_is_400(service):
     assert call(service, "POST", "/ocr", b"", "image/png")[0] == 400
 
 
-def test_a_blank_page_gives_no_lines(service):
-    from fixtures import noisy_blank
+def test_an_unreadable_image_is_400_even_when_nothing_is_configured():
+    httpd, thread = start(read_page=None)
+    try:
+        assert call(httpd.server_address[1], "POST", "/ocr", b"hello", "image/png")[0] == 400
+    finally:
+        stop(httpd, thread)
 
-    status, body = call(service, "POST", "/ocr", noisy_blank(), "image/png")
-    assert status == 200 and body["lines"] == []
+
+def test_nothing_configured_is_a_503_with_a_category():
+    httpd, thread = start(read_page=None)
+    try:
+        status, body = call(httpd.server_address[1], "POST", "/ocr", make_page().png, "image/png")
+    finally:
+        stop(httpd, thread)
+    assert status == 503
+    assert body["category"] == "not configured" and body["error"]
+
+
+def test_a_reader_error_is_a_502_with_its_category():
+    def refuses(image):
+        raise llm.LlmError("timeout")
+
+    httpd, thread = start(read_page=refuses)
+    try:
+        status, body = call(httpd.server_address[1], "POST", "/ocr", make_page().png, "image/png")
+    finally:
+        stop(httpd, thread)
+    assert status == 502
+    assert body == {"error": "ocr reader failed", "category": "timeout"}
+
+
+def test_an_unexpected_reader_exception_is_a_502_failed():
+    def broken(image):
+        raise RuntimeError("boom")
+
+    httpd, thread = start(read_page=broken)
+    try:
+        status, body = call(httpd.server_address[1], "POST", "/ocr", make_page().png, "image/png")
+    finally:
+        stop(httpd, thread)
+    assert (status, body["category"]) == (502, "failed")
 
 
 def test_the_service_writes_nothing_to_disk(service, tmp_path, monkeypatch):

@@ -10,8 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from PIL import Image
 
-from bujo_ocr import detector, llm, server
-from bujo_ocr.recognize import Reading
+from bujo_ocr import image as imaging, llm, server
 from fixtures import CALENDAR_LINES, FUTURE_LINES, MONTH_TASK_LINES, make_page, with_corner_number
 
 PAGE_ANSWER = {
@@ -86,13 +85,9 @@ def gateway(monkeypatch):
     fake.close()
 
 
-def fake_recognizer(crops):
-    return [Reading(text=f"zeile {i + 1}", confidence=0.9, engine="fake") for i, _ in enumerate(crops)]
-
-
 def page_image(**options):
     fixture = make_page(**options)
-    return fixture, detector.decode_image(fixture.png)
+    return fixture, imaging.decode_image(fixture.png)
 
 
 # request shape
@@ -322,24 +317,24 @@ def test_an_answer_without_page_number_is_a_page_with_none():
 def test_run_ocr_passes_the_page_number_on_and_it_is_not_a_line(gateway):
     answer = {**PAGE_ANSWER, "page_number": 12}
     gateway.answers = [ok(answer)]
-    result = server.run_ocr(with_corner_number(make_page().png, 12), fake_recognizer)
+    result = server.run_ocr(with_corner_number(make_page().png, 12))
     assert result["pageNumber"] == 12
     assert all(line["text"] != "12" for line in result["lines"])
 
 
 def test_run_ocr_without_a_page_number_answers_null(gateway):
-    result = server.run_ocr(make_page().png, fake_recognizer)
+    result = server.run_ocr(make_page().png)
     assert result["pageNumber"] is None
 
 
 def test_run_ocr_takes_an_injected_reader_with_a_page_number():
     page = llm.LlmPage(date=None, lines=[llm.LlmLine("•", "a", [], None, 0.9)], model="m", page_number=33)
-    assert server.run_ocr(make_page().png, fake_recognizer, lambda image: page)["pageNumber"] == 33
+    assert server.run_ocr(make_page().png, lambda image: page)["pageNumber"] == 33
 
 
 def test_run_ocr_passes_the_kind_and_period_on(gateway):
     gateway.answers = [ok(kind_answer("future", "2027", FUTURE_LINES))]
-    result = server.run_ocr(make_page(FUTURE_LINES).png, fake_recognizer)
+    result = server.run_ocr(make_page(FUTURE_LINES).png)
     assert (result["kind"], result["period"]) == ("future", "2027")
     assert [line["text"] for line in result["lines"]] == [text for _, text in FUTURE_LINES]
     assert result["lines"][0]["symbol"] == "none"
@@ -435,12 +430,12 @@ def test_a_redirect_is_not_followed(gateway):
 # run_ocr and the service
 
 
-def test_run_ocr_uses_the_llm_and_the_detector_boxes(gateway):
+def test_run_ocr_uses_the_llm_with_empty_boxes(gateway):
     fixture = make_page()
     gateway.answers = [ok({"date": "20.11.2025", "lines": [
         {"symbol": e.symbol, "text": e.text, "tags": [], "time": None, "confidence": 0.9} for e in fixture.expected
     ]})]
-    result = server.run_ocr(fixture.png, fake_recognizer)
+    result = server.run_ocr(fixture.png)
     assert set(result) == {"lines", "date", "kind", "period", "pageNumber", "width", "height", "ms"}
     assert result["date"] == "20.11.2025"
     assert (result["kind"], result["period"]) == (None, None)
@@ -448,7 +443,7 @@ def test_run_ocr_uses_the_llm_and_the_detector_boxes(gateway):
     for line in result["lines"]:
         assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
         assert line["engine"] == "llm:claude-haiku-5-5"
-        assert line["bbox"][2] > 0 and line["bbox"][3] > 0
+        assert line["bbox"] == [0, 0, 0, 0]
 
 
 def test_run_ocr_passes_the_indent_on_and_the_date_line_is_never_nested(gateway):
@@ -457,7 +452,7 @@ def test_run_ocr_passes_the_indent_on_and_the_date_line_is_never_nested(gateway)
         {"symbol": "–", "text": "Note", "tags": [], "time": None, "confidence": 0.9, "indent": 1},
     ]}
     gateway.answers = [ok(answer)]
-    result = server.run_ocr(make_page().png, fake_recognizer)
+    result = server.run_ocr(make_page().png)
     assert [(line["text"], line["indent"]) for line in result["lines"]] == [
         ("20.11.2025", 0), ("Meeting", 0), ("Note", 1),
     ]
@@ -469,32 +464,44 @@ def test_a_date_given_only_in_date_becomes_the_first_line(gateway):
         {"symbol": e.symbol, "text": e.text, "tags": [], "time": None, "confidence": 0.9}
         for e in fixture.expected if e.symbol != "none"
     ]})]
-    result = server.run_ocr(fixture.png, fake_recognizer)
+    result = server.run_ocr(fixture.png)
     first = result["lines"][0]
     assert (first["symbol"], first["text"], first["engine"]) == ("none", "20.11.2025", "llm:claude-haiku-5-5")
     assert [line["symbol"] for line in result["lines"]] == [e.symbol for e in fixture.expected]
-    assert all(line["bbox"][2] > 0 for line in result["lines"])
-
-
-def test_run_ocr_uses_empty_boxes_when_line_counts_differ(gateway):
-    result = server.run_ocr(make_page().png, fake_recognizer)  # the LLM answers 3 lines, the page has 7
-    assert len(result["lines"]) == 3
-    assert all(line["bbox"] == [0, 0, 0, 0] for line in result["lines"])
 
 
 def test_run_ocr_takes_an_injected_reader_without_any_env():
     page = llm.LlmPage(date=None, lines=[llm.LlmLine("•", "hallo", ["t"], "08:00", 0.7)], model="m1")
-    result = server.run_ocr(make_page().png, fake_recognizer, lambda image: page)
+    result = server.run_ocr(make_page().png, lambda image: page)
     assert result["lines"][0]["engine"] == "llm:m1"
     assert result["lines"][0]["tags"] == ["t"] and result["lines"][0]["time"] == "08:00"
 
 
-def test_an_unexpected_exception_from_the_reader_falls_back():
+def test_an_unexpected_exception_from_the_reader_is_a_502_failure(caplog):
     def broken(image):
-        raise RuntimeError("boom")
+        raise RuntimeError("secret page text")
 
-    result = server.run_ocr(make_page().png, fake_recognizer, broken)
-    assert {line["engine"] for line in result["lines"]} == {"fake"}
+    with caplog.at_level("INFO", logger="bujo_ocr"), pytest.raises(server.OcrFailure) as raised:
+        server.run_ocr(make_page().png, broken)
+    assert (raised.value.status, raised.value.category) == (502, "failed")
+    assert "secret page text" not in caplog.text
+
+
+def test_a_reader_error_keeps_its_category_and_is_a_502():
+    def refuses(image):
+        raise llm.LlmError("http 401")
+
+    with pytest.raises(server.OcrFailure) as raised:
+        server.run_ocr(make_page().png, refuses)
+    assert (raised.value.status, raised.value.category) == (502, "http 401")
+
+
+def test_not_configured_is_a_503_and_makes_no_request(gateway, monkeypatch):
+    monkeypatch.delenv("OCR_LLM_KEY")
+    with pytest.raises(server.OcrFailure) as raised:
+        server.run_ocr(make_page().png)
+    assert (raised.value.status, raised.value.category) == (503, "not configured")
+    assert gateway.requests == []
 
 
 def call_ocr(port, body):
@@ -509,7 +516,7 @@ def call_ocr(port, body):
 
 @pytest.fixture()
 def service():
-    httpd = server.make_server("127.0.0.1", 0, fake_recognizer)
+    httpd = server.make_server("127.0.0.1", 0)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     yield httpd.server_address[1]
@@ -532,75 +539,60 @@ def test_service_happy_path(gateway, service):
     assert len(gateway.requests) == 1
 
 
-def test_service_with_an_injected_reader():
-    page = llm.LlmPage(date="d", lines=[llm.LlmLine("○", "Fest", [], None, 0.5)], model="m2")
-    httpd = server.make_server("127.0.0.1", 0, fake_recognizer, lambda image: page)
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
-    try:
-        status, body = call_ocr(httpd.server_address[1], make_page().png)
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
-        thread.join(timeout=5)
-    assert status == 200 and body["date"] == "d" and body["lines"][0]["engine"] == "llm:m2"
+# errors over HTTP: no fallback
 
 
-# fallbacks
-
-
-def assert_fallback(port_or_none, fixture, via_http):
-    if via_http:
-        status, body = call_ocr(port_or_none, fixture.png)
-        assert status == 200
-    else:
-        body = server.run_ocr(fixture.png, fake_recognizer)
-    assert body["date"] is None
-    assert [line["symbol"] for line in body["lines"]] == [e.symbol for e in fixture.expected]
-    for line in body["lines"]:
-        assert line["engine"] == "fake"
-        assert line["tags"] == [] and line["time"] is None and line["indent"] == 0
-        assert set(line) == {"symbol", "text", "confidence", "bbox", "engine", "tags", "time", "indent"}
-
-
-def test_fallback_without_a_key_makes_no_request(gateway, monkeypatch):
+def test_service_without_a_key_is_a_503_with_a_category(gateway, service, monkeypatch):
     monkeypatch.delenv("OCR_LLM_KEY")
-    assert_fallback(None, make_page(), via_http=False)
+    status, body = call_ocr(service, make_page().png)
+    assert status == 503
+    assert body == {"error": "ocr reader is not configured", "category": "not configured"}
     assert gateway.requests == []
 
 
-def test_fallback_without_a_base(gateway, monkeypatch):
+def test_service_without_a_base_is_a_503(gateway, service, monkeypatch):
     monkeypatch.delenv("OCR_LLM_BASE")
-    assert_fallback(None, make_page(), via_http=False)
-    assert gateway.requests == []
+    assert call_ocr(service, make_page().png)[0] == 503
 
 
 @pytest.mark.parametrize(
-    "answer",
+    "answer, category",
     [
-        (500, "boom", 0),
-        (200, completion("not json"), 0),
-        (200, completion(json.dumps({"date": None, "lines": []})), 0),
+        ((500, "boom", 0), "http 500"),
+        ((401, "no", 0), "http 401"),
+        ((200, completion("not json"), 0), "invalid json"),
+        ((200, completion(json.dumps({"date": None, "lines": []})), 0), "no lines"),
     ],
-    ids=["http500", "invalid-json", "empty-lines"],
+    ids=["http500", "http401", "invalid-json", "empty-lines"],
 )
-def test_fallback_on_gateway_problems(gateway, service, answer):
+def test_service_gateway_problems_are_a_502_with_the_category(gateway, service, answer, category):
     gateway.answers = [answer]
-    assert_fallback(service, make_page(), via_http=True)
+    status, body = call_ocr(service, make_page().png)
+    assert status == 502
+    assert body == {"error": "ocr reader failed", "category": category}
     assert len(gateway.requests) == 1
 
 
-def test_fallback_on_timeout(gateway, monkeypatch):
+def test_service_timeout_is_a_502(gateway, service, monkeypatch):
     gateway.answers = [(200, completion("{}"), 2.0)]
     monkeypatch.setenv("OCR_LLM_TIMEOUT", "0.3")
-    assert_fallback(None, make_page(), via_http=False)
-    assert len(gateway.requests) == 1
+    status, body = call_ocr(service, make_page().png)
+    assert (status, body["category"]) == (502, "timeout")
 
 
-def test_fallback_when_the_gateway_is_not_listening(monkeypatch):
+def test_service_gateway_not_listening_is_a_502(service, monkeypatch):
     monkeypatch.setenv("OCR_LLM_BASE", "http://127.0.0.1:1/v1")
     monkeypatch.setenv("OCR_LLM_KEY", "test-key")
-    assert_fallback(None, make_page(), via_http=False)
+    status, body = call_ocr(service, make_page().png)
+    assert (status, body["category"]) == (502, "network")
+
+
+def test_service_error_bodies_leak_no_secret(gateway, service, monkeypatch):
+    gateway.answers = [(500, "key test-key page text", 0)]
+    status, body = call_ocr(service, make_page().png)
+    assert status == 502
+    text = json.dumps(body)
+    assert "test-key" not in text and "127.0.0.1" not in text
 
 
 def test_a_bad_timeout_value_means_the_default(monkeypatch):

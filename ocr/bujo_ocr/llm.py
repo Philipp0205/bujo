@@ -1,6 +1,7 @@
-"""Optional whole-page reading with a vision LLM behind an OpenAI-compatible gateway (for example a LiteLLM proxy).
+"""Whole-page reading with a vision LLM behind an OpenAI-compatible gateway (for example a LiteLLM proxy).
 
-Enabled only when OCR_LLM_BASE and OCR_LLM_KEY are both set. Env is read at call time:
+This is the only reader. It needs OCR_LLM_BASE and OCR_LLM_KEY; without them every read fails as "not configured".
+Env is read at call time:
   OCR_LLM_BASE     gateway root, for example https://gateway.example/v1 (a trailing slash is fine)
   OCR_LLM_KEY      bearer key for the gateway
   OCR_LLM_MODEL    model name (default claude-haiku-5-5)
@@ -8,7 +9,7 @@ Enabled only when OCR_LLM_BASE and OCR_LLM_KEY are both set. Env is read at call
 
 Each line carries symbol, text, tags, time, confidence and indent (0, or 1 for a child of the line above).
 The page also carries page_number: the notebook page number (integer 1..9999) or null. It is never a line.
-read_page(image_bgr) -> LlmPage. Every problem is an LlmError, so the caller can fall back to the local path.
+read_page(image_rgb) -> LlmPage. Every problem is an LlmError with a short category; the server turns it into an error answer.
 The page photo is shrunk and encoded in memory, sent to the gateway only, and never written or logged.
 Standard library plus Pillow and numpy.
 """
@@ -176,9 +177,9 @@ def configured() -> bool:
     return bool(settings.base and settings.key)
 
 
-def encode_image(image_bgr: np.ndarray) -> str:
+def encode_image(image_rgb: np.ndarray) -> str:
     """The page as a data URL: long side at most 2000 px, JPEG quality 90, built in memory only."""
-    picture = Image.fromarray(np.ascontiguousarray(image_bgr[:, :, ::-1])).convert("RGB")
+    picture = Image.fromarray(np.ascontiguousarray(image_rgb)).convert("RGB")
     picture.thumbnail((MAX_SIDE, MAX_SIDE))
     buffer = io.BytesIO()
     picture.save(buffer, format="JPEG", quality=JPEG_QUALITY)
@@ -364,9 +365,9 @@ def parse_page(content: str, model: str) -> LlmPage:
     )
 
 
-def _ask(settings: Settings, image_bgr: np.ndarray, opener) -> LlmPage:
+def _ask(settings: Settings, image_rgb: np.ndarray, opener) -> LlmPage:
     """Sends the page, once more without response_format if the gateway rejects it, and parses the answer."""
-    data_url = encode_image(image_bgr)
+    data_url = encode_image(image_rgb)
     try:
         answer = _post(settings, build_body(settings.model, data_url), opener)
     except _FormatRejected:
@@ -374,13 +375,13 @@ def _ask(settings: Settings, image_bgr: np.ndarray, opener) -> LlmPage:
     return parse_page(_answer_text(answer), settings.model)
 
 
-def read_page(image_bgr: np.ndarray, *, opener=None) -> LlmPage:
+def read_page(image_rgb: np.ndarray, *, opener=None) -> LlmPage:
     """Reads a whole page photo with the vision LLM. Raises LlmError, after one warning with the reason and model."""
     settings = _env_settings()
     try:
         if not (settings.base and settings.key):
             raise LlmError("not configured")
-        return _ask(settings, image_bgr, opener or urllib.request.build_opener(_NoRedirects))
+        return _ask(settings, image_rgb, opener or urllib.request.build_opener(_NoRedirects))
     except LlmError as error:
         log.warning("llm read failed: %s (model %s)", error.category, settings.model)
         raise

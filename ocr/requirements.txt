@@ -1,12 +1,3 @@
-# Runtime. The Dockerfile installs torch from the CPU wheel index first, so that line is already satisfied.
-opencv-python-headless
+# Runtime: image decoding and the LLM request. Everything else is the standard library.
 numpy
-scikit-image
 pillow
-pytesseract
-torch
-# Pinned to the version the spike ran. Without protobuf, the TrOCR-small tokenizer load falls through to a
-# tiktoken path and fails (seen on the Railway build).
-transformers==5.23.0
-sentencepiece
-protobuf
