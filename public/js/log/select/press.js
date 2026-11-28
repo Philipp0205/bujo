@@ -1,9 +1,8 @@
 /*
- * The long press on a log row: hold for about half a second without moving to start selecting. Mouse and touch both work
- * (pointer events). A press that moves more than a few pixels is a scroll or a drag, so it is dropped. The click that follows
- * a long press is swallowed, so letting go never opens the editor. Needs days.js (hasDay) and the DOM.
- * options: root (the page node), onHold(id) with the data-id of the pressed row, skip(event) true for a press that is not this hold's
- * (the marker hold of type/hold.js).
+ * The long press on a log row: hold for about half a second without moving to start selecting. The press itself is owned by
+ * gesture/hold.js (it tells a held-still row from a scroll, a swipe and a drag, and eats the click after a long press, so letting go
+ * never opens the editor). This file only subscribes select mode to that hook (L.gesture.hold.onHeldStill). Needs gesture/hold.js.
+ * options: onHold(id) with the data-id of the held row.
  */
 (function () {
   'use strict';
@@ -11,82 +10,9 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.select = L.select || {};
 
-  var HOLD_MS = 500;
-  var SLOP_PX = 10;
-  var SWALLOW_MS = 300;
-
-  var root = null;
-  var onHold = null;
-  var skip = null;
-  var press = null;
-  var swallow = null;
-
-  /** The log row of a day or calendar day under an event, or null. Only the rows of the day cards count: month-task and future rows do not select, and never the line in the edit sheet. */
-  function rowOf(event) {
-    var row = event.target.closest && event.target.closest('.paper-row');
-    return row && row.closest('.entry-card, .card-child') && L.days.hasDay(row.getAttribute('data-horizon')) ? row : null;
-  }
-
-  /** Drops the press in progress. */
-  function drop() {
-    if (press) window.clearTimeout(press.timer);
-    press = null;
-  }
-
-  /** The hold time passed without moving: the row is held. */
-  function fire() {
-    press.fired = true;
-    onHold(press.id);
-  }
-
-  /** A pointer went down on a row: the hold clock starts. Only the main mouse button counts. A new press ends any swallow left over. */
-  function onDown(event) {
-    drop();
-    swallow = null;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    var row = rowOf(event);
-    if (!row || (skip && skip(event))) return;
-    press = { id: row.getAttribute('data-id'), x: event.clientX, y: event.clientY, fired: false, timer: window.setTimeout(fire, HOLD_MS) };
-  }
-
-  /** Moving further than the slop before the hold time ends the press. */
-  function onMove(event) {
-    if (!press || press.fired) return;
-    if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > SLOP_PX) drop();
-  }
-
-  /** The pointer is up (or the browser took the touch): after a hold, the click on the same row is swallowed for a moment. */
-  function onEnd() {
-    if (press && press.fired) swallow = { id: press.id, until: Date.now() + SWALLOW_MS };
-    drop();
-  }
-
-  /** Eats the click that ends a long press, so the row does not also open or untick. Any click ends the swallow, only the pressed row's own is eaten. */
-  function onClick(event) {
-    var held = swallow;
-    swallow = null;
-    var row = held && rowOf(event);
-    if (!row || Date.now() > held.until || row.getAttribute('data-id') !== held.id) return;
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  /** A held finger on a row would open the browser's menu; the hold means select instead. */
-  function onMenu(event) {
-    if (rowOf(event)) event.preventDefault();
-  }
-
-  /** Starts watching the page. Call once. */
+  /** Starts listening for held-still rows. Call once. */
   function init(options) {
-    root = options.root;
-    onHold = options.onHold;
-    skip = options.skip || null;
-    root.addEventListener('pointerdown', onDown);
-    root.addEventListener('contextmenu', onMenu);
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onEnd);
-    document.addEventListener('pointercancel', onEnd);
-    document.addEventListener('click', onClick, true);
+    L.gesture.hold.onHeldStill(function (id) { options.onHold(id); });
   }
 
   L.select.press = { init: init };

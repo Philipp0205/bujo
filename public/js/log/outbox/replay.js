@@ -1,7 +1,7 @@
 /*
  * Sends the queued entries to the server, oldest first, one at a time. Needs outbox/model.js, outbox/queue.js and api.js.
  * Every send is safe to repeat: a create carries its client id (the server answers a repeat with the stored entry), an update
- * is a PATCH of fixed fields. So a lost answer, a second tab or a retry never makes a second entry.
+ * is a PATCH of fixed fields, an order is the same list again. So a lost answer, a second tab or a retry never makes a second entry.
  * hooks: sent(entry, item) after one item went through, dropped(item, error) when the server will never take it, finished(sentAny).
  * It stops at the first item that cannot be sent now (no network, a server error) and tries again later.
  */
@@ -22,9 +22,10 @@
     return navigator.onLine !== false;
   }
 
-  /** Sends one item. A create then sets its indent, which a create cannot carry. Resolves with the saved entry. */
+  /** Sends one item. A create then sets its indent, which a create cannot carry. Resolves with the saved entry (an order: the day it answered). */
   function send(item) {
     if (item.kind === 'update') return L.api.update(item.id, item.body);
+    if (item.kind === 'order') return L.api.reorder(item.body, item.body.ids);
     return L.api.create(item.body).then(function (entry) {
       return item.indent === 1 && entry.indent !== 1 ? L.api.update(entry.id, { indent: 1 }) : entry;
     });

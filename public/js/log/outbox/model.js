@@ -4,7 +4,8 @@
  *
  * An item is { key, kind, id, body, indent, at, order, rev }:
  *   kind 'create'  a new entry (body holds its client id and fields, horizon included, indent is 0 or 1, which a create cannot carry);
- *   kind 'update'  changes to a saved entry (body holds only the changed fields).
+ *   kind 'update'  changes to a saved entry (body holds only the changed fields);
+ *   kind 'order'   a drag and drop in one day (id is null, body is { date, horizon, ids }: those entries in their new order). One per day, the last drag wins.
  * An edit of an entry whose create is still queued goes into that create, so the server sees one POST. rev counts the changes
  * of an item, so a change made while the item is being sent is not lost.
  * Entries made from items carry queued: 'create' or 'update'. That flag is client only, the server never sees it.
@@ -86,12 +87,30 @@
     return items.concat([{ key: 'u:' + id, kind: 'update', id: id, body: Object.assign({}, patch), indent: 0, at: now, order: nextOrder(items), rev: 0 }]);
   }
 
+  /** The entries with some of one group (a day or a month's lane) put in the order of `ids`, in the places those entries held (the places are their own positions, handed out in order). Entries of other groups and unnamed entries stay. A new list, the entries are copies. */
+  function reposition(entries, slot, ids) {
+    var inSlot = function (entry) { return !entry.isTrace && entry.date === slot.date && (entry.horizon || 'day') === slot.horizon; };
+    var named = ids.map(function (id) { return entries.find(function (entry) { return entry.id === id && inSlot(entry); }); }).filter(Boolean);
+    var places = named.map(function (entry) { return entry.position; }).sort(function (a, b) { return a - b; });
+    var next = {};
+    named.forEach(function (entry, at) { next[entry.id] = places[at]; });
+    return entries.map(function (entry) { return next[entry.id] === undefined ? entry : Object.assign({}, entry, { position: next[entry.id] }); });
+  }
+
+  /** Queues a new order for one group. A later order for the same group replaces the earlier one (the last drag wins) and goes to the end of the queue, behind any entry created since. slot is { date, horizon }. */
+  function enqueueOrder(items, slot, ids, now) {
+    var key = 'o:' + slot.horizon + ':' + slot.date;
+    var old = items.find(function (item) { return item.key === key; });
+    var item = { key: key, kind: 'order', id: null, body: { date: slot.date, horizon: slot.horizon, ids: ids.slice() }, indent: 0, at: old ? old.at : now, order: nextOrder(items), rev: old ? old.rev + 1 : 0 };
+    return without(items, key).concat([item]);
+  }
+
   /** The items after one was sent: it leaves the queue, unless it changed while it was in flight (then the rest stays queued). */
   function afterSent(items, sent) {
     var current = items.find(function (item) { return item.key === sent.key; });
     if (!current) return items;
     if (current.rev === sent.rev) return without(items, sent.key);
-    if (current.kind === 'update') return items;
+    if (current.kind !== 'create') return items;
     var rest = Object.assign({}, current.body);
     delete rest.id;
     return items.map(function (item) {
@@ -149,12 +168,14 @@
       seen[item.id] = true;
       out.push(entryOf(item, nextPosition(out, item.body.date, item.body.horizon || 'day')));
     });
-    return out;
+    return items.filter(function (item) { return item.kind === 'order'; }).reduce(function (shown, item) {
+      return reposition(shown, item.body, item.body.ids);
+    }, out);
   }
 
   L.outbox.model = {
     newId: newId, isNetworkMiss: isNetworkMiss, verdict: verdict, hasCreate: hasCreate, without: without,
-    enqueueCreate: enqueueCreate, enqueueUpdate: enqueueUpdate, afterSent: afterSent,
+    enqueueCreate: enqueueCreate, enqueueUpdate: enqueueUpdate, enqueueOrder: enqueueOrder, reposition: reposition, afterSent: afterSent,
     preview: preview, merge: merge
   };
 })();

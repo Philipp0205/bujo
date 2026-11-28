@@ -89,11 +89,16 @@
     host.paint();
   }
 
+  /** True while a row is held for a drag (gesture/hold.js, loaded on the log only): the swipe stands aside then. */
+  function heldForDrag() {
+    return !!(L.gesture && L.gesture.hold && L.gesture.hold.holding());
+  }
+
   /** Wires the move to a page's host. The log also watches row swipes (options.root, select is select mode); a collection page has no swipes (swipe: false). */
   function init(options) {
     hosts.push(options.host);
     if (options.swipe === false) return;
-    L.move.swipe.init({ root: options.root, active: function () { return !options.select.on(); }, onSwipe: open });
+    L.move.swipe.init({ root: options.root, active: function () { return !options.select.on(); }, holding: heldForDrag, onSwipe: open });
   }
 
   L.move.pick = { init: init, move: move, choose: choose, chooseMove: chooseMove, save: save, drop: drop, gone: gone, fail: fail, entryOf: entryOf };
