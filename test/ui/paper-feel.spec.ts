@@ -105,4 +105,36 @@ for (const scheme of ["light", "dark"] as const) {
     await expect(box).toHaveAttribute("aria-checked", "true");
     expect(await shown()).toBe("visible");
   });
+
+  test(`the Done button of the What's new sheet is an ink button that still closes the sheet, in ${scheme}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto(`${app.baseUrl}/settings`);
+    await page.getByRole("button", { name: "See what\u2019s new" }).click();
+    const sheet = page.getByTestId("whats-new-sheet");
+    const done = sheet.locator('[data-action="whats-new-done"]');
+    await expect(done).toHaveAttribute("data-ink", "drawn");
+    expect((await done.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await done.evaluate((node) => getComputedStyle(node, "::before").maskImage || getComputedStyle(node, "::before").webkitMaskImage)).toContain("data:image/svg+xml");
+    await done.click();
+    await expect(sheet).toHaveCount(0);
+  });
+
+  test(`the Include box on the scan page is a pen tick box that follows the real checkbox, in ${scheme}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    app.ocr.setLines([line("•", "Post abholen", 0.9)]);
+    await page.goto(`${app.baseUrl}/scan`);
+    await page.locator("#photo-pick").setInputFiles(photo);
+    await page.locator('[data-action="upload"]').click();
+    const check = page.locator(".bj-check").first();
+    await expect(check).toBeVisible();
+    const input = check.locator("input");
+    const mark = check.locator(".ink-tick-mark").first();
+    const shown = () => mark.evaluate((node) => getComputedStyle(node).visibility);
+    await expect(check.locator(".ink-tick svg")).toHaveCount(1);
+    await expect(input).toBeChecked();
+    expect(await shown()).toBe("visible");
+    await check.click();
+    await expect(page.locator(".bj-check").first().locator("input")).not.toBeChecked();
+    expect(await page.locator(".bj-check").first().locator(".ink-tick-mark").first().evaluate((node) => getComputedStyle(node).visibility)).toBe("hidden");
+  });
 }
