@@ -29,7 +29,12 @@
   color: var(--paper-ink);
   font-family: var(--font-text);
   border-radius: 18px 18px 0 0;
-  box-shadow: 0 -12px 40px rgba(20, 14, 10, 0.28);
+  box-shadow:
+    0 -12px 40px rgba(20, 14, 10, 0.28),
+    0 -1px 3px rgba(20, 14, 10, 0.18),
+    inset 0 1px 0 var(--page-hi),
+    inset 12px 0 14px -12px var(--page-edge),
+    inset -12px 0 14px -12px var(--page-edge);
 }
 
 .sheet-entry .ak-sheet-head,
@@ -87,22 +92,42 @@
 
 .sheet-entry .ak-sheet-dock { padding: 12px 16px 24px; }
 
+/*
+ * The main button of a sheet is an ink button, not a black bar: a faint ink wash with a pen-drawn outline and a handwritten label.
+ * The outline is drawn by js/log/ink/button.js as a mask on ::before (--ink-mask), so it is ink in both schemes. Until it is drawn a
+ * plain pen line stands in. The hit area stays 48px high and full width.
+ */
 .sheet-entry .ak-sheet-dock .ak-btn {
   appearance: none;
   -webkit-appearance: none;
+  position: relative;
   width: 100%;
   min-height: 48px;
+  padding: 0 16px;
   border: 0;
-  border-radius: 12px;
-  background: var(--paper-btn-bg);
-  color: var(--paper-btn-ink);
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pen) 6%, transparent);
+  color: var(--paper-ink);
+  font-family: Caveat, var(--font-text), cursive;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 28px;
   letter-spacing: 0.01em;
-  box-shadow: none;
+  box-shadow: 1px 2px 0 color-mix(in srgb, var(--pen) 22%, transparent);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.sheet-entry .ak-sheet-dock .ak-btn:not(.ak-btn-quiet):not([data-ink="drawn"]) { outline: 1.5px solid var(--pen); outline-offset: -1.5px; }
+.sheet-entry .ak-sheet-dock .ak-btn[data-ink="drawn"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--pen);
+  -webkit-mask: var(--ink-mask) no-repeat center / 100% 100%;
+  mask: var(--ink-mask) no-repeat center / 100% 100%;
+}
+.sheet-entry .ak-sheet-dock .ak-btn:active { box-shadow: none; transform: translate(1px, 1px); }
 .sheet-entry .ak-sheet-dock .ak-btn:disabled { opacity: 0.6; cursor: default; }
 
 .sheet-slot:empty { display: none; }

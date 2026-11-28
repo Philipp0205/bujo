@@ -8,13 +8,17 @@
 .notebook-row { align-items: center; min-height: 72px; }
 .notebook-main { min-width: 0; display: flex; flex-direction: column; }
 .notebook-sub { color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
+/* The active mark is an ink stamp: a double rule in brick ink, tilted a little, as pressed by hand. */
 .notebook-active {
   flex: none;
   padding: 0 10px;
-  border: 1px solid var(--paper-muted);
-  border-radius: 12px;
-  color: var(--paper-ink);
-  font: var(--text-weight) 13px/22px var(--font-text);
+  border: 1.5px solid var(--ink-brick);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1.5px var(--paper-bg), 0 0 0 2.5px color-mix(in srgb, var(--ink-brick) 40%, transparent);
+  color: var(--ink-brick);
+  font: 600 13px/22px var(--font-ui);
+  letter-spacing: 0.06em;
+  transform: rotate(-3deg);
 }
 
 /* The start sheet: each field on its own row under a small caption, the button under them. */

@@ -20,7 +20,9 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  background-attachment: local;
+  background-attachment: local, local;
+  /* The daily log lines its bullets and words up with the margin line (a plain page, like Settings, has none). */
+  --paper-margin-layer: var(--paper-page-margin-image);
 }
 /* An id selector beats the router's own rule for a hidden tab page. */
 #log.paper[hidden] { display: none; }

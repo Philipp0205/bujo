@@ -43,9 +43,11 @@ async function openLog(page: Page): Promise<void> {
 /**
  * The y of every dot in a narrow, empty column of the screen between top and bottom (CSS pixels, from the top of the viewport).
  * The column is read from a real screenshot, so what counts is where the dots are painted, not which CSS rule paints them.
+ * The paper grain (a speckle over the page) and the soft page edge are left out of the shot, so their shading is not read as dots.
  */
 async function dotYs(page: Page, x: number, top: number, bottom: number): Promise<number[]> {
-  const png = await page.screenshot({ clip: { x, y: top, width: 12, height: bottom - top }, scale: "css" });
+  const style = "body::before { display: none !important; } .paper { box-shadow: none !important; }";
+  const png = await page.screenshot({ clip: { x, y: top, width: 12, height: bottom - top }, scale: "css", style });
   const reader = await page.context().newPage();
   try {
     const ys = await reader.evaluate(async (base64: string) => {
@@ -165,7 +167,7 @@ test("the log keeps one grid: it is painted once, on the scrolling sheet, and ru
     return { image: style.backgroundImage, attachment: style.backgroundAttachment, size: style.backgroundSize };
   });
   expect(own.image).toContain("radial-gradient");
-  expect(own.attachment).toBe("local");
+  expect(own.attachment).toBe("local, local");
   expect(own.size).toContain("24px 24px");
 
   // After a scroll that is not a multiple of the grid the header is gone, and the dots still run unbroken over the whole screen.

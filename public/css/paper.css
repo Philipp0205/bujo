@@ -65,6 +65,15 @@
     var(--paper-margin) calc(var(--gutter) + 0.5px),
     transparent calc(var(--gutter) + 0.5px)
   );
+  /* The margin line of the log page sits between the bullet column and the text, so it never cuts a word of a row. */
+  --page-margin-x: 46px;
+  --paper-page-margin-image: linear-gradient(
+    to right,
+    transparent calc(var(--page-margin-x) - 0.5px),
+    var(--paper-margin) calc(var(--page-margin-x) - 0.5px),
+    var(--paper-margin) calc(var(--page-margin-x) + 0.5px),
+    transparent calc(var(--page-margin-x) + 0.5px)
+  );
 }
 
 /* ----- The light paper: the OS preference, or the forced choice ----- */
@@ -166,10 +175,10 @@ html.ak-base body {
   min-height: 100dvh;
   padding-top: var(--ak-safe-top);
   background-color: var(--paper-bg);
-  background-image: var(--paper-dot-image);
-  background-size: var(--grid) var(--grid);
-  background-position: 0 calc(var(--grid-shift) + var(--ak-safe-top));
-  background-repeat: repeat;
+  background-image: var(--paper-margin-layer, none), var(--paper-dot-image);
+  background-size: 100% 100%, var(--grid) var(--grid);
+  background-position: 0 0, 0 calc(var(--grid-shift) + var(--ak-safe-top));
+  background-repeat: no-repeat, repeat;
   color: var(--paper-ink);
   font-family: var(--font-text);
 }
@@ -221,3 +230,9 @@ html.ak-base body {
 .ink-handle,
 .ink-rule { top: 0; bottom: auto; height: 8px; }
 .ink-handle { color: var(--paper-muted); }
+
+/* ----- The hand-drawn tick box (js/log/ink/tick.js): the pen tick shows when the control around it is on (its own rule says when). ----- */
+
+.ink-tick { display: inline-block; flex: none; width: 24px; height: 24px; color: var(--paper-ink); }
+.ink-tick svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.ink-tick-mark { visibility: hidden; }

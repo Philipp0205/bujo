@@ -1,7 +1,7 @@
 /*
  * The scan review sheet (mock 05): the day, then one editable row per scanned line, then the apply button.
  * Rows are updated in place, never rebuilt, so a field keeps focus while the person types.
- * Needs ak-dom.js, ak-sheet.js, nav/overlays.js, copy.js, scan/copy.js, scan/model.js, scan/note.js, scan/marker.js, dates.js and glyph.js.
+ * Needs ak-dom.js, ak-sheet.js, nav/overlays.js, copy.js, scan/copy.js, scan/model.js, scan/note.js, scan/marker.js, ink/tick.js, dates.js and glyph.js.
  */
 (function () {
   'use strict';
@@ -94,14 +94,14 @@
     pill.setAttribute('aria-label', copy.marker[marker.state] + (marker.typeChanged ? copy.marker.typeChanged : ''));
   }
 
-  /** The keep check at the end of a row: a box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
+  /** The keep check at the end of a row: a hand-drawn tick box (ticked while the line is kept) with the word "Keep" under it, so it reads as a control. */
   function keepToggle(item, onToggle) {
     var copy = L.copy.scan.review;
     var button = h('button', { class: 'scan-keep', type: 'button', role: 'checkbox', 'data-field': 'include', 'aria-label': copy.keep, onclick: function () {
       item.include = !item.include;
       item.touched = true;
       onToggle();
-    } }, h('span', { class: 'scan-keep-box', 'aria-hidden': 'true' }, L.glyph.use('g-check', { viewBox: '0 0 24 24', width: 16, height: 16 })),
+    } }, h('span', { class: 'scan-keep-box', 'aria-hidden': 'true' }, L.ink.tick.box(item.id)),
     h('span', { class: 'scan-keep-label', 'aria-hidden': 'true', 'data-testid': 'scan-keep-label' }, copy.keepLabel));
     return {
       node: button,

@@ -1,0 +1,59 @@
+/*
+ * bujo paper feel: the grain of the paper and the soft edge of a page. Loaded right after paper.css on every page.
+ * The grain is one static tiled image (an inline SVG noise, no file, no CDN) on a fixed layer that never takes a tap and never repaints
+ * on scroll. It is very light on dark paper. The page edge is a soft inner shadow at the sides of a page and a sheet, so each reads as a
+ * sheet of paper and not as a flat card. The schemes follow paper.css: dark is the default, light is the OS preference, and
+ * html[data-ak-scheme] forces one.
+ */
+
+:root {
+  /* Pale specks for dark paper, dark specks for light paper. Alpha comes from the noise, so most of the tile stays clear. */
+  --grain-pale: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.96 0 0 0 0 0.92 0 0 0 0 0.84 1.7 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.24 0 0 0 0 0.17 0 0 0 0 0.1 1.7 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-image: var(--grain-pale);
+  --grain-opacity: 0.07;
+  --page-edge: rgba(0, 0, 0, 0.32);
+  --page-hi: rgba(255, 244, 222, 0.07);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --grain-image: var(--grain-dark);
+    --grain-opacity: 0.16;
+    --page-edge: rgba(70, 48, 24, 0.16);
+    --page-hi: rgba(255, 255, 255, 0.7);
+  }
+}
+
+html[data-ak-scheme="light"] {
+  --grain-image: var(--grain-dark);
+  --grain-opacity: 0.16;
+  --page-edge: rgba(70, 48, 24, 0.16);
+  --page-hi: rgba(255, 255, 255, 0.7);
+}
+
+/* A forced dark must beat the light media block above. */
+html[data-ak-scheme="dark"] {
+  --grain-image: var(--grain-pale);
+  --grain-opacity: 0.07;
+  --page-edge: rgba(0, 0, 0, 0.32);
+  --page-hi: rgba(255, 244, 222, 0.07);
+}
+
+/* The grain layer: fixed over the whole screen, painted once, no filter at run time, never a target of a tap. */
+html.ak-base body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  background-image: var(--grain-image);
+  background-size: 180px 180px;
+  opacity: var(--grain-opacity);
+  contain: strict;
+}
+
+/* The soft edge of a page: a faint shade at both sides, like the curve of paper at the spine and the fore-edge. */
+html.ak-base .paper {
+  box-shadow: inset 14px 0 16px -14px var(--page-edge), inset -14px 0 16px -14px var(--page-edge);
+}

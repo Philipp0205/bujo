@@ -91,7 +91,7 @@
 
   /**
    * Shows a kit sheet and registers it as a layer. Whatever closes the sheet (Back, the scrim, a swipe, Escape, a button)
-   * releases the layer. Returns the kit's handle, or null when a sheet is already open.
+   * releases the layer. Returns the kit's handle, or null when a sheet is already open. Where the ink module is loaded, the sheet's main buttons are inked.
    */
   function showSheet(node, options) {
     var settings = Object.assign({}, options);
@@ -102,6 +102,7 @@
     };
     var sheet = AppKit.sheet.show(node, settings);
     if (sheet) open('sheet', sheet.close);
+    if (sheet && window.BujoLog && BujoLog.ink && BujoLog.ink.button) BujoLog.ink.button.dress(node);
     return sheet;
   }
 

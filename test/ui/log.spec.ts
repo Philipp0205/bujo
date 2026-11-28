@@ -214,7 +214,8 @@ test("the paper is the page colour, never white, and its dot grid is on the scro
   expect(paper.bg).toBe(dark ? "rgb(22, 19, 15)" : "rgb(244, 239, 228)");
   expect(paper.image).toContain("radial-gradient");
   expect(paper.size).toContain("24px 24px");
-  expect(paper.attachment).toBe("local");
+  // Two layers, both on the scrolling sheet: the margin line and the dots.
+  expect(paper.attachment).toBe("local, local");
   expect(paper.overflow).toBe("auto");
   // The body of rows paints nothing of its own: the sheet's one grid runs under it.
   await expect.poll(async () => (await grid("[data-testid=page-body]")).image).toBe("none");
