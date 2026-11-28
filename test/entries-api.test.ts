@@ -332,7 +332,7 @@ test("a free note keeps its collection kind: set on create, changed and cleared 
     assert.equal(cleared.json.entry.noteKind, null);
     assert.equal((await api(base, "POST", "/api/entries", { body: { ...note, noteKind: "diary" }, headers })).status, 400);
     assert.equal((await api(base, "PATCH", `/api/entries/${plain.id}`, { body: { noteKind: 3 }, headers })).status, 400);
-    const listed = await api(base, "GET", "/api/entries?from=2026-11-14&to=2026-11-27", { headers });
+    const listed = await api(base, "GET", "/api/entries?kind=notes", { headers });
     assert.deepEqual(listed.json.entries.map((e: { noteKind: string | null }) => e.noteKind), [null, null]);
   });
 });
