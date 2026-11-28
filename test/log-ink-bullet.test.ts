@@ -48,6 +48,19 @@ test("stroke widths stay within a pen's range", () => {
   }
 });
 
+test("the dropped bullet is a dot with one diagonal slash through its middle", () => {
+  for (const seed of ["a", "b", "c"]) {
+    const { strokes } = model.strokes("dropped", seed)!;
+    assert.equal(strokes.length, 2);
+    const [slash] = strokes.slice(1).map((stroke) => stroke.d.match(/-?\d+(\.\d+)?/g)!.map(Number));
+    const xs = slash.filter((_, index) => index % 2 === 0);
+    const ys = slash.filter((_, index) => index % 2 === 1);
+    assert.ok(Math.abs((Math.min(...xs) + Math.max(...xs)) / 2 - 8) < 0.7, "centred across");
+    assert.ok(Math.abs((Math.min(...ys) + Math.max(...ys)) / 2 - 8) < 0.7, "centred down");
+    assert.ok(xs[0] < xs[xs.length - 1] && ys[0] > ys[ys.length - 1], "runs from lower left to upper right");
+  }
+});
+
 test("an unknown type has no bullet", () => {
   assert.equal(model.strokes("nope", "a"), null);
 });
