@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { line } from "../fake-ocr.ts";
 import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 const KEY = "bujo-feedback";
@@ -154,4 +156,31 @@ test("the dropped bullet is a dot with a slash, drawn as two strokes", async ({ 
   const svg = row(page, "Verworfen").locator(".paper-sym svg.ink-bullet");
   await expect(svg).toHaveAttribute("data-glyph", "dropped");
   await expect(svg.locator("path")).toHaveCount(2);
+});
+
+// A 1x1 PNG. The fake OCR service ignores the pixels and answers the lines the test sets.
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+test("a scanned entry and the page number carry the tilt, within the same row height as an app entry", async ({ page }) => {
+  app.ocr.failWith(0);
+  app.ocr.delay(0);
+  const [yyyy, mm, dd] = today().split("-");
+  app.ocr.setPage(null);
+  app.ocr.setLines([line("none", `${dd}.${mm}.${yyyy}`, 0.9), line("•", "Milch holen", 0.9)]);
+  app.ocr.setPageNumber(12);
+  await seed(page, { title: "Brot kaufen" });
+  await page.goto(app.baseUrl);
+  await (await openScan(page)).setFiles({ name: "page.png", mimeType: "image/png", buffer: PNG });
+  await page.getByTestId("scan-review").locator("[data-action=apply]").click();
+  await expect(page.getByTestId("scan-review")).toHaveCount(0);
+
+  const scanned = row(page, "Milch holen");
+  await expect(scanned).toHaveAttribute("data-origin", "scan");
+  await page.waitForFunction(() => !!document.querySelector('.paper-row[data-origin="scan"][data-jit]'));
+  expect(await scanned.locator(".paper-body").evaluate((el) => getComputedStyle(el).transform)).not.toBe("none");
+  const heights = await Promise.all([scanned, row(page, "Brot kaufen")].map((r) => r.evaluate((el) => el.getBoundingClientRect().height)));
+  expect(heights[0]).toBe(heights[1]);
+  const number = page.locator(".page-number").first();
+  await expect(number).toBeVisible();
+  expect(await number.evaluate((el) => getComputedStyle(el).transform)).not.toBe("none");
 });
