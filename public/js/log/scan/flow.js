@@ -126,7 +126,10 @@
       camera.close();
     }
 
-    camera = L.scan.camera.open({ day: options.day, onPhotos: onPhotos, onClose: onClose, autoCapture: !!options.autoCapture });
+    camera = L.scan.camera.open({
+      day: options.day, onPhotos: onPhotos, onClose: onClose, autoCapture: !!options.autoCapture,
+      single: !!(options.pinned || options.replaceNote)
+    });
   }
 
   L.scan.flow = { start: start };

@@ -34,23 +34,32 @@ async function scanAndApply(base: string, headers: Record<string, string>) {
 const entries = async (base: string, headers: Record<string, string>) =>
   (await api(base, "GET", "/api/entries?from=2026-11-01&to=2026-11-30", { headers })).json.entries as Array<{ id: string; type: string; title: string }>;
 
-test("scan dropped: a ~ line is read as dropped and applies as a new dropped entry", async () => {
+test("the OCR client leaves struck-through (~) lines out and keeps every other symbol", async () => {
+  const raw = (symbol: string, text: string) => ({ symbol, text, confidence: 0.9, engine: "fake", bbox: [0, 0, 1, 1] });
+  const lines = [raw("none", "20.11.2026"), raw("~", "Alte Idee"), raw("x", "Plants"), raw("•", "Brot"), raw(">", "Moved"), raw("<", "Sched"), raw("○", "Meet"), raw("–", "Note")];
+  const fetcher = (async () => new Response(JSON.stringify({ lines, width: 1, height: 1, ms: 1 }), { status: 200 })) as typeof fetch;
+  const result = await createOcrClient("http://ocr.invalid", { fetch: fetcher })(PNG, "image/png");
+  assert.deepEqual(result.lines.map((l) => l.symbol), ["none", "x", "•", ">", "<", "○", "–"]);
+});
+
+test("scan struck: a ~ line is not in the review and applies nothing", async () => {
   await withScan([line("none", "20.11.2026"), line("~", "Alte Idee", 0.8, 1), line("x", "Plants", 0.9, 2)], async ({ base, headers }) => {
     const { review, applied } = await scanAndApply(base, headers);
-    assert.deepEqual(review.items.map((i: any) => [i.type, i.title]), [["dropped", "Alte Idee"], ["done", "Plants"]]);
+    assert.deepEqual(review.items.map((i: any) => [i.type, i.title]), [["done", "Plants"]]);
     assert.equal(applied.status, 200);
-    assert.deepEqual((await entries(base, headers)).map((e) => [e.type, e.title]).sort(), [["done", "Plants"], ["dropped", "Alte Idee"]]);
+    assert.deepEqual((await entries(base, headers)).map((e) => [e.type, e.title]), [["done", "Plants"]]);
   });
 });
 
-test("scan dropped: an open task struck through on paper becomes dropped, same id, nothing deleted", async () => {
-  await withScan([line("none", "20.11.2026"), line("~", "Brot kaufen", 0.9, 1)], async ({ base, headers }) => {
+test("scan struck: a ~ line equal to an open task leaves that task untouched and creates nothing", async () => {
+  await withScan([line("none", "20.11.2026"), line("~", "Brot kaufen", 0.9, 1), line("x", "Plants", 0.9, 2)], async ({ base, headers }) => {
     const made = await api(base, "POST", "/api/entries", { body: { date: "2026-11-20", horizon: "day", type: "task", title: "Brot kaufen" }, headers });
     const id = made.json.entry.id;
     const { review, applied } = await scanAndApply(base, headers);
-    assert.deepEqual([review.items[0].status, review.items[0].target?.id, review.items[0].after?.type], ["edited", id, "dropped"]);
+    assert.deepEqual(review.items.map((i: any) => i.title), ["Plants"]);
     assert.equal(applied.status, 200);
-    const after = await entries(base, headers);
-    assert.deepEqual(after.map((e) => [e.id, e.type, e.title]), [[id, "dropped", "Brot kaufen"]]);
+    const after = (await entries(base, headers)).map((e) => [e.type, e.title]).sort();
+    assert.deepEqual(after, [["done", "Plants"], ["task", "Brot kaufen"]]);
+    assert.equal((await entries(base, headers)).find((e) => e.title === "Brot kaufen")!.id, id);
   });
 });

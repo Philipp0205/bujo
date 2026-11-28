@@ -68,13 +68,18 @@ function tidyIndent(line: OcrLine): OcrLine {
   return indent === 1 ? { ...rest, indent: 1 } : rest;
 }
 
+/** Struck-through lines (symbol "~") are not scanned: they leave the answer here, so no review, plan or import ever sees them. */
+function unstruck(lines: OcrLine[]): OcrLine[] {
+  return lines.filter((line) => line.symbol !== "~");
+}
+
 function parseResult(json: unknown): OcrResult {
   const body = json as Record<string, unknown> | null;
   if (!body || typeof body !== "object" || !Array.isArray(body.lines) || !body.lines.every(isOcrLine)) {
     throw new HttpError(502, "The OCR service sent an answer bujo could not read.");
   }
   return {
-    lines: (body.lines as OcrLine[]).map(tidyIndent),
+    lines: unstruck(body.lines as OcrLine[]).map(tidyIndent),
     width: typeof body.width === "number" ? body.width : 0,
     height: typeof body.height === "number" ? body.height : 0,
     ms: typeof body.ms === "number" ? body.ms : 0,

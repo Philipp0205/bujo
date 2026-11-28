@@ -63,5 +63,24 @@
     return place;
   }
 
-  L.scan.batch = { MAX_PAGES: MAX_PAGES, exceeds: exceeds, settled: settled, allSettled: allSettled, nextOpen: nextOpen, numbers: numbers, landing: landing };
+  /** The pages waiting for Done: `files` joined to `pending`, cut at MAX_PAGES. `full` tells that some did not fit. */
+  function collect(pending, files) {
+    var room = Math.max(MAX_PAGES - pending.length, 0);
+    return { pending: pending.concat(files.slice(0, room)), full: files.length > room };
+  }
+
+  /** True when no more pages fit in the pending batch. */
+  function isFull(pending) {
+    return pending.length >= MAX_PAGES;
+  }
+
+  /** The pending pages without the one at `index`. */
+  function without(pending, index) {
+    return pending.filter(function (_, at) { return at !== index; });
+  }
+
+  L.scan.batch = {
+    MAX_PAGES: MAX_PAGES, exceeds: exceeds, settled: settled, allSettled: allSettled, nextOpen: nextOpen, numbers: numbers, landing: landing,
+    collect: collect, isFull: isFull, without: without
+  };
 })();

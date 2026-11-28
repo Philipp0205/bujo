@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-28-scan-capture",
+    "date": "2026-11-28",
+    "title": "Scan several pages with the camera",
+    "bullets": [
+      "Each photo you take waits in a strip, so you can shoot page after page and tap Done.",
+      "Tap the x on a thumbnail to remove a photo before reading.",
+      "Struck-through lines are no longer scanned."
+    ]
+  },
+  {
     "id": "2026-11-28-collections-standalone",
     "date": "2026-11-28",
     "title": "Notes and collections stand on their own",

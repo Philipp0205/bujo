@@ -69,5 +69,5 @@
     };
   }
 
-  L.scan.progress = { start: start };
+  L.scan.progress = { start: start, dataUrl: dataUrl };
 })();
