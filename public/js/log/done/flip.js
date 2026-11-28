@@ -30,12 +30,13 @@
     if (!row) return;
     var sym = row.querySelector('.paper-sym');
     row.setAttribute('data-type', type);
-    sym.replaceChildren(L.glyph.typeGlyph(type));
+    sym.replaceChildren(L.ink.bullet.node(type, row.getAttribute('data-id')));
     sym.setAttribute('aria-label', L.copy.done.toggle[type]);
     var mark = row.querySelector('[data-testid="not-on-paper-mark"]');
     if (mark && !marked) mark.remove();
     else if (!mark && marked) row.appendChild(L.paper.view.rowMark());
     play(row);
+    L.ink.bullet.draw(sym.querySelector('.ink-bullet'));
   }
 
   /** A short pulse when the device can vibrate. Never required, never throws. */

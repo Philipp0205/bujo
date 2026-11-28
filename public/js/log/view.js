@@ -60,13 +60,13 @@
         event.stopPropagation();
         actions.toggleDone(entry);
       }
-    }, L.glyph.typeGlyph(entry.type));
+    }, L.ink.bullet.node(entry.type, entry.id));
   }
 
   /** The symbol column: a done toggle for a task or done entry, a plain labelled glyph for every other type. */
   function symbol(entry, actions) {
     if (L.done.model.canToggle(entry)) return toggleButton(entry, actions);
-    return h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.glyph.typeGlyph(entry.type));
+    return h('span', { class: 'paper-sym', 'aria-label': L.copy.typeLabels[entry.type], role: 'img' }, L.ink.bullet.node(entry.type, entry.id));
   }
 
   /** The part of a row that opens the entry: the title with its inked words after it in one button, so a keyboard or screen reader reaches it. */
@@ -127,9 +127,9 @@
    */
   function traceRow(trace) {
     return h('div', {
-      class: 'paper-row paper-trace', 'data-type': trace.type, 'data-horizon': trace.horizon || 'day', 'data-testid': 'trace-row', 'data-trace': trace.type
+      class: 'paper-row paper-trace', 'data-type': trace.type, 'data-horizon': trace.horizon || 'day', 'data-testid': 'trace-row', 'data-trace': trace.type, 'data-entry': trace.entryId
     },
-      h('span', { class: 'paper-sym', 'aria-label': L.copy.move.traceLabel[trace.type], role: 'img' }, L.glyph.typeGlyph(trace.type)),
+      h('span', { class: 'paper-sym', 'aria-label': L.copy.move.traceLabel[trace.type], role: 'img' }, L.ink.bullet.node(trace.type, trace.id)),
       h('span', { class: 'paper-body' }, h('span', { class: 'paper-title' }, trace.title)));
   }
 

@@ -1,0 +1,16 @@
+/* Pen-stroke bullets: round pen caps, and the short draw-in of the strokes when the user checks off or moves a row. */
+.ink-bullet path { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+
+@keyframes ink-bullet-draw {
+  from { stroke-dasharray: 1 2; stroke-dashoffset: 1.05; }
+  to { stroke-dasharray: 1 2; stroke-dashoffset: 0; }
+}
+
+/* Two strokes share about 250ms: the first, then the second. */
+.ink-bullet.is-drawing path {
+  animation: ink-bullet-draw 120ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 125ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ink-bullet.is-drawing path { animation: none; }
+}

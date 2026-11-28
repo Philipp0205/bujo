@@ -25,7 +25,7 @@
   /** One entry: its symbol, title and inked words, the migration choices when it has them, and the button that says it is written down now. */
   function row(entry, handlers) {
     return h('div', { class: 'todo-row', 'data-id': entry.id, 'data-type': entry.type, 'data-testid': 'not-on-paper-row' },
-      h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[entry.type] }, L.glyph.typeGlyph(entry.type)),
+      h('span', { class: 'paper-sym', role: 'img', 'aria-label': L.copy.typeLabels[entry.type] }, L.ink.bullet.node(entry.type, entry.id)),
       h('span', { class: 'paper-body' },
         h('span', { class: 'paper-title' }, entry.title),
         pills(entry),

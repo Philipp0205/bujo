@@ -33,6 +33,7 @@
     return L.outbox.save.update(entry, body).then(function (next) {
       host.upsert(next, body.trace);
       host.paint();
+      if (body.trace) L.ink.bullet.drawTrace(next.id);
       return next;
     });
   }
