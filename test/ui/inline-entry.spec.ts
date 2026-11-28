@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { openSavedNote, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -328,10 +328,13 @@ test("blur saves a changed title of an existing entry", async ({ page }) => {
   expect(all).not.toContain("Vorher");
 });
 
-test("a note with a body still opens the note sheet, not the inline editor", async ({ page }) => {
+test("a note with a body is not a row of the daily log; it opens as the note sheet from the Notes screen", async ({ page }) => {
   await seedEntry(page, { date: day(0), type: "note", title: "Lange Notiz", body: "# Titel\n- Punkt" });
+  await seedEntry(page, { date: day(0), type: "note", title: "Kurzer Punkt" });
   await page.goto(app.baseUrl);
-  await saved(page, "Lange Notiz").click();
+  await expect(saved(page, "Kurzer Punkt")).toBeVisible();
+  await expect(saved(page, "Lange Notiz")).toHaveCount(0);
+  await openSavedNote(page, app.baseUrl, "Lange Notiz");
   await expect(page.getByTestId("note-sheet")).toBeVisible();
   await expect(sheet(page)).toBeHidden();
   await expect(page.locator(".inline-bar")).toBeHidden();

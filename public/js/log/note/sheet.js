@@ -116,12 +116,13 @@
     return null;
   }
 
-  /** The Scan again button of a saved note: closes the sheet and hands the values to options.onRescan, which opens the camera. Null where no scan flow is loaded. */
+  /** The Scan again button of a saved note: closes the sheet and starts the note camera for it, through options.onRescan(values) or, off the log (the Notes tab), by opening the log's scan. */
   function rescanButton(options, close) {
-    if (options.mode !== 'saved' || !options.onRescan) return null;
+    if (options.mode !== 'saved' || (!options.onRescan && !(window.BujoNav && BujoNav.router))) return null;
+    var rescan = options.onRescan || function (values) { BujoNav.router.go('log', { scan: true, replaceNote: values }); };
     return h('button', {
       class: 'paper-link note-rescan', type: 'button', 'data-action': 'rescan-note',
-      onclick: function () { close(); options.onRescan(options.values); }
+      onclick: function () { close(); rescan(options.values); }
     }, L.copy.note.scanAgain);
   }
 

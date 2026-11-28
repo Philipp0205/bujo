@@ -150,6 +150,12 @@
     L.scan.flow.start({ day: values.date, replaceNote: { id: values.id, title: values.title, date: values.date }, onApplied: applied, autoCapture: true });
   }
 
+  /** A scan request of the router: the scan of a saved note again when it names one (from the Notes tab), else a plain scan. */
+  function scanFor(ctx) {
+    if (ctx.replaceNote) rescanNote(ctx.replaceNote);
+    else startScan();
+  }
+
   /** Arriving with ?scan=1 (a shared link): drops the query so a refresh does not reopen the camera.
    * Returns true when the link asked for a scan. */
   function scanFromLink() {
@@ -664,7 +670,7 @@
     render();
     L.outbox.queue.load().then(function () { return load(false, 'first'); }).then(recount);
     // The camera of a scan and the sheet of a new entry are not covered by the what's-new sheet: that waits for the next visit.
-    if (ctx.scan || scanFromLink()) startScan();
+    if (ctx.scan || scanFromLink()) scanFor(ctx);
     else if (ctx.add) addFromTab();
     else if (!linked) BujoWhatsNew.boot.showUnseen(remindFuture);
   }
@@ -676,7 +682,7 @@
     L.outbox.replay.flush();
     if (ctx.open) { applied(ctx.open); return; }
     syncAddress();
-    if (ctx.scan) startScan();
+    if (ctx.scan) scanFor(ctx);
     else if (ctx.add) addFromTab();
     else remindFuture();
     load(true, 'cache').then(recount);

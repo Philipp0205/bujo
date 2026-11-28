@@ -36,6 +36,19 @@ export async function gotoNotebook(page: Page, baseUrl: string): Promise<void> {
   await openNotebook(page);
 }
 
+/** Opens a saved free note from the Notes screen (notes are on no day of the log): its card in the notebook, then its sheet. */
+export async function openSavedNote(page: Page, baseUrl: string, title: string): Promise<void> {
+  await gotoNotebook(page, baseUrl);
+  await openNoteCard(page, title);
+}
+
+/** On the Notes tab with the notebook list showing (where a saved scan lands): opens the notebook, then the sheet of the note card with this title. */
+export async function openNoteCard(page: Page, title: string): Promise<void> {
+  if (!(await page.getByTestId("notebook-title").isVisible())) await openNotebook(page);
+  await page.getByTestId("note-grid").locator(".note-card", { hasText: title }).click();
+  await page.getByTestId("note-sheet").waitFor();
+}
+
 /** The localStorage keys of the two log reminders (public/js/log/remind/store.js). */
 export const REMIND_MONTHLY_KEY = "bujo-remind-month";
 export const REMIND_FUTURE_KEY = "bujo-remind-future";

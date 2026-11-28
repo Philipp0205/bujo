@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { openSavedNote, useBujo } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -22,10 +22,11 @@ test.beforeEach(async ({ page }) => {
   app.ocr.delay(0);
 });
 
-/** Every entry of the days the tests use goes after each test, so each starts with no notes. */
+/** Every entry of the days the tests use, and every free note, goes after each test, so each starts with no notes. */
 test.afterEach(async ({ page }) => {
   const { entries } = await (await page.request.get(`${app.baseUrl}/api/entries?from=${day(-10)}&to=${day(1)}`)).json();
-  for (const entry of entries) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
+  const found = (await (await page.request.get(`${app.baseUrl}/api/entries?kind=notes`)).json()).entries;
+  for (const entry of [...entries, ...found]) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today. */
@@ -51,8 +52,8 @@ async function seedNote(page: Page, date: string, title: string, body: string): 
 
 /** All notes between two days, as the API lists them. */
 async function notes(page: Page): Promise<Array<{ id: string; title: string; body: string; date: string }>> {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-10)}&to=${day(1)}`);
-  return (await response.json()).entries.filter((entry: { type: string }) => entry.type === "note");
+  const response = await page.request.get(`${app.baseUrl}/api/entries?kind=notes`);
+  return (await response.json()).entries;
 }
 
 /** Scans a free-form page from the Scan tab. The page is headed by a title, so the review starts on the note type. */
@@ -120,8 +121,7 @@ test("a note that matches nothing shows no match row", async ({ page }) => {
 
 test("Scan again on a saved note opens the note camera, ends in the review with Update chosen, and Save changes the same note", async ({ page }) => {
   const saved = await seedNote(page, day(-2), "Küchengarten", SAVED_BODY);
-  await page.goto(`${app.baseUrl}/?day=${day(-2)}`);
-  await page.locator(".paper-row", { hasText: "Küchengarten" }).click();
+  await openSavedNote(page, app.baseUrl, "Küchengarten");
   await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
   await expect(matchRow(page)).toHaveCount(0);
 
@@ -147,8 +147,7 @@ test("Scan again on a saved note opens the note camera, ends in the review with 
 
 test("closing the camera of Scan again writes nothing", async ({ page }) => {
   const saved = await seedNote(page, day(-2), "Küchengarten", SAVED_BODY);
-  await page.goto(`${app.baseUrl}/?day=${day(-2)}`);
-  await page.locator(".paper-row", { hasText: "Küchengarten" }).click();
+  await openSavedNote(page, app.baseUrl, "Küchengarten");
   await Promise.all([page.waitForEvent("filechooser"), sheet(page).locator("[data-action=rescan-note]").click()]);
   await screen(page).locator("[data-action=scan-close]").click();
   await expect(screen(page)).toHaveCount(0);

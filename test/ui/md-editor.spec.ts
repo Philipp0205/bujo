@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openNotebook, openSavedNote, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -25,9 +25,8 @@ const area = (page: Page) => sheet(page).locator('[data-field="body"]');
 async function openSaved(page: Page, title: string, body: string): Promise<void> {
   const made = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date: localDay(), type: "note", title, body } });
   expect(made.status()).toBe(201);
-  await page.goto(app.baseUrl);
+  await openSavedNote(page, app.baseUrl, title);
   await page.evaluate(() => document.fonts.ready);
-  await page.locator(".paper-row", { hasText: title }).click();
   await expect(sheet(page)).toHaveAttribute("data-mode", "saved");
 }
 

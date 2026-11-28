@@ -37,10 +37,11 @@ function day(offset: number): string {
 
 type Stored = { id: string; type: string; title: string; body: string | null; noteKind: string | null };
 
-/** All entries of the days around today, as the API lists them. */
+/** All entries of the days around today plus every free note (notes are on no day), as the API lists them. */
 async function entriesAround(page: Page): Promise<Stored[]> {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`);
-  return (await response.json()).entries;
+  const days = (await (await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`)).json()).entries;
+  const notes = (await (await page.request.get(`${app.baseUrl}/api/entries?kind=notes`)).json()).entries;
+  return [...days, ...notes];
 }
 
 const review = (page: Page) => page.getByTestId("scan-review");
@@ -73,6 +74,10 @@ test("a free-form page scanned with default settings opens on the note type, and
   const stored = await entriesAround(page);
   expect(stored.map((entry) => entry.type)).toEqual(["note"]);
   expect(stored[0].body).toBe("Reading list\n- Dune\n- Solaris");
+  // The note stands on its own: the person lands on the Notes tab and the day of the log has no such row.
+  await expect(page.getByTestId("notebook-row").first()).toBeVisible();
+  const onDay = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-3)}&to=${day(3)}`);
+  expect((await onDay.json()).entries).toEqual([]);
 });
 
 test("a bullet page opens on the log type, and flipping it to note shows the note from the same read and saves a note only", async ({ page }) => {
