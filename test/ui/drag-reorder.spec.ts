@@ -149,7 +149,7 @@ test("holding a row still, without moving, opens the planet menu, and its select
   const start = await centerOf(page, "Alpha");
   const touch = await finger(page);
   await touch.down(start.x, start.y);
-  await page.waitForTimeout(700);
+  await expect(page.getByTestId("radial-menu")).toBeVisible();
   await touch.up();
   await expect(page.getByTestId("radial-menu")).toBeVisible();
   await expect(page.locator(".is-lifted")).toHaveCount(0);
