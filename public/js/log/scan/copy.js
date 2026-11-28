@@ -7,6 +7,8 @@
 
   var L = window.BujoLog = window.BujoLog || {};
 
+  var wasMark = { task: '\u2022', note: '\u2013', event: 'o', done: 'x', migrated: '>', scheduled: '<', dropped: '~' };
+
   L.copy.scan = {
     camera: {
       close: 'Close',
@@ -125,31 +127,43 @@
       noDay: 'No day yet',
       type: 'Type',
       titleLabel: 'Title',
-      tagLabel: 'Tag',
-      tag: 'tag',
-      checkSpelling: 'check spelling',
+      /** The legend under the header and the spoken state of each row: the pill colour never carries the meaning alone. */
+      legend: {
+        group: 'What the colours mean',
+        matched: 'Matched',
+        new: 'New',
+        updated: 'Updated',
+        skipped: 'Skipped',
+        typeChanged: 'Type changed'
+      },
+      marker: {
+        matched: 'Matched, unchanged on paper',
+        new: 'New, will create an entry',
+        updated: 'Updated, will change the entry',
+        skipped: 'Skipped, will not be applied',
+        typeChanged: ', type changes'
+      },
+      hardToRead: 'hard to read, check the text',
       changedInApp: 'also changed in the app',
       /** The quiet mark on a line dated before today, and its spoken form. Such a line starts unticked. */
       past: 'past',
       pastLabel: 'Date has passed, so this line starts unticked',
       important: 'important',
-      was: 'was',
-      noTag: 'no tag',
-      noTime: 'no time',
       keep: 'Keep this line',
       keepLabel: 'Keep',
-      /** The quiet switch that nests a line under the line above it (a note under a meeting). */
-      nest: 'Nest under line above',
-      unnest: 'Nested under line above',
-      nestLabel: 'Nest this line under the line above',
-      unnestLabel: 'Take this line out from under the line above',
-      /** The faint line of a line that matched an entry of the day: it is that item, not a new one. */
-      matches: function (title) {
-        return 'matches: ' + title;
+      /** The one note under a row. Its parts are joined with commas. It never shows the OCR confidence. */
+      matches: 'matches',
+      /** The old state of a matched entry, only when its text differs: its bullet, its title, and what the paper turns it into. */
+      was: function (type, title, change) {
+        return 'was ' + (wasMark[type] ? wasMark[type] + ' ' : '') + title + (change ? ' \u2192 ' + change : '');
       },
+      /** The typed form of each bullet, for the old state. */
+      wasMark: wasMark,
+      /** What the paper turns the entry into, after the arrow of the old state. Empty when it stays as it is. */
+      changeTo: { same: '', done: 'done', migrated: 'migrated', scheduled: 'scheduled', dropped: 'dropped', task: 'task', note: 'note', event: 'event', fields: 'updated' },
+      timeWas: function (time) { return 'time was ' + (time || 'none'); },
       /** A ">" or "<" line that matched the trace a move left on this page: nothing to write. */
-      matchesTrace: 'matches the trace of a moved entry',
-      traceChange: 'already on paper, nothing to write',
+      traceChange: 'already on paper',
       /** A task line that is an open task of an earlier day written again: applying moves that task here, no copy. date is YYYY-MM-DD. */
       movedFrom: function (date) {
         var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -157,11 +171,11 @@
       },
       /** What applying does to the matched entry, by the kind of change the paper carries. */
       matchChange: {
-        same: 'already matches, only marked on paper',
-        done: 'will be marked done',
-        migrated: 'will be marked migrated',
-        scheduled: 'will be marked scheduled',
-        dropped: 'will be marked dropped',
+        same: 'already matches',
+        done: 'will be marked as done',
+        migrated: 'will be marked as migrated',
+        scheduled: 'will be marked as scheduled',
+        dropped: 'will be marked as dropped',
         task: 'will be set to a task',
         note: 'will be set to a note',
         event: 'will be set to an event',
@@ -171,12 +185,9 @@
       notMatched: function (title) {
         return 'new entry, not ' + (title ? title : 'the moved entry');
       },
+      /** The accessible names of the small hand-drawn button at the end of the note line. */
       unmatch: 'Not the same',
-      unmatchLabel: function (title) {
-        return 'Treat as a new entry, not ' + (title ? title : 'the moved entry');
-      },
       rematch: 'Match again',
-      rematchLabel: 'Match this line to its entry again',
       noLines: 'No lines were read from this page.',
       applying: 'Applying\u2026',
       /** The faint line of a matched entry the paper puts in another place: a rescan moves it. */

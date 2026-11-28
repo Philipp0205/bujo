@@ -52,24 +52,13 @@ test("a scanned meeting keeps its indented notes nested, in the review and in th
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
 
-  // The review draws the three notes one step in; the meeting is flush left and has no nest switch.
+  // The review draws the three notes one step in, and has no nest switch (the paper decides the nesting).
   await expect(rows(page)).toHaveCount(4);
   expect(await rows(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-indent")))).toEqual(["0", "1", "1", "1"]);
-  await expect(rows(page).nth(0).getByTestId("scan-nest")).toBeHidden();
+  await expect(review(page).getByTestId("scan-nest")).toHaveCount(0);
   const left = (index: number) => rows(page).nth(index).evaluate((node) => node.getBoundingClientRect().left);
   expect((await left(1)) - (await left(0))).toBe(24);
   expect(await left(2)).toBe(await left(1));
-
-  // The switch un-nests and nests a line, and moves it by one step.
-  const second = rows(page).nth(2);
-  await expect(second.getByTestId("scan-nest")).toHaveText("Nested under line above");
-  await second.getByTestId("scan-nest").click();
-  await expect(second).toHaveAttribute("data-indent", "0");
-  await expect(second.getByTestId("scan-nest")).toHaveText("Nest under line above");
-  expect((await left(2)) - (await left(0))).toBe(0);
-  await second.getByTestId("scan-nest").click();
-  await expect(second).toHaveAttribute("data-indent", "1");
-  expect((await left(2)) - (await left(0))).toBe(24);
 
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);

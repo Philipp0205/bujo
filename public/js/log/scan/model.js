@@ -84,7 +84,6 @@
       type: line.type,
       title: line.title,
       tags: (line.tags || []).slice(),
-      tagText: L.tags.join(line.tags || []),
       time: line.time || null,
       important: line.important === true,
       confidence: line.confidence,
@@ -113,12 +112,7 @@
     return state.kind === 'daily' && state.items.indexOf(item) > 0;
   }
 
-  /** Nests the line under the one above, or lifts it back out. */
-  function toggleNest(state, item) {
-    if (canNest(state, item)) item.indent = item.indent === 1 ? 0 : 1;
-  }
-
-  /** The indent a row draws and sends: 1 only while the line can nest. */
+  /** The indent a row draws and sends: what the paper wrote (there is no nest switch in the review), 1 only while the line can nest. */
   function indentOf(state, item) {
     return item.indent === 1 && canNest(state, item) ? 1 : 0;
   }
@@ -351,13 +345,21 @@
     return item.confidence < LOW_CONFIDENCE;
   }
 
-  function percent(item) {
-    return Math.round(item.confidence * 100);
+  /** The tags a row holds: the ones read from the page. The review has no tag field, so they pass through unchanged. */
+  function tagsOf(item) {
+    return item.tags.slice();
   }
 
-  /** The tags a row holds: its text field read as a list. A field left as shown keeps the original list. */
-  function tagsOf(item) {
-    return L.tags.fromField(item.tagText, item.tags);
+  /**
+   * The marker state of a row: 'skipped' (a changing line that is not kept), 'matched' (unchanged on paper), 'new' (will create an entry),
+   * 'updated' (an existing entry gets changed text or status). typeChanged is true for an updated line whose type differs from the entry's.
+   */
+  function markerOf(item) {
+    if (item.status === 'unchanged') return { state: 'matched', typeChanged: false };
+    if (!item.include) return { state: 'skipped', typeChanged: false };
+    var updated = item.status === 'edited' || !!item.movedFrom;
+    var typeChanged = updated && !!item.before && !!item.after && item.before.type !== item.after.type;
+    return { state: updated ? 'updated' : 'new', typeChanged: typeChanged };
   }
 
   /** One line as the server reads it. A calendar line carries its day and a future line its month. An un-matched line says so. */
@@ -443,16 +445,13 @@
     return a < b ? -1 : 1;
   }
 
-  /** What the "was" row shows of an edited line: the old type and title, plus the old tags or time when the paper writes different ones. */
+  /** What the "was" row shows of an edited line: the old type and title, plus the old time when the paper writes a different one. */
   function changedFields(item) {
     var before = item.before;
     if (item.status !== 'edited' || !before) return null;
-    var tags = tagsOf(item);
-    var was = before.tags || [];
     return {
       type: before.type,
       title: before.title,
-      tags: tags.length && !L.tags.same(was, tags) ? { value: was } : null,
       time: item.time && before.time !== item.time ? { value: before.time } : null
     };
   }
@@ -480,15 +479,13 @@
     matchOf: matchOf,
     changeKey: changeKey,
     unmatch: unmatch,
-    canNest: canNest,
-    toggleNest: toggleNest,
+    markerOf: markerOf,
     indentOf: indentOf,
     rematch: rematch,
     keptItems: keptItems,
     counts: counts,
     problem: problem,
     isLowConfidence: isLowConfidence,
-    percent: percent,
     checkBody: checkBody,
     applyBody: applyBody,
     landing: landing,

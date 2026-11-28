@@ -177,7 +177,7 @@ test("the day page offers Scan this page again only when the day has an entry on
   await expect(review.locator(".scan-row")).toHaveCount(2);
   await expect(review.locator('.scan-row[data-status="unchanged"]')).toHaveCount(1);
   await expect(review.locator('.scan-row[data-status="new"]')).toHaveCount(1);
-  await expect(review.locator(".scan-row").first().locator('[data-role="match"]')).toContainText("matches: Semmeln kaufen");
+  await expect(review.locator(".scan-row").first().locator('[data-role="note"]')).toContainText("matches");
 
   await review.locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);

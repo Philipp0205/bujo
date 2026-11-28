@@ -77,7 +77,7 @@ test("a bullet for a task that moved to another day matches its trace, is not ti
 
   await scanPage(page, [headerLine(day(0)), line("•", "Post abholen", 0.9)]);
   await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page).nth(0).locator('[data-role="match"]')).toContainText("matches the trace of a moved entry");
+  await expect(rows(page).nth(0).locator('[data-role="note"]')).toContainText("already on paper");
   await expect(rows(page).nth(0)).toHaveAttribute("data-include", "false");
   await expect(apply(page)).toBeDisabled();
 });
