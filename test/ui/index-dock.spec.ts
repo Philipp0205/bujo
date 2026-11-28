@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openIndexPage, openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { mainBar } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -54,18 +54,20 @@ async function seedLongNotebook(page: Page): Promise<void> {
   expect(stored.status()).toBe(201);
 }
 
-/** The long notebook open on the Notes tab, the first cell scrolled to the middle of the screen. */
+/** The long notebook open on its index subpage, the first cell scrolled to the middle of the screen. */
 async function openLong(page: Page): Promise<void> {
   await seedLongNotebook(page);
   await page.goto(`${app.baseUrl}/notes`);
   await openNotebook(page);
+  await openIndexPage(page);
   await page.waitForLoadState("networkidle");
   await cell(page, 10).evaluate((el) => el.scrollIntoView({ block: "center" }));
 }
 
-/** Asserts the notebook detail is back: the list is not, the address is /notes and the index grid is in view. */
+/** Asserts the index subpage is back: the list and the notebook view are not, the address is /notes and the index grid is in view. */
 async function expectBackAtIndex(page: Page): Promise<void> {
-  await expect(page.getByTestId("notebook-title")).toBeVisible();
+  await expect(page.getByTestId("notebook-index-title")).toBeVisible();
+  await expect(page.getByTestId("notebook-title")).toHaveCount(0);
   await expect(page.getByTestId("notebooks-title")).toHaveCount(0);
   expect(new URL(page.url()).pathname).toBe("/notes");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
@@ -82,6 +84,7 @@ test("the last index row scrolls fully above the tab bar and the Add button", as
   await seedLongNotebook(page);
   await page.goto(`${app.baseUrl}/notes`);
   await openNotebook(page);
+  await openIndexPage(page);
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const cells = page.getByTestId("index-cell");
   const last = (await cells.last().boundingBox())!;
@@ -91,17 +94,17 @@ test("the last index row scrolls fully above the tab bar and the Add button", as
   expect(last.y + last.height).toBeLessThanOrEqual(add.y);
 });
 
-test("Back from an index cell that opens the log returns to the same notebook, at the index", async ({ page }) => {
+test("Back from an index cell that opens the log returns to the index subpage, at the grid", async ({ page }) => {
   await openLong(page);
   await cell(page, 10).click();
-  await expect(page.getByTestId("notebook-title")).toBeHidden({ timeout: 15000 });
+  await expect(page.getByTestId("notebook-index-title")).toBeHidden({ timeout: 15000 });
   await page.goBack();
   await expectBackAtIndex(page);
 });
 
-test("Back from the photo viewer leaves the same notebook, at the index", async ({ page }) => {
+test("Back from the photo viewer leaves the index subpage as it was, at the grid", async ({ page }) => {
   await openLong(page);
-  await cell(page, 9).evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await cell(page, 9).evaluate((el) => el.scrollIntoView({ block: "start" }));
   await cell(page, 9).click();
   await expect(page.getByTestId("page-photo-view")).toBeVisible();
   await page.goBack();
@@ -109,12 +112,24 @@ test("Back from the photo viewer leaves the same notebook, at the index", async 
   await expectBackAtIndex(page);
 });
 
+test("Back from the log after an index page, then Back from the subpage and the notebook, ends on the list", async ({ page }) => {
+  await openLong(page);
+  await cell(page, 10).click();
+  await expect(page.getByTestId("notebook-index-title")).toBeHidden({ timeout: 15000 });
+  await page.goBack();
+  await expect(page.getByTestId("notebook-index-title")).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId("notebook-title")).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId("notebooks-title")).toBeVisible();
+});
+
 test("Back from the log after an index page, then the Notes tab, still shows the list", async ({ page }) => {
   await openLong(page);
   await cell(page, 10).click();
-  await expect(page.getByTestId("notebook-title")).toBeHidden({ timeout: 15000 });
+  await expect(page.getByTestId("notebook-index-title")).toBeHidden({ timeout: 15000 });
   await page.goBack();
-  await expect(page.getByTestId("notebook-title")).toBeVisible();
+  await expect(page.getByTestId("notebook-index-title")).toBeVisible();
   await mainBar(page).locator("[data-tab=notes]").click();
   await expect(page.getByTestId("notebooks-title")).toBeVisible();
 });

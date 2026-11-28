@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openIndexPage, openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
@@ -83,19 +83,23 @@ test("start a new notebook, see both in the list, open one and tap a scanned pag
   await expect(page.getByTestId("section-daily")).toContainText("Wed 18.11");
   await expect(page.getByTestId("section-month")).toContainText("Nothing scanned yet.");
   await expect(page.getByTestId("section-collections").getByTestId("collection-row")).toContainText("Books");
+  await expect(page.getByTestId("index-cell")).toHaveCount(0);
+  await expect(page.getByTestId("notebook-summary")).toContainText("2 of 100 pages scanned");
+  await openIndexPage(page);
   await expect(page.getByTestId("index-cell")).toHaveCount(100);
   await expect(page.getByTestId("index-cell").and(page.locator("[data-scanned='1']"))).toHaveCount(2);
   await expect(cell(page, 3)).toHaveAttribute("data-scanned", "1");
   await expect(cell(page, 4)).toHaveAttribute("data-scanned", "0");
   await expect(cell(page, 5)).toHaveAttribute("data-scanned", "1");
   await expect(cell(page, 7)).toHaveAttribute("data-scanned", "0");
-  await expect(page.getByTestId("notebook-summary")).toContainText("2 of 100 pages scanned");
 
+  await page.locator("[data-action=index-back]").click();
   await page.locator("[data-action=notebook-back]").click();
   await expect(rows(page)).toHaveCount(2);
   await expect(rows(page).nth(1).getByTestId("notebook-scanned")).toHaveText("2 of 100 pages scanned");
   await expect(rows(page).nth(0).getByTestId("notebook-scanned")).toHaveText("1 of 40 pages scanned");
   await openNotebook(page, "Notebook 2");
+  await openIndexPage(page);
   await expect(page.getByTestId("index-cell")).toHaveCount(40);
   await expect(cell(page, 7)).toHaveAttribute("data-scanned", "1");
   await expect(cell(page, 3)).toHaveAttribute("data-scanned", "0");
@@ -174,4 +178,47 @@ test("leaving a notebook for the log by the tab bar keeps history short: Notes l
   await layerGone(page);
   await page.goBack();
   await expect(logMain(page)).toBeVisible();
+});
+
+test("a notebook lists the Index row, then Future, Monthly and Daily logs, then the collections, with no grid at the bottom", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/notes`);
+  await openNotebook(page);
+  const order = await page.locator("#notes [data-testid^=section-]").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-testid")));
+  expect(order).toEqual(["section-index", "section-future", "section-month", "section-daily", "section-collections"]);
+  await expect(page.getByTestId("index-grid")).toHaveCount(0);
+  await expect(page.getByTestId("open-page-list")).toHaveCount(0);
+  await expect(page.locator(".notes-heading svg.hand-squiggle")).toHaveCount(5);
+});
+
+test("the index subpage is a Back layer: Back shows the notebook, then the list; the on-screen link does the same", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/notes`);
+  await openNotebook(page);
+  await openIndexPage(page);
+  await expect(detailTitle(page)).toHaveCount(0);
+  await page.goBack();
+  await expect(detailTitle(page)).toBeVisible();
+  await expect(page.getByTestId("index-grid")).toHaveCount(0);
+  await page.goBack();
+  await expect(listTitle(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/notes$/);
+
+  await openNotebook(page);
+  await openIndexPage(page);
+  await page.locator("[data-action=index-back]").click();
+  await expect(detailTitle(page)).toBeVisible();
+  await expect(page.getByTestId("index-grid")).toHaveCount(0);
+  await page.waitForTimeout(300);
+  await page.goBack();
+  await expect(listTitle(page)).toBeVisible();
+});
+
+test("the page list opened from the index subpage goes Back to the subpage", async ({ page }) => {
+  await page.goto(`${app.baseUrl}/notes`);
+  await openNotebook(page);
+  await openIndexPage(page);
+  await page.getByTestId("open-page-list").click();
+  await expect(page.getByTestId("index-title")).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId("notebook-index-title")).toBeVisible();
+  await expect(page.getByTestId("index-grid")).toBeVisible();
 });

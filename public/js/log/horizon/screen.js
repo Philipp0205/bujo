@@ -99,7 +99,7 @@
   function bucket(item, ctx) {
     var any = item.cards.length > 0 || item.traces.length > 0;
     return h('section', { class: 'horizon-section horizon-bucket', 'data-month': item.month, 'data-testid': 'future-bucket' },
-      h('h3', { class: 'horizon-label', 'data-testid': 'future-bucket-label' }, L.copy.horizon.monthName(item.month)),
+      h('h3', { class: 'horizon-label horizon-month', 'data-testid': 'future-bucket-label' }, L.copy.horizon.monthName(item.month)),
       any ? [cards(item.cards, ctx), L.view.traceList(item.traces)] : empty(L.copy.horizon.bucketEmpty));
   }
 

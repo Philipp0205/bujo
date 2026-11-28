@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { gotoNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { gotoNotebook, openIndexPage, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { choose, openScan, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -47,10 +47,16 @@ async function applyReview(page: Page): Promise<void> {
   await expect(review(page)).toHaveCount(0);
 }
 
+/** Opens the page list of the open notebook: the Index row, then the Notebook index entry of the subpage. */
+async function openPageList(page: Page): Promise<void> {
+  await openIndexPage(page);
+  await page.getByTestId("open-page-list").click();
+}
+
 /** The index as [number, label] rows, top to bottom, read on the page list of the active notebook. */
 async function indexRows(page: Page): Promise<string[][]> {
   await gotoNotebook(page, app.baseUrl);
-  await page.getByTestId("open-index").click();
+  await openPageList(page);
   await expect(page.getByTestId("index-title")).toBeVisible();
   await expect(page.getByTestId("index-list").or(page.locator("[data-state=empty]"))).toBeVisible();
   const numbers = await page.getByTestId("index-number").allTextContents();
@@ -107,19 +113,21 @@ test("a monthly log and a future log are listed in number order, with a collecti
     ["p. 20", "March 2027"],
     ["p. 30", "Future log, from Apr 2027"],
   ]);
-  await expect(page.getByTestId("open-index")).toHaveCount(0);
+  await expect(page.getByTestId("open-page-list")).toHaveCount(0);
 });
 
-test("the notebook has a Notebook index entry with the count of pages", async ({ page }) => {
+test("the index subpage has a Notebook index entry with the count of pages", async ({ page }) => {
   await gotoNotebook(page, app.baseUrl);
-  await expect(page.getByTestId("open-index")).toContainText("Notebook index");
+  await expect(page.getByTestId("open-index")).toContainText("Index");
+  await openIndexPage(page);
+  await expect(page.getByTestId("open-page-list")).toContainText("Notebook index");
   await expect(page.getByTestId("index-count")).toHaveText("5 pages");
 });
 
 test("tapping an index row opens the day, the month log and the collection page", async ({ page }) => {
   await gotoNotebook(page, app.baseUrl);
   const open = async (label: string) => {
-    await page.getByTestId("open-index").click();
+    await openPageList(page);
     await page.getByTestId("index-row").filter({ hasText: label }).click();
   };
 

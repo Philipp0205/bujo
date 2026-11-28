@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-11-28-notebook-index",
+    "date": "2026-11-28",
+    "title": "A notebook index of its own",
+    "bullets": [
+      "The page numbers now live on an Index page, opened from the top of a notebook.",
+      "Future logs come first, then Monthly logs and Daily logs.",
+      "Headings are handwritten with a pen squiggle underneath.",
+      "The months of the Future log are bigger, bold and handwritten."
+    ]
+  },
+  {
     "id": "2026-11-28-scan-capture",
     "date": "2026-11-28",
     "title": "Scan several pages with the camera",

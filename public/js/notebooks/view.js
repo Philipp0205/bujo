@@ -1,7 +1,7 @@
 /*
- * Notebooks render functions: the header, the list of notebooks, the detail of one notebook (its dates, its sections of logs, the grid
- * of page numbers) and the start button. They build nodes and call back, they never fetch. Needs ak-dom.js, notebooks/copy.js,
- * notebooks/model.js, index/model.js (the label of a page), index/copy.js and index/photo.js (a page's kept photo).
+ * Notebooks render functions: the headers, the list of notebooks, the detail of one notebook (its dates, its sections of logs, the Index row), the
+ * index subpage (the grid of page numbers) and the start button. They build nodes and call back, they never fetch. Needs ak-dom.js, notebooks/copy.js,
+ * notebooks/model.js, log/scan/marker.js (the heading squiggle), index/model.js (the label of a page), index/copy.js and index/photo.js (a page's kept photo).
  */
 (function () {
   'use strict';
@@ -14,11 +14,23 @@
     return h('div', { class: 'paper-head' }, h('h1', { 'data-testid': 'notebooks-title' }, N.copy.title));
   }
 
-  /** The header of one notebook: its name, and the way back to the list. */
+  /** Some text with a hand-drawn pen squiggle under it, in the text colour; the seed keeps the wave the same on every redraw. */
+  function squiggled(text, seed) {
+    return h('span', { class: 'hand-underlined' }, text, window.BujoLog.scan.marker.squiggle(seed));
+  }
+
+  /** The header of one notebook: its name in handwriting over a squiggle, and the way back to the list. */
   function detailHeader(notebook, onBack) {
     return h('div', { class: 'paper-head' },
-      h('h1', { 'data-testid': 'notebook-title' }, notebook.name),
+      h('h1', { class: 'hand-title', 'data-testid': 'notebook-title' }, squiggled(notebook.name, 'title')),
       h('button', { class: 'paper-link collection-back', type: 'button', 'data-action': 'notebook-back', 'aria-label': N.copy.backLabel, onclick: onBack }, N.copy.back));
+  }
+
+  /** The header of the index subpage: its title in handwriting, and the way back to the notebook. */
+  function indexHeader(onBack) {
+    return h('div', { class: 'paper-head' },
+      h('h1', { class: 'hand-title', 'data-testid': 'notebook-index-title' }, squiggled(N.copy.sections.index, 'index-title')),
+      h('button', { class: 'paper-link collection-back', type: 'button', 'data-action': 'index-back', 'aria-label': N.copy.indexBackLabel, onclick: onBack }, N.copy.indexBack));
   }
 
   /** The "Start new notebook" button, in the row of quiet actions. */
@@ -47,9 +59,9 @@
     return h('ul', { class: 'collection-list', 'data-testid': 'notebook-list' }, notebooks.map(function (notebook) { return notebookRow(notebook, onOpen); }));
   }
 
-  /** A small italic heading over a section. */
+  /** A small heading over a section, its words over a pen squiggle. */
   function heading(text) {
-    return h('h2', { class: 'notes-heading' }, text);
+    return h('h2', { class: 'notes-heading' }, squiggled(text, 'heading|' + text));
   }
 
   /** One scanned log page as a row: its label ("Wed 18.11"), its page number on the right, then its photo thumbnail. A tap opens it in the log.
@@ -73,11 +85,11 @@
       pages.length ? h('ul', { class: 'collection-list' }, pages.map(function (item) { return pageRow(item, onOpen, reserve); })) : h('p', { class: 'notebook-none' }, N.copy.sectionEmpty));
   }
 
-  /** The Daily, Monthly and Future sections of a notebook. */
+  /** The Future, Monthly and Daily sections of a notebook, in the order of the paper index. */
   function logSections(pages, onOpen) {
     var copy = N.copy.sections;
     var parts = N.model.sections(pages);
-    return [logSection(copy.daily, 'daily', parts.daily, onOpen), logSection(copy.month, 'month', parts.month, onOpen), logSection(copy.future, 'future', parts.future, onOpen)];
+    return [logSection(copy.future, 'future', parts.future, onOpen), logSection(copy.month, 'month', parts.month, onOpen), logSection(copy.daily, 'daily', parts.daily, onOpen)];
   }
 
   /** The dates, page count and how many pages are scanned, as a muted line under the title. */
@@ -104,13 +116,25 @@
     return h('li', { class: 'notebook-cell-item' }, button);
   }
 
-  /** The index: every page number of the notebook, scanned ones filled and tappable. */
-  function indexGrid(status, onOpen) {
+  /** The index subpage: the way to the page list, the legend and every page number of the notebook, scanned ones filled and tappable. */
+  function indexPage(status, onOpen, pageList) {
     return h('section', { class: 'notes-section', 'data-testid': 'notebook-index' },
-      heading(N.copy.sections.index),
+      pageList,
       h('p', { class: 'notebook-legend' }, N.copy.indexLegend),
       h('ul', { class: 'notebook-grid', 'data-testid': 'index-grid' }, status.map(function (entry) { return cell(entry, onOpen); })));
   }
 
-  N.view = { listHeader: listHeader, detailHeader: detailHeader, startAction: startAction, notebookList: notebookList, logSections: logSections, summary: summary, indexGrid: indexGrid, heading: heading };
+  /** The Index row of the notebook: one row under the start buttons that opens the index subpage. */
+  function indexRow(onOpen) {
+    return h('section', { class: 'notes-section', 'data-testid': 'section-index' },
+      h('button', {
+        class: 'collection-row notebook-index-row', type: 'button', 'data-action': 'open-index', 'data-testid': 'open-index',
+        'aria-label': N.copy.indexOpenLabel, onclick: onOpen
+      }, h('span', { class: 'notes-heading' }, squiggled(N.copy.sections.index, 'heading|index'))));
+  }
+
+  N.view = {
+    listHeader: listHeader, detailHeader: detailHeader, indexHeader: indexHeader, startAction: startAction, notebookList: notebookList,
+    logSections: logSections, summary: summary, indexPage: indexPage, indexRow: indexRow, heading: heading
+  };
 })();

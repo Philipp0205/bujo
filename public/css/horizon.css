@@ -103,6 +103,17 @@ html.ak-base .view-tab:focus-visible { outline: 1px solid var(--paper-muted); ou
 
 /* A thin rule of ink parts a month from the one above it, like the lines drawn across a paper future log. */
 .horizon-bucket { position: relative; }
+
+/* The month of a Future Log bucket is written by hand: bigger, bold, in Caveat, left on the bullet column of its rows (the Month view's label stays as it is). */
+.horizon-label.horizon-month {
+  margin-left: 8px;
+  color: var(--paper-ink);
+  font: normal 600 28px/30px var(--font-hand);
+  font-variation-settings: normal;
+  font-synthesis: none;
+}
+
+/* The rule between two months. */
 .horizon-bucket + .horizon-bucket::before {
   content: "";
   position: absolute;

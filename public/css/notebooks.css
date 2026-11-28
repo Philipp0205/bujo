@@ -26,6 +26,45 @@
 .notebook-caption { color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
 .notebook-field { flex: none; width: 100%; }
 
+/* ----- Hand-drawn headings: handwriting words over a pen squiggle in the text colour (js/log/scan/marker.js squiggle) ----- */
+
+.hand-underlined { position: relative; display: inline-block; }
+.hand-squiggle {
+  position: absolute;
+  left: 0;
+  bottom: -5px;
+  width: 100%;
+  height: 8px;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  color: var(--paper-ink);
+}
+.hand-squiggle path { stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+/* The title of a notebook (and of its index subpage): Caveat, bold, a little larger than the italic titles. */
+.paper-head h1.hand-title {
+  font-family: var(--font-hand);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 38px;
+  letter-spacing: 0;
+  font-variation-settings: normal;
+}
+
+/* Section headings in a notebook are handwritten too, and the Index row is one of them. */
+.notes-section .notes-heading .hand-underlined {
+  font-family: var(--font-hand);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 24px;
+  color: var(--paper-ink);
+}
+.notes-section .notes-heading { padding-bottom: 8px; }
+.notebook-index-row { display: block; padding: 0; border-bottom: 0; }
+.notebook-index-row .notes-heading { display: block; }
+
 /* The dates and the scanned count under the title of a notebook. */
 .notebook-summary { margin: 0; padding: 0 12px 8px 40px; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }
 .notebook-none { margin: 0; padding: 0 12px 4px 12px; color: var(--paper-muted); font: italic var(--text-weight) 14px/24px var(--font-text); }

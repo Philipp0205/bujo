@@ -8,7 +8,7 @@ type Shape = { viewBox: string; strokes: { d: string; width: number }[] };
 type Api = {
   note(item: Item): string;
   hasMatch(item: Item): boolean;
-  scribble: { seedOf(text: string): number; pill(seed: string): Shape; ring(seed: string): Shape };
+  scribble: { seedOf(text: string): number; pill(seed: string): Shape; ring(seed: string): Shape; squiggle(seed: string): Shape };
   model: { setClock(now: () => Date): void };
 };
 
@@ -51,6 +51,17 @@ test("a scribble has two imperfect passes inside its box and no fill", () => {
     assert.ok(numbers.every((n) => n > -12 && n < 212));
   }
   assert.notEqual(shape.strokes[0].d, shape.strokes[1].d);
+});
+
+test("a heading squiggle is one stable wavy stroke inside its wide, flat box", () => {
+  const shape = scribble.squiggle("notebook-title");
+  assert.deepEqual(plain(shape), plain(scribble.squiggle("notebook-title")));
+  assert.notEqual(shape.strokes[0].d, scribble.squiggle("section-future").strokes[0].d);
+  assert.equal(shape.viewBox, "0 0 200 8");
+  assert.equal(shape.strokes.length, 1);
+  const numbers = (shape.strokes[0].d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+  assert.ok(numbers.filter((_, at) => at % 2 === 0).every((x) => x >= 0 && x <= 200));
+  assert.ok(numbers.filter((_, at) => at % 2 === 1).every((y) => y >= 0 && y <= 8));
 });
 
 test("a ring is centered on the middle of its box", () => {
