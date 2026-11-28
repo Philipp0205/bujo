@@ -2,7 +2,8 @@
  * Saving an entry from the log with the queue as the fallback. Needs outbox/model.js, outbox/queue.js and api.js.
  * create() and update() resolve with the entry to show. It is the server's answer when the call went through, or the entry as
  * it will be once the queue is sent (marked queued). A server refusal still rejects, so the line shows the reason.
- * While something is queued, a new entry joins the queue too, so entries are sent in the order they were written.
+ * While something is queued, a new entry joins the queue too, so entries are sent in the order they were written. A new order of a day
+ * (reorder) does the same.
  */
 (function () {
   'use strict';
@@ -71,6 +72,25 @@
     });
   }
 
+  /** Puts a new order in the queue; it waits behind the entries it may name. Resolves with null. */
+  function queueOrder(slot, ids) {
+    return L.outbox.queue.update(function (items) {
+      return L.outbox.model.enqueueOrder(items, slot, ids, new Date().toISOString());
+    }).then(function () { return null; });
+  }
+
+  /** Saves a new order of some entries of one day. slot is { date, horizon }, ids the entries in their new order.
+   * Resolves with the day as the server answered it, or with null when the order was queued (it shows through the queue). A refusal rejects. */
+  function reorder(slot, ids) {
+    return L.outbox.queue.load().then(function () {
+      if (navigator.onLine === false || L.outbox.queue.items().length > 0) return queueOrder(slot, ids);
+      return L.api.reorder(slot, ids).catch(function (error) {
+        if (!missed(error)) throw error;
+        return queueOrder(slot, ids);
+      });
+    });
+  }
+
   /** Takes a queued new entry back out of the queue (it was never sent, so there is nothing to delete on the server). */
   function discard(id) {
     return L.outbox.queue.update(function (items) {
@@ -78,5 +98,5 @@
     });
   }
 
-  L.outbox.save = { create: create, update: update, discard: discard };
+  L.outbox.save = { create: create, update: update, reorder: reorder, discard: discard };
 })();

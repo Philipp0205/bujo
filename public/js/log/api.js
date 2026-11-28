@@ -150,6 +150,13 @@
     });
   }
 
+  /** Puts the named entries of one day (slot { date, horizon }) in the order of ids, in the places they held. Resolves with the day in its new order. */
+  function reorder(slot, ids) {
+    return call('POST', '/api/entries/order', { date: slot.date, horizon: slot.horizon, ids: ids }).then(function (body) {
+      return body.entries;
+    });
+  }
+
   /** Adds a task as a new last line of a free-form note and takes it off the log. Resolves with { note, entries } (the note, the task's old day). */
   function fileIntoNote(id, noteId) {
     return call('POST', '/api/entries/' + encodeURIComponent(id) + '/into-note', { noteId: noteId });
@@ -188,5 +195,5 @@
     return '/api/page-photos/' + encodeURIComponent(id);
   }
 
-  L.api = { uploadPagePhoto: uploadPagePhoto, pagePhotoUrl: pagePhotoUrl, list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, listNotebooks: listNotebooks, getNotebook: getNotebook, startNotebook: startNotebook, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
+  L.api = { uploadPagePhoto: uploadPagePhoto, pagePhotoUrl: pagePhotoUrl, list: list, listWithTraces: listWithTraces, listOpenBefore: listOpenBefore, listNotOnPaper: listNotOnPaper, markWritten: markWritten, listNotes: listNotes, listCollections: listCollections, listIndex: listIndex, listNotebooks: listNotebooks, getNotebook: getNotebook, startNotebook: startNotebook, createCollection: createCollection, renameCollection: renameCollection, setCollectionPage: setCollectionPage, deleteCollection: deleteCollection, listCollection: listCollection, listTags: listTags, create: create, update: update, remove: remove, fileIntoNote: fileIntoNote, move: move, reorder: reorder, retrySync: retrySync, uploadPhoto: uploadPhoto, photoUrl: photoUrl };
 })();

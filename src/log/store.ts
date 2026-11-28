@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
+import { reorderedIds } from "./order.ts";
 import { onPaper } from "./paper.ts";
 import { originOf } from "./origin.ts";
 import { settleHorizon } from "./horizon.ts";
@@ -92,6 +93,12 @@ export type EntryStore = {
    * Returns the entries of that day in their new order, or undefined for an unknown entry. Not an edit: no timestamps, no sync.
    */
   move(userId: string, id: string, direction: MoveDirection): Entry[] | undefined;
+  /**
+   * Puts the named entries of one day (or month lane) in this order, in the places they held (a drag and drop). Undefined when an id
+   * is not in that day, repeats, or would cross a paper page boundary; nothing changes then. Returns the day's log entries in their new order.
+   * Not an edit: no timestamps, no sync (the order is local, CalDAV never sees it).
+   */
+  reorder(userId: string, slot: { date: string; horizon: EntryHorizon }, ids: readonly string[]): Entry[] | undefined;
   /**
    * Removes the entry from the log (its photo goes with it). Local only: nothing on a sync target is touched.
    * Returns the entries left in its day, or undefined for an unknown entry.
@@ -452,6 +459,14 @@ export function createEntryStore(db: Db): EntryStore {
         inTransaction(db, () => renumber(userId, ids));
       }
       return groupEntries(userId, current).filter(isLogEntry);
+    },
+
+    reorder(userId, slot, ids) {
+      const group = { ...slot, collectionId: null };
+      const order = reorderedIds(groupEntries(userId, group), ids);
+      if (!order) return undefined;
+      inTransaction(db, () => renumber(userId, order));
+      return groupEntries(userId, group).filter(isLogEntry);
     },
 
     placeOnPaper(userId, slot, page, ids) {

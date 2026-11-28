@@ -5,7 +5,7 @@
  * left screen edge (the phone's own Back). The click that ends a swipe is eaten, so the row does not also open. Mouse and touch both work.
  * The split with the page turn (js/log/pages/turn.js): a swipe that begins on an open task row is this gesture, any other start turns the page.
  * Needs days.js (hasDay), glyph.js, move/model.js (KINDS), done/flip.js (buzz) and the DOM.
- * options: root (the page node), active() true while the swipe may act, onSwipe(id, kind).
+ * options: root (the page node), active() true while the swipe may act, onSwipe(id, kind), holding() (optional) true while the row is held for a drag (gesture/hold.js): the swipe stands aside.
  */
 (function () {
   'use strict';
@@ -97,6 +97,7 @@
   /** The pointer moved: once clearly sideways the swipe locks (with a pulse) and the row follows; it then stays locked until release. */
   function onMove(event) {
     if (!start) return;
+    if (options.holding && options.holding()) { start = null; return; }
     var dx = event.clientX - start.x;
     var dy = event.clientY - start.y;
     if (!start.locked && sideways(dx, dy, LOCK_PX)) {

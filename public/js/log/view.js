@@ -98,6 +98,7 @@
       'data-origin': entry.origin === 'scan' ? 'scan' : 'app',
       'data-important': entry.important ? 'true' : null,
       'data-indent': String(indent),
+      'data-page': entry.page == null ? null : String(entry.page),
       'aria-selected': picking ? String(ticked) : null,
       onclick: tapOf(entry, actions)
     },

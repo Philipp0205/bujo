@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-28-drag-reorder",
+    "date": "2026-11-28",
+    "title": "Drag entries into place",
+    "bullets": [
+      "Hold an entry for a moment, then drag it to where it belongs in the daily log.",
+      "A dashed scribble shows where it will land.",
+      "The new order is kept, also when you are offline."
+    ]
+  },
+  {
     "id": "2026-11-28-notebook-index",
     "date": "2026-11-28",
     "title": "A notebook index of its own",

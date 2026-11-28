@@ -1,5 +1,6 @@
 import { HttpError, readJson, SECURITY_HEADERS, sendJson } from "../app-kit/http.ts";
 import { createCollectionStore } from "../log/collections.ts";
+import { isEntryHorizon } from "../log/horizon.ts";
 import { checkFiling, commitFiling } from "../log/into-note.ts";
 import { updateEntry } from "../log/move.ts";
 import { markWritten } from "../log/paper.ts";
@@ -7,7 +8,7 @@ import { createPhotoStore } from "../log/photo-store.ts";
 import { createEntryStore, EntryIdTaken, type EntryStore } from "../log/store.ts";
 import { createTraceStore } from "../log/trace.ts";
 import { checkEntryPatch, checkNewEntry, checkRange, isValidDate } from "../log/validation.ts";
-import type { Checked, Entry, NewEntry } from "../log/types.ts";
+import { ENTRY_HORIZONS, type Checked, type Entry, type NewEntry } from "../log/types.ts";
 import { looksLikeJpeg, readPhoto } from "../scan/photo.ts";
 import { touchesMapping } from "../sync/service.ts";
 import { SYNC_MESSAGES } from "../sync/strings.ts";
@@ -15,6 +16,9 @@ import { isRead, requireSession, type RouteContext } from "./context.ts";
 
 /** Room for a free note: BODY_MAX characters can take up to four bytes each in JSON. */
 const ENTRY_BODY_MAX = 256 * 1024;
+
+/** The most ids one reorder names: a day of a log is never this long. */
+const ORDER_MAX = 500;
 
 /** A failed check is a 400 with the message. */
 function valid<T>(checked: Checked<T>): T {
@@ -39,6 +43,7 @@ function methodNotAllowed(allow: string): never {
  *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1), body (the markdown of a free note, null when none) or collectionId (a collection id files the entry on that page, null puts it back on the daily log). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
  *   DELETE /api/entries/:id        remove the entry (a note with its photo too) from bujo (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
+ *   POST  /api/entries/order       { date, horizon, ids } put those entries of one day (or month lane) in that order, in the places they held (drag and drop), answers the day. 400 for a bad body or an order across a paper page boundary, 404 for an id that is not in that day. Local only
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  *   POST  /api/entries/:id/into-note { noteId } add a task's title as a new last line of a free-form note (a bullet when the note is a list) and take the task off the log. A task on Nextcloud is pushed as dropped (CANCELLED) first, never deleted there. Answers { note, entries } (the task's old day). 400 for a non-task or a target without a body or a body that would pass BODY_MAX, 404 for an unknown entry or note, 502 when the cancel push fails
  *   POST  /api/entries/:id/written mark the entry as written on paper (stamps its current fields, not an edit), answers { entry } with onPaper true
@@ -71,6 +76,8 @@ export async function handleEntryRoutes(ctx: RouteContext): Promise<boolean> {
     requireCollection(ctx, userId, input.collectionId);
     return createEntry(ctx, store, userId, input);
   }
+
+  if (pathname === "/api/entries/order") return handleOrder(ctx, store, userId);
 
   const match = /^\/api\/entries\/([^/]+)(\/sync|\/photo|\/move|\/written|\/into-note)?$/.exec(pathname);
   if (!match) throw new HttpError(404, "not found");
@@ -198,6 +205,24 @@ async function handleMove(ctx: RouteContext, store: EntryStore, userId: string, 
   if (body.direction !== "up" && body.direction !== "down") throw new HttpError(400, "direction must be up or down");
   const day = store.move(userId, id, body.direction);
   if (!day) throw new HttpError(404, "unknown entry");
+  sendJson(ctx.res, 200, { entries: day });
+  return true;
+}
+
+/**
+ * POST { date, horizon, ids } puts those entries of the day (or month lane) in that order, in the places they held, and answers the day
+ * in its new order. A repeat is safe (same order, same answer). 400 for a bad body or an order that crosses a paper page boundary,
+ * 404 when an id is not in that day. Local only: never starts a push.
+ */
+async function handleOrder(ctx: RouteContext, store: EntryStore, userId: string): Promise<boolean> {
+  if (ctx.method !== "POST") methodNotAllowed("POST");
+  const body = await readJson(ctx.req);
+  if (!isValidDate(body.date)) throw new HttpError(400, "date must be a date like 2026-11-20");
+  if (!isEntryHorizon(body.horizon)) throw new HttpError(400, `horizon must be one of ${ENTRY_HORIZONS.join(", ")}`);
+  const ids = body.ids;
+  if (!Array.isArray(ids) || ids.length > ORDER_MAX || ids.some((id) => typeof id !== "string")) throw new HttpError(400, "ids must be a list of entry ids");
+  const day = store.reorder(userId, { date: body.date, horizon: body.horizon }, ids as string[]);
+  if (!day) throw new HttpError(404, "those entries are not one day in that order");
   sendJson(ctx.res, 200, { entries: day });
   return true;
 }

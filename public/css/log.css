@@ -751,6 +751,39 @@ html.ak-base .move-chooser :focus-visible { outline: 1px solid var(--paper-muted
 .swipe-ink.is-ready { color: var(--paper-ink); opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .paper-row.is-snapping { transition: none; } }
 
+/* ----- Drag to reorder (js/log/gesture/drag.js) ----- */
+
+/* A row held for a drag shows a faint wash, so the person knows the next move picks it up. */
+.paper-row.is-grabbed { background: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
+/* While dragging the sheet is not scrolled or selected by the browser. */
+.is-dragging { -webkit-user-select: none; user-select: none; cursor: grabbing; }
+/* The lifted row: a slip of paper with a soft shadow, a slightly wobbly pen outline (an inset ring, so the row keeps its size) and a small tilt (set inline). */
+.drag-sibling { transition: transform 0.16s ease-out; }
+.is-lifted {
+  position: relative;
+  z-index: 6;
+  pointer-events: none;
+  background: var(--paper-bg);
+  border-radius: 255px 14px 225px 14px / 14px 225px 14px 255px;
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--paper-ink) 55%, transparent),
+    0 6px 14px color-mix(in srgb, var(--paper-ink) 20%, transparent),
+    0 1px 3px color-mix(in srgb, var(--paper-ink) 25%, transparent);
+  transition: box-shadow 0.12s ease-out;
+}
+.is-lifted .paper-row.is-grabbed { background: transparent; }
+/* Where the row will land: a dashed pen outline with a light hatching, behind the rows. */
+.drag-slot {
+  position: absolute;
+  z-index: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 1.5px dashed color-mix(in srgb, var(--paper-muted) 85%, transparent);
+  border-radius: 14px 255px 14px 225px / 225px 14px 255px 14px;
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--paper-muted) 14%, transparent) 0 1.5px, transparent 1.5px 7px);
+}
+@media (prefers-reduced-motion: reduce) { .drag-sibling, .is-lifted { transition: none; } }
+
 /* ----- The migration review sheet (sheet.css gives the paper shell) ----- */
 
 .migrate-day,

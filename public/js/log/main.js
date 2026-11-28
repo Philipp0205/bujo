@@ -473,6 +473,7 @@
 
   /** Draws the whole page from the state, then inks its cards. The page is small, so nothing is patched in place. A redraw keeps the scroll of the sheet, a turn starts at the top. */
   function draw() {
+    if (L.gesture.drag.defer(draw)) return;
     var seen = L.pages.scroll.capture(root);
     var turn = state.turn;
     state.turn = null;
@@ -645,12 +646,39 @@
     return state.arrival;
   }
 
+  /** True when a row may be picked up to drag: the Daily log is on screen and ready, and nothing is being selected or typed. */
+  function canDrag() {
+    return state.view === 'daily' && state.status === 'ready' && !L.select.mode.on() && !L.inline.editor.line();
+  }
+
+  /** A drag was dropped: the day shows the new order at once, and it is saved (sent now, or queued while offline). A refusal reads the log again, so the old order returns. */
+  function reorder(slot, ids) {
+    state.server = L.outbox.model.reposition(state.server, slot, ids);
+    rebuild();
+    state.status = 'ready';
+    state.version += 1;
+    render();
+    L.outbox.save.reorder(slot, ids).then(function (day) {
+      if (day) { replaceGroup(slot.horizon, slot.date, day); render(); }
+    }, function () {
+      L.toast.show(L.copy.gesture.reorderFailed, 'fail');
+      load(true, 'plain');
+    });
+  }
+
+  /** The rows' gestures: a press on a row is told apart (scroll, swipe, drag, held still) by gesture/hold.js, and a drag reorders the day. */
+  function initGestures() {
+    L.gesture.drag.init({ root: root, onDrop: reorder });
+    L.gesture.hold.init({ root: root, skip: L.type.hold.owns, canDrag: canDrag, drag: L.gesture.drag });
+  }
+
   /** One-time setup of the page: the install banner, the inline editor, the first rows (from the cache when there is one), what's new. */
   function boot(ctx) {
     booted = true;
     AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
     L.inline.editor.init(host);
     L.select.mode.init({ host: host, root: root });
+    initGestures();
     L.done.toggle.init({
       root: root,
       select: L.select.mode,
@@ -693,9 +721,11 @@
     BujoNav.data.warm(BujoNav.data.KEYS.log, fetchWindow);
   }
 
-  /** The queue sent an entry: the page takes the saved entry in place of the queued one, with the trace the sent change asked for. */
+  /** The queue sent an entry: the page takes the saved entry in place of the queued one, with the trace the sent change asked for.
+   * A sent order brings the day as the server holds it. */
   function onSent(entry, item) {
     if (!booted) return;
+    if (item && item.kind === 'order') { replaceGroup(item.body.horizon, item.body.date, entry); render(); return; }
     upsert(entry, item && item.kind === 'update' ? item.body.trace : null);
     render();
   }
@@ -703,6 +733,7 @@
   /** The server refused a queued item for good: it is gone from the queue, so the page shows the log without it and says so. */
   function onDropped(item) {
     if (booted) { rebuild(); render(); }
+    if (booted && item.kind === 'order') load(true, 'plain');
     L.toast.show(item.kind === 'create' ? L.copy.offline.dropped(item.body.title) : L.copy.offline.droppedChange, 'fail');
   }
 

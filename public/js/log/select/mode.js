@@ -3,7 +3,7 @@
  * entries to the clipboard as paper lines. While it is on, the page shows the select bar instead of the header.
  * The phone's Back leaves it, through the one overlay stack (BujoNav.overlays, name "select"), and copies nothing.
  * Delete asks through select/confirm.js and removes through select/remove.js. The host also needs group, replaceGroup and forget (the inline editor's host).
- * Needs select/model.js, select/press.js, select/bar.js, clipboard.js, toast.js, the inline editor (settle) and nav/overlays.js.
+ * Needs select/model.js, select/press.js, select/bar.js, clipboard.js, toast.js, the inline editor (settle), gesture/hold.js and nav/overlays.js.
  * host: entries() the entries on screen, draw() redraws the page.
  */
 (function () {
@@ -95,7 +95,7 @@
   /** Wires select mode to its host and starts watching long presses on the page. */
   function init(options) {
     host = options.host;
-    L.select.press.init({ root: options.root, onHold: hold, skip: L.type.hold.owns });
+    L.select.press.init({ onHold: hold });
   }
 
   L.select.mode = {
