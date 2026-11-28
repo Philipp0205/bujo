@@ -14,11 +14,18 @@ type Model = {
   DEFAULTS: { radius: number; bubble: number; side: number; top: number; bottom: number };
 };
 
-/** Loads public/js/log/radial/model.js into a sandbox and returns the model. */
+/** Loads public/js/log/radial/model.js into a sandbox and returns the model. Results are copied into this realm so deepEqual can compare them. */
 function loadModel(): Model {
   const window: Record<string, any> = {};
   vm.runInNewContext(fs.readFileSync(FILE, "utf8"), { window, Math });
-  return window.BujoLog.radial.model;
+  const raw = window.BujoLog.radial.model;
+  const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+  return {
+    DEFAULTS: plain(raw.DEFAULTS),
+    actionsFor: (entry) => plain(raw.actionsFor(entry)),
+    layout: (...args) => plain(raw.layout(...args)),
+    blobPath: (seed, r) => raw.blobPath(seed, r),
+  };
 }
 
 const PHONE = { width: 390, height: 844 };
