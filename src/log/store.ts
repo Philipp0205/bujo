@@ -116,6 +116,9 @@ const COLUMNS =
 const IN_DAY_ORDER = "(paper_page IS NULL), paper_page, position, created_at, id";
 const DAY_ORDER = `ORDER BY ${IN_DAY_ORDER}`;
 
+/** What the daily log shows: not a collection's entry and not a free note (a body). Notes and collections stand on their own pages, so this detaches old ones on read. */
+const ON_THE_LOG = "collection_id IS NULL AND (body IS NULL OR body = '')";
+
 /**
  * One page's ids in the scan's line order. An entry of the page the scan did not list (the OCR missed it) stays right after the
  * entry that sat above it before, so it does not jump to the end. One that sat above every listed entry goes first.
@@ -207,6 +210,11 @@ function tagUses(rows: ReadonlyArray<{ tag: string; updated_at: number }>): TagU
   return [...byKey.values()].sort((a, b) => b.lastUsed - a.lastUsed || a.tag.localeCompare(b.tag));
 }
 
+/** True when an entry belongs on the daily log (a free note does not). */
+function isLogEntry(entry: Entry): boolean {
+  return !entry.body;
+}
+
 /** Where an entry sits for ordering: all of a collection's entries form one group, any other entry belongs to its day (or month lane). */
 type Group = { collectionId: string | null; date: string; horizon: EntryHorizon };
 
@@ -285,7 +293,7 @@ export function createEntryStore(db: Db): EntryStore {
   return {
     list(userId, range) {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND collection_id IS NULL AND date >= ? AND date <= ? ORDER BY date, horizon, ${IN_DAY_ORDER}`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND ${ON_THE_LOG} AND date >= ? AND date <= ? ORDER BY date, horizon, ${IN_DAY_ORDER}`)
         .all(userId, range.from, range.to) as Row[];
       return rows.map(toEntry);
     },
@@ -293,7 +301,7 @@ export function createEntryStore(db: Db): EntryStore {
     listOpenBefore(userId, before) {
       const rows = db
         .prepare(
-          `SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND collection_id IS NULL AND (horizon IS NULL OR horizon = 'day') AND type = 'task' AND date < ? ORDER BY date, ${IN_DAY_ORDER}`,
+          `SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND ${ON_THE_LOG} AND (horizon IS NULL OR horizon = 'day') AND type = 'task' AND date < ? ORDER BY date, ${IN_DAY_ORDER}`,
         )
         .all(userId, before) as Row[];
       return rows.map(toEntry);
@@ -315,7 +323,7 @@ export function createEntryStore(db: Db): EntryStore {
 
     listScan(userId, range, horizon = "day") {
       const rows = db
-        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND collection_id IS NULL AND horizon = ? AND date >= ? AND date <= ? ORDER BY date, ${IN_DAY_ORDER}`)
+        .prepare(`SELECT ${COLUMNS} FROM entries WHERE user_id = ? AND ${ON_THE_LOG} AND horizon = ? AND date >= ? AND date <= ? ORDER BY date, ${IN_DAY_ORDER}`)
         .all(userId, horizon, range.from, range.to) as Row[];
       return rows.map((row) => ({ ...toEntry(row), scan: toSnapshot(row) }));
     },
@@ -443,7 +451,7 @@ export function createEntryStore(db: Db): EntryStore {
         [ids[from], ids[to]] = [ids[to], ids[from]];
         inTransaction(db, () => renumber(userId, ids));
       }
-      return groupEntries(userId, current);
+      return groupEntries(userId, current).filter(isLogEntry);
     },
 
     placeOnPaper(userId, slot, page, ids) {
@@ -461,7 +469,7 @@ export function createEntryStore(db: Db): EntryStore {
         db.prepare("DELETE FROM entries WHERE user_id = ? AND id = ?").run(userId, id);
         renumber(userId, groupIds(userId, current));
       });
-      return groupEntries(userId, current);
+      return groupEntries(userId, current).filter(isLogEntry);
     },
 
 

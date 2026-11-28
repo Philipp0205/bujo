@@ -886,6 +886,8 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 
 .detail-form .note-copy,
 .detail-form .note-rescan { justify-self: start; margin: 24px 0 0 var(--text-col); }
+/* Delete note: a pen-ink link with a 44px hit area, set apart under the other links. */
+.detail-form .note-delete { justify-self: start; display: flex; align-items: center; min-height: 44px; margin: 12px 0 0 var(--text-col); color: var(--paper-muted); }
 
 /* The scan photo: a thumbnail on four paper lines under the markdown, and the full-size view over the page. */
 .detail-form .note-photo-field { margin-top: 24px; }

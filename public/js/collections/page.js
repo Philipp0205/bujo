@@ -61,7 +61,7 @@
     });
   }
 
-  /** Asks to confirm, then deletes the page (its entries stay in the log) and goes back to the index. */
+  /** Asks to confirm, then deletes the page with its entries and photos (nothing returns to the log) and goes back to the index. */
   function confirmRemove() {
     L.collections.chooser.confirmDelete(state.collection, function () {
       return L.api.deleteCollection(state.collection.id).then(function () {

@@ -254,10 +254,11 @@
     recount();
   }
 
-  /** After a scan is applied or a note saved: show where it landed. Month tasks and a calendar open the Month view on their month, a
+  /** After a scan is applied or a note saved: show where it landed. A saved note is not on any day, so the Notes tab opens. Month tasks and a calendar open the Month view on their month, a
    * future page the Future view, a day the Daily view even when it is outside the usual window. A month the views do not reach
    * opens the Daily view on its first day instead. */
   function applied(result) {
+    if (result.view === 'notes') { BujoNav.router.go('notes'); return; }
     land(result);
     reload();
     L.gap.banner.after(result.paperNumber);

@@ -28,7 +28,7 @@ function methodNotAllowed(allow: string): never {
 
 /**
  * /api/entries, the rapid log. Browser sessions only, like /api/backlog.
- *   GET   /api/entries?from=&to=   entries of a date range, by date then position
+ *   GET   /api/entries?from=&to=   entries of a date range, by date then position. Not collection entries and not free notes (a body): those stand on their own pages, not on a day
  *   GET   /api/entries?from=&to=&onPaper=0   only the entries of the range that are not on paper yet, never a done one (any other onPaper value is a 400)
  *   GET   /api/entries?from=&to=&traces=1   also { traces } for the range: what moves left on the old pages ({ id, entryId, date, horizon, kind, title }), local notes that are never synced
  *   GET   /api/entries?openBefore=<day>  every open task of the daily log from a day before that day, any age, oldest first (no range cap; for the migration review)
@@ -37,7 +37,7 @@ function methodNotAllowed(allow: string): never {
  *   GET   /api/tags                the tags of the log in use: [{ tag, count, lastUsed }], newest use first
  *   POST  /api/entries             a new entry, at the end of its day. An optional client id (a UUID) makes it idempotent: a repeat answers 200 with the stored entry, an id of another user is a 409
  *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1), body (the markdown of a free note, null when none) or collectionId (a collection id files the entry on that page, null puts it back on the daily log). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
- *   DELETE /api/entries/:id        remove the entry from the log (local only, nothing is deleted on Nextcloud), answers its day
+ *   DELETE /api/entries/:id        remove the entry (a note with its photo too) from bujo (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  *   POST  /api/entries/:id/into-note { noteId } add a task's title as a new last line of a free-form note (a bullet when the note is a list) and take the task off the log. A task on Nextcloud is pushed as dropped (CANCELLED) first, never deleted there. Answers { note, entries } (the task's old day). 400 for a non-task or a target without a body or a body that would pass BODY_MAX, 404 for an unknown entry or note, 502 when the cancel push fails

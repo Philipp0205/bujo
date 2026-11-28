@@ -23,8 +23,8 @@ export type CollectionStore = {
   /** Renames a collection. Undefined for an unknown id; "taken" when a different collection has that name (ignoring case). */
   rename(userId: string, id: string, name: string): Collection | "taken" | undefined;
   /**
-   * Deletes a collection. Its entries stay: each goes back to the end of its own day on the daily log (date and the rest untouched).
-   * False for an unknown id. One transaction, local only.
+   * Deletes a collection with its entries, its page photo rows and its index listing (the page number goes with the row). Nothing goes back to a day.
+   * False for an unknown id. One transaction, local only: nothing is deleted on Nextcloud.
    */
   remove(userId: string, id: string): boolean;
 };
@@ -53,15 +53,9 @@ function toCollection(row: Row): Collection {
   return { id: row.id, name: row.name, count: Number(row.count), createdAt: Number(row.created_at), paperPage: page === null || page === undefined ? null : Number(page) };
 }
 
-/** Clears collection_id on every entry of a page, in page order, each at the end of its own day group so positions never collide. */
-function unfileEntries(db: Db, userId: string, id: string): void {
-  const rows = db.prepare("SELECT id, date, horizon FROM entries WHERE user_id = ? AND collection_id = ? ORDER BY position, created_at, id").all(userId, id) as Array<{ id: string; date: string; horizon: string | null }>;
-  const top = db.prepare("SELECT MAX(position) AS top FROM entries WHERE user_id = ? AND collection_id IS NULL AND date = ? AND horizon IS ?");
-  const write = db.prepare("UPDATE entries SET collection_id = NULL, position = ?, indent = 0 WHERE user_id = ? AND id = ?");
-  for (const row of rows) {
-    const last = (top.get(userId, row.date, row.horizon) as { top: number | null }).top;
-    write.run(last === null ? 0 : Number(last) + 1, userId, row.id);
-  }
+/** Deletes every entry filed on a page (their tags, photos and traces go with them by cascade). Nothing is moved onto a day. */
+function deleteEntries(db: Db, userId: string, id: string): void {
+  db.prepare("DELETE FROM entries WHERE user_id = ? AND collection_id = ?").run(userId, id);
 }
 
 /** The collections table, always scoped to one user. */
@@ -108,7 +102,8 @@ export function createCollectionStore(db: Db): CollectionStore {
     remove(userId, id) {
       if (!get(userId, id)) return false;
       inTransaction(db, () => {
-        unfileEntries(db, userId, id);
+        deleteEntries(db, userId, id);
+        db.prepare("DELETE FROM page_photos WHERE user_id = ? AND collection_id = ?").run(userId, id);
         db.prepare("DELETE FROM collections WHERE user_id = ? AND id = ?").run(userId, id);
       });
       return true;

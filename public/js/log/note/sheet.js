@@ -1,7 +1,7 @@
 /*
  * The free-note sheet (mock 06 without Obsidian): one paper sheet to review a scanned note and to view or edit a saved one.
  * It edits title, day and markdown, saves through /api/entries (and stores the scan photo with the note), and copies the markdown.
- * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js, note/photo.js and note/editor/view.js (and note/match.js for a scan that looks like a saved note).
+ * Dismissing writes nothing. Needs ak-dom.js, ak-sheet.js, nav/overlays.js, core.js, copy.js, dates.js, glyph.js, api.js, note/model.js, note/photo.js, note/remove.js and note/editor/view.js (and note/match.js for a scan that looks like a saved note).
  */
 (function () {
   'use strict';
@@ -125,6 +125,25 @@
     }, L.copy.note.scanAgain);
   }
 
+  /**
+   * The Delete note link of a saved note (a 44px paper link): asks first, then removes the note and its photo on the server and closes the sheet.
+   * The host hears of it through options.onDeleted(values), else options.onSaved(values), which every host already uses to read its list again.
+   */
+  function deleteButton(options, close) {
+    if (options.mode !== 'saved' || options.values.id === null) return null;
+    var values = options.values;
+    function remove() {
+      return L.api.remove(values.id).then(function () {
+        close();
+        (options.onDeleted || options.onSaved)(values);
+      });
+    }
+    return h('button', {
+      class: 'paper-link note-delete', type: 'button', 'data-action': 'delete-note', 'data-testid': 'note-delete',
+      onclick: function () { L.note.remove.open({ title: values.title, onConfirm: remove }); }
+    }, L.copy.note.delete);
+  }
+
   /** The row that offers the saved note a scan looks like, or null. A match that keeps its day puts that day in the form while Update is chosen. */
   function matchRow(options, inputs) {
     var match = options.match;
@@ -146,7 +165,7 @@
    * options.match is the saved note a scan looks like ({ id, title, date, keepDate, explicit }): the review offers to update it. options.onRescan(values)
    * adds Scan again to a saved note. options.typeRow is the type picker node of a scan, shown above the form; options.noteKind() (optional) says
    * the collection kind (list, tracker, project, misc) the note is saved with.
-   * options.onClosed() (optional) runs when the sheet closes, however it closes. The returned handle has values(): the form as it is now.
+   * options.onClosed() (optional) runs when the sheet closes, however it closes. options.onDeleted(values) (optional) runs after a saved note is deleted (default: onSaved). The returned handle has values(): the form as it is now.
    */
   function open(options) {
     var copy = L.copy.note;
@@ -183,7 +202,7 @@
       submit();
     } },
       dayRow(inputs, copy.dayHint), field(copy.title, inputs.title), editorView(inputs, options), photoField(options), copyButton(inputs),
-      rescanButton(options, function () { sheet.close(); }));
+      rescanButton(options, function () { sheet.close(); }), deleteButton(options, function () { sheet.close(); }));
     var offer = matchRow(options, inputs);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan sheet-note', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'note-title', 'data-testid': 'note-sheet', 'data-mode': options.mode },
       head(options, function () { sheet.close(); }),

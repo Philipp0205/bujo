@@ -259,7 +259,7 @@
     note: {
       untitled: 'Untitled note',
       savedHeading: 'Note',
-      savedSub: 'Saved in your log',
+      savedSub: 'Saved in your notes',
       newHeading: 'New note',
       newSub: 'Write as many lines as you like.',
       dayHint: 'Tap to change the day',
@@ -280,6 +280,12 @@
       bodyRequired: 'Write something in the note.',
       saveFailed: 'Could not save the note. Try again.',
       scanAgain: 'Scan again',
+      delete: 'Delete note',
+      deleteTitle: function (title) { return 'Delete \u201c' + title + '\u201d?'; },
+      deleteBody: 'This note and its photo will be deleted from bujo. Nothing in Nextcloud is touched.',
+      deleteConfirm: 'Delete note',
+      deleteCancel: 'Cancel',
+      deleteFailed: 'Could not delete the note. Try again.',
       save: 'Save',
       editor: {
         modes: 'Note view',
