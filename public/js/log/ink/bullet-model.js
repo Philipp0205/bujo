@@ -1,5 +1,5 @@
 /*
- * Pure model of the pen-stroke bullets: the strokes of a task dot, a done x, a > or <, a note dash, an event circle and a dropped dot.
+ * Pure model of the pen-stroke bullets: the strokes of a task dot, a done x, a > or <, a note dash, an event circle and a dropped dot with a short diagonal slash through its middle.
  * strokes(type, seed) gives { viewBox, strokes: [{ d, width }] } in a 16 by 16 box. The same type and seed always give the same
  * strokes (the seed is the entry id), a different seed wobbles a little differently. No DOM, no strings.
  * Needs scan/scribble.js (seedOf, random, smooth).
@@ -62,7 +62,7 @@
     done: function (next) { return [stroke(next, [4.8, 4.8], [11.2, 11.2], 1.5), stroke(next, [11.2, 4.8], [4.8, 11.2], 1.4)]; },
     migrated: function (next) { return [stroke(next, [5.8, 4.4], [10.6, 8], 1.4), stroke(next, [10.6, 8], [5.8, 11.6], 1.4)]; },
     scheduled: function (next) { return [stroke(next, [10.2, 4.4], [5.4, 8], 1.4), stroke(next, [5.4, 8], [10.2, 11.6], 1.4)]; },
-    dropped: function (next) { return [dot(next), stroke(next, [3.2, 8], [12.8, 8], 1.3)]; }
+    dropped: function (next) { return [dot(next), stroke(next, [4.4, 11.6], [11.6, 4.4], 1.3)]; }
   };
 
   /** The pen strokes of a bullet type, drawn from a seed. Null for a type with no bullet. */
