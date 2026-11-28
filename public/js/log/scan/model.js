@@ -103,8 +103,14 @@
       month: line.month || null,
       dayText: line.day ? String(line.day) : '',
       touched: false,
-      indent: line.indent === 1 ? 1 : 0
+      indent: line.indent === 1 ? 1 : 0,
+      section: line.section || null
     };
+  }
+
+  /** Puts a month-task line in the work or private section (null: none). */
+  function setSection(item, section) {
+    item.section = section;
   }
 
   /** True when the line may nest under the line above: only a daily page nests, and the first line has nothing above it. */
@@ -124,18 +130,15 @@
     return date.slice(0, 7);
   }
 
-  /** Where the kind came from: the detection when the kind is still the detected one, else the person. */
-  function kindSourceOf(draft) {
-    return draft.kind === draft.detected.kind ? draft.detected.source : 'picked';
-  }
-
-  /** The review state of a draft the server sent (or sent again for another kind). A page with no month reads as the month of the fallback day. */
+  /** The review state of a draft the server sent (or sent again for another kind). A page with no month reads as the month of the fallback day.
+   * detectedKind is what the server detected: a Monthly pick in the type picker goes back to it when it was a monthly kind. */
   function fromDraft(draft) {
     var month = draft.month || monthOfDate(draft.fallbackDate);
     return {
       id: draft.id,
       kind: draft.kind,
-      kindSource: kindSourceOf(draft),
+      detectedKind: draft.detected.kind,
+      rangeFrom: null,
       date: draft.date,
       pageDate: draft.pageDate,
       fallbackDate: draft.fallbackDate,
@@ -367,6 +370,7 @@
     var body = { id: item.id, type: item.type, title: item.title.trim(), tags: tagsOf(item), time: item.time };
     if (state.kind === 'calendar') body.day = dayOf(item);
     if (state.kind === 'future') body.month = item.month;
+    if (state.kind === 'month-task' && item.section) body.section = item.section;
     if (item.unmatched) body.unmatched = true;
     if (indentOf(state, item) === 1) body.indent = 1;
     if (item.important) body.important = true;
@@ -474,6 +478,7 @@
     paperFromPhoto: paperFromPhoto,
     dayOf: dayOf,
     setDayText: setDayText,
+    setSection: setSection,
     dayProblemOf: dayProblemOf,
     mergeChecks: mergeChecks,
     matchOf: matchOf,

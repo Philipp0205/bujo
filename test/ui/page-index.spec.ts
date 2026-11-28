@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { gotoNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { choose, openScan, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -75,8 +75,8 @@ test("a daily scan shows the page number the OCR read with its hint; the correct
 test("page 2 of the same day, picked with the page picker, has its own number", async ({ page }) => {
   readDay(["Charlie"], 15);
   await scanPhoto(page);
-  await review(page).locator("[data-page='2']").click();
-  await expect(review(page).locator("[data-page='2']")).toHaveAttribute("aria-pressed", "true");
+  await choose(page, "target", "Page 2");
+  await expect(pickStep(page, "target")).toHaveText("Page 2");
   await expect(field(page)).toHaveValue("15");
   await applyReview(page);
 
@@ -147,7 +147,7 @@ test("a scan without a number has an empty field, applies, and adds nothing to t
   await scanPhoto(page);
   await expect(field(page)).toHaveValue("");
   await expect(note(page)).toBeHidden();
-  await review(page).locator("[data-page='3']").click();
+  await choose(page, "target", "Page 3");
   await applyReview(page);
   await expect(page.locator("#log").getByText("Delta")).toBeVisible();
 
@@ -160,7 +160,7 @@ test("an invalid number blocks Apply and says why; fixing or emptying it brings 
   readDay(["Echo"], 40);
   await scanPhoto(page);
   const apply = review(page).locator("[data-action=apply]");
-  await review(page).locator("[data-page='4']").click();
+  await choose(page, "target", "Page 4");
   await expect(apply).toBeEnabled();
 
   for (const bad of ["0", "10000", "abc", "1.5"]) {

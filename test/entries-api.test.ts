@@ -315,6 +315,44 @@ test("important is a plain boolean: off by default, set on create or PATCH, and 
   });
 });
 
+test("a free note keeps its collection kind: set on create, changed and cleared by PATCH, and bad kinds are refused", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const note = { ...NEW, type: "note", title: "Reading list", body: "- Dune" };
+    const plain = (await api(base, "POST", "/api/entries", { body: note, headers })).json.entry;
+    assert.equal(plain.noteKind, null);
+    const made = await api(base, "POST", "/api/entries", { body: { ...note, noteKind: "list" }, headers });
+    assert.equal(made.status, 201);
+    assert.equal(made.json.entry.noteKind, "list");
+    const changed = await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { noteKind: "tracker" }, headers });
+    assert.deepEqual([changed.json.entry.noteKind, changed.json.entry.title], ["tracker", "Reading list"]);
+    const edited = await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { title: "Books" }, headers });
+    assert.equal(edited.json.entry.noteKind, "tracker");
+    const cleared = await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { noteKind: null }, headers });
+    assert.equal(cleared.json.entry.noteKind, null);
+    assert.equal((await api(base, "POST", "/api/entries", { body: { ...note, noteKind: "diary" }, headers })).status, 400);
+    assert.equal((await api(base, "PATCH", `/api/entries/${plain.id}`, { body: { noteKind: 3 }, headers })).status, 400);
+    const listed = await api(base, "GET", "/api/entries?from=2026-11-14&to=2026-11-27", { headers });
+    assert.deepEqual(listed.json.entries.map((e: { noteKind: string | null }) => e.noteKind), [null, null]);
+  });
+});
+
+test("a month-task entry keeps its section: set on create, changed and cleared by PATCH, and bad sections are refused", async () => {
+  await withApp(demoSource(), async ({ base }) => {
+    const { headers } = await signUp(base);
+    const task = { date: "2026-11-30", horizon: "month-task", type: "task", title: "Bericht" };
+    assert.equal((await api(base, "POST", "/api/entries", { body: task, headers })).json.entry.section, null);
+    const made = await api(base, "POST", "/api/entries", { body: { ...task, section: "work" }, headers });
+    assert.equal(made.json.entry.section, "work");
+    const moved = await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { section: "private" }, headers });
+    assert.equal(moved.json.entry.section, "private");
+    const renamed = await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { title: "Bericht 2" }, headers });
+    assert.equal(renamed.json.entry.section, "private");
+    assert.equal((await api(base, "PATCH", `/api/entries/${made.json.entry.id}`, { body: { section: null }, headers })).json.entry.section, null);
+    assert.equal((await api(base, "POST", "/api/entries", { body: { ...task, section: "hobby" }, headers })).status, 400);
+  });
+});
+
 test("the daily log and the page routes: / and /backlog both need a session", async () => {
   await withApp(demoSource(), async ({ base }) => {
     const { headers } = await signUp(base);

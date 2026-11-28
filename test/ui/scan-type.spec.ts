@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { choose, openScan, picker, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -35,7 +35,7 @@ function day(offset: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-type Stored = { id: string; type: string; title: string; body: string | null };
+type Stored = { id: string; type: string; title: string; body: string | null; noteKind: string | null };
 
 /** All entries of the days around today, as the API lists them. */
 async function entriesAround(page: Page): Promise<Stored[]> {
@@ -45,7 +45,8 @@ async function entriesAround(page: Page): Promise<Stored[]> {
 
 const review = (page: Page) => page.getByTestId("scan-review");
 const noteSheet = (page: Page) => page.getByTestId("note-sheet");
-const typePill = (page: Page, type: "log" | "note") => page.locator(`.scan-kind[data-type="${type}"]`);
+/** The type the picker shows (its first word): "log" or "collection". */
+const typeOf = (page: Page) => pickStep(page, "type");
 
 /** How many times the OCR service was called so far. */
 const ocrCalls = () => app.ocr.requests.filter((request) => request.path === "/ocr").length;
@@ -62,9 +63,9 @@ test("a free-form page scanned with default settings opens on the note type, and
   await scan(page, FREE_FORM);
   await expect(noteSheet(page)).toBeVisible();
   await expect(review(page)).toHaveCount(0);
-  await expect(typePill(page, "note")).toHaveAttribute("aria-pressed", "true");
-  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a note or collection: it starts with a title, not a date");
+  await expect(typeOf(page)).toHaveAttribute("data-value", "collection");
+  await expect(picker(page)).toHaveAttribute("data-source", "title");
+  await expect(pickStep(page, "sub")).toHaveAttribute("data-value", "misc");
   await expect(noteSheet(page).locator('[data-field="title"]')).toHaveValue("Reading list");
 
   await noteSheet(page).locator("[data-action=save-note]").click();
@@ -78,14 +79,14 @@ test("a bullet page opens on the log type, and flipping it to note shows the not
   const before = ocrCalls();
   await scan(page, LOG_PAGE);
   await expect(review(page)).toBeVisible();
-  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a log page: it has bullet lines");
+  await expect(typeOf(page)).toHaveAttribute("data-value", "log");
+  await expect(picker(page)).toHaveAttribute("data-source", "bullets");
 
-  await typePill(page, "note").click();
+  await choose(page, "type", "Collection");
   await expect(noteSheet(page)).toBeVisible();
   await expect(review(page)).toHaveCount(0);
-  await expect(typePill(page, "note")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("scan-type-source")).toHaveText("Type picked by you");
+  await expect(typeOf(page)).toHaveAttribute("data-value", "collection");
+  await expect(picker(page)).toHaveAttribute("data-source", "picked");
   await expect(noteSheet(page).locator('[data-field="body"]')).toHaveValue("- Brot kaufen\n- Post abholen");
   expect(ocrCalls() - before).toBe(1);
 
@@ -99,11 +100,11 @@ test("a free-form guess flipped to log shows the log review from the same read a
   await scan(page, FREE_FORM);
   await expect(noteSheet(page)).toBeVisible();
 
-  await typePill(page, "log").click();
+  await choose(page, "type", "Log");
   await expect(review(page)).toBeVisible();
   await expect(noteSheet(page)).toHaveCount(0);
-  await expect(typePill(page, "log")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("scan-type-source")).toHaveText("Type picked by you");
+  await expect(typeOf(page)).toHaveAttribute("data-value", "log");
+  await expect(picker(page)).toHaveAttribute("data-source", "picked");
   await expect(review(page).locator(".scan-row")).toHaveCount(3);
   expect(ocrCalls() - before).toBe(1);
 
@@ -117,9 +118,31 @@ test("a free-form guess flipped to log shows the log review from the same read a
 test("switching to note and back keeps the log review edits", async ({ page }) => {
   await scan(page, LOG_PAGE);
   await review(page).locator(".scan-row").first().locator('[data-field="title"]').fill("Brot und Butter");
-  await typePill(page, "note").click();
+  await choose(page, "type", "Collection");
   await expect(noteSheet(page)).toBeVisible();
-  await typePill(page, "log").click();
+  await choose(page, "type", "Log");
   await expect(review(page).locator(".scan-row").first().locator('[data-field="title"]')).toHaveValue("Brot und Butter");
-  await expect(page.getByTestId("scan-type-source")).toHaveText("Looks like a log page: it has bullet lines");
+  await expect(picker(page)).toHaveAttribute("data-source", "bullets");
+});
+
+test("the collection kind picked in the picker is saved with the note and comes back from the API", async ({ page }) => {
+  await scan(page, FREE_FORM);
+  await expect(noteSheet(page)).toBeVisible();
+  await choose(page, "sub", "tracker");
+  await expect(pickStep(page, "sub")).toHaveAttribute("data-value", "tracker");
+  await expect(pickStep(page, "target")).toHaveCount(0);
+
+  await noteSheet(page).locator("[data-action=save-note]").click();
+  await expect(noteSheet(page)).toHaveCount(0);
+  const stored = await entriesAround(page);
+  expect(stored.map((entry) => entry.noteKind)).toEqual(["tracker"]);
+});
+
+test("the picker keeps the picked collection kind when the page flips to log and back", async ({ page }) => {
+  await scan(page, FREE_FORM);
+  await choose(page, "sub", "project");
+  await choose(page, "type", "Log");
+  await expect(review(page)).toBeVisible();
+  await choose(page, "type", "Collection");
+  await expect(pickStep(page, "sub")).toHaveAttribute("data-value", "project");
 });

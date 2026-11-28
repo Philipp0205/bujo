@@ -1,13 +1,17 @@
 import {
   ENTRY_HORIZONS,
   ENTRY_TYPES,
+  ENTRY_SECTIONS,
+  NOTE_KINDS,
   TRACE_KINDS,
   type Checked,
   type DateRange,
   type EntryChange,
   type EntryPatch,
+  type EntrySection,
   type EntryType,
   type NewEntry,
+  type NoteKind,
   type TraceKind,
 } from "./types.ts";
 import { isEntryHorizon } from "./horizon.ts";
@@ -81,7 +85,7 @@ function unknownField(body: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(body).find((key) => !allowed.includes(key));
 }
 
-const FIELDS = ["date", "horizon", "type", "title", "tags", "time", "body", "collectionId", "important"] as const;
+const FIELDS = ["date", "horizon", "type", "title", "tags", "time", "body", "collectionId", "noteKind", "section", "important"] as const;
 const PATCH_FIELDS = [...FIELDS, "indent"] as const;
 const CREATE_FIELDS = [...FIELDS, "id"] as const;
 /** The shape crypto.randomUUID() makes: 8-4-4-4-12 lowercase hex with dashes. */
@@ -155,6 +159,14 @@ function checkFields(body: Record<string, unknown>): Checked<EntryPatch> {
     if (body.collectionId !== null && !isEntryId(body.collectionId)) return fail("collectionId must be a collection id or null");
     out.collectionId = body.collectionId;
   }
+  if ("noteKind" in body) {
+    if (body.noteKind !== null && !(NOTE_KINDS as readonly unknown[]).includes(body.noteKind)) return fail(`noteKind must be null or one of ${NOTE_KINDS.join(", ")}`);
+    out.noteKind = body.noteKind as NoteKind | null;
+  }
+  if ("section" in body) {
+    if (body.section !== null && !(ENTRY_SECTIONS as readonly unknown[]).includes(body.section)) return fail(`section must be null or one of ${ENTRY_SECTIONS.join(", ")}`);
+    out.section = body.section as EntrySection | null;
+  }
   if ("important" in body) {
     if (typeof body.important !== "boolean") return fail("important must be true or false");
     out.important = body.important;
@@ -184,9 +196,11 @@ export function checkNewEntry(body: Record<string, unknown>): Checked<NewEntry> 
   if ("id" in body && !isEntryId(body.id)) return fail("id must be a UUID like 3f2b8c1e-9a4d-4e7f-8b6a-1c2d3e4f5a6b");
   const fields = checkFields(body);
   if (!fields.ok) return fields;
-  const { date, horizon = "day", type, title, tags = [], time = null, body: text = null, collectionId, important = false } = fields.value;
+  const { date, horizon = "day", type, title, tags = [], time = null, body: text = null, collectionId, noteKind, section, important = false } = fields.value;
   const entry: NewEntry = { date: date!, horizon, type: type!, title: title!, tags, time, body: text, important };
   if (collectionId !== undefined) entry.collectionId = collectionId;
+  if (noteKind !== undefined) entry.noteKind = noteKind;
+  if (section !== undefined) entry.section = section;
   return { ok: true, value: "id" in body ? { id: body.id as string, ...entry } : entry };
 }
 

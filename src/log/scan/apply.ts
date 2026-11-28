@@ -20,7 +20,7 @@ type Planned = { item: SentItem; index: number; slot: Slot | null; resolution: R
 
 /** The line's fields checked like POST /api/entries, as the slot stores them (a month entry has no event type), or the error. */
 function validFields(item: SentItem, slot: Slot): { ok: true; entry: NewEntry } | { ok: false; error: string } {
-  const result = checkNewEntry({ date: slot.date, horizon: slot.horizon, type: item.type, title: item.title, tags: item.tags, time: item.time, important: item.important });
+  const result = checkNewEntry({ date: slot.date, horizon: slot.horizon, type: item.type, title: item.title, tags: item.tags, time: item.time, important: item.important, section: item.section });
   return result.ok ? { ok: true, entry: settleHorizon(result.value, slot.horizon) } : { ok: false, error: result.error };
 }
 
@@ -76,7 +76,7 @@ function writeOne(db: Db, store: EntryStore, userId: string, now: number, planne
   if (resolution.movedFrom) return moveCarried(db, store, userId, now, planned);
   if (resolution.status === "edited" && resolution.target && resolution.after) {
     const { type, title, tags, time } = resolution.after;
-    const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...importantMark(item) }, now)!;
+    const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...importantMark(item), ...(item.section ? { section: item.section } : {}) }, now)!;
     // The paper state is what the entry now says: a title the paper only misspelled stays as the entry has it.
     store.setScanProvenance(userId, updated.id, snapshotOf(updated, now));
     store.markScanOrigin(userId, updated.id);

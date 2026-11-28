@@ -41,5 +41,10 @@
     return draw(L.scan.scribble[kind](seed), 'scan-hand-icon');
   }
 
-  L.scan.marker = { pill: pill, ring: ring, icon: icon };
+  /** The pen arrow (or, for a collection, the short branch line) drawn between the words of the type picker. */
+  function link(kind, seed) {
+    return draw(L.scan.scribble[kind](seed), 'scan-link');
+  }
+
+  L.scan.marker = { pill: pill, ring: ring, icon: icon, link: link };
 })();

@@ -38,10 +38,11 @@
     return '';
   }
 
-  /** The body to send: a new note is a note entry on its day, an edit sends the three fields. Same checks as the server. */
+  /** The body to send: a new note is a note entry on its day, an edit sends the three fields. Same checks as the server. A collection kind rides along when there is one. */
   function payload(values) {
     var fields = { date: values.date, title: values.title.trim().slice(0, TITLE_MAX), body: values.body };
     if (values.id === null) fields.type = 'note';
+    if (values.noteKind) fields.noteKind = values.noteKind;
     return fields;
   }
 

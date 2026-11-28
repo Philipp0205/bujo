@@ -5,7 +5,7 @@
  * memory, a note only in its open sheet. Each log page uploads its own shrunk photo after its apply (keep.js), for the paper page that apply wrote;
  * a note saves its photo with the note. When every page is settled, or the sheet is dismissed, the scan lands once (options.onApplied) on the
  * last page that was applied or saved. Needs every scan/ file, note/ and photo/. The page is { draft, note, match, photo, shrunk, file, guess, type,
- * state, sheet, status, error, noteValues }, built by scan/flow.js.
+ * noteKind, state, sheet, status, error, noteValues }, built by scan/flow.js.
  */
 (function () {
   'use strict';
@@ -79,22 +79,87 @@
     });
   }
 
-  /** The top of a page sheet: the page steps (a batch only) above the log or note switch. Switching type shows the same page's other sheet. */
-  function topOf(session, page) {
-    var typeRow = L.scan.type.row(page, function (type) {
-      page.type = type;
-      go(session, session.index);
+  /** Says why a pick failed on the sheet on screen, when that sheet has a message line. */
+  function report(session, error) {
+    var message = error && error.message ? error.message : L.copy.scan.errors.kindFailed;
+    if (session.sheet && session.sheet.say) session.sheet.say(message);
+  }
+
+  /** Reads the page again as another kind (the server re-reads the same photo), then shows it. The review's row edits are gone, as before. */
+  function switchKind(session, page, kind) {
+    if (page.switching) return;
+    page.switching = true;
+    L.scan.api.setKind(page.draft.id, kind).then(function (draft) {
+      page.switching = false;
+      L.scan.model.replaceDraft(page.state, draft);
+      if (!session.ended && session.pages[session.index] === page) go(session, session.index);
+    }, function (error) {
+      page.switching = false;
+      report(session, error);
     });
-    return h('div', { class: 'scan-batch' }, stepsOf(session, page), typeRow);
+  }
+
+  /** Picking Log or Collection shows the same page's other sheet. */
+  function pickType(session, page, value) {
+    var type = value === 'collection' ? 'note' : 'log';
+    if (type === page.type) return;
+    page.type = type;
+    session.focus = 'type';
+    go(session, session.index);
+  }
+
+  /** Picking the second step: the collection kind of a note, or the page kind of a log page. */
+  function pickSub(session, page, sub) {
+    var model = L.scan.picker.model;
+    if (model.typeOf(page) === 'collection') {
+      page.noteKind = sub;
+      return;
+    }
+    var kind = model.kindOfSub(sub, page.state);
+    if (kind !== page.state.kind) {
+      session.focus = 'sub';
+      switchKind(session, page, kind);
+    }
+  }
+
+  /** Picking the third step (a page, a month or a range): the review redraws its rows and asks the server again. */
+  function pickTarget(session, page, value) {
+    L.scan.picker.model.setTarget(page.state, value);
+    if (session.sheet && session.sheet.refresh) session.sheet.refresh();
+  }
+
+  /** Picking the page of a month (calendar or tasks) reads the page again as that kind. */
+  function pickPart(session, page, part) {
+    var kind = L.scan.picker.model.kindOfPart(part);
+    if (kind === page.state.kind) return;
+    session.focus = 'part';
+    switchKind(session, page, kind);
+  }
+
+  /** What a pick in the type picker does for this page. */
+  function pickHandler(session, page) {
+    return function (step, value) {
+      if (step === 'type') pickType(session, page, value);
+      else if (step === 'sub') pickSub(session, page, value);
+      else if (step === 'part') pickPart(session, page, value);
+      else pickTarget(session, page, value);
+    };
+  }
+
+  /** The top of a page sheet: the page steps (a batch only) above the type picker. Returns the node and the picker (the review redraws it). */
+  function topOf(session, page) {
+    var picker = L.scan.picker.view.create(page, { pick: pickHandler(session, page) });
+    return { node: h('div', { class: 'scan-batch' }, stepsOf(session, page), picker.node), picker: picker };
   }
 
   /** Opens the log review of a page. A save settles the page as applied, and uploads this page's own shrunk photo for the paper page it wrote. */
   function openReview(session, page, closed) {
     var draft = page.draft;
+    var top = topOf(session, page);
     return L.scan.review.open(page.state, {
-      typeRow: topOf(session, page),
+      typeRow: top.node,
+      picker: top.picker,
       check: function (current) { return L.scan.api.check(draft.id, L.scan.model.checkBody(current)); },
-      setKind: function (current, kind) { return L.scan.api.setKind(draft.id, kind); },
       apply: function (current) {
         return L.scan.api.apply(draft.id, L.scan.model.applyBody(current)).then(function (result) {
           L.scan.keep.upload(page.shrunk, current, result);
@@ -121,7 +186,8 @@
       values: page.noteValues || L.note.model.fromSuggestion(page.note, L.copy.note.untitled),
       photo: page.photo,
       match: offeredNote(page, session.options),
-      typeRow: topOf(session, page),
+      typeRow: topOf(session, page).node,
+      noteKind: function () { return L.scan.picker.model.subOf(page); },
       onSaved: function (entry) { settle(session, page, 'saved', { view: 'daily', date: entry.date }); },
       onClosed: closed
     });
@@ -148,6 +214,14 @@
     });
   }
 
+  /** Gives the focus back to the picker word the person just used: its sheet was drawn anew, so the word they chose is gone. */
+  function refocus(session) {
+    var step = session.focus;
+    session.focus = null;
+    var word = step && document.querySelector('[data-testid="scan-picker"] .scan-pick[data-step="' + step + '"]');
+    if (word) word.focus();
+  }
+
   /** Shows the page at session.index with the sheet that fits its status and type. */
   function show(session) {
     var page = session.pages[session.index];
@@ -155,6 +229,7 @@
     if (page.state) page.state.otherNumbers = function () { return L.scan.batch.numbers(session.pages, page); };
     if (page.status !== 'pending') session.sheet = openStatus(session, page, closed);
     else session.sheet = page.type === 'note' ? openNote(session, page, closed) : openReview(session, page, closed);
+    refocus(session);
   }
 
   /**
@@ -162,7 +237,7 @@
    * options.replaceNote is a saved note being scanned again, read(file) reads a photo again (the Try again of a failed page).
    */
   function open(pages, options, read) {
-    show({ pages: pages, options: options, read: read, index: 0, sheet: null, token: null, landing: null, ended: false });
+    show({ pages: pages, options: options, read: read, index: 0, sheet: null, token: null, landing: null, ended: false, focus: null });
   }
 
   L.scan.session = { open: open };

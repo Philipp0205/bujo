@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { choose, openScan, picker, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -67,7 +67,7 @@ test("a page with no date continues the latest day, says so, and Save lands ther
   await expect(page.getByTestId("scan-date-source")).toContainText("Continues");
   await expect(page.getByTestId("scan-date-source")).toContainText("no date on this page");
   await expect(page.getByTestId("scan-continue-today")).toBeVisible();
-  await expect(page.locator("[data-testid=scan-pages] [data-page='2']")).toHaveAttribute("aria-pressed", "true");
+  await expect(pickStep(page, "target")).toHaveText("Page 2");
   await expect(page.getByTestId("scan-page-note")).toContainText("A new page");
 
   await review(page).locator("[data-action=apply]").click();
@@ -86,8 +86,8 @@ test("Use today instead moves the day to today and words the source as a fallbac
   await expect(page.getByTestId("scan-continue-today")).toBeHidden();
   await expect(page.getByTestId("scan-date")).not.toHaveText(continued ?? "");
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(0)));
-  await expect(page.getByTestId("scan-page-row")).toBeVisible();
-  await expect(page.locator("[data-testid=scan-pages] [data-page='2']")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-picker")).toBeVisible();
+  await expect(pickStep(page, "target")).toHaveText("Page 2");
 
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
@@ -95,7 +95,7 @@ test("Use today instead moves the day to today and words the source as a fallbac
   expect((await today.json()).entries.map((e: { title: string }) => e.title)).toEqual(["Charlie"]);
 });
 
-const pressed = (page: Page, n: number) => page.locator(`[data-testid=scan-pages] [data-page='${n}']`);
+const onPage = (page: Page, n: number) => expect(pickStep(page, "target")).toHaveText(`Page ${n}`);
 
 /** The titles of a day as the server lists them, with their page. */
 async function dayEntries(page: Page, date: string): Promise<Array<{ title: string; page: number | null }>> {
@@ -112,11 +112,11 @@ test("a dated page that is page 2 of its day files on that date after page 1, an
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(-1)));
   await expect(page.getByTestId("scan-date-source")).toHaveText("Read from the page");
   await expect(page.getByTestId("scan-continue-today")).toBeHidden();
-  await expect(page.getByTestId("scan-page-row")).toBeVisible();
-  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-picker")).toBeVisible();
+  await onPage(page, 2);
 
-  await pressed(page, 3).click();
-  await expect(pressed(page, 3)).toHaveAttribute("aria-pressed", "true");
+  await choose(page, "target", "Page 3");
+  await onPage(page, 3);
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
   expect(await dayEntries(page, day(-1))).toEqual([{ title: "Alpha", page: 1 }, { title: "Charlie", page: 3 }]);
@@ -127,7 +127,7 @@ test("a dated page saved with its default page 2 lands after page 1", async ({ p
   app.ocr.setLines([headerLine(day(-1)), line("•", "Charlie", 0.9)]);
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
-  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await onPage(page, 2);
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
   expect(await dayEntries(page, day(-1))).toEqual([{ title: "Alpha", page: 1 }, { title: "Charlie", page: 2 }]);
@@ -136,11 +136,11 @@ test("a dated page saved with its default page 2 lands after page 1", async ({ p
 test("Use today instead keeps page 2 and the picker, and Save files page 2 of today", async ({ page }) => {
   await seedPage(page, day(-1), ["Alpha"]);
   await scanNoHeader(page, ["Charlie"]);
-  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await onPage(page, 2);
   await page.getByTestId("scan-continue-today").click();
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(0)));
-  await expect(page.getByTestId("scan-page-row")).toBeVisible();
-  await expect(pressed(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-picker")).toBeVisible();
+  await onPage(page, 2);
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
   expect(await dayEntries(page, day(0))).toEqual([{ title: "Charlie", page: 2 }]);
@@ -149,10 +149,10 @@ test("Use today instead keeps page 2 and the picker, and Save files page 2 of to
 test("changing the day with the date control keeps page 3", async ({ page }) => {
   await seedPage(page, day(-1), ["Alpha"]);
   await scanNoHeader(page, ["Charlie"]);
-  await pressed(page, 3).click();
+  await choose(page, "target", "Page 3");
   await page.locator("[data-field=date]").fill(day(-2));
   await expect(page.getByTestId("scan-date")).toHaveText(heading(day(-2)));
-  await expect(pressed(page, 3)).toHaveAttribute("aria-pressed", "true");
+  await onPage(page, 3);
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
   expect(await dayEntries(page, day(-2))).toEqual([{ title: "Charlie", page: 3 }]);
@@ -160,9 +160,11 @@ test("changing the day with the date control keeps page 3", async ({ page }) => 
 
 test("a first scan of a day with no paper shows pages 1 to 3, defaults to page 1 and never says page 0", async ({ page }) => {
   await scanNoHeader(page, ["Alpha"]);
-  await expect(page.getByTestId("scan-page-row")).toBeVisible();
-  await expect(page.locator("[data-testid=scan-pages] [data-page]")).toHaveText(["Page 1", "Page 2", "Page 3"]);
-  await expect(pressed(page, 1)).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("scan-picker")).toBeVisible();
+  await pickStep(page, "target").click();
+  await expect(picker(page).getByRole("option")).toHaveText(["Page 1", "Page 2", "Page 3"]);
+  await page.keyboard.press("Escape");
+  await onPage(page, 1);
   await expect(page.getByTestId("scan-page-note")).not.toContainText("page 0");
   await expect(page.getByTestId("scan-page-note")).not.toBeEmpty();
 });

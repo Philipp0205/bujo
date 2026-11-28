@@ -207,6 +207,10 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["notebook_id", "TEXT"],
   // "scan" when a paper scan wrote the entry's title (see src/log/origin.ts). Null is an app entry.
   ["origin", "TEXT"],
+  // What kind of collection page a free note is: list, tracker, project or misc (see NOTE_KINDS). Null for a plain note.
+  ["note_kind", "TEXT"],
+  // The section of a month-task entry: work or private (see ENTRY_SECTIONS). Null for any other entry.
+  ["section", "TEXT"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */
