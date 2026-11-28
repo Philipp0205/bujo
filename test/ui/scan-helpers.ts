@@ -18,6 +18,19 @@ export async function openScan(page: Page): Promise<FileChooser> {
   return chooser;
 }
 
+/** The type picker on top of the scan review and the note sheet. */
+export const picker = (page: Page) => page.getByTestId("scan-picker");
+
+/** One word of the picker: step "type" (Log or Collection), "sub" (Daily, Monthly, Future, list ...), "target" (a page, a month, a range) or "part" (calendar or tasks of a month). */
+export type PickStep = "type" | "sub" | "target" | "part";
+export const pickStep = (page: Page, step: PickStep) => picker(page).locator(`.scan-pick[data-step="${step}"]`);
+
+/** Opens the popover of a step and taps the choice with this label. */
+export async function choose(page: Page, step: PickStep, label: string): Promise<void> {
+  await pickStep(page, step).click();
+  await picker(page).getByRole("option", { name: label, exact: true }).click();
+}
+
 /** Opens the camera screen, then taps its gallery button. The chooser it returns takes several files at once. */
 export async function openGallery(page: Page): Promise<FileChooser> {
   await openScan(page);

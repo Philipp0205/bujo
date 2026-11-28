@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { choose, openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -34,7 +34,7 @@ async function scanNumber(page: Page, number: number, physical: number): Promise
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
-  if (physical > 1) await review(page).locator(`[data-page='${physical}']`).click();
+  if (physical > 1) await choose(page, "target", `Page ${physical}`);
   await expect(page.getByTestId("scan-paper-number")).toHaveValue(String(number));
   const read = page.waitForResponse((response) => /\/api\/notebooks\/[^/]+$/.test(response.url()) && response.request().method() === "GET");
   await review(page).locator("[data-action=apply]").click();
@@ -87,7 +87,7 @@ test("the review hints at the gap a typed number would leave and Apply stays ena
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
-  await review(page).locator("[data-page='5']").click();
+  await choose(page, "target", "Page 5");
   const hint = page.getByTestId("scan-gap-hint");
   await expect(hint).toBeHidden();
   await page.getByTestId("scan-paper-number").fill("16");

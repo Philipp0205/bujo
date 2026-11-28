@@ -36,14 +36,14 @@
   function pageOf(answer, photo, file, options, shrunk) {
     var guess = options.replaceNote ? { type: 'note', source: 'rescan' } : answer.draft.guess;
     return {
-      draft: answer.draft, note: answer.note, match: answer.match, photo: photo, shrunk: shrunk, file: file, guess: guess, type: guess.type,
+      draft: answer.draft, note: answer.note, match: answer.match, photo: photo, shrunk: shrunk, file: file, guess: guess, type: guess.type, noteKind: null,
       state: L.scan.model.fromDraft(answer.draft), sheet: null, status: 'pending', error: '', noteValues: null
     };
   }
 
   /** A page that could not be read: it keeps its file and the message, and shows as a failed page in the review. */
   function failedPage(file, error) {
-    return { draft: null, note: null, match: null, photo: null, shrunk: null, file: file, guess: null, type: 'log', state: null, sheet: null, status: 'failed', error: error.message, noteValues: null };
+    return { draft: null, note: null, match: null, photo: null, shrunk: null, file: file, guess: null, type: 'log', noteKind: null, state: null, sheet: null, status: 'failed', error: error.message, noteValues: null };
   }
 
   /** Reads one photo once. Resolves with a page that holds both readings (log lines and note), or rejects with a message.

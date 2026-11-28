@@ -1,7 +1,7 @@
 /*
  * The scan review sheet (mock 05): the day, then one editable row per scanned line, then the apply button.
  * Rows are updated in place, never rebuilt, so a field keeps focus while the person types.
- * Needs ak-dom.js, ak-sheet.js, nav/overlays.js, copy.js, scan/copy.js, scan/model.js, scan/note.js, scan/marker.js, ink/tick.js, dates.js and glyph.js.
+ * Needs ak-dom.js, ak-sheet.js, nav/overlays.js, copy.js, scan/copy.js, scan/model.js, scan/note.js, scan/marker.js, scan/kind.js, scan/number.js, ink/tick.js, dates.js and glyph.js.
  */
 (function () {
   'use strict';
@@ -178,7 +178,7 @@
     };
   }
 
-  /** The rows of the page and their group headings. relayout() puts them in page order again, rebuild() makes them anew for a kind. */
+  /** The rows of the page and their group headings. relayout() puts them in page order again. */
   function rowsView(state, hooks) {
     var node = h('div', { class: 'scan-rows', 'data-testid': 'scan-rows' });
     var rows = [];
@@ -202,7 +202,7 @@
 
     function refresh() { rows.forEach(function (entry) { entry.view.refresh(); }); }
     build();
-    return { node: node, refresh: refresh, relayout: relayout, rebuild: build };
+    return { node: node, refresh: refresh, relayout: relayout };
   }
 
   /** The words under the sheet title: the page (a day, a month, or the future log) and what will be written. */
@@ -225,19 +225,17 @@
     return found && found.day ? errors.dayMissing(title, found.day) : errors.dayRequired(title);
   }
 
-  /** Opens the sheet. handlers.check(state), handlers.apply(state) and handlers.setKind(state, kind) return promises, handlers.done(result) runs after a save,
+  /** Opens the sheet. handlers.check(state) and handlers.apply(state) return promises, handlers.done(result) runs after a save,
    * handlers.closed() (optional) runs when the sheet closes, however it closes.
-   * handlers.typeRow is the log or note switch node shown on top. */
+   * handlers.typeRow is the type picker node shown on top, handlers.picker its handle (the sheet redraws it when the page changes).
+   * The returned sheet has refresh() (redraw the rows and ask the server again) and say(message) for the type picker to use. */
   function open(state, handlers) {
     var copy = L.copy.scan.review;
     var subtitle = h('p', { class: 'sheet-sub', 'data-testid': 'scan-sub' });
     var slot = h('div', { class: 'sheet-slot', 'aria-live': 'polite' });
     var apply = h('button', { class: 'ak-btn ak-btn-accent', type: 'button', 'data-action': 'apply' });
     var date = dateRow(state, function () { recheck(); });
-    var month = L.scan.kind.monthRow(state, function () { recheck(); });
-    var pages = L.scan.page.row(state, function () { recheck(); });
     var number = L.scan.number.row(state, function () { refreshAll(); });
-    var kinds = L.scan.kind.kindSwitch(state, switchTo);
     var rows = rowsView(state, {
       changed: function (check, leave) { if (check || leave) recheck(); else refreshAll(); },
       typed: function () { refreshAll(); },
@@ -256,12 +254,9 @@
       apply.textContent = busy ? copy.applying : copy.apply(counts);
       apply.disabled = busy || problem !== '';
       say(problemText(state, problem));
-      kinds.show(busy);
       date.node.hidden = state.kind !== 'daily';
-      month.node.hidden = state.kind !== 'calendar' && state.kind !== 'month-task';
+      handlers.picker.show();
       date.refresh();
-      month.refresh();
-      pages.refresh();
       number.refresh();
       rows.refresh();
     }
@@ -273,23 +268,6 @@
         L.scan.model.mergeChecks(state, answer);
         refreshAll();
       }, function () { /* the apply step checks again, so a missed hint is harmless */ });
-    }
-
-    /** Reads the page again as another kind. The rows are made anew, so edits to the old reading are gone. */
-    function switchTo(kind) {
-      if (busy) return;
-      busy = true;
-      refreshAll();
-      handlers.setKind(state, kind).then(function (draft) {
-        L.scan.model.replaceDraft(state, draft);
-        busy = false;
-        rows.rebuild();
-        recheck();
-      }, function (error) {
-        busy = false;
-        refreshAll();
-        say(error && error.message ? error.message : L.copy.scan.errors.kindFailed);
-      });
     }
 
     function submit() {
@@ -309,10 +287,14 @@
     apply.addEventListener('click', submit);
     var node = h('div', { class: 'ak-sheet sheet-entry sheet-scan', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'scan-review-title', 'data-testid': 'scan-review' },
       h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' }), h('h2', { class: 'sheet-title', id: 'scan-review-title' }, copy.title), subtitle, legend()),
-      h('div', { class: 'ak-sheet-scroll' }, slot, handlers.typeRow, kinds.node, date.node, pages.node, month.node, number.node, rows.node),
+      h('div', { class: 'ak-sheet-scroll' }, slot, handlers.typeRow, date.node, number.node, rows.node),
       h('div', { class: 'ak-sheet-dock' }, apply));
     refreshAll();
     sheet = BujoNav.overlays.showSheet(node, { onClose: handlers.closed });
+    if (sheet) {
+      sheet.refresh = function () { rows.relayout(); recheck(); };
+      sheet.say = say;
+    }
     L.gap.banner.known().then(function (known) { state.knownPages = known; number.refresh(); });
     return sheet;
   }

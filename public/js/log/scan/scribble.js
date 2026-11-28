@@ -124,5 +124,19 @@
     return { viewBox: '0 0 24 24', strokes: [{ d: smooth(points), width: 1.8 }, { d: head, width: 1.8 }] };
   }
 
-  L.scan.scribble = { seedOf: seedOf, random: random, smooth: smooth, pill: pill, ring: ring, cross: cross, again: again };
+  /** The pen arrow between two picker words: a bowed shaft ending in a two-stroke head, in a 32 by 16 box. */
+  function arrow(seed) {
+    var next = random(seedOf('arrow:' + seed));
+    var shaft = smooth([nudge(next, 2, 8.5), nudge(next, 15, 7.5), nudge(next, 28, 8)]);
+    var head = smooth([nudge(next, 22, 2.5), nudge(next, 28.5, 8), nudge(next, 22, 13.5)]);
+    return { viewBox: '0 0 32 16', strokes: [{ d: shaft, width: 1.7 }, { d: head, width: 1.7 }] };
+  }
+
+  /** The short pen line a collection branches off with (no head), in a 24 by 16 box. */
+  function branch(seed) {
+    var next = random(seedOf('branch:' + seed));
+    return { viewBox: '0 0 24 16', strokes: [{ d: smooth([nudge(next, 2, 12), nudge(next, 12, 8.5), nudge(next, 22, 4)]), width: 1.7 }] };
+  }
+
+  L.scan.scribble = { seedOf: seedOf, random: random, smooth: smooth, pill: pill, ring: ring, cross: cross, again: again, arrow: arrow, branch: branch };
 })();

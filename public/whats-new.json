@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-11-28-type-picker",
+    "date": "2026-11-28",
+    "title": "One picker for the page type",
+    "bullets": [
+      "The scan review has one hand-drawn picker: Log or Collection, then Daily, Monthly or Future, then the page.",
+      "A collection can be a list, a tracker, a project or misc, and the choice is saved with the note.",
+      "Monthly pages have a last word: calendar or tasks. The tasks page can file each line under Work or Private.",
+      "Editing a line no longer draws a second border around it."
+    ]
+  },
+  {
     "id": "2026-11-28-paper-handwriting",
     "date": "2026-11-28",
     "title": "Handwriting from paper",

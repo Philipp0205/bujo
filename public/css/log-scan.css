@@ -286,7 +286,7 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-continue-today[hidden] { display: none; }
 .scan-continue-today:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
-/* The kind switch: four pills in one row (it must fit a 390px phone) and one line under them saying where the kind came from. */
+/* The pill switch of the note match row (update a saved note or save as new): pills in one row (it must fit a 390px phone) and one line above them. */
 .scan-kinds { margin: 0 0 24px var(--text-col); padding-right: 16px; }
 .scan-kind-pills {
   display: grid;
@@ -314,15 +314,94 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-kind[aria-pressed="true"] { background: var(--paper-btn-bg); color: var(--paper-btn-ink); }
 .scan-kind:disabled { opacity: 0.6; cursor: default; }
 .scan-kind-note { margin: 0; padding-top: 4px; font: italic var(--text-weight) 14px/24px var(--font-text); color: var(--paper-muted); }
-/* The type switch reuses the kind pills with two equal ones. */
-.scan-pagetype .scan-kind-pills { grid-template-columns: 1fr 1fr; }
+
+/*
+ * The type picker: a breadcrumb of handwritten words, each in its own pen loop and joined by pen arrows. Each step has its own ink from
+ * the review marker palette (type blue, kind sage, target ochre). Words are Caveat; tap targets are 44px high.
+ */
+.scan-picker { position: relative; margin: 0 0 24px var(--text-col); padding-right: 12px; }
+.scan-picker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }
+.scan-pick,
+.scan-choice {
+  --mark: var(--mark-new);
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper-ink);
+  font: 600 22px/28px var(--font-hand);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.scan-pick[data-step="type"] { --mark: var(--mark-new); }
+.scan-pick[data-step="sub"] { --mark: var(--mark-matched); }
+.scan-pick[data-step="target"] { --mark: var(--mark-updated); }
+.scan-pick[data-step="part"] { --mark: var(--mark-type); }
+.scan-unit { flex: none; display: flex; align-items: center; }
+.scan-pick .scan-scribble,
+.scan-choice .scan-scribble { inset: 4px 0; width: 100%; height: calc(100% - 8px); }
+.scan-pick-text { position: relative; }
+.scan-pick:focus-visible,
+.scan-choice:focus-visible { outline: none; }
+.scan-pick:focus-visible .scan-scribble path,
+.scan-choice:focus-visible .scan-scribble path { stroke-width: 2.6; }
+.scan-link {
+  flex: none;
+  display: block;
+  width: 26px;
+  height: 16px;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--paper-muted);
+  pointer-events: none;
+}
+.scan-link path { stroke: currentColor; vector-effect: non-scaling-stroke; }
+.scan-picker-note { margin: 0; font: italic var(--text-weight) 14px/24px var(--font-text); color: var(--paper-muted); }
+.scan-picker-note[hidden] { display: none; }
+
+/* The popover of a step: the choices, each in a loop of the step's ink, on a paper slip under the words. */
+.scan-pop {
+  --mark: var(--mark-new);
+  position: absolute;
+  top: 48px;
+  left: -8px;
+  right: 4px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 2px;
+  box-sizing: border-box;
+  max-height: 232px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--paper-ink) 25%, transparent);
+  border-radius: 14px;
+  background: var(--sheet-bg, var(--paper-bg));
+  box-shadow: 0 4px 18px rgba(20, 14, 10, 0.2);
+}
+.scan-pop[data-step="sub"] { --mark: var(--mark-matched); }
+.scan-pop[data-step="target"] { --mark: var(--mark-updated); }
+.scan-pop[data-step="part"] { --mark: var(--mark-type); }
+.scan-choice { --mark: inherit; color: var(--paper-muted); }
+.scan-choice[aria-selected="true"] { color: var(--paper-ink); background: color-mix(in srgb, var(--mark) 14%, transparent); }
+.scan-choice:not([aria-selected="true"]) .scan-scribble { opacity: 0.55; }
 
 /* The gallery hint under the camera buttons. */
 .scan-hint { flex: none; margin: 16px 0 0; font: 14px/24px var(--font-ui); color: var(--paper-muted); text-align: center; }
 
 /* The page steps of a multi-page scan: previous and next around "Page x of N", a row of state dots, and a quiet Skip link. */
 .scan-batch { margin: 0 0 24px; }
-.scan-batch .scan-kinds { margin-bottom: 0; }
+.scan-batch .scan-picker { margin-bottom: 0; }
 .scan-steps { margin: 0 0 16px var(--text-col); padding-right: 16px; }
 .scan-steps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .scan-steps-title { font: 500 16px/24px var(--font-ui); color: var(--paper-ink); }
@@ -437,6 +516,31 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-place-month { max-width: 100%; }
 .scan-place:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; }
 
+/* The work or private toggle of a month-task row: two handwritten words, the chosen one in its pen loop (no box). 44px tall. */
+.scan-sections { display: flex; gap: 0; margin: 0 0 8px -4px; }
+.scan-section {
+  --mark: var(--mark-matched);
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper-muted);
+  font: 600 20px/28px var(--font-hand);
+  cursor: pointer;
+}
+.scan-section[data-section="private"] { --mark: var(--mark-type); }
+.scan-section:focus-visible { outline: none; }
+.scan-section .scan-scribble { inset: 6px 0; width: 100%; height: calc(100% - 12px); display: none; }
+.scan-section[aria-checked="true"] { color: var(--paper-ink); }
+.scan-section[aria-checked="true"] .scan-scribble,
+.scan-section:focus-visible .scan-scribble { display: block; }
+
 .scan-row {
   display: flex;
   align-items: flex-start;
@@ -529,7 +633,6 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
   padding: 0 22px;
   border-radius: 999px;
 }
-.scan-pill:focus-within { box-shadow: 0 0 0 2px var(--paper-bg), 0 0 0 4px var(--paper-ink); }
 .scan-pill-matched { --mark: var(--mark-matched); }
 .scan-pill-new { --mark: var(--mark-new); }
 .scan-pill-updated { --mark: var(--mark-updated); }
@@ -550,6 +653,9 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-ring path { stroke: currentColor; vector-effect: non-scaling-stroke; }
 .scan-pill-skipped .scan-scribble path { stroke-dasharray: 7 5; }
 .scan-input-title { position: relative; }
+/* Editing a title draws no second outline: the pen loop is the only one, the caret marks the focus (the sheet's focus ring is switched off here). */
+.sheet-scan .scan-pill .scan-input-title:focus,
+.sheet-scan .scan-pill .scan-input-title:focus-visible { outline: none; box-shadow: none; }
 
 /* The legend under the header: a sample scribble of each state and of the circled bullet. */
 .scan-legend {

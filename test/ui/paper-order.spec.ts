@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { openScan, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -65,9 +65,8 @@ test("page 2 of a long day continues it: a quiet page break shows where it start
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
-  await expect(page.getByTestId("scan-page-row")).toBeVisible();
-  await expect(page.locator("[data-testid=scan-pages] [data-page='2']")).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("[data-testid=scan-pages] [data-page='1']")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("scan-picker")).toBeVisible();
+  await expect(pickStep(page, "target")).toHaveText("Page 2");
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);
 
@@ -96,7 +95,7 @@ test("a rescan of page 1 is the suggested page, does not wipe page 2 and files a
   await page.goto(app.baseUrl);
   await (await openScan(page)).setFiles(photo);
   await expect(review(page)).toBeVisible();
-  await expect(page.locator("[data-testid=scan-pages] [data-page='1']")).toHaveAttribute("aria-pressed", "true");
+  await expect(pickStep(page, "target")).toHaveText("Page 1");
   await expect(page.getByTestId("scan-page-note")).toContainText("Rescan of page 1");
   await review(page).locator("[data-action=apply]").click();
   await expect(review(page)).toHaveCount(0);

@@ -2,6 +2,7 @@ import type { OcrLine } from "../../scan/ocr-client.ts";
 import { countAscendingDays } from "./calendar.ts";
 import { parseHeaderDate } from "./header.ts";
 import { findHeadings } from "./months.ts";
+import { findSections } from "./sections.ts";
 import { isPageKind, type PageKind, type ViewHint } from "./types.ts";
 
 /** Where a detected kind came from: what the LLM said, what the page itself shows, the view the person had open, or nothing (daily). */
@@ -22,13 +23,13 @@ function hasDateHeader(lines: readonly PageLine[], fallbackDate: string): boolea
   return lines.some((line) => line.symbol === "none" && parseHeaderDate(line.text, fallbackDate) !== null);
 }
 
-/** The kind the page itself shows with confidence, or null. Two months or a year header: future. A date header: daily. One month: calendar with day rows, else month tasks. */
+/** The kind the page itself shows with confidence, or null. Two months or a year header: future. A date header: daily. One month: a Work or Private heading or too few day rows is month tasks, else calendar with day rows. */
 function strongKind(lines: readonly PageLine[], fallbackDate: string): PageKind | null {
   const headings = findHeadings(lines);
   const months = headings.filter((heading) => heading.type === "month").length;
   if (months >= 2 || headings.some((heading) => heading.type === "future")) return "future";
   if (hasDateHeader(lines, fallbackDate)) return "daily";
-  if (months === 1) return countAscendingDays(lines) >= CALENDAR_MIN_DAYS ? "calendar" : "month-task";
+  if (months === 1) return countAscendingDays(lines) < CALENDAR_MIN_DAYS || findSections(lines).size > 0 ? "month-task" : "calendar";
   return null;
 }
 

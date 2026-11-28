@@ -80,6 +80,21 @@
       retrying: 'Reading\u2026',
       reviewAgain: 'Review this page'
     },
+    /** The type picker on top of the review: Log or Collection, then Daily, Monthly or Future (or a collection kind), then the target. */
+    picker: {
+      group: 'Type of page',
+      steps: { type: 'Type of page', sub: 'Kind of page', target: 'Where it goes', part: 'Page of the month' },
+      options: { type: 'Choose the type of page', sub: 'Choose the kind of page', target: 'Choose where the page goes', part: 'Choose the page of the month' },
+      type: { log: 'Log', collection: 'Collection' },
+      sub: { daily: 'Daily', monthly: 'Monthly', future: 'Future', list: 'list', tracker: 'tracker', project: 'project', misc: 'misc' },
+      /** The page of a month: the calendar (days down the page) or the tasks (work and private). */
+      part: { calendar: 'calendar', tasks: 'tasks' },
+      page: function (page) { return 'Page ' + page; },
+      /** A month in the Monthly step: the name, with the year when it is not this year. */
+      month: function (name, year, thisYear) { return year === thisYear ? name : name + ' ' + year; },
+      /** The range of the Future step, as short month names: "Jan - Mar". One month reads as itself. */
+      range: function (from, to) { return from === to ? from : from + ' - ' + to; }
+    },
     review: {
       title: 'Review scan',
       paperLabel: 'Notebook page',
@@ -91,39 +106,19 @@
       datePicked: 'Picked by you',
       dateContinues: function (day) { return 'Continues ' + day + ', no date on this page'; },
       useToday: 'Use today instead',
-      kindGroup: 'Kind of page',
-      typeGroup: 'Type of page',
-      types: { log: 'Log page', note: 'Note or collection' },
-      typeSource: {
-        structure: 'Looks like a log page: it has a date or month heading',
-        bullets: 'Looks like a log page: it has bullet lines',
-        title: 'Looks like a note or collection: it starts with a title, not a date',
-        plain: 'Looks like a note or collection: no log bullets found',
-        rescan: 'Scanning a saved note again',
-        picked: 'Type picked by you'
-      },
-      pageGroup: 'Page of the day',
-      page: function (page) { return 'Page ' + page; },
       pageRescan: function (page) { return 'Rescan of page ' + page + ': its lines are matched, nothing is replaced.'; },
       pageNew: function (page) { return 'A new page: its lines are added after page ' + (page - 1) + '.'; },
       pageFirst: 'The first page of this day. Pick another page if it is not.',
-      kinds: { daily: 'Daily', future: 'Future', calendar: 'Calendar', 'month-task': 'Month tasks' },
-      kindSource: {
-        llm: 'Kind read from the page',
-        page: 'Kind read from the page',
-        view: 'Kind from the open view',
-        default: 'Kind assumed, please check',
-        picked: 'Kind picked by you'
-      },
       futureSubject: 'Future log',
       month: 'Month',
-      monthCaption: 'Month of this page',
       monthLabel: function (month) {
         return L.copy.pages.picker.months[Number(month.slice(5, 7)) - 1] + ' ' + month.slice(0, 4);
       },
       dayLabel: 'Day',
       thisLine: 'this line',
       noMonth: 'No month yet',
+      /** The work or private toggle of a month-task line. */
+      section: { group: 'Section', work: 'Work', private: 'Private' },
       noDay: 'No day yet',
       type: 'Type',
       titleLabel: 'Title',

@@ -1,14 +1,14 @@
 import { HttpError } from "../../app-kit/http.ts";
 import { PAGE_NUMBER_MAX } from "../paper-pages.ts";
 import { isEntryType, isValidDate } from "../validation.ts";
-import type { EntryType } from "../types.ts";
+import { ENTRY_SECTIONS, type EntrySection, type EntryType } from "../types.ts";
 import type { LogDraft } from "./draft.ts";
 import { isMonth, slotOf, type Placed } from "./plan.ts";
 import { isPageKind, type Line, type PageKind } from "./types.ts";
 
 /** The most lines one request may carry. A page holds far fewer. */
 const MAX_ITEMS = 200;
-const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important", "indent"];
+const ITEM_KEYS = ["id", "type", "title", "tags", "time", "include", "day", "month", "unmatched", "important", "indent", "section"];
 const BODY_KEYS = ["kind", "date", "month", "page", "paperNumber", "items"];
 
 /** One line as the review sends it back: edits included. `day` is a calendar line's day, `month` a future line's month (YYYY-MM). `unmatched` says it is not the entry it matched. */
@@ -28,6 +28,8 @@ export type SentItem = {
   unflag: boolean;
   /** 1 when the review nests the line under the entry above it, else 0 (left out means 0). Only a daily page nests. */
   indent: 0 | 1;
+  /** The section (work or private) of a month-task line, or null for none. A null never clears the section an entry has. */
+  section: EntrySection | null;
 };
 
 /** What the review sends: the page kind, the day of a daily page or the month of a calendar or month-task page, the physical page, the notebook page number (null: leave what the page has) and the lines. */
@@ -90,7 +92,15 @@ function parseItem(raw: unknown, index: number, draft: LogDraft): SentItem {
   const { id, type, title } = raw as { id: string; type: EntryType; title: string };
   if (raw.important !== undefined && typeof raw.important !== "boolean") bad(`${at}: important must be true or false`);
   if (raw.indent !== undefined && raw.indent !== 0 && raw.indent !== 1) bad(`${at}: indent must be 0 or 1`);
-  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true, unflag: raw.important === false, indent: raw.indent === 1 ? 1 : 0 };
+  const section = parseSection(raw.section, at);
+  return { id, type, title, tags: raw.tags ?? [], time: raw.time ?? null, include: raw.include !== false, day: parseDay(raw.day, at), month: parseLineMonth(raw.month, at), unmatched: raw.unmatched === true, important: raw.important === true, unflag: raw.important === false, indent: raw.indent === 1 ? 1 : 0, section };
+}
+
+/** A line's section: work, private, or missing (null). */
+function parseSection(value: unknown, at: string): EntrySection | null {
+  if (value === undefined || value === null) return null;
+  if (!(ENTRY_SECTIONS as readonly unknown[]).includes(value)) bad(`${at}: section must be work or private`);
+  return value as EntrySection;
 }
 
 /** The kind a request names, or the draft's detected kind when it names none. */
@@ -130,7 +140,7 @@ function parsePaperNumber(value: unknown): number | null {
 }
 
 /**
- * Checks a request body of the shape { kind?, date?, month?, page?, paperNumber?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched?, important?, indent? }] }.
+ * Checks a request body of the shape { kind?, date?, month?, page?, paperNumber?, items: [{ id, type, title, tags?, time?, include?, day?, month?, unmatched?, important?, indent?, section? }] }.
  * Used by both the check and the apply step, so they read the same thing. 400 on anything else.
  * A daily page needs `date`. A calendar or month-task page needs `month`. A future page needs neither, each line carries its month.
  * The apply step may send every line of the review: skipped lines (include false) let it record the key of an unchanged one.

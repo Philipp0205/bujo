@@ -1,11 +1,12 @@
 import { correctWords } from "../../scan/match.ts";
 import type { OcrLine, OcrSymbol } from "../../scan/ocr-client.ts";
-import type { EntryType } from "../types.ts";
+import type { EntrySection, EntryType } from "../types.ts";
 import { parseMarkup } from "../markup.ts";
 import { isWeekdayOnly, parseDayRow } from "./calendar.ts";
 import { monthOfPage, monthsOfFuturePage } from "./future.ts";
 import { parseHeaderDate } from "./header.ts";
 import { findHeadings, type Heading } from "./months.ts";
+import { findSections, sectionOf } from "./sections.ts";
 import type { PageKind } from "./types.ts";
 
 /** The bullet of each OCR symbol as a log entry type. A line with no bullet is read as a note. */
@@ -44,6 +45,8 @@ export type ParsedLine = {
   month?: string;
   /** Calendar page only: the day of the month the line sits on, or null when the page gave it none. */
   day?: number | null;
+  /** Month-task page only: the section (work or private) the line sits under, or null when no section heading is above it. */
+  section?: EntrySection | null;
 };
 
 export type ParsedPage = {
@@ -121,12 +124,15 @@ function indentOf(lines: readonly PageLine[], index: number, headerIndex: number
   return 1;
 }
 
-/** A month's task page: the lines under one month heading, with no day. */
+/** A month's task page: the lines under one month heading, with no day. A Work or Private heading is not an entry: the lines below it carry that section. */
 function parseMonthTask(lines: readonly PageLine[], fallbackDate: string, period: string | null): ParsedPage {
   const headings = findHeadings(lines);
+  const sections = findSections(lines);
   const first = headings.find((heading) => heading.type === "month") ?? null;
   const month = monthOfPage(first, period, fallbackDate);
-  const parsed = bodyLines(lines, headings).map(({ line, index }) => asMonthLine(toParsedLine(line, index)));
+  const parsed = bodyLines(lines, headings)
+    .filter(({ index }) => !sections.has(index))
+    .map(({ line, index }) => ({ ...asMonthLine(toParsedLine(line, index)), section: sectionOf(index, sections) }));
   return { kind: "month-task", pageDate: null, month, lines: parsed };
 }
 

@@ -1,7 +1,7 @@
 /*
- * The page-kind parts of the scan review: the kind switch, the month row of a calendar or month-task page, the place field of a
- * row (a day on a calendar page, a month on a future page) and the group headings. Views only: the rules live in scan/model.js.
- * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js, dates.js, horizon/model.js and glyph.js.
+ * The page-kind parts of the scan review: the place field of a row (a day on a calendar page, a month on a future page, the work or
+ * private section on a month-task page) and the group headings. Views only: the rules live in scan/model.js. The kind itself is picked in the type picker (scan/picker/).
+ * Needs ak-dom.js, copy.js, scan/copy.js, scan/model.js, dates.js, pages/model.js and glyph.js.
  */
 (function () {
   'use strict';
@@ -10,51 +10,7 @@
   var L = window.BujoLog = window.BujoLog || {};
   L.scan = L.scan || {};
 
-  var KINDS = ['daily', 'future', 'calendar', 'month-task'];
   var FUTURE_MONTHS = 24;
-
-  /** The kind switch: four pills. onPick(kind) runs when another one is tapped. Returns the node and a show() that marks the kind on the state. */
-  function kindSwitch(state, onPick) {
-    var copy = L.copy.scan.review;
-    var note = h('p', { class: 'scan-kind-note', 'data-testid': 'scan-kind-source' });
-    var buttons = KINDS.map(function (kind) {
-      return h('button', { class: 'scan-kind', type: 'button', 'data-kind': kind, onclick: function () { if (kind !== state.kind) onPick(kind); } }, copy.kinds[kind]);
-    });
-    var node = h('div', { class: 'scan-kinds' },
-      h('div', { class: 'scan-kind-pills', role: 'group', 'aria-label': copy.kindGroup, 'data-testid': 'scan-kinds' }, buttons), note);
-    return {
-      node: node,
-      show: function (busy) {
-        buttons.forEach(function (button) {
-          button.setAttribute('aria-pressed', button.getAttribute('data-kind') === state.kind ? 'true' : 'false');
-          button.disabled = busy;
-        });
-        note.textContent = copy.kindSource[state.kindSource];
-      }
-    };
-  }
-
-  /** The month row of a calendar or month-task page: a mini page icon, the month, and an invisible month input over all of it. */
-  function monthRow(state, onPick) {
-    var copy = L.copy.scan.review;
-    var month = h('span', { class: 'scan-day', 'data-testid': 'scan-month' });
-    var caption = h('span', { class: 'scan-source' }, copy.monthCaption);
-    var input = h('input', { class: 'scan-date-input', type: 'month', 'aria-label': copy.month, 'data-field': 'month', value: state.month });
-    input.addEventListener('change', function () {
-      if (!input.value) return;
-      L.scan.model.setMonth(state, input.value);
-      onPick();
-    });
-    var node = h('label', { class: 'scan-date' }, L.glyph.use('g-scan-page', { viewBox: '0 0 40 52', width: 40, height: 52 }),
-      h('span', { class: 'scan-date-text' }, month, caption), input);
-    return {
-      node: node,
-      refresh: function () {
-        month.textContent = copy.monthLabel(state.month);
-        input.value = state.month;
-      }
-    };
-  }
 
   /** The months a future line can move to: the next two years from this month, plus the one the line holds. */
   function monthChoices(current) {
@@ -92,10 +48,33 @@
     return { node: input, show: function () { if (document.activeElement !== input) input.value = item.dayText; } };
   }
 
-  /** The place field of a row for a kind: a day on a calendar page, a month on a future page, else nothing (node null). */
+  /** The work or private toggle of a month-task row: two words, the chosen one in its pen loop. Tapping the chosen one again clears it. */
+  function sectionToggle(item, onChange) {
+    var copy = L.copy.scan.review.section;
+    var buttons = ['work', 'private'].map(function (section) {
+      return h('button', {
+        class: 'scan-section', type: 'button', 'data-section': section, role: 'radio', onclick: function () {
+          L.scan.model.setSection(item, item.section === section ? null : section);
+          onChange();
+        }
+      }, L.scan.marker.pill('section:' + item.id + ':' + section), h('span', { class: 'scan-pick-text' }, copy[section]));
+    });
+    var node = h('div', { class: 'scan-sections', role: 'radiogroup', 'aria-label': copy.group }, buttons);
+    return {
+      node: node,
+      show: function () {
+        buttons.forEach(function (button) {
+          button.setAttribute('aria-checked', button.getAttribute('data-section') === item.section ? 'true' : 'false');
+        });
+      }
+    };
+  }
+
+  /** The place field of a row for a kind: a day on a calendar page, a month on a future page, the section on a month-task page, else nothing (node null). */
   function placeField(state, item, onChange, onType) {
     if (state.kind === 'calendar') return dayInput(item, onChange, onType);
     if (state.kind === 'future') return monthSelect(item, onChange);
+    if (state.kind === 'month-task') return sectionToggle(item, onChange);
     return { node: null, show: function () {} };
   }
 
@@ -108,5 +87,5 @@
     return h('h3', { class: 'scan-group', 'data-group': key }, text);
   }
 
-  L.scan.kind = { KINDS: KINDS, kindSwitch: kindSwitch, monthRow: monthRow, placeField: placeField, groupHeading: groupHeading };
+  L.scan.kind = { placeField: placeField, groupHeading: groupHeading };
 })();

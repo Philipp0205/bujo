@@ -9,6 +9,14 @@ export type EntryType = (typeof ENTRY_TYPES)[number];
 export const ENTRY_HORIZONS = ["day", "month-calendar", "month-task", "future"] as const;
 export type EntryHorizon = (typeof ENTRY_HORIZONS)[number];
 
+/** What a collection page is: a list, a tracker, a project or anything else. Set on a free note that was scanned as a collection. */
+export const NOTE_KINDS = ["list", "tracker", "project", "misc"] as const;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+
+/** The section of a month's task page: the work part or the private part. Set on month-task entries read from a scan. */
+export const ENTRY_SECTIONS = ["work", "private"] as const;
+export type EntrySection = (typeof ENTRY_SECTIONS)[number];
+
 export const SYNC_STATES = ["local", "pending", "synced", "error"] as const;
 export type SyncState = (typeof SYNC_STATES)[number];
 
@@ -25,6 +33,10 @@ export type Entry = {
   tags: string[];
   /** The markdown of a free note. Null for a short rapid-log line. */
   body: string | null;
+  /** The collection kind of a free note (list, tracker, project, misc), or null for a plain note or a log line. The API always sends it; a built entry may leave it out. */
+  noteKind?: NoteKind | null;
+  /** The section (work or private) of a month-task entry, or null when it has none. The API always sends it; a built entry may leave it out. */
+  section?: EntrySection | null;
   /** The custom collection (a named page) the entry is filed on, or null when it sits on the daily log. A collection entry is not on any day page. */
   collectionId: string | null;
   /** The handwritten * before the bullet. Maps to PRIORITY:1 on the sync target. */
@@ -71,6 +83,10 @@ export type NewEntry = {
   tags: string[];
   time: string | null;
   body?: string | null;
+  /** The collection kind of a free note. Left out or null means a plain note. */
+  noteKind?: NoteKind | null;
+  /** The section (work or private) of a month-task entry. Left out or null means none. */
+  section?: EntrySection | null;
   /** The collection to file the entry on. Left out or null means the daily log. A collection entry always has the "day" horizon. */
   collectionId?: string | null;
   /** Left out means not important. */

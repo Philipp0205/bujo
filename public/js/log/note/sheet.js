@@ -33,9 +33,11 @@
     return L.note.editor.view.create({ area: inputs.body, field: field(L.copy.note.body, inputs.body), editing: options.mode !== 'saved' });
   }
 
-  /** The values to send, read from the controls. */
-  function readValues(id, inputs) {
-    return { id: id, title: inputs.title.value, date: inputs.date.value, body: inputs.body.value };
+  /** The values to send, read from the controls. noteKind is the collection kind a scan was saved as (options.noteKind(), set by the type picker), else left out. */
+  function readValues(id, inputs, options) {
+    var values = { id: id, title: inputs.title.value, date: inputs.date.value, body: inputs.body.value };
+    if (options.noteKind) values.noteKind = options.noteKind();
+    return values;
   }
 
   /** The day row: a mini page icon, the day, a hint, and the invisible date input over all of it. */
@@ -142,7 +144,8 @@
    * Opens the sheet. options.mode is 'review' (a scan, not saved yet), 'new' (a note typed by hand, not saved yet) or 'saved'. options.values come from the model.
    * options.photo is { blob, url } for the page photo of a scan, saved with the note. options.onSaved(entry) runs after a successful save.
    * options.match is the saved note a scan looks like ({ id, title, date, keepDate, explicit }): the review offers to update it. options.onRescan(values)
-   * adds Scan again to a saved note. options.typeRow is the log or note switch node of a scan, shown above the form.
+   * adds Scan again to a saved note. options.typeRow is the type picker node of a scan, shown above the form; options.noteKind() (optional) says
+   * the collection kind (list, tracker, project, misc) the note is saved with.
    * options.onClosed() (optional) runs when the sheet closes, however it closes. The returned handle has values(): the form as it is now.
    */
   function open(options) {
@@ -161,7 +164,7 @@
     }
 
     function submit() {
-      var values = readValues(options.values.id, inputs);
+      var values = readValues(options.values.id, inputs, options);
       var key = L.note.model.problem(values);
       Bujo.say(slot, messageFor(key));
       if (key || save.disabled) return;
@@ -187,7 +190,10 @@
       h('div', { class: 'ak-sheet-scroll' }, slot, options.typeRow, offer, form),
       h('div', { class: 'ak-sheet-dock' }, save));
     sheet = BujoNav.overlays.showSheet(node, { onClose: options.onClosed });
-    if (sheet) sheet.values = function () { return readValues(options.values.id, inputs); };
+    if (sheet) {
+      sheet.values = function () { return readValues(options.values.id, inputs, options); };
+      sheet.say = function (message) { Bujo.say(slot, message); };
+    }
     return sheet;
   }
 
