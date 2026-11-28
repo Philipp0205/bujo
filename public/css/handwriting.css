@@ -10,6 +10,8 @@
   font-size: 21px;
   font-weight: 500;
   letter-spacing: 0;
+  /* A short inline box: the serif strut of the row body sets the line, so the face change can never grow the row off the grid. */
+  line-height: 1;
   font-variation-settings: normal;
 }
 
