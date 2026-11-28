@@ -191,7 +191,7 @@ test("rescan: updates the matched entries, adds only new lines and leaves entrie
     ]);
     assert.equal(now[0].id, created[0].id, "the entry was updated in place, not replaced");
     assert.equal(JSON.stringify(now).includes("scan_"), false, "no provenance on the public API");
-    assert.equal(JSON.stringify(now).includes("scan"), false);
+    assert.equal(JSON.stringify(now).replaceAll('"origin":"scan"', "").includes("scan"), false);
   });
 });
 

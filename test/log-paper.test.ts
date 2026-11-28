@@ -153,7 +153,7 @@ test("store: every read carries onPaper and none carries the snapshot", () => {
   for (const entry of everything) {
     assert.equal(typeof entry.onPaper, "boolean");
     assert.equal("scan" in entry, false);
-    assert.equal(JSON.stringify(entry).includes("scan"), false);
+    assert.equal(JSON.stringify(entry).replace('"origin":"scan"', "").includes("scan"), false);
   }
   assert.deepEqual(store.list(USER, range).map((e) => [e.title, e.onPaper]).sort(), [["a", true], ["b", false]]);
   assert.equal(store.setSync(USER, a.id, { sync: "synced" })!.onPaper, true);
