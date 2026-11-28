@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { PINNED_NOW, pinClock, useBujo } from "./harness.ts";
 import { choose, openScan, picker, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -15,6 +15,7 @@ const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
 const LOG_PAGE = [line("•", "Brot kaufen", 0.9), line("•", "Post abholen", 0.9)];
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.delay(0);
@@ -47,7 +48,7 @@ test("Log, Monthly and Log, Future, and Collection each read as their own breadc
   await scan(page, LOG_PAGE);
   await choose(page, "sub", "Monthly");
   await expect(pickStep(page, "sub")).toHaveAttribute("data-value", "monthly");
-  const month = new Date().toLocaleDateString("en-GB", { month: "long" });
+  const month = PINNED_NOW.toLocaleDateString("en-GB", { month: "long" });
   expect(await words(page)).toEqual(["Log", "Monthly", month, "calendar"]);
 
   await choose(page, "sub", "Future");

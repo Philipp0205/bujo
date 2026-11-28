@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { PINNED_NOW, pinClock, pinnedDay, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -11,6 +11,7 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => {
     sessionStorage.setItem("ak-install-prompt-dismissed", "1");
@@ -28,12 +29,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 type Seed = { date: string; type: string; title: string; tags?: string[]; time?: string };
 
@@ -67,8 +63,8 @@ async function openDay(page: Page, offset: number): Promise<void> {
 
 /** Freezes the page's timers. A press then lasts exactly as long as the test advances the clock, however slow the machine is. */
 async function freezeClock(page: Page): Promise<void> {
-  await page.clock.install();
-  await page.clock.pauseAt(new Date(Date.now() + 60_000));
+  await page.clock.install({ time: PINNED_NOW });
+  await page.clock.pauseAt(new Date(PINNED_NOW.getTime() + 60_000));
 }
 
 /** A long press with the mouse: scroll the row to the middle (clear of the tab bar), press, hold past the hold time, release. */

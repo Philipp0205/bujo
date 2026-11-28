@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openIndexPage, openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openIndexPage, openNotebook, pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { mainBar } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -16,6 +16,7 @@ const JPEG = Buffer.from(
 );
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -27,11 +28,7 @@ const grid = (page: Page) => page.getByTestId("index-grid");
 const cell = (page: Page, number: number) => page.getByTestId("index-cell").and(page.locator(`[data-number="${number}"]`));
 
 /** An ISO date this many days from today (the notebook starts today, so its pages are today or later). */
-function ahead(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const ahead = pinnedDay;
 
 // Each seed uses its own two days, so a page of an earlier test never sits on the same day as a later one.
 let seeds = 0;

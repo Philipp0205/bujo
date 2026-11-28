@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { PINNED_NOW, pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
+  await pinClock(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -16,13 +17,8 @@ test.afterEach(async ({ page }) => {
   for (const entry of (await response.json()).entries as Array<{ id: string }>) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 
-/** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+/** A calendar day n days from the pinned today (the page's clock is pinned to the same moment). */
+const day = pinnedDay;
 
 type Seed = { offset: number; type?: string; title: string };
 
@@ -85,8 +81,8 @@ async function swipeRowRight(page: Page, title: string): Promise<void> {
   const box = (await row(page, title).boundingBox())!;
   const x = box.x + 60;
   const y = box.y + box.height / 2;
-  await page.clock.install();
-  await page.clock.pauseAt(new Date(Date.now() + 60_000));
+  await page.clock.install({ time: PINNED_NOW });
+  await page.clock.pauseAt(new Date(PINNED_NOW.getTime() + 60_000));
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x + 70, y, { steps: 4 });
@@ -186,11 +182,9 @@ test("a swipe from the bare paper turns the page and skips the days without entr
 });
 
 test("the day picker marks the days with entries, turns to one with a tap and closes", async ({ page }) => {
-  // The picker shows the current month only, so the second marked day is the one of +3 / -3 days that stays in this month.
-  const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const far = today.getDate() + 3 <= daysInMonth ? 3 : -3;
-  const unmarked = far > 0 ? 1 : -1;
+  // The clock is pinned mid-month, so +3 and +1 stay in the month the picker shows.
+  const far = 3;
+  const unmarked = 1;
   await seed(page, [{ offset: -2, title: "Gestern oder so" }, { offset: far, title: "In drei Tagen" }]);
   await openLog(page);
 

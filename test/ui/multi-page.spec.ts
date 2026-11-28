@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { openGallery, openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -16,6 +16,7 @@ const NOTE = [line("none", "Reading list"), line("•", "Dune"), line("•", "So
 const THIRD = [line("•", "Drei Milch", 0.9), line("•", "Drei Kaffee", 0.9)];
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.delay(0);
@@ -30,12 +31,7 @@ test.afterEach(async ({ page }) => {
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today. */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 type Stored = { id: string; type: string; title: string };
 

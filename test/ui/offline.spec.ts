@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { addTab } from "./scan-helpers.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
@@ -34,8 +35,7 @@ async function addLine(page: Page, text: string): Promise<void> {
 
 /** The titles the server holds for the account that contain a word, read through its own API (a window of days around today). */
 async function serverTitles(page: Page, word: string): Promise<string[]> {
-  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-10)}&to=${day(10)}`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${pinnedDay(-10)}&to=${pinnedDay(10)}`);
   const titles: string[] = (await response.json()).entries.map((entry: { title: string }) => entry.title);
   return titles.filter((text) => text.includes(word));
 }

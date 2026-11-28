@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -20,11 +21,7 @@ const htmlFont = (page: Page) => page.evaluate(() => document.documentElement.ge
 const textFamily = (page: Page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--font-text"));
 
 /** Today's date as YYYY-MM-DD in the local time zone. */
-function today(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 test("settings lists the four faces, each set in its own face, and Newsreader is chosen by default", async ({ page }) => {
   await page.goto(`${app.baseUrl}/settings`);

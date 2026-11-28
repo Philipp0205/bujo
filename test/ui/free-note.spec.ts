@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
-import { openNoteCard, openNoteEditor, openSavedNote, useBujo } from "./harness.ts";
+import { openNoteCard, openNoteEditor, openSavedNote, pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { openScan, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -16,17 +16,14 @@ const PAGE = [line("none", "# Küchengarten, Frühjahr"), line("•", "Beet 2: R
 const MARKDOWN = "# Küchengarten, Frühjahr\n- Beet 2: Rucola und Radieschen\nNext: sketch a watering plan.";
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.setLines(PAGE);
 });
 
 /** Today as YYYY-MM-DD in the local time zone: the log page uses the local day too. */
-function localDay(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+const localDay = () => pinnedDay(0);
 
 const sheet = (page: Page) => page.getByTestId("note-sheet");
 const screen = (page: Page) => page.getByTestId("scan-screen");

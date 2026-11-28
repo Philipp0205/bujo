@@ -1,14 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
-const pad = (n: number) => String(n).padStart(2, "0");
+test.beforeEach(async ({ page }) => {
+  await pinClock(page);
+});
 
-function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 test("a one-line row is 48px and a wrapped row is a whole number of 24px grid units", async ({ page }) => {
   await app.signIn(page);

@@ -1,22 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openDetails, useBujo } from "./harness.ts";
+import { openDetails, pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner would sit over the sheets, so it is dismissed for the session before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** One note through the API, so nothing is pushed anywhere. Each test uses its own day. */
 async function seed(page: Page, offset: number, title: string): Promise<void> {

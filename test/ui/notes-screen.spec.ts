@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { gotoNotebook, openNotebook, useBujo } from "./harness.ts";
+import { gotoNotebook, openNotebook, pinClock, pinnedDay, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner would sit over the page, so it is dismissed for the session before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
@@ -72,12 +73,7 @@ const noteSheet = (page: Page) => page.getByTestId("note-sheet");
 const markOf = (page: Page, title: string) => card(page, title).getByTestId("not-on-paper-mark");
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** Fake notes on chosen days; the ones named in written are marked as on paper. No photo: placeholders only. */
 async function seedDated(page: Page, notes: Array<{ title: string; date: string }>, written: string[] = []): Promise<void> {

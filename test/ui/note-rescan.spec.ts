@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openSavedNote, useBujo } from "./harness.ts";
+import { openSavedNote, pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { openScan, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -17,6 +17,7 @@ const SCANNED = [line("none", "# Küchengarten"), line("•", "Beet 2: Rucola un
 const SCANNED_BODY = "# Küchengarten\n- Beet 2: Rucola und Radieschen\n- Tomaten giessen\n- Kompost umschichten";
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.delay(0);
@@ -30,12 +31,7 @@ test.afterEach(async ({ page }) => {
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today. */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 const sheet = (page: Page) => page.getByTestId("note-sheet");
 const screen = (page: Page) => page.getByTestId("scan-screen");

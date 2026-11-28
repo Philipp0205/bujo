@@ -1,38 +1,25 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { PINNED_NOW, pinClock, pinnedDay, pinnedLastDay, pinnedMonth, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { addTab, mainBar } from "./scan-helpers.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** The month n months from this one, as YYYY-MM. */
-function month(ahead: number): string {
-  const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth() + ahead, 1);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-}
+const month = pinnedMonth;
 
 /** The last day of the month n months from this one: the date a month-task or future item carries. */
-function lastDay(ahead: number): string {
-  const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth() + ahead + 1, 0);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const lastDay = pinnedLastDay;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -128,7 +115,7 @@ test("Month opens on a calendar page: every day of the month on a line like \"1 
   await expect(labels).toHaveCount(daysIn(0));
   await expect(labels.first()).toHaveText(dayText(0, 1));
   await expect(labels.last()).toHaveText(dayText(0, daysIn(0)));
-  const today = new Date().getDate();
+  const today = PINNED_NOW.getDate();
   const line = page.locator(`.cal-day[data-date="${day(0)}"]`);
   await expect(line.getByTestId("month-day-label")).toHaveText(dayText(0, today));
   await expect(line.locator(".paper-row", { hasText: "Heute erledigen" })).toHaveAttribute("data-horizon", "month-calendar");
@@ -239,7 +226,7 @@ test("an @dezember line typed on Daily lands under that month, off the day page"
   await typeLine(page, "Jahresrückblick @dez");
 
   await expect(row(page, "Jahresrückblick")).toHaveCount(0);
-  const december = new Date().getMonth() === 11 ? 0 : 11 - new Date().getMonth();
+  const december = PINNED_NOW.getMonth() === 11 ? 0 : 11 - PINNED_NOW.getMonth();
   const date = lastDay(december);
   await expect.poll(() => stored(page, date, december === 0 ? "month-task" : "future")).toEqual(["Jahresrückblick"]);
   await expect.poll(() => stored(page, day(0), "day")).toEqual([]);

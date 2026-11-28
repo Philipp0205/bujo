@@ -1,35 +1,24 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, pinnedLastDay, pinnedMonth, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
   await app.signIn(page);
+  await pinClock(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
-const pad = (n: number) => String(n).padStart(2, "0");
+/** A calendar day n days from the pinned today (the page's clock is pinned to the same moment). */
+const day = pinnedDay;
 
-/** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+/** The month n months from the pinned one, as YYYY-MM. */
+const month = pinnedMonth;
 
-/** The month n months from this one, as YYYY-MM. */
-function month(ahead: number): string {
-  const date = new Date(new Date().getFullYear(), new Date().getMonth() + ahead, 1);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-}
-
-/** The last day of the month n months from this one: the date a month-task or future item carries. */
-function lastDay(ahead: number): string {
-  const date = new Date(new Date().getFullYear(), new Date().getMonth() + ahead + 1, 0);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+/** The last day of the month n months from the pinned one: the date a month-task or future item carries. */
+const lastDay = pinnedLastDay;
 
 /** Every test starts from an empty log: all entries of the throwaway account go (their traces go with them). */
 test.afterEach(async ({ page }) => {
@@ -318,7 +307,6 @@ test("an entry moved with > to a day beyond the loaded days is on that day's log
   await page.goto(app.baseUrl);
   await expect(switcher(page)).toBeVisible();
   await page.getByTestId("page-date").click();
-  if (day(12).slice(0, 7) !== day(0).slice(0, 7)) await page.getByTestId("picker-next").click();
   await page.locator(`[data-testid="picker-day"][data-date="${day(12)}"]`).click();
   await expect(page.getByTestId("page-body")).toHaveAttribute("data-date", day(12));
   await expect(live(page, "Weit weg")).toHaveCount(1);
