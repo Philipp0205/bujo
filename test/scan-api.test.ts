@@ -146,7 +146,13 @@ test("POST /api/scan: OCR_URL unset is 503, a failing OCR service is 502", async
   }, { ocrUrl: null });
   await withScan(async ({ base, signed, ocr }) => {
     ocr.failWith(500);
-    assert.equal((await upload(base, signed.headers)).status, 502);
+    const failed = await upload(base, signed.headers);
+    assert.equal(failed.status, 502);
+    assert.doesNotMatch(failed.json.error, /category|not configured|127\.0\.0\.1/);
+    ocr.failWith(503); // the service has no LLM configured: still a 502 for the app, with a safe message
+    const unconfigured = await upload(base, signed.headers);
+    assert.equal(unconfigured.status, 502);
+    assert.doesNotMatch(unconfigured.json.error, /category|not configured|127\.0\.0\.1/);
     ocr.failWith(0);
     ocr.hang(true);
     assert.equal((await upload(base, signed.headers)).status, 502);

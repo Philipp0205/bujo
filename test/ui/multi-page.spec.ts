@@ -149,7 +149,7 @@ test("a failed page that fails again shows its message and can be skipped", asyn
   await expect(status(page)).toBeVisible();
   app.ocr.failWith(500);
   await page.locator("[data-action=retry]").click();
-  await expect(page.getByTestId("scan-status-text")).toBeVisible();
+  await expect(page.getByTestId("scan-status-text")).toHaveText("Couldn\u2019t read the page right now. Try again.");
   await expect(page.locator("[data-action=retry]")).toBeEnabled();
   await expect(page.getByTestId("scan-page-of")).toHaveText("Page 2 of 2");
   await page.locator("[data-action=skip-page]").click();

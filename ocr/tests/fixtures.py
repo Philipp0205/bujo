@@ -45,7 +45,7 @@ MONTH_TASK_LINES: list[tuple[str, str]] = [
     ("–", "Weihnachtsfeier planen"),
 ]
 
-# Dark enough that the detector's ink threshold catches the dots, so the size filter has real work to do.
+# Light grey dot-grid ink.
 GRID_GREY = (125, 125, 125)
 
 _FONT_CANDIDATES = [
@@ -179,18 +179,6 @@ def to_jpeg(png: bytes, quality: int = 85) -> bytes:
 def to_webp(png: bytes) -> bytes:
     out = io.BytesIO()
     Image.open(io.BytesIO(png)).convert("RGB").save(out, format="WEBP", quality=90)
-    return out.getvalue()
-
-
-def noisy_blank(width: int = 400, height: int = 300, seed: int = 3) -> bytes:
-    """A page with only a dot grid and no writing at all."""
-    page = Image.new("RGB", (width, height), (255, 255, 255))
-    d = ImageDraw.Draw(page)
-    for gy in range(14, height, 28):
-        for gx in range(14, width, 28):
-            d.ellipse([gx - 1, gy - 1, gx + 1, gy + 1], fill=GRID_GREY)
-    out = io.BytesIO()
-    page.save(out, format="PNG")
     return out.getvalue()
 
 

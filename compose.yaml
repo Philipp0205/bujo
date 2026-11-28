@@ -3,7 +3,8 @@
 #
 #   docker compose up --build
 #
-# The OCR image downloads the handwriting model while it is built (a few hundred MB), and then runs offline.
+# The OCR image is slim: it has no local model. The LLM gateway (OCR_LLM_BASE, OCR_LLM_KEY) reads the pages.
+# Without them every scan fails with a friendly message.
 # The app talks to it over the compose network. The OCR port is not published to the host.
 services:
   app:

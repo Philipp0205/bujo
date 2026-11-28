@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-28-llm-only-ocr",
+    "date": "2026-11-28",
+    "title": "Scanning reads with AI only",
+    "bullets": [
+      "Page scans are now read only by the AI reader, with no older fallback.",
+      "If a page cannot be read, you see a short message and your photo stays so you can try again."
+    ]
+  },
+  {
     "id": "2026-11-28-ink-bullets",
     "date": "2026-11-28",
     "title": "Pen-stroke bullets",

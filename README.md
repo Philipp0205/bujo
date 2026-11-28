@@ -96,8 +96,8 @@ Names only; copy `.env.example` and keep real values in your shell or an untrack
 | `PORT`, `HOST` | Listen address. Default `3000` and `127.0.0.1`. |
 | `BUJO_TRUST_PROXY` | `1` behind a reverse proxy, so rate limits use `X-Forwarded-For`. Leave unset otherwise. |
 | `OCR_URL` | Address of the OCR service, for example `http://127.0.0.1:8090`. Unset: the scan answers 503. |
-| `OCR_LLM_BASE`, `OCR_LLM_KEY` | Set on the OCR service, not the app. Gateway root (OpenAI-compatible, for example `https://gateway.example/v1`) and its key. Both set turns the LLM page reader on. |
-| `OCR_LLM_MODEL`, `OCR_LLM_TIMEOUT` | Set on the OCR service. Model name (default `claude-haiku-5-5`) and seconds to wait per request (default `25`, so a retry plus the local fallback still fit the app's 60 s scan timeout). |
+| `OCR_LLM_BASE`, `OCR_LLM_KEY` | Set on the OCR service, not the app. Gateway root (OpenAI-compatible, for example `https://gateway.example/v1`) and its key. Both are required: the LLM is the only reader, and without them every scan fails. |
+| `OCR_LLM_MODEL`, `OCR_LLM_TIMEOUT` | Set on the OCR service. Model name (default `claude-haiku-5-5`) and seconds to wait per request (default `25`, inside the app's 60 s scan timeout). |
 
 Set `BUJO_CALDAV_BASE` and `BUJO_CALDAV_LISTS` together, or neither. Behind HTTPS, set `BUJO_ORIGIN` to the `https://` address so the cookie is marked Secure.
 
@@ -128,9 +128,9 @@ The Scan button in the bottom bar (next to Add) opens the scan screen. Take a ph
 
 ### The OCR service
 
-The scan needs the OCR service in `ocr/` (Python, CPU only, TrOCR small plus Tesseract eng and deu, or an optional vision LLM). Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
+The scan needs the OCR service in `ocr/` (Python, slim image, Pillow and numpy only). It sends the page photo to a vision LLM and returns the lines. Point the app at it with `OCR_URL`. Without it the scan answers 503 and the rest of bujo works as before.
 
-With Docker, one command starts both (the OCR image downloads its model while it is built):
+With Docker, one command starts both:
 
     docker compose up --build        # app on http://127.0.0.1:3000, OCR on the compose network only
 
@@ -138,21 +138,21 @@ Without Docker:
 
     cd ocr
     python -m venv .venv && . .venv/bin/activate
-    pip install -r requirements.txt          # needs the tesseract binary with eng and deu
+    pip install -r requirements.txt
     python -m bujo_ocr.server                # http://127.0.0.1:8090
     # then, in another shell, from the repo root:
     OCR_URL=http://127.0.0.1:8090 npm start
 
 The OCR service has no auth, so keep it on a private network and never publish its port. Tests use a fake OCR server and a fake CalDAV server, never real photos or a real Nextcloud.
 
-Optional LLM reading: set `OCR_LLM_BASE`, `OCR_LLM_KEY` and, if you like, `OCR_LLM_MODEL` and `OCR_LLM_TIMEOUT` on the OCR service (compose passes them through). The service then sends the whole page photo to a vision model behind that OpenAI-compatible gateway (for example a LiteLLM proxy) instead of the detector and TrOCR. Any problem (a missing setting, an HTTP error, a timeout, an unusable answer) falls back to the local path, unchanged. Page photos leave the OCR service for that gateway only when `OCR_LLM_KEY` is set. The answer carries `engine` `llm:<model>`, plus `tags` and `time` per line and a page `date`.
+The LLM is the only reader: set `OCR_LLM_BASE`, `OCR_LLM_KEY` and, if you like, `OCR_LLM_MODEL` and `OCR_LLM_TIMEOUT` on the OCR service (compose passes them through). The service sends the whole page photo to a vision model behind that OpenAI-compatible gateway (for example a LiteLLM proxy). There is no local fallback. When the LLM is not configured or fails, `POST /ocr` answers an error with a short `category` (it never holds the key or the photo): `503` `not configured`, or `502` with the reason (`timeout`, `network`, `http 401`, `invalid json`, `no lines`, `failed`). The app then shows "Couldn't read the page right now. Try again." and keeps the photo so you can retry. Page photos leave the OCR service for that gateway only. The answer carries `engine` `llm:<model>`, plus `tags` and `time` per line and a page `date`. Line boxes are always `[0, 0, 0, 0]`.
 
 ## Layout
 
 - `src/caldav/`: CalDAV client (PROPFIND, REPORT, GET, PUT with ETag preconditions; no DELETE) and the ICS VTODO reader and writer.
 - `src/accounts/`, `src/db.ts`: the one account, sessions, agent tokens, mail.
 - `src/api/`: the task functions shared by `/api/v1` and `/mcp`. `src/routes/`: HTTP routes. `src/mcp/`: the MCP handler. `src/scan/`: the scan draft, matching and apply.
-- `ocr/`: the OCR service (symbol detector, TrOCR, Tesseract) and its pytest tests.
+- `ocr/`: the OCR service (image decoding and the LLM reader) and its pytest tests.
 - `src/app-kit/`, `public/app-kit/`: vendored app-kit v0.7.0. Never edit these. Update with `scripts/sync.sh` from the app-kit repo.
 - `public/`: the plain JS frontend (backlog, sign-in pages, settings), `css/styles.css` (accent tokens), `sw.js`, and `manifest.webmanifest` (generated by app-kit's `scripts/manifest.mjs` from `manifest.config.json`).
 - `test/`: node:test unit tests against a fake CalDAV server on 127.0.0.1, and Playwright specs in `test/ui/`.

@@ -215,14 +215,20 @@ test("closing during the read ignores the late answer: no review opens", async (
 });
 
 test("a failed read leaves the progress state and shows the trouble on the camera screen", async ({ page }) => {
-  app.ocr.failWith(500);
+  app.ocr.failWith(503);
   await page.goto(app.baseUrl);
   const chooser = await openScan(page);
   await chooser.setFiles(photo);
   const screen = page.getByTestId("scan-screen");
-  await expect(screen.getByRole("alert")).toBeVisible();
+  await expect(screen.getByRole("alert")).toHaveText("Couldn\u2019t read the page right now. Try again.");
+  await expect(screen.getByRole("alert")).not.toContainText(/OCR|503|category|not configured/i);
   await expect(page.getByTestId("scan-progress")).toHaveCount(0);
   await expect(screen.locator(".scan-frame")).toBeVisible();
+  // Nothing is lost: the shutter and the gallery are ready for another try.
+  await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
+  app.ocr.failWith(0);
+  await page.locator("#scan-file").setInputFiles(photo);
+  await expect(page.getByTestId("scan-review")).toBeVisible();
 });
 
 test("the camera screen has the title, frame, shutter, and close, and no mode toggle", async ({ page }) => {
@@ -541,7 +547,7 @@ test("trouble stays on the camera screen: a wrong file, a failing OCR and an emp
 
   app.ocr.failWith(500);
   await page.locator("#scan-file").setInputFiles(photo);
-  await expect(screen.getByRole("alert")).toBeVisible();
+  await expect(screen.getByRole("alert")).toHaveText("Couldn\u2019t read the page right now. Try again.");
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
   await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();
 
