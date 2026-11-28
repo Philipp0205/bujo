@@ -14,6 +14,18 @@
 }
 .notes-actions .paper-link { margin: 0; }
 
+/* The start buttons are two small hand-drawn tabs: a pen outline (js/log/ink/decorate.js) around the words. */
+.notes-actions .tab-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 2px 0;
+  padding: 0 16px;
+  text-decoration: none;
+}
+.notes-actions .tab-button .ink-stroke { color: var(--paper-ink); }
+
 .notes-section { margin: 0; padding: 0; }
 .notes-section + .notes-section { margin-top: 12px; }
 

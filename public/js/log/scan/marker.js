@@ -1,5 +1,5 @@
 /*
- * The hand-drawn marker views: an <svg> that draws a scribble from scan/scribble.js. Needs scan/scribble.js.
+ * The hand-drawn marker views (and the heading squiggle): an <svg> that draws a scribble from scan/scribble.js. Needs scan/scribble.js.
  * The svg takes its color from the row (currentColor) and does not catch touches.
  */
 (function () {
@@ -46,5 +46,10 @@
     return draw(L.scan.scribble[kind](seed), 'scan-link');
   }
 
-  L.scan.marker = { pill: pill, ring: ring, icon: icon, link: link };
+  /** The wavy pen line under a heading. */
+  function squiggle(seed) {
+    return draw(L.scan.scribble.squiggle(seed), 'hand-squiggle');
+  }
+
+  L.scan.marker = { pill: pill, ring: ring, icon: icon, link: link, squiggle: squiggle };
 })();

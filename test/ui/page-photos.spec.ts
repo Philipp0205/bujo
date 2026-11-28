@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openIndexPage, openNotebook, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -78,6 +78,7 @@ test("a scanned page with a photo opens the photo from the index grid, and the p
   await seedPage(page, "2026-11-20", 10, 0);
   await page.goto(`${app.baseUrl}/notes`);
   await openNotebook(page);
+  await openIndexPage(page);
   const withPhoto = page.getByTestId("index-cell").and(page.locator('[data-number="9"]'));
   await expect(withPhoto).toHaveAttribute("data-photo", "1");
   await withPhoto.click();
@@ -86,7 +87,7 @@ test("a scanned page with a photo opens the photo from the index grid, and the p
   await expect(page.getByTestId("page-photo-older")).toHaveCount(0);
   await page.goBack();
   await expect(view(page)).toHaveCount(0);
-  await expect(page.getByTestId("notebook-title")).toBeVisible();
+  await expect(page.getByTestId("notebook-index-title")).toBeVisible();
 
   // A page with no photo still opens the page in the log.
   const without = page.getByTestId("index-cell").and(page.locator('[data-number="10"]'));

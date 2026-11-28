@@ -1,10 +1,11 @@
 /*
  * The notebooks screen: the list of the physical notebooks (the active one marked, a button to start a new one) and the detail of one
- * (its daily, monthly and future logs, its collections and free notes, and the index grid of page numbers). It keeps its own state,
+ * (its daily, monthly and future logs, its collections and free notes, and an Index row that opens the index subpage: the grid of page
+ * numbers and the way to the page list). It keeps its own state,
  * reads through the tab cache (the list) and a cache per notebook (the detail), and hands what only the Notes host can do to handlers:
  * onOpenCollection(collection), onOpenPage(item), onOpenIndex(pages), leaveSub() and suspended() (true while a collection page or the page list
- * is drawn into the same root; leaveSub closes it). An open notebook is a Back layer (nav/overlays.js). Needs ak-dom.js, notebooks/*, notes/model.js and notes/view.js (cards, collection rows), index/*,
- * collections/chooser.js, log/note/*, log/ink/decorate.js, log/api.js, log/outbox/model.js and the nav files (data cache).
+ * is drawn into the same root; leaveSub closes it). An open notebook is a Back layer, and its index subpage is a second one on top (nav/overlays.js). Needs ak-dom.js, notebooks/*, notes/model.js and notes/view.js (cards, collection rows), index/*,
+ * collections/chooser.js, log/note/*, log/ink/decorate.js, log/scan/marker.js, log/api.js, log/outbox/model.js and the nav files (data cache).
  */
 (function () {
   'use strict';
@@ -14,12 +15,13 @@
   var L = window.BujoLog;
   var B = window.BujoNotes;
 
-  var state = { mode: 'list', status: 'loading', notebooks: [], offline: false, id: null, detail: null, detailStatus: 'loading' };
+  var state = { mode: 'list', status: 'loading', notebooks: [], offline: false, id: null, detail: null, detailStatus: 'loading', sub: null };
   var root = null;
   var handlers = null;
   var booted = false;
   var returnTo = null;
   var LAYER = 'notebook';
+  var SUB_LAYER = 'notebook-index';
 
   /** What the list holds and the cache keeps: the notebooks, the active one first. */
   function fetchList() {
@@ -43,7 +45,7 @@
       B.view.noteSection(groups, openNote, detail.collections.length > 0));
   }
 
-  /** The detail of a ready notebook: its summary, the start buttons (the active notebook only), the sections and the index grid. */
+  /** The detail of a ready notebook: its summary, the start buttons (the active notebook only), the Index row, then the sections. */
   function detailBody() {
     var detail = state.detail;
     var status = N.model.pageStatus(detail.pages, detail.notebook.pageCount);
@@ -51,18 +53,27 @@
       state.offline ? B.view.offlineHint() : null,
       N.view.summary(detail.notebook, status),
       detail.notebook.active ? B.view.actions(newNote, newCollection) : null,
+      N.view.indexRow(openIndexSub),
       N.view.logSections(detail.pages, handlers.onOpenPage),
-      notesSection(detail),
-      N.view.indexGrid(status, handlers.onOpenPage),
-      B.view.indexEntry(detail.pages.length, function () { handlers.onOpenIndex(detail); })
+      notesSection(detail)
     ];
   }
 
-  /** The notebook detail: the loading or error note, or the body. */
+  /** The index subpage of a ready notebook: the way to the page list, then the legend and the page number grid. */
+  function indexBody() {
+    var detail = state.detail;
+    var status = N.model.pageStatus(detail.pages, detail.notebook.pageCount);
+    var pageList = B.view.indexEntry(detail.pages.length, function () { handlers.onOpenIndex(detail); });
+    return [state.offline ? B.view.offlineHint() : null, N.view.indexPage(status, handlers.onOpenPage, pageList)];
+  }
+
+  /** The notebook detail or its index subpage: the loading or error note, or the body. */
   function detailScreen() {
     var head = state.detail ? state.detail.notebook : { name: '' };
-    var body = state.detailStatus === 'ready' ? detailBody() : B.view.stateNote(state.detailStatus, function () { openDetail(state.id); });
-    return [N.view.detailHeader(head, back), h('div', { class: 'paper-page' }, body)];
+    var ready = state.detailStatus === 'ready';
+    var body = !ready ? B.view.stateNote(state.detailStatus, function () { openDetail(state.id); }) : state.sub === 'index' ? indexBody() : detailBody();
+    var header = state.sub === 'index' ? N.view.indexHeader(closeIndexSub) : N.view.detailHeader(head, back);
+    return [header, h('div', { class: 'paper-page' }, body)];
   }
 
   /** The list of notebooks: the start button and one row each, or the loading and error notes. */
@@ -146,7 +157,7 @@
     revealIndex();
   }
 
-  /** After a way back from an index page: scrolls the index grid to the top of the screen, once the drawn detail has it. */
+  /** After a way back from an index page: scrolls the index grid to the top of the screen, once the drawn index subpage has it. */
   function revealIndex() {
     var grid = state.toIndex && root.querySelector('.notebook-grid');
     if (!grid) return;
@@ -164,21 +175,43 @@
     draw();
   }
 
-  /** Opens one notebook: the cached detail at once when there is one, then the server's. */
-  function openDetail(notebook, toIndex) {
+  /** Opens one notebook: the cached detail at once when there is one, then the server's. from ({ index }) says it is a way back from a log page, to the index subpage or the notebook. */
+  function openDetail(notebook, from) {
     var id = typeof notebook === 'string' ? notebook : notebook.id;
-    state.toIndex = toIndex === true;
+    state.toIndex = !!from && from.index === true;
+    state.sub = state.toIndex ? 'index' : null;
     state.mode = 'detail';
     state.id = id;
     state.detail = null;
     state.detailStatus = 'loading';
     // After a Back the kit's own popstate listener is still to run; a layer opened now would be taken for that Back and closed.
-    if (state.toIndex) window.setTimeout(hold, 0); else hold();
+    if (from) window.setTimeout(holdAll, 0); else hold();
     draw();
     window.scrollTo(0, 0);
     var stale = function (value) { if (state.detailStatus !== 'ready') acceptDetail(id, value); };
     var fetch = function () { return L.api.getNotebook(id); };
     return BujoNav.data.load(detailKey(id), fetch, { stale: stale, fresh: function (value) { acceptDetail(id, value); }, fail: function (error) { failedDetail(id, error); } });
+  }
+
+  /** Opens the index subpage over the notebook: its own Back layer, so Back shows the notebook again. */
+  function openIndexSub() {
+    state.sub = 'index';
+    holdSub();
+    draw();
+    window.scrollTo(0, 0);
+  }
+
+  /** Leaves the index subpage for the notebook (the on-screen link; the kit steps history back for the released layer). */
+  function closeIndexSub() {
+    BujoNav.overlays.release(SUB_LAYER);
+    showNotebook();
+  }
+
+  /** Draws the notebook itself again, from the top, after the index subpage went. */
+  function showNotebook() {
+    state.sub = null;
+    draw();
+    window.scrollTo(0, 0);
   }
 
   /** Reads the open notebook again with the loading note (after a note was saved or a collection page was left): the server alone. */
@@ -208,26 +241,50 @@
     BujoNav.overlays.restore(LAYER);
   }
 
+  /** The phone's Back on the index subpage: a page list on top closes first (the subpage stays), else the notebook shows. */
+  function closeSubLayer() {
+    if (handlers.suspended()) {
+      handlers.leaveSub();
+      BujoNav.overlays.restore(SUB_LAYER);
+      return;
+    }
+    BujoNav.overlays.release(SUB_LAYER);
+    showNotebook();
+  }
+
   /** The notebook detail is on screen: one history entry, so Back shows the list and stays on Notes. */
   function hold() {
     BujoNav.overlays.open(LAYER, closeLayer);
   }
 
-  /** The notebook detail is left (any way): its history entry goes. */
-  function release() {
-    BujoNav.overlays.release(LAYER);
+  /** The index subpage is on screen: one more history entry on top of the notebook's. */
+  function holdSub() {
+    BujoNav.overlays.open(SUB_LAYER, closeSubLayer);
   }
 
-  /** An index page is about to open elsewhere (the log): the next show that comes from Back opens this notebook again, not the list. */
+  /** After a way back from the log: the notebook's entry, and the subpage's when the person came from it. */
+  function holdAll() {
+    hold();
+    if (state.sub === 'index') holdSub();
+  }
+
+  /** The notebook detail and its subpage are left (any way): their history entries go. */
+  function release() {
+    BujoNav.overlays.release(SUB_LAYER);
+    BujoNav.overlays.release(LAYER);
+    state.sub = null;
+  }
+
+  /** An index page is about to open elsewhere (the log): the next show that comes from Back opens this notebook again (at the index subpage when it came from there), not the list. */
   function keepForBack() {
-    if (state.mode === 'detail') returnTo = state.id;
+    if (state.mode === 'detail') returnTo = { id: state.id, index: state.sub === 'index' };
   }
 
   /** The router shows Notes: the notebook an index page was opened from when ctx.back says so, else the list. */
   function show(ctx) {
-    var id = returnTo;
+    var kept = returnTo;
     returnTo = null;
-    if (id && ctx && ctx.back) { booted = true; return openDetail(id, true); }
+    if (kept && ctx && ctx.back) { booted = true; return openDetail(kept.id, kept); }
     return showList();
   }
 

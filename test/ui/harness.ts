@@ -30,6 +30,13 @@ export async function openNotebook(page: Page, name?: string): Promise<void> {
   await page.locator("#notes [data-state=loading]").waitFor({ state: "detached" });
 }
 
+/** Opens the index subpage of the open notebook (the page number grid) and waits for its grid. */
+export async function openIndexPage(page: Page): Promise<void> {
+  await page.getByTestId("open-index").click();
+  await page.getByTestId("notebook-index-title").waitFor();
+  await page.getByTestId("index-grid").waitFor();
+}
+
 /** Goes to the Notes tab by address and opens the active notebook, where the notes, collections and index are. */
 export async function gotoNotebook(page: Page, baseUrl: string): Promise<void> {
   await page.goto(`${baseUrl}/notes`);

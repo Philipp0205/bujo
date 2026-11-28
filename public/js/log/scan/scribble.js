@@ -138,5 +138,17 @@
     return { viewBox: '0 0 24 16', strokes: [{ d: smooth([nudge(next, 2, 12), nudge(next, 12, 8.5), nudge(next, 22, 4)]), width: 1.7 }] };
   }
 
-  L.scan.scribble = { seedOf: seedOf, random: random, smooth: smooth, pill: pill, ring: ring, cross: cross, again: again, arrow: arrow, branch: branch };
+  /** The pen squiggle under a heading, in a 200 by 8 box that is stretched to the heading's width: a loose wave that drifts a little. */
+  function squiggle(seed) {
+    var next = random(seedOf('squiggle:' + seed));
+    var points = [];
+    var phase = next() * 6.28;
+    for (var step = 0; step <= 16; step++) {
+      var wave = Math.sin(phase + step * 1.9) * (1.5 + next() * 0.8);
+      points.push({ x: 2 + 196 * step / 16, y: 4 + wave + (next() - 0.5) * 0.6 });
+    }
+    return { viewBox: '0 0 200 8', strokes: [{ d: smooth(points), width: 1.4 }] };
+  }
+
+  L.scan.scribble = { seedOf: seedOf, random: random, smooth: smooth, pill: pill, ring: ring, cross: cross, again: again, arrow: arrow, branch: branch, squiggle: squiggle };
 })();

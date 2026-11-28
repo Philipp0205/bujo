@@ -47,16 +47,16 @@
   function actions(onNote, onCollection) {
     var copy = L.collections.copy;
     return h('div', { class: 'notes-actions' },
-      h('button', { class: 'paper-link', type: 'button', 'data-action': 'new-note', 'data-testid': 'new-note', onclick: onNote }, copy.newNote),
-      h('button', { class: 'paper-link', type: 'button', 'data-action': 'new-collection', 'data-testid': 'new-collection', onclick: onCollection }, copy.newCollection));
+      h('button', { class: 'paper-link tab-button', type: 'button', 'data-action': 'new-note', 'data-testid': 'new-note', onclick: onNote }, copy.newNote),
+      h('button', { class: 'paper-link tab-button', type: 'button', 'data-action': 'new-collection', 'data-testid': 'new-collection', onclick: onCollection }, copy.newCollection));
   }
 
-  /** The way into the notebook index: a quiet row with the count of listed pages (left out when the count is not known). */
+  /** The way into the page list of the notebook: a quiet row with the count of listed pages (left out when the count is not known). */
   function indexEntry(count, onOpen) {
     var copy = window.BujoIndex.copy;
     return h('div', { class: 'notes-index-entry' },
       h('button', {
-        class: 'collection-row', type: 'button', 'data-action': 'open-index', 'data-testid': 'open-index',
+        class: 'collection-row', type: 'button', 'data-action': 'open-page-list', 'data-testid': 'open-page-list',
         'aria-label': count === null ? copy.entry : copy.entryLabel(count), onclick: onOpen
       }, h('span', { class: 'collection-row-name' }, copy.entry),
         count === null ? null : h('span', { class: 'collection-row-meta' }, h('span', { class: 'collection-row-count', 'data-testid': 'index-count' }, copy.entryCount(count)))));

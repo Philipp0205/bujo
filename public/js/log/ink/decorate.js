@@ -17,6 +17,7 @@
     card: { kind: 'rect', radius: 16, scale: 1 },
     thumb: { kind: 'rect', radius: 10, scale: 0.7 },
     pill: { kind: 'rect', radius: 0, scale: 0.5 },
+    tab: { kind: 'rect', radius: 9, scale: 0.8 },
     sheet: { kind: 'rect', radius: 22, scale: 1.25, openBottom: true },
     underline: { kind: 'line', extra: 3 },
     handle: { kind: 'line', extra: 0 },
@@ -146,11 +147,12 @@
     return card ? card.getAttribute('data-id') || 'new' : 'new';
   }
 
-  /** Inks the Notes grid: each card, and the frame of each thumbnail inside it. Call after the grid is painted. */
+  /** Inks the Notes grid: each card, the frame of each thumbnail inside it, and the small hand-drawn tab buttons. Call after the grid is painted. */
   function notes(root) {
     var els = []
       .concat(dress(root, '.note-card', 'card', function (el) { return 'note|' + noteId(el); }))
-      .concat(dress(root, '.note-thumb', 'thumb', function (el) { return 'thumb|' + noteId(el); }));
+      .concat(dress(root, '.note-thumb', 'thumb', function (el) { return 'thumb|' + noteId(el); }))
+      .concat(dress(root, '.tab-button', 'tab', function (el) { return 'tab|' + el.getAttribute('data-action'); }));
     watch('notes', els);
     drawAll(els);
   }
