@@ -234,5 +234,23 @@
     return kind === 'rule' ? inkRule(w, seed) : inkLine(w, seed, kind);
   }
 
-  L.ink.path = { rect: rect, line: line, lineHeight: function (kind) { return LINE_HEIGHT[kind]; } };
+  /** The wobbly square of a tick box in a 24 by 24 box: a pen outline with a faint second pass, a hair smaller than the box. */
+  function box(seed) {
+    return rect(24, 24, seed + '|box', { radius: 5, scale: 0.9 });
+  }
+
+  /** The pen tick of a tick box in a 24 by 24 box: a short down stroke and a long up stroke that leaves the box a little, plus a faint second pass. */
+  function tick(seed) {
+    var rng = rngFor(seed + '|tick');
+    var down = wobblyLine(6.4 + jitter(rng, 0.5), 12.6 + jitter(rng, 0.5), 10.2 + jitter(rng, 0.4), 17 + jitter(rng, 0.4), rng, 0.3, 0.3, 4);
+    var up = wobblyLine(10.2, 17, 20.2 + jitter(rng, 0.6), 4.8 + jitter(rng, 0.6), rng, 0.35, 0.5, 5);
+    var again = wobblyLine(7 + jitter(rng, 0.4), 13 + jitter(rng, 0.4), 10.4, 16.6, rng, 0.3, 0.3, 4)
+      .concat(wobblyLine(10.4, 16.6, 19.6 + jitter(rng, 0.5), 5.6 + jitter(rng, 0.5), rng, 0.35, 0.4, 5).slice(1));
+    return [
+      { d: pathFromPoints(join([down, up]), false, 0), width: 1.9, opacity: 1 },
+      { d: pathFromPoints(again, false, 0), width: 1, opacity: 0.35 }
+    ];
+  }
+
+  L.ink.path = { rect: rect, line: line, box: box, tick: tick, lineHeight: function (kind) { return LINE_HEIGHT[kind]; } };
 })();

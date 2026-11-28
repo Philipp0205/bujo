@@ -326,7 +326,7 @@
     var low = item.confidence < 0.6;
     var seen = 'Seen as ' + (item.detected === 'none' ? 'no symbol' : item.detected) + ', ' + Math.round(item.confidence * 100) + '%' + (low ? ' (low)' : '');
     var head = h('div', { class: 'bj-item-head' },
-      h('label', { class: 'bj-check', for: 'include-' + item.id }, include, h('span', null, item.isDate ? 'Page date' : ignored ? 'Skipped' : 'Include')),
+      h('label', { class: 'bj-check', for: 'include-' + item.id }, include, BujoLog.ink.tick.box(item.id), h('span', null, item.isDate ? 'Page date' : ignored ? 'Skipped' : 'Include')),
       h('span', { class: 'bj-badge', 'data-action-label': action }, ACTION_LABELS[action]));
 
     node.setAttribute('data-include', item.include && !ignored ? 'true' : 'false');

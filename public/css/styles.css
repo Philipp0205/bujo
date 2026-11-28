@@ -388,9 +388,23 @@ html.ak-base {
 .bj-item { display: grid; gap: 8px; padding: 12px 16px; }
 .bj-item[data-include="false"] { opacity: 0.7; }
 .bj-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.bj-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
-.bj-check input { width: 22px; height: 22px; accent-color: var(--paper-ink); }
-.bj-badge { padding: 2px 10px; color: var(--paper-muted); font-family: var(--font-ui); font-size: 13px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 30%, transparent); border-radius: 999px; }
+.bj-check { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+/* The native checkbox stays for the keyboard and the screen reader and keeps a 44px hit area; the pen tick box beside it is what shows. */
+.bj-check input { position: absolute; left: -10px; top: 0; width: 44px; height: 44px; margin: 0; opacity: 0; cursor: pointer; }
+.bj-check input:checked + .ink-tick .ink-tick-mark { visibility: visible; }
+.bj-check input:focus-visible + .ink-tick { outline: 2px solid var(--paper-muted); outline-offset: 3px; border-radius: 6px; }
+.bj-check input:disabled + .ink-tick { opacity: 0.45; }
+/* A status mark is an ink stamp: a double rule, a slight tilt, set in the paper's brick ink. */
+.bj-badge {
+  padding: 0 8px;
+  color: var(--ink-brick);
+  font: 600 12px/20px var(--font-ui);
+  letter-spacing: 0.06em;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1.5px var(--paper-bg), 0 0 0 2.5px color-mix(in srgb, currentColor 40%, transparent);
+  transform: rotate(-2deg);
+}
 .bj-ocr { margin: 0; font-size: 18px; font-weight: var(--text-weight); overflow-wrap: anywhere; }
 .bj-item .bj-meta { margin: 0; }
 .bj-low { color: var(--paper-today); }

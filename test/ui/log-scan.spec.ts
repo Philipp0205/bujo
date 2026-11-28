@@ -284,10 +284,10 @@ test("nothing is written until Apply: a photo, the review, one line dropped, one
   const before = await page.request.get(`${app.baseUrl}/api/entries?from=${day(0)}&to=${day(0)}`);
   expect(JSON.stringify(await before.json())).not.toContain("Stuttgart");
 
-  // Each row's check says what it does in words, and it sits on a box that is visible whether the line is kept or skipped.
+  // Each row's check says what it does in words, and it sits on a hand-drawn box that is visible whether the line is kept or skipped.
   await expect(rows(page).locator('[data-field="include"] .scan-keep-label')).toHaveText(["Keep", "Keep", "Keep"]);
-  const keepBox = rows(page).nth(1).locator(".scan-keep-box");
-  const boxEdge = () => keepBox.evaluate((node) => getComputedStyle(node).borderTopWidth);
+  const keepBox = rows(page).nth(1).locator(".scan-keep-box .ink-tick-box").first();
+  const boxEdge = () => keepBox.evaluate((node) => getComputedStyle(node).strokeWidth);
   expect(parseFloat(await boxEdge())).toBeGreaterThan(0);
   await expect(rows(page).nth(1).locator('[data-field="include"]')).toHaveAccessibleName("Keep this line");
 
@@ -563,7 +563,9 @@ test("a HEIC photo with no type is accepted, and the photo is never put in the p
   await chooser.setFiles({ name: "IMG_0001.HEIC", mimeType: "", buffer: PNG });
   await expect(page.getByTestId("scan-review")).toBeVisible();
   expect(await page.locator('[data-testid="scan-review"] :is(img, canvas, video)').count()).toBe(0);
-  expect(await page.locator('[data-testid="scan-review"] [src], [data-testid="scan-review"] [style*="url("]').count()).toBe(0);
+  // The only inline url() allowed is the pen outline of an ink button (a data: mask, data-ink), never a photo.
+  expect(await page.locator('[data-testid="scan-review"] [src], [data-testid="scan-review"] [style*="url("]:not([data-ink])').count()).toBe(0);
+  expect(await page.locator('[data-testid="scan-review"] [data-ink][style*="url("]:not([style*="data:image/svg+xml"])').count()).toBe(0);
 });
 
 test("the scan screen and the review use paper colours, never the kit pink", async ({ page }) => {

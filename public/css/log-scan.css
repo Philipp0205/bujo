@@ -601,15 +601,17 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-row[data-marker="updated"] { --mark: var(--mark-updated); }
 .scan-row[data-marker="skipped"] { --mark: var(--mark-skipped); }
 .scan-row[data-low="true"] .scan-note { color: var(--paper-today); }
+/* "past" is a strip of washi tape stuck on the line: a tinted band with torn ends, a slight tilt, ink on top. */
 .scan-past {
   flex: none;
   align-self: flex-start;
   margin-top: 4px;
-  padding: 0 7px;
-  border: 1px solid color-mix(in srgb, var(--paper-muted) 45%, transparent);
-  border-radius: 999px;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--ink-ochre) 30%, transparent);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 3px) 50%, 100% 100%, 0 100%, 3px 50%);
+  transform: rotate(-2deg);
   font: 11px/16px var(--font-ui);
-  color: var(--paper-muted);
+  color: var(--paper-ink);
 }
 .scan-past[hidden] { display: none; }
 
@@ -636,15 +638,12 @@ html[data-ak-scheme="dark"] { --mark-new: #7fa6d6; --mark-type: #b79ad6; }
 .scan-keep-box {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  box-sizing: border-box;
-  border: 1.5px solid var(--paper-ink);
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
 }
-.scan-keep-box svg { display: block; stroke: currentColor; fill: none; }
+.scan-keep-box .ink-tick { width: 24px; height: 24px; }
 .scan-keep-label { font: 11px/12px var(--font-ui); color: var(--paper-muted); }
-.scan-keep[aria-checked="false"] svg { visibility: hidden; }
+.scan-keep[aria-checked="true"] .ink-tick-mark { visibility: visible; }
 .scan-row[data-status="unchanged"] .scan-keep { visibility: hidden; }
 
 .scan-row[hidden] { display: none; }

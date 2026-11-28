@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-11-28-paper-feel",
+    "date": "2026-11-28",
+    "title": "A more paper feel",
+    "bullets": [
+      "The pages have a light paper grain and a soft edge, in light and dark.",
+      "A thin margin line runs down the main pages, like a printed journal.",
+      "Apply, Save and Done are now pen-drawn ink buttons.",
+      "The Keep boxes are hand-drawn with a pen tick.",
+      "Active and past marks look like a stamp and a strip of washi tape."
+    ]
+  },
+  {
     "id": "2026-11-27-review-markers",
     "date": "2026-11-27",
     "title": "Hand-drawn markers in the scan review",
