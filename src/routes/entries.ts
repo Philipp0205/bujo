@@ -43,7 +43,7 @@ function methodNotAllowed(allow: string): never {
  *   PATCH /api/entries/:id         change date, horizon, type, title, tags (a list, empty when none), time, indent (0 or 1), body (the markdown of a free note, null when none) or collectionId (a collection id files the entry on that page, null puts it back on the daily log). Add trace ("migrated" or "scheduled") to leave a ">" or "<" trace on the old page when the edit moves the entry to another page: same id, same UID
  *   DELETE /api/entries/:id        remove the entry (a note with its photo too) from bujo (local only, nothing is deleted on Nextcloud), answers its day
  *   POST  /api/entries/:id/move    { direction: "up" | "down" } swap places with the neighbour in the day, answers the day
- *   POST  /api/entries/order       { date, horizon, ids } put those entries of one day (or month lane) in that order, in the places they held (drag and drop), answers the day. 400 for a bad body or an order across a paper page boundary, 404 for an id that is not in that day. Local only
+ *   POST  /api/entries/order       { date, horizon, ids } put those entries of one day (or month lane) in that order, in the places they held (drag and drop), answers the day. 400 for a bad body, 404 for an id that is not in that day or an order across a paper page boundary. Local only
  *   POST  /api/entries/:id/sync    push again an entry whose sync failed
  *   POST  /api/entries/:id/into-note { noteId } add a task's title as a new last line of a free-form note (a bullet when the note is a list) and take the task off the log. A task on Nextcloud is pushed as dropped (CANCELLED) first, never deleted there. Answers { note, entries } (the task's old day). 400 for a non-task or a target without a body or a body that would pass BODY_MAX, 404 for an unknown entry or note, 502 when the cancel push fails
  *   POST  /api/entries/:id/written mark the entry as written on paper (stamps its current fields, not an edit), answers { entry } with onPaper true
@@ -211,8 +211,7 @@ async function handleMove(ctx: RouteContext, store: EntryStore, userId: string, 
 
 /**
  * POST { date, horizon, ids } puts those entries of the day (or month lane) in that order, in the places they held, and answers the day
- * in its new order. A repeat is safe (same order, same answer). 400 for a bad body or an order that crosses a paper page boundary,
- * 404 when an id is not in that day. Local only: never starts a push.
+ * in its new order. A repeat is safe (same order, same answer). 400 for a bad body, 404 when an id is not in that day or an order that crosses a paper page boundary. Local only: never starts a push.
  */
 async function handleOrder(ctx: RouteContext, store: EntryStore, userId: string): Promise<boolean> {
   if (ctx.method !== "POST") methodNotAllowed("POST");
