@@ -124,5 +124,5 @@
     return { viewBox: '0 0 24 24', strokes: [{ d: smooth(points), width: 1.8 }, { d: head, width: 1.8 }] };
   }
 
-  L.scan.scribble = { seedOf: seedOf, pill: pill, ring: ring, cross: cross, again: again };
+  L.scan.scribble = { seedOf: seedOf, random: random, smooth: smooth, pill: pill, ring: ring, cross: cross, again: again };
 })();

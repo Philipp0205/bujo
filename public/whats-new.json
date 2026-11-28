@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-28-ink-bullets",
+    "date": "2026-11-28",
+    "title": "Pen-stroke bullets",
+    "bullets": [
+      "Bullets in your lists are now drawn like pen strokes, each a little different.",
+      "Checking off a task draws the x, and a move draws the > or <."
+    ]
+  },
+  {
     "id": "2026-11-28-paper-feel",
     "date": "2026-11-28",
     "title": "A more paper feel",
