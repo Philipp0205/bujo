@@ -51,7 +51,7 @@
       type: 'This file is not a JPEG, PNG, WebP or HEIC photo.',
       size: 'The photo is too large (at most 15 MB).',
       tooMany: function (max) { return 'Pick at most ' + max + ' pages at once.'; },
-      scanFailed: 'Could not read the page. Try again.',
+      scanFailed: 'Couldn\u2019t read the page right now. Try again.',
       applyFailed: 'Could not save the entries. Try again.',
       titleRequired: 'Give every kept line a title.',
       dayRequired: function (title) { return 'Give \u201c' + title + '\u201d a day of this month.'; },

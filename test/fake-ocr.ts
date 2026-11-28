@@ -75,7 +75,7 @@ export async function startFakeOcr(initial: OcrLine[] = DEFAULT_PAGE): Promise<F
       const step = steps.shift();
       const status = step?.status ?? failStatus;
       if (status) {
-        res.writeHead(status, { "content-type": "application/json" }).end('{"error":"nope"}');
+        res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify({ error: "ocr reader failed", category: status === 503 ? "not configured" : "failed" }));
         return;
       }
       const answered = step?.lines ?? lines;

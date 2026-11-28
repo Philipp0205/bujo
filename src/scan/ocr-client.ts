@@ -5,7 +5,8 @@ import { asPageNumber } from "../log/paper-pages.ts";
  * Client for the OCR service (ocr/): POST /ocr with the raw image, JSON back.
  * The photo is held as a Buffer for the length of the call and never written anywhere.
  * Errors are HttpErrors with a message that is safe to show: 503 when no service is configured,
- * 502 when it fails or does not answer, 413 and 422 when it refuses the image itself.
+ * 502 when it fails or does not answer (a missing or failed LLM read is a 503 or 502 from the service), 413 and 422 when it refuses the image itself.
+ * The service has no local fallback: its `category` goes to the log, and the app shows its own friendly sentence.
  */
 
 export const OCR_TIMEOUT_MS = 60_000;
@@ -83,6 +84,16 @@ function parseResult(json: unknown): OcrResult {
   };
 }
 
+/** The short `category` of an OCR error body ("not configured", "timeout", "http 401", ...), for the log only. Never shown to the person. */
+async function failureCategory(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { category?: unknown };
+    return typeof body.category === "string" ? body.category.slice(0, 40) : "";
+  } catch {
+    return "";
+  }
+}
+
 /** `url` is OCR_URL, for example http://localhost:8090. Unset or empty means every call is a 503. */
 export function createOcrClient(url: string | undefined, options: OcrClientOptions = {}): OcrClient {
   const base = (url ?? "").trim().replace(/\/+$/, "");
@@ -114,8 +125,7 @@ export function createOcrClient(url: string | undefined, options: OcrClientOptio
       throw new HttpError(422, "The OCR service could not read this photo. Try a JPEG or PNG.");
     }
     if (!response.ok) {
-      await response.arrayBuffer().catch(() => undefined);
-      console.error("ocr failed: status", response.status);
+      console.error("ocr failed: status", response.status, await failureCategory(response));
       throw new HttpError(502, "The OCR service failed. Try again in a moment.");
     }
     let json: unknown;

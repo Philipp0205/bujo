@@ -17,6 +17,13 @@
     return error && error.message ? error.message : fallback;
   }
 
+  /** The message of a failed read. The server being unable to read the page (502, 503: the reader is off, slow or failed) gets the friendly
+   * sentence, never the server's own words; a problem with the photo itself keeps its message. */
+  function scanMessage(error) {
+    var unavailable = error && (error.status === 502 || error.status === 503);
+    return unavailable ? L.copy.scan.errors.scanFailed : messageOf(error, L.copy.scan.errors.scanFailed);
+  }
+
   /** The photo checks: a wrong type or size rejects with a message for the camera screen. */
   function checkedPhoto(file) {
     var problem = L.scan.model.photoProblem(file);
@@ -49,7 +56,7 @@
         if (!answer.note.body.trim()) throw new Error(L.copy.scan.note.noText);
         return shrunk.then(function (kept) { return pageOf(answer, kept, file, options, shrunk); });
       }, function (error) {
-        throw new Error(messageOf(error, L.copy.scan.errors.scanFailed));
+        throw new Error(scanMessage(error));
       });
     });
   }
