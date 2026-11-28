@@ -102,17 +102,17 @@ test("entries are grouped under day headers with glyph, tag, time and sync dot",
   await expect(row(page, "Viel zu alt")).toHaveCount(0);
   await expect(row(page, "Viel zu weit weg")).toHaveCount(0);
 
-  // Each type has its glyph from the sprite.
-  const glyph = (title: string) => row(page, title).locator(".paper-sym use").getAttribute("href");
-  expect(await glyph("Heute Aufgabe")).toBe("#g-task");
-  expect(await glyph("Mittagessen")).toBe("#g-event");
-  expect(await glyph("Küchengarten")).toBe("#g-note");
+  // Each type has its pen-stroke glyph.
+  const glyph = (title: string) => row(page, title).locator(".paper-sym svg").getAttribute("data-glyph");
+  expect(await glyph("Heute Aufgabe")).toBe("task");
+  expect(await glyph("Mittagessen")).toBe("event");
+  expect(await glyph("Küchengarten")).toBe("note");
   await page.getByTestId("page-next").click();
-  expect(await glyph("Vermieter")).toBe("#g-sched");
+  expect(await glyph("Vermieter")).toBe("scheduled");
   await page.getByTestId("page-prev").click();
   await page.getByTestId("page-prev").click();
-  expect(await glyph("Gestern erledigt")).toBe("#g-done");
-  expect(await glyph("Gestern verschoben")).toBe("#g-moved");
+  expect(await glyph("Gestern erledigt")).toBe("done");
+  expect(await glyph("Gestern verschoben")).toBe("migrated");
   await expect(row(page, "Gestern erledigt")).toHaveAttribute("data-type", "done");
   await expect(row(page, "Gestern erledigt").locator(".paper-title")).toHaveCSS("text-decoration-line", "line-through");
   await expect(row(page, "Gestern verschoben")).toHaveCSS("opacity", "0.55");

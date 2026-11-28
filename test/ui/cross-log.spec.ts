@@ -136,7 +136,7 @@ test("migrate day to day: the entry keeps its id on the next day, and a > trace 
   await expect(traceRows(page)).toHaveCount(1);
   await expect(traceRows(page).first()).toHaveText("Weiter auf morgen");
   await expect(traceRows(page).first()).toHaveAttribute("data-trace", "migrated");
-  await expect(traceRows(page).first().locator("use")).toHaveAttribute("href", "#g-moved");
+  await expect(traceRows(page).first().locator("svg")).toHaveAttribute("data-glyph", "migrated");
 
   const now = await stored(page);
   expect(now.entries.map((entry) => entry.id)).toEqual([id]);
@@ -236,7 +236,7 @@ test("schedule onto a day: a scheduled entry on that day and a < trace on the ol
 
   await expect(traceRows(page)).toHaveCount(1);
   await expect(traceRows(page).first()).toHaveAttribute("data-trace", "scheduled");
-  await expect(traceRows(page).first().locator("use")).toHaveAttribute("href", "#g-sched");
+  await expect(traceRows(page).first().locator("svg")).toHaveAttribute("data-glyph", "scheduled");
   const now = await stored(page);
   expect(now.entries.find((entry) => entry.id === id)).toMatchObject({ date: day(3), horizon: "day", type: "scheduled" });
   expect(now.traces).toMatchObject([{ entryId: id, date: day(0), kind: "scheduled" }]);

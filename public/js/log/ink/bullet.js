@@ -34,9 +34,9 @@
     return svg;
   }
 
-  /** Draws the strokes of a bullet one after the other, then drops the animation class. Only the user's own action calls this. */
+  /** Draws the strokes of a bullet one after the other, then drops the animation class. Only the user's own action calls this. With reduced motion the bullet just shows. */
   function draw(svg) {
-    if (!svg) return;
+    if (!svg || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     svg.classList.remove('is-drawing');
     void svg.getBoundingClientRect();
     svg.classList.add('is-drawing');
