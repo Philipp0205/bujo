@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openDetails, useBujo } from "./harness.ts";
+import { openDetails, pinClock, pinnedDay, useBujo } from "./harness.ts";
 
 const app = useBujo({ sync: true });
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
 });
 
@@ -14,11 +15,7 @@ test.afterEach(() => {
 });
 
 /** Today as YYYY-MM-DD in the local time zone, like the page. */
-function today(): string {
-  const date = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 /** Creates a fake entry through the API with the page's session. The sync runs against the fake server only. */
 async function create(page: Page, type: string, title: string): Promise<void> {

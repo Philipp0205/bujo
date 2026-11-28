@@ -1,22 +1,19 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { openNotebook, openSavedNote, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openNotebook, openSavedNote, pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 const BODY = "# Garden plan\nPlant **carrots** early.\n- beds\n- [ ] buy seed";
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
 /** Today as YYYY-MM-DD in the local time zone: the log page uses the local day too. */
-function localDay(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+const localDay = () => pinnedDay(0);
 
 const sheet = (page: Page) => page.getByTestId("note-sheet");
 const area = (page: Page) => sheet(page).locator('[data-field="body"]');

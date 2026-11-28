@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -10,6 +10,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   app.ocr.failWith(0);
@@ -17,11 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** Today as YYYY-MM-DD in the local time zone (the page uses the local day too). */
-function today(): string {
-  const date = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 const review = (page: Page) => page.getByTestId("scan-review");
 const keep = (page: Page, at: number) => review(page).locator(".scan-row").nth(at).locator('[data-field="include"]');

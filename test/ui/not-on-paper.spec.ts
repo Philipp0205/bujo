@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, pinnedMonth } from "./harness.ts";
 
 const app = useBujo();
 
@@ -10,6 +10,7 @@ declare global {
 }
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => {
     sessionStorage.setItem("ak-install-prompt-dismissed", "1");
@@ -30,12 +31,7 @@ test.afterEach(async ({ page }) => {
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** The German weekday and dd.mm. of a day, as the copied header writes it. */
 function header(iso: string): string {
@@ -314,10 +310,7 @@ test("Drop strikes an earlier task out and takes its controls away", async ({ pa
 
 test("Schedule opens the move chooser; a pick files the task and its row leaves the earlier day", async ({ page }) => {
   const ids = await seed(page, MIXED);
-  const future = (() => {
-    const date = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  })();
+  const future = pinnedMonth(1);
   await page.goto(app.baseUrl);
   await open(page).click();
   await choice(page, "Vorgestern offen", "schedule").click();

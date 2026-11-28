@@ -17,6 +17,36 @@ export const WHATS_NEW_NEWEST: string = JSON.parse(
   readFileSync(new URL("../../public/whats-new.json", import.meta.url), "utf8"),
 )[0].id;
 
+/** The pinned "now" for specs that assert dates: Sunday 15 November 2026, noon in the browser's local time, so small offsets stay in the same month. */
+export const PINNED_NOW = new Date(2026, 10, 15, 12, 0, 0);
+
+/** Fixes the page's Date at PINNED_NOW while timers keep running. Call it before the page loads. With `ticking` the pinned time moves on with real time instead, for specs that read an elapsed time. */
+export async function pinClock(page: Page, options: { ticking?: boolean } = {}): Promise<void> {
+  if (options.ticking) await page.clock.install({ time: PINNED_NOW });
+  else await page.clock.setFixedTime(PINNED_NOW);
+}
+
+/** A calendar day as YYYY-MM-DD in the local time zone, n days from the pinned today. */
+export function pinnedDay(offset: number): string {
+  const date = new Date(PINNED_NOW);
+  date.setDate(date.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The month n months from the pinned one, as YYYY-MM. */
+export function pinnedMonth(ahead: number): string {
+  const date = new Date(PINNED_NOW.getFullYear(), PINNED_NOW.getMonth() + ahead, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** The last day of the month n months from the pinned one: the date a month-task or future item carries. */
+export function pinnedLastDay(ahead: number): string {
+  const date = new Date(PINNED_NOW.getFullYear(), PINNED_NOW.getMonth() + ahead + 1, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 /** Switches an open saved note sheet from its rendered preview to the textarea. A sheet already in edit mode is left alone. */
 export async function openNoteEditor(sheet: import("@playwright/test").Locator): Promise<void> {
   if ((await sheet.locator(".note-editor").getAttribute("data-state")) !== "edit") await sheet.locator('[data-action="note-edit"]').click();

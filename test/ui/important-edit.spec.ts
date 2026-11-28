@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { openDetails, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { openDetails, pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 import { openScan } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -12,6 +12,7 @@ const PNG = Buffer.from(
 const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -19,11 +20,7 @@ test.beforeEach(async ({ page }) => {
   app.ocr.delay(0);
 });
 
-function today(): string {
-  const date = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 /** The OCR header line for today, as it is written on the page: dd.mm.yyyy. */
 const header = () => { const iso = today(); return line("none", `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`, 0.9); };

@@ -1,42 +1,31 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, pinnedLastDay, pinnedMonth, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** The month n months from this one, as YYYY-MM. */
-function month(ahead: number): string {
-  const date = new Date(new Date().getFullYear(), new Date().getMonth() + ahead, 1);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-}
+const month = pinnedMonth;
 
 /** The last day of the month n months from this one: the date a month-task or future item carries. */
-function lastDay(ahead: number): string {
-  const date = new Date(new Date().getFullYear(), new Date().getMonth() + ahead + 1, 0);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const lastDay = pinnedLastDay;
 
 /** How far back the cleanup and the stored() reads reach: past the oldest seed of any test here. */
 const BACK = -40;
 
 /** Every test starts from an empty log: all entries of the throwaway account go (their traces go with them). */
 test.afterEach(async ({ page }) => {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(5)}`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(3)}`);
   for (const entry of (await response.json()).entries as Array<{ id: string }>) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 
@@ -52,7 +41,7 @@ async function seed(page: Page, data: { date: string; title: string; horizon?: s
 
 /** What the API holds from forty days back through the sixth month: the entries and the traces. */
 async function stored(page: Page): Promise<{ entries: Entry[]; traces: Trace[] }> {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(5)}&traces=1`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(BACK)}&to=${lastDay(3)}&traces=1`);
   return response.json();
 }
 

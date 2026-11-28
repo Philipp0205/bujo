@@ -1,13 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
-const pad = (n: number) => String(n).padStart(2, "0");
 
-function today(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 const FACES = ["newsreader", "literata", "source-serif", "lora"];
 // Titles of growing length, so in every face one of them leaves the "not synced" word near the end of the first line.
@@ -20,6 +16,7 @@ async function clearDay(page: import("@playwright/test").Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });

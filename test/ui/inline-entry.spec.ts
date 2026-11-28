@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openSavedNote, useBujo } from "./harness.ts";
+import { openSavedNote, pinClock, pinnedDay, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
@@ -7,17 +7,13 @@ const app = useBujo();
 let before = new Set<string>();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   before = new Set((await everything(page)).map((entry) => entry.id));
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 type Entry = { id: string; date: string; type: string; title: string; tags: string[]; time: string | null };
 

@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -16,11 +17,7 @@ test.afterEach(async ({ page }) => {
 });
 
 /** Today as YYYY-MM-DD in the local time zone, which is the day the page shows. */
-function today(): string {
-  const date = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 /** A fake entry through the API with the page's session. */
 async function seed(page: Page, type: string, title: string): Promise<string> {
@@ -189,10 +186,7 @@ test("a note, an event and a done row do not open the chooser", async ({ page })
 
 test("a swipe on empty paper still turns the page", async ({ page }) => {
   await seed(page, "task", "Heute");
-  const later = new Date();
-  later.setDate(later.getDate() + 2);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const date = `${later.getFullYear()}-${pad(later.getMonth() + 1)}-${pad(later.getDate())}`;
+  const date = pinnedDay(2);
   const response = await page.request.post(`${app.baseUrl}/api/entries`, { data: { date, type: "task", title: "Spaeter" } });
   made.push((await response.json()).entry.id);
   await openLog(page);

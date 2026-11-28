@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo } from "./harness.ts";
 import { addTab, doneButton, openScan, scanTab, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -17,18 +17,15 @@ const KIT_PINK = ["#e3166b", "#ff4d8d", "#c40e52", "#c2185b"].flatMap((hex) => {
 });
 
 test.beforeEach(async ({ page }) => {
+  // The progress timer reads elapsed time from Date, so the pinned time must keep moving.
+  await pinClock(page, { ticking: true });
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.delay(0);
 });
 
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** The OCR header line for a day, as it is written on the page: dd.mm.yyyy. */
 const headerLine = (iso: string) => line("none", `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`, 0.9);

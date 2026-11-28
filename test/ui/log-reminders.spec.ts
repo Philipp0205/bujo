@@ -1,37 +1,28 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { REMIND_FUTURE_KEY, REMIND_MONTHLY_KEY, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, pinnedMonth, REMIND_FUTURE_KEY, REMIND_MONTHLY_KEY, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 const OLDEST: string = JSON.parse(readFileSync(new URL("../../public/whats-new.json", import.meta.url), "utf8")).at(-1).id;
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today. */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** The month n months from this one, as YYYY-MM. */
-function month(ahead: number): string {
-  const now = new Date();
-  const date = new Date(now.getFullYear(), now.getMonth() + ahead, 1);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
-}
+const month = pinnedMonth;
 
 /** Every test starts from an empty log: all entries of the throwaway account go. */
 test.afterEach(async ({ page }) => {
-  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-40)}&to=${month(5)}-28`);
+  const response = await page.request.get(`${app.baseUrl}/api/entries?from=${day(-40)}&to=${month(3)}-28`);
   for (const entry of (await response.json()).entries as Array<{ id: string }>) await page.request.delete(`${app.baseUrl}/api/entries/${entry.id}`);
 });
 

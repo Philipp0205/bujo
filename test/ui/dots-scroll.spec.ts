@@ -1,23 +1,18 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   // The install banner and the what's new sheet would sit over the log, so both are out of the way before any page script runs.
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
 });
 
-const pad = (n: number) => String(n).padStart(2, "0");
-
 /** A calendar day as YYYY-MM-DD in the local time zone, n days from today (the page uses the local day too). */
-function day(offset: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + offset);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const day = pinnedDay;
 
 /** Every entry of the throwaway account in the window the specs seed into goes, so each test starts from an empty log. */
 test.afterEach(async ({ page }) => {

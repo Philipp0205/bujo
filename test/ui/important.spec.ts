@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
+import { pinClock, pinnedDay, useBujo, WHATS_NEW_NEWEST } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   await page.addInitScript(() => sessionStorage.setItem("ak-install-prompt-dismissed", "1"));
   await page.request.put(`${app.baseUrl}/api/whats-new/seen`, { data: { id: WHATS_NEW_NEWEST } });
@@ -16,11 +17,7 @@ test.afterEach(async ({ page }) => {
   for (const id of made.splice(0)) await page.request.delete(`${app.baseUrl}/api/entries/${id}`);
 });
 
-function today(): string {
-  const date = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
+const today = () => pinnedDay(0);
 
 /** A fake entry through the API with the page's session. Never a real list. */
 async function seed(page: Page, title: string, important = false, type = "task"): Promise<string> {

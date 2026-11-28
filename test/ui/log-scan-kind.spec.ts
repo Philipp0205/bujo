@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
-import { useBujo } from "./harness.ts";
+import { PINNED_NOW, pinClock, useBujo } from "./harness.ts";
 import { choose, openScan, picker, pickStep } from "./scan-helpers.ts";
 
 const app = useBujo();
@@ -13,20 +13,20 @@ const PNG = Buffer.from(
 const photo = { name: "page.png", mimeType: "image/png", buffer: PNG };
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
   app.ocr.failWith(0);
   app.ocr.delay(0);
   app.ocr.setPage(null);
 });
 
-/** The month n months from now, as a Date on its first day. */
+/** The month n months from the pinned now, as a Date on its first day. */
 function monthAt(offset: number): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  return new Date(PINNED_NOW.getFullYear(), PINNED_NOW.getMonth() + offset, 1);
 }
 const monthName = (offset: number) => monthAt(offset).toLocaleDateString("en-GB", { month: "long" });
 /** How the picker words a month: the name, with the year when it is not this year. */
-const monthLabelOf = (offset: number) => (monthAt(offset).getFullYear() === new Date().getFullYear() ? monthName(offset) : `${monthName(offset)} ${monthAt(offset).getFullYear()}`);
+const monthLabelOf = (offset: number) => (monthAt(offset).getFullYear() === PINNED_NOW.getFullYear() ? monthName(offset) : `${monthName(offset)} ${monthAt(offset).getFullYear()}`);
 const monthKey = (offset: number) => `${monthAt(offset).getFullYear()}-${String(monthAt(offset).getMonth() + 1).padStart(2, "0")}`;
 
 const review = (page: Page) => page.getByTestId("scan-review");

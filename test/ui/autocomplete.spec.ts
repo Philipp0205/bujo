@@ -1,15 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
-import { useBujo } from "./harness.ts";
+import { PINNED_NOW, pinClock, useBujo } from "./harness.ts";
 
 const app = useBujo();
 
 test.beforeEach(async ({ page }) => {
+  await pinClock(page);
   await app.signIn(page);
 });
 
-/** A calendar day as a Date in the local time zone, n days from today (the page uses the local day too). */
+/** A calendar day as a Date in the local time zone, n days from the pinned today (the page uses the local day too). */
 function dateOf(offset: number): Date {
-  const date = new Date();
+  const date = new Date(PINNED_NOW);
   date.setDate(date.getDate() + offset);
   return date;
 }
@@ -25,11 +26,11 @@ const pillOf = (offset: number) => `${pad(dateOf(offset).getDate())}.${pad(dateO
 function labelOf(offset: number): string {
   const date = dateOf(offset);
   const weekday = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][date.getDay()];
-  const year = date.getFullYear() === new Date().getFullYear() ? "" : String(date.getFullYear());
+  const year = date.getFullYear() === PINNED_NOW.getFullYear() ? "" : String(date.getFullYear());
   return `${weekday} ${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${year}`;
 }
 /** Days from today to the next day with this weekday (0 = Sunday), today included. */
-const untilWeekday = (weekday: number) => (weekday - new Date().getDay() + 7) % 7;
+const untilWeekday = (weekday: number) => (weekday - PINNED_NOW.getDay() + 7) % 7;
 
 type Entry = { id: string; date: string; title: string; tags: string[]; time: string | null };
 
