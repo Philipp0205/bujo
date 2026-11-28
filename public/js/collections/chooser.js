@@ -113,7 +113,7 @@
     overlay.querySelector('input').focus();
   }
 
-  /** The page number form: a numeric input, Save, and "No page number" to clear. send(page|null) saves; the server's text shows when it refuses (400). */
+  /** The index form (Add to index): a numeric page input, a button, and "Remove from index" to clear. send(page|null) saves; the server's text shows when it refuses (400). */
   function pageForm(collection, onSaved) {
     var copy = L.collections.copy;
     var current = L.collections.model.pageOf(collection);
