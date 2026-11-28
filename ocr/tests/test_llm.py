@@ -406,11 +406,11 @@ def test_bad_answers_raise_llm_error(gateway, answer):
     _, image = page_image()
     with pytest.raises(llm.LlmError):
         llm.read_page(image)
-    assert len(gateway.requests) == 1
+    assert len(gateway.requests) == (2 if answer[1] in ("not json at all", completion("not json")) else 1)
 
 
-def test_errors_log_one_line_without_secrets(gateway, caplog):
-    gateway.answers = [(200, completion("Geheimer Seitentext"), 0)]
+def test_errors_log_one_warning_without_secrets(gateway, caplog):
+    gateway.answers = [(500, "Geheimer Seitentext", 0)]
     _, image = page_image()
     with caplog.at_level("INFO", logger="bujo_ocr"), pytest.raises(llm.LlmError):
         llm.read_page(image)
@@ -418,6 +418,91 @@ def test_errors_log_one_line_without_secrets(gateway, caplog):
     message = caplog.records[0].getMessage()
     assert "claude-haiku-5-5" in message
     assert "test-key" not in message and "Geheimer" not in message
+
+
+def test_a_retry_logs_category_and_model_only_then_one_final_warning(gateway, caplog):
+    gateway.answers = [(200, completion("Geheimer Seitentext"), 0)]
+    _, image = page_image()
+    with caplog.at_level("INFO", logger="bujo_ocr"), pytest.raises(llm.LlmError):
+        llm.read_page(image)
+    assert [r.levelname for r in caplog.records] == ["INFO", "WARNING"]
+    for record in caplog.records:
+        message = record.getMessage()
+        assert "invalid json" in message and "claude-haiku-5-5" in message
+        assert "test-key" not in message and "Geheimer" not in message and "127.0.0.1" not in message
+
+
+# retry on invalid json
+
+
+def test_invalid_json_then_a_valid_page_succeeds_with_two_requests(gateway):
+    gateway.answers = [(200, completion("not json"), 0), ok()]
+    _, image = page_image()
+    assert len(llm.read_page(image).lines) == 3
+    assert len(gateway.requests) == 2
+
+
+def test_a_non_json_gateway_body_then_a_valid_page_succeeds(gateway):
+    gateway.answers = [(200, "<html>oops</html>", 0), ok()]
+    _, image = page_image()
+    assert len(llm.read_page(image).lines) == 3
+    assert len(gateway.requests) == 2
+
+
+def test_two_invalid_json_answers_fail_after_exactly_two_requests(gateway):
+    gateway.answers = [(200, completion("not json"), 0), (200, completion("still not"), 0), ok()]
+    _, image = page_image()
+    with pytest.raises(llm.LlmError) as raised:
+        llm.read_page(image)
+    assert raised.value.category == "invalid json"
+    assert len(gateway.requests) == 2
+
+
+def test_a_format_rejection_then_invalid_json_stops_after_two_requests(gateway):
+    gateway.answers = [(400, "response_format nope", 0), (200, completion("not json"), 0), ok()]
+    _, image = page_image()
+    with pytest.raises(llm.LlmError) as raised:
+        llm.read_page(image)
+    assert raised.value.category == "invalid json"
+    assert len(gateway.requests) == 2
+    assert "response_format" not in gateway.requests[1]["body"]
+
+
+@pytest.mark.parametrize("answer, category", [((401, "no", 0), "http 401"), ((500, "boom", 0), "http 500")])
+def test_http_errors_are_a_single_request(gateway, answer, category):
+    gateway.answers = [answer, ok()]
+    _, image = page_image()
+    with pytest.raises(llm.LlmError) as raised:
+        llm.read_page(image)
+    assert raised.value.category == category
+    assert len(gateway.requests) == 1
+
+
+def test_a_timeout_is_a_single_request(gateway, monkeypatch):
+    gateway.answers = [(200, completion("{}"), 2.0), ok()]
+    monkeypatch.setenv("OCR_LLM_TIMEOUT", "0.3")
+    _, image = page_image()
+    with pytest.raises(llm.LlmError) as raised:
+        llm.read_page(image)
+    assert raised.value.category == "timeout"
+    assert len(gateway.requests) == 1
+
+
+def test_a_network_failure_is_a_single_request(monkeypatch):
+    calls = []
+
+    class Opener:
+        def open(self, request, timeout=None):
+            calls.append(request)
+            raise OSError("down")
+
+    monkeypatch.setenv("OCR_LLM_BASE", "http://gateway.invalid/v1")
+    monkeypatch.setenv("OCR_LLM_KEY", "test-key")
+    _, image = page_image()
+    with pytest.raises(llm.LlmError) as raised:
+        llm.read_page(image, opener=Opener())
+    assert raised.value.category == "network"
+    assert len(calls) == 1
 
 
 def test_a_redirect_is_not_followed(gateway):
@@ -570,7 +655,7 @@ def test_service_gateway_problems_are_a_502_with_the_category(gateway, service, 
     status, body = call_ocr(service, make_page().png)
     assert status == 502
     assert body == {"error": "ocr reader failed", "category": category}
-    assert len(gateway.requests) == 1
+    assert len(gateway.requests) == (2 if category == "invalid json" else 1)
 
 
 def test_service_timeout_is_a_502(gateway, service, monkeypatch):

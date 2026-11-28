@@ -366,13 +366,25 @@ def parse_page(content: str, model: str) -> LlmPage:
 
 
 def _ask(settings: Settings, image_rgb: np.ndarray, opener) -> LlmPage:
-    """Sends the page, once more without response_format if the gateway rejects it, and parses the answer."""
+    """Sends the page and parses the answer. Retries the request once, and only once, when the answer is invalid
+    JSON (same body) or the gateway rejects response_format (body without it). Other failures are not retried."""
     data_url = encode_image(image_rgb)
     try:
-        answer = _post(settings, build_body(settings.model, data_url), opener)
-    except _FormatRejected:
-        answer = _post(settings, build_body(settings.model, data_url, with_format=False), opener)
-    return parse_page(_answer_text(answer), settings.model)
+        return _request(settings, build_body(settings.model, data_url), opener)
+    except LlmError as error:
+        if isinstance(error, _FormatRejected):
+            retry = build_body(settings.model, data_url, with_format=False)
+        elif error.category == "invalid json":
+            retry = build_body(settings.model, data_url)
+        else:
+            raise
+        log.info("llm retry: %s (model %s)", error.category, settings.model)
+        return _request(settings, retry, opener)
+
+
+def _request(settings: Settings, body: dict, opener) -> LlmPage:
+    """One POST and the parse of its answer."""
+    return parse_page(_answer_text(_post(settings, body, opener)), settings.model)
 
 
 def read_page(image_rgb: np.ndarray, *, opener=None) -> LlmPage:
