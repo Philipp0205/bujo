@@ -1,15 +1,13 @@
 /*
  * What the person sees and feels when a row flips between task and done: the glyph and the title change in place at once, with a
  * short ink animation (log.css, .is-inking), and a small haptic pulse where the device has one. DOM only, no fetch.
- * Needs glyph.js, copy.js and paper/view.js.
+ * Needs glyph.js, copy.js, paper/view.js and feel/feedback.js.
  */
 (function () {
   'use strict';
 
   var L = window.BujoLog = window.BujoLog || {};
   L.done = L.done || {};
-
-  var PULSE_MS = 12;
 
   /** The row of an entry on screen, or null. */
   function rowOf(id) {
@@ -39,10 +37,9 @@
     L.ink.bullet.draw(sym.querySelector('.ink-bullet'));
   }
 
-  /** A short pulse when the device can vibrate. Never required, never throws. */
+  /** A short pulse when the device can vibrate and the person turned feedback on (js/log/feel). Never required, never throws. */
   function buzz() {
-    if (!navigator.vibrate) return;
-    try { navigator.vibrate(PULSE_MS); } catch (error) { /* a pulse is a nicety */ }
+    L.feel.feedback.cue('lock');
   }
 
   L.done.flip = { rowOf: rowOf, play: play, apply: apply, buzz: buzz };

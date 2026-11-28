@@ -1,0 +1,99 @@
+/*
+ * bujo paper details: pencil-gray ink for secondary text, the small imperfections of handwriting, and the sound and haptics switch.
+ * Loaded after the other paper styles, so its rules win. Light and dark come from the tokens, as in paper.css.
+ */
+
+/* ----- Pencil: a soft graphite gray, a little warm. Text contrast against the paper is above 4.5:1 in both schemes. ----- */
+
+:root { --pencil: #a39b8d; }
+
+@media (prefers-color-scheme: light) {
+  :root { --pencil: #5e584d; }
+}
+
+html[data-ak-scheme="light"] { --pencil: #5e584d; }
+
+/* A forced dark must beat the light media block above. */
+html[data-ak-scheme="dark"] { --pencil: #a39b8d; }
+
+/* Secondary text: the muted lines, hints, counts, section labels and quiet links. State colours and primary text keep their own ink. */
+.paper-state:not([data-state="error"]),
+.paper-hint,
+.paper-day,
+.page-break,
+.paper-add,
+.paper-migrate,
+.paper-meta .pill-local,
+.paper-meta .pill-queued,
+.sheet-chips .pill,
+.sheet-sub,
+.todo-day-head,
+.todo-note,
+.migrate-day,
+.migrate-empty,
+.migrate-choice-hint,
+.suggest-hint,
+.detail-form .ak-label,
+.type-btn small,
+.collection-row-count,
+.bj-sub,
+.bj-group-title,
+.bj-note,
+.bj-font-sample {
+  color: var(--pencil);
+  text-shadow: 0 0 0.4px currentColor;
+}
+
+/* The pencil keeps its shadow off the paper wash (the sheet title lines and the day heading set their own glow). */
+.sheet-sub { text-shadow: var(--paper-glow), 0 0 0.4px currentColor; }
+.bj-font-on .bj-font-sample { color: var(--paper-ink); }
+
+/* ----- Small imperfections: a slight tilt and lift on the handwritten bits, from the hash of the entry id (js/log/feel/jitter.js sets
+   --jit-rot and --jit-y on the row). A transform moves the paint only, so row heights and the dot grid do not change. ----- */
+
+/* The words after a title are inline-block so they can tilt. They are one word each (nowrap), so the line still wraps the same way. */
+.paper-meta .pill {
+  display: inline-block;
+  transform: translateY(var(--jit-y, 0)) rotate(var(--jit-rot, 0deg));
+}
+
+/* The note under a scan review row. */
+.scan-note {
+  transform: translateY(var(--jit-y, 0)) rotate(var(--jit-rot, 0deg));
+  transform-origin: left center;
+}
+
+/* Scanned entries (written in Caveat once #116 is in) and the page number of a page turn (#116): these only start matching after that lands.
+   A scanned title is a wide block, so its tilt is a third, which keeps its far end within a pixel. */
+[data-origin="scan"] .paper-body {
+  transform: translateY(var(--jit-y, 0)) rotate(calc(var(--jit-rot, 0deg) / 3));
+  transform-origin: left center;
+}
+.page-number {
+  transform: translateY(var(--jit-y, 0)) rotate(var(--jit-rot, 0deg));
+}
+
+/* ----- The sound and haptics switch on the settings page: a real switch with the pen tick box, 48px tall ----- */
+
+.bj-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font: inherit;
+  font-size: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+.bj-switch[aria-checked="true"] .ink-tick-mark { visibility: visible; }
+.bj-switch:focus-visible { outline: 2px solid var(--paper-muted); outline-offset: 2px; border-radius: 6px; }

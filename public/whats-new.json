@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-28-paper-details",
+    "date": "2026-11-28",
+    "title": "Paper details",
+    "bullets": [
+      "Optional soft sound and haptics on check-off and page turns, off until you switch them on in Settings.",
+      "Secondary text is now in pencil gray, and handwriting sits a little uneven, like real ink.",
+      "A dropped task now shows a dot with a clean slash."
+    ]
+  },
+  {
     "id": "2026-11-28-ocr-json-retry",
     "date": "2026-11-28",
     "title": "Fewer failed page scans",

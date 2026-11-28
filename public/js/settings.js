@@ -197,7 +197,7 @@
       return;
     }
     var focus = document.activeElement && document.activeElement.id;
-    app.replaceChildren.apply(app, [title, emailSection(), BujoTheme.section.section(), BujoFont.section.section(), tokenSection(), BujoWhatsNew.settingsRow.section(), signOut()].filter(Boolean));
+    app.replaceChildren.apply(app, [title, emailSection(), BujoTheme.section.section(), BujoFont.section.section(), BujoLog.feel.section.section(), tokenSection(), BujoWhatsNew.settingsRow.section(), signOut()].filter(Boolean));
     BujoLog.ink.decorate.screen(app);
     if (focus) { var again = document.getElementById(focus); if (again) again.focus(); }
   }

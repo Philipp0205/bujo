@@ -52,7 +52,7 @@
     if (!type || busy[id] || owner.selecting()) return;
     busy[id] = true;
     L.done.flip.apply(L.done.flip.rowOf(id), type, marked(owner.host, owner.entry, type));
-    L.done.flip.buzz();
+    L.feel.feedback.cue('check');
     L.outbox.save.update(owner.entry, { type: type }).then(function (next) { saved(owner.host, id, next); }, function () { refused(owner.host, owner.entry); });
   }
 
