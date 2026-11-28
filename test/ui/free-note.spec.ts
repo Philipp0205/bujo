@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { line } from "../fake-ocr.ts";
 import { openNoteCard, openNoteEditor, openSavedNote, useBujo } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { openScan, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -40,7 +40,8 @@ async function openNoteCamera(page: Page): Promise<void> {
 /** Scans a free-form page (the default settings, no mode choice), through the given input. The note review sheet is up after this. */
 async function scanNote(page: Page, input = "#scan-file"): Promise<void> {
   await openNoteCamera(page);
-  await page.locator(input).setInputFiles(photo);
+  if (input === "#scan-file") await shootAndDone(page, photo);
+  else await page.locator(input).setInputFiles(photo);
   await expect(sheet(page)).toBeVisible();
 }
 
@@ -90,7 +91,7 @@ test("cancel and Escape drop the draft and write nothing", async ({ page }) => {
 test("a page with no readable text stays on the camera screen with a message", async ({ page }) => {
   app.ocr.setLines([line("none", "   ")]);
   await openNoteCamera(page);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await shootAndDone(page, photo);
   await expect(screen(page).getByRole("alert")).toContainText("No text was read from this page.");
   await expect(screen(page)).toBeVisible();
 });
@@ -196,7 +197,7 @@ function jpegSize(bytes: Buffer): { width: number; height: number } {
 test("the photo shows on the review sheet, is stored with the note as a JPEG of at most 2000px, and shows on the saved sheet", async ({ page }) => {
   const big = { name: "page.png", mimeType: "image/png", buffer: greyPng(3000, 1500) };
   await openNoteCamera(page);
-  await page.locator("#scan-file").setInputFiles(big);
+  await shootAndDone(page, big);
   await expect(sheet(page)).toBeVisible();
   const review = sheet(page).getByTestId("note-photo");
   await expect(review).toBeVisible();

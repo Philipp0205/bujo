@@ -20,8 +20,15 @@
       dayDefault: 'a date on the page wins',
       dayPicked: 'picked by you',
       dayLabel: 'Day to file on',
-      /** The quiet line under the buttons: the gallery takes several pages, up to max. */
-      galleryHint: function (max) { return 'Pick up to ' + max + ' pages from the gallery at once.'; }
+      /** The quiet line under the buttons: how the pages add up. The shutter adds a page each tap, the gallery starts a batch of its own when nothing is taken yet, else its photos join the pages taken. */
+      galleryHint: function (max) { return 'Take up to ' + max + ' pages, then tap Done. Gallery photos join them.'; },
+      /** At the max: the shutter is off. */
+      maxHint: function (max) { return 'That is ' + max + ' pages, the most one scan holds. Tap Done to read them.'; },
+      /** The counter over the thumbnails. */
+      count: function (count, max) { return count + ' of ' + max + ' pages'; },
+      done: 'Done',
+      stripLabel: 'Pages taken',
+      remove: function (number) { return 'Remove page ' + number; }
     },
     progress: {
       step: 'Reading your page\u2026',

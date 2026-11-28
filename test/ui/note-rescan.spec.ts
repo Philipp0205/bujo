@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { openSavedNote, useBujo } from "./harness.ts";
-import { openScan } from "./scan-helpers.ts";
+import { openScan, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -60,7 +60,7 @@ async function notes(page: Page): Promise<Array<{ id: string; title: string; bod
 async function scanNote(page: Page): Promise<void> {
   await page.goto(app.baseUrl);
   await openScan(page);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await shootAndDone(page, photo);
   await expect(sheet(page)).toBeVisible();
 }
 

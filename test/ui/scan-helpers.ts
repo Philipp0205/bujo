@@ -9,13 +9,32 @@ export const scanTab = (page: Page) => mainBar(page).locator("[data-tab=scan]");
 /** The raised Add tab of the bottom bar (it starts a new entry, never a scan). */
 export const addTab = (page: Page) => mainBar(page).locator("[data-tab=add]");
 
+/** The Done button of the camera screen's page tray. */
+export const doneButton = (page: Page) => page.locator("[data-action=scan-done]");
+
+/** A camera chooser whose setFiles sends the photo and taps Done, so a test that wants one page read keeps one call. */
+export type CameraChooser = Pick<FileChooser, "element" | "isMultiple"> & { setFiles(files: Parameters<FileChooser["setFiles"]>[0]): Promise<void> };
+
 /**
  * Taps the Scan tab of the bottom bar. The tap opens the camera screen and clicks the camera input at once, so a file chooser always fires.
- * It is returned: a test that wants to send a camera photo calls setFiles on it, any other test just ignores it, so none hangs on it.
+ * It is returned: a test that wants to send a camera photo calls setFiles on it (which also taps Done), any other test just ignores it, so none hangs on it.
  */
-export async function openScan(page: Page): Promise<FileChooser> {
+export async function openScan(page: Page): Promise<CameraChooser> {
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), scanTab(page).click()]);
-  return chooser;
+  return {
+    element: () => chooser.element(),
+    isMultiple: () => chooser.isMultiple(),
+    setFiles: async (files) => {
+      await chooser.setFiles(files);
+      await doneButton(page).click();
+    },
+  };
+}
+
+/** Sends files through the camera input of an open camera screen, then taps Done (a shutter photo waits for it). */
+export async function shootAndDone(page: Page, files: Parameters<FileChooser["setFiles"]>[0]): Promise<void> {
+  await page.locator("#scan-file").setInputFiles(files);
+  await doneButton(page).click();
 }
 
 /** The type picker on top of the scan review and the note sheet. */

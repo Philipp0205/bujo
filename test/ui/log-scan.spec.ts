@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { line } from "../fake-ocr.ts";
 import { useBujo } from "./harness.ts";
-import { addTab, openScan, scanTab } from "./scan-helpers.ts";
+import { addTab, doneButton, openScan, scanTab, shootAndDone } from "./scan-helpers.ts";
 
 const app = useBujo();
 
@@ -224,10 +224,11 @@ test("a failed read leaves the progress state and shows the trouble on the camer
   await expect(screen.getByRole("alert")).not.toContainText(/OCR|503|category|not configured/i);
   await expect(page.getByTestId("scan-progress")).toHaveCount(0);
   await expect(screen.locator(".scan-frame")).toBeVisible();
-  // Nothing is lost: the shutter and the gallery are ready for another try.
+  // Nothing is lost: the photo stays in the tray, so Done reads it again once the service is back.
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
+  await expect(screen.getByTestId("scan-thumb")).toHaveCount(1);
   app.ocr.failWith(0);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await doneButton(page).click();
   await expect(page.getByTestId("scan-review")).toBeVisible();
 });
 
@@ -542,23 +543,26 @@ test("trouble stays on the camera screen: a wrong file, a failing OCR and an emp
   await openScan(page);
   const screen = page.getByTestId("scan-screen");
 
-  await page.locator("#scan-file").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
+  await shootAndDone(page, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
   await expect(screen.getByRole("alert")).toContainText("not a JPEG, PNG, WebP or HEIC photo");
+  // The photo that failed stays in the tray: Done tries it again, or the x takes it out.
+  await expect(screen.getByTestId("scan-thumb")).toHaveCount(1);
+  await screen.locator("[data-action=thumb-remove]").click();
 
   app.ocr.failWith(500);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await shootAndDone(page, photo);
   await expect(screen.getByRole("alert")).toHaveText("Couldn\u2019t read the page right now. Try again.");
   await expect(screen.getByRole("button", { name: "Take a photo" })).toBeEnabled();
   await expect(screen.getByRole("button", { name: "Choose from gallery" })).toBeEnabled();
 
   app.ocr.failWith(0);
   app.ocr.setLines([]);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await doneButton(page).click();
   await expect(screen.getByRole("alert")).toContainText("No lines were read from this page.");
   await expect(screen).toBeVisible();
 
   app.ocr.setLines([line("•", "Doch noch", 0.9)]);
-  await page.locator("#scan-file").setInputFiles(photo);
+  await doneButton(page).click();
   await expect(page.getByTestId("scan-review")).toBeVisible();
 });
 
@@ -599,19 +603,16 @@ test("the scan screen and the review use paper colours, never the kit pink", asy
   for (const pink of KIT_PINK) expect(screen.used).not.toContain(pink);
 });
 
-test("a struck-through line shows as dropped, can be corrected, and apply writes dropped on a matched task and a new line", async ({ page }) => {
+test("a struck-through line is left out of the review, and applying leaves a matching open task alone", async ({ page }) => {
   await seed(page, [{ date: day(0), type: "task", title: "Fenster putzen" }]);
-  await scanPage(page, [headerLine(day(0)), line("~", "Fenster putzen", 0.9, 1), line("~", "Alte Idee", 0.8, 2), line("~", "Nur ein Strich", 0.7, 3)]);
+  await scanPage(page, [headerLine(day(0)), line("~", "Fenster putzen", 0.9, 1), line("~", "Alte Idee", 0.8, 2), line("•", "Kerzen holen", 0.7, 3)]);
 
-  await expect(rows(page).nth(0).locator('[data-field="type"]')).toHaveValue("dropped");
-  await expect(rows(page).nth(0).locator('[data-role="note"]')).toHaveText("matches, will be marked as dropped");
-  await expect(rows(page).nth(1).locator(".scan-glyph use")).toHaveAttribute("href", "#g-dropped");
-  await rows(page).nth(2).locator('[data-field="type"]').selectOption("task");
-  await expect(rows(page).nth(2).locator(".scan-glyph use")).toHaveAttribute("href", "#g-task");
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).nth(0).locator('[data-field="title"]')).toHaveValue("Kerzen holen");
 
   await review(page).locator("[data-action=apply]").click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(logRow(page, "Fenster putzen")).toHaveAttribute("data-type", "dropped");
-  await expect(logRow(page, "Alte Idee")).toHaveAttribute("data-type", "dropped");
-  await expect(logRow(page, "Nur ein Strich")).toHaveAttribute("data-type", "task");
+  await expect(logRow(page, "Fenster putzen")).toHaveAttribute("data-type", "task");
+  await expect(logRow(page, "Alte Idee")).toHaveCount(0);
+  await expect(logRow(page, "Kerzen holen")).toHaveAttribute("data-type", "task");
 });
