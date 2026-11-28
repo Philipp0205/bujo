@@ -26,6 +26,7 @@
       prev: 'Previous page',
       next: 'Next page',
       folio: function (number) { return 'Page ' + number; },
+      notebookPage: function (number) { return 'Notebook page ' + number; },
       pickDay: 'Choose a day',
       picker: {
         label: 'Choose a day',

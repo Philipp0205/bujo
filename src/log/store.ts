@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { inTransaction, type Db } from "../db.ts";
 import { onPaper } from "./paper.ts";
+import { originOf } from "./origin.ts";
 import { settleHorizon } from "./horizon.ts";
 import { createNotebookStore } from "./notebooks.ts";
 import type { DateRange, Entry, EntryHorizon, EntryPatch, MoveDirection, NewEntry, RemoteLink, ScanEntry, ScanSnapshot, SyncChange, TagUse } from "./types.ts";
@@ -31,6 +32,7 @@ type Row = {
   scan_tags: string | null;
   scan_time: string | null;
   scan_at: number | null;
+  origin: string | null;
 };
 
 type LinkRow = { remote_href: string | null; remote_uid: string | null; remote_etag: string | null };
@@ -59,6 +61,8 @@ export type EntryStore = {
    * Does nothing for an unknown entry.
    */
   setScanProvenance(userId: string, id: string, snapshot: ScanSnapshot): void;
+  /** Marks an entry's title as read from paper (origin "scan"). Not an edit: updated_at and sync stay. */
+  markScanOrigin(userId: string, id: string): void;
   /**
    * Files the entries of a scanned page: they get this page and the order of `ids` (the paper's line order), after the earlier pages and
    * before the later ones. Other entries of that page stay beside their old neighbours, entries not on paper stay at the end. Not an edit: no timestamps, no sync.
@@ -102,7 +106,7 @@ export type EntryStore = {
 /** The entry columns, the scan provenance (read to derive onPaper, never sent), the tag list as JSON (in written order) and a flag for a stored photo (the bytes are never selected here). */
 const COLUMNS =
   "id, date, horizon, time, type, title, body, collection_id, important, sync, sync_error, position, paper_page, indent, created_at, updated_at, " +
-  "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, " +
+  "scan_key, scan_type, scan_title, scan_tags, scan_time, scan_at, origin, " +
   "(SELECT json_group_array(tag) FROM (SELECT tag FROM entry_tags WHERE entry_id = entries.id ORDER BY position)) AS tags_json, " +
   "EXISTS (SELECT 1 FROM entry_photos WHERE entry_id = entries.id) AS has_photo";
 
@@ -178,7 +182,8 @@ function toEntry(row: Row): Entry {
     updatedAt: Number(row.updated_at),
   };
   // An entry on a collection has no day page to copy onto paper, so it never waits to be written (back on the log it is judged again).
-  return { ...entry, onPaper: entry.collectionId !== null || onPaper(entry, toSnapshot(row)) };
+  const snapshot = toSnapshot(row);
+  return { ...entry, onPaper: entry.collectionId !== null || onPaper(entry, snapshot), origin: originOf(row.origin, entry, snapshot) };
 }
 
 /**
@@ -323,6 +328,10 @@ export function createEntryStore(db: Db): EntryStore {
         userId,
         id,
       );
+    },
+
+    markScanOrigin(userId, id) {
+      db.prepare("UPDATE entries SET origin = 'scan' WHERE user_id = ? AND id = ?").run(userId, id);
     },
 
     setIndent(userId, id, indent) {

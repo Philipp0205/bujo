@@ -408,6 +408,7 @@
     var ready = state.status === 'ready';
     return L.pages.view.page({
       date: shown.date, ready: ready, isToday: shown.date === state.today, number: ready ? L.pages.model.numberOf(shown.days, shown.date) : 0,
+      notebookNumber: ready ? L.pages.number.forDay(shown.date) : 0,
       around: ready ? L.pages.model.neighbours(shown.days, shown.date) : { prev: null, next: null },
       locked: locked(), turn: turn, body: body(shown.date), nav: nav, view: 'daily', switcher: switcher()
     });
@@ -492,7 +493,8 @@
   function fetchWindow() {
     state.today = L.dates.todayIso();
     var range = L.dates.windowWith(state.today, state.focus);
-    return L.api.listWithTraces(range.from, range.to);
+    var numbers = L.pages.number.load();
+    return L.api.listWithTraces(range.from, range.to).then(function (list) { return numbers.then(function () { return list; }); });
   }
 
   /** Reads the span of Month and Future: the first of this month through the end of the sixth month. */
