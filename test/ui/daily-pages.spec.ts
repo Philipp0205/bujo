@@ -186,7 +186,12 @@ test("a swipe from the bare paper turns the page and skips the days without entr
 });
 
 test("the day picker marks the days with entries, turns to one with a tap and closes", async ({ page }) => {
-  await seed(page, [{ offset: -2, title: "Gestern oder so" }, { offset: 3, title: "In drei Tagen" }]);
+  // The picker shows the current month only, so the second marked day is the one of +3 / -3 days that stays in this month.
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const far = today.getDate() + 3 <= daysInMonth ? 3 : -3;
+  const unmarked = far > 0 ? 1 : -1;
+  await seed(page, [{ offset: -2, title: "Gestern oder so" }, { offset: far, title: "In drei Tagen" }]);
   await openLog(page);
 
   await page.getByTestId("page-date").click();
@@ -196,14 +201,14 @@ test("the day picker marks the days with entries, turns to one with a tap and cl
   await expect(cell(0)).toHaveAttribute("data-selected", "true");
   await expect(cell(0)).toHaveAttribute("data-today", "true");
   await expect(cell(-2)).toHaveAttribute("data-marked", "true");
-  await expect(cell(3)).toHaveAttribute("data-marked", "true");
+  await expect(cell(far)).toHaveAttribute("data-marked", "true");
   // A day without entries cannot be chosen, and the tap of a day with entries turns to it and closes the picker.
-  await expect(cell(1)).toBeDisabled();
-  await cell(3).click();
+  await expect(cell(unmarked)).toBeDisabled();
+  await cell(far).click();
   await expect(picker).toHaveCount(0);
-  await expect(body(page)).toHaveAttribute("data-date", day(3));
+  await expect(body(page)).toHaveAttribute("data-date", day(far));
   await expect(row(page, "In drei Tagen")).toBeVisible();
-  await expect.poll(() => addressDay(page)).toBe(day(3));
+  await expect.poll(() => addressDay(page)).toBe(day(far));
 });
 
 test("Escape closes the day picker first and stays on the page", async ({ page }) => {
