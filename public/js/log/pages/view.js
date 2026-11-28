@@ -57,10 +57,17 @@
     });
   }
 
+  /** The notebook page number in the corner of the page, in handwriting. Nothing when the number is unknown. */
+  function notebookNumber(ctx) {
+    if (!ctx.notebookNumber) return null;
+    return h('span', { class: 'page-number', 'data-testid': 'page-number', role: 'img', 'aria-label': L.copy.pages.notebookPage(ctx.notebookNumber) }, String(ctx.notebookNumber));
+  }
+
   /** The leaf: the rows of the page and the two edge strips. It does not scroll: the sheet (#log) does. */
   function leaf(ctx, key) {
     return h('div', { class: 'page-leaf' },
       h('div', { class: 'page-body', 'data-date': key, 'data-testid': 'page-body' }, ctx.body),
+      notebookNumber(ctx),
       edge('prev', ctx),
       edge('next', ctx));
   }

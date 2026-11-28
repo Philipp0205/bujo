@@ -1,0 +1,71 @@
+/*
+ * bujo paper handwriting: text that came from a paper scan is shown in the pen hand (Caveat), so paper and app read apart at a glance.
+ * An entry typed in the app keeps the serif. Row height does not change: the line height is inherited from the row body (the dot grid),
+ * only the face and size differ. Also the notebook page number in the corner of the day, and the soft curl of the page turn.
+ */
+
+/* The title of a scanned entry. Caveat runs small for its size, so 21px matches the x-height of the 18px serif. */
+.paper-row[data-origin="scan"] .paper-title {
+  font-family: var(--font-hand);
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: 0;
+  /* A short inline box: the serif strut of the row body sets the line, so the face change can never grow the row off the grid. */
+  line-height: 1;
+  font-variation-settings: normal;
+}
+
+/* ----- The notebook page number ----- */
+
+/* Small, in the bottom corner of the page, in the flow after the rows: it sits above the tab bar (the page keeps its foot padding) and
+   can never cover the header or a row. Hidden when the number is unknown (the node is not drawn). */
+.page-number {
+  align-self: flex-end;
+  margin: auto 0 0;
+  padding-top: 8px;
+  color: var(--paper-muted);
+  font: 500 20px/24px var(--font-hand);
+  text-shadow: var(--paper-glow);
+  pointer-events: none;
+}
+
+/* ----- The page turn ----- */
+
+/* A short slide with a soft curl: the edge the page comes from carries a faint fold shadow that fades as the page settles.
+   Transform, opacity and a shadow on a pseudo element only. Reduced motion turns it all off. */
+/* The slide is 36px, like the turn it replaces: a swipe that starts while it settles must still clear the 24px screen edge zone of turn.js. */
+@keyframes page-curl-next {
+  from { transform: translateX(36px); opacity: 0.35; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes page-curl-prev {
+  from { transform: translateX(-36px); opacity: 0.35; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes page-fold {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.paper-page[data-turn="next"] { animation: page-curl-next 250ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.paper-page[data-turn="prev"] { animation: page-curl-prev 250ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.paper-page[data-turn]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  animation: page-fold 250ms ease-out both;
+}
+.paper-page[data-turn="next"]::after {
+  left: 0;
+  background: linear-gradient(to right, rgba(20, 14, 10, 0.22), rgba(20, 14, 10, 0.06) 45%, transparent);
+}
+.paper-page[data-turn="prev"]::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(20, 14, 10, 0.22), rgba(20, 14, 10, 0.06) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .paper-page[data-turn],
+  .paper-page[data-turn]::after { animation: none; }
+}

@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-11-28-paper-handwriting",
+    "date": "2026-11-28",
+    "title": "Handwriting from paper",
+    "bullets": [
+      "Entries read from a paper scan show in handwriting; typed ones stay in print.",
+      "The notebook page number shows in the corner of a day, when it is known.",
+      "Turning a day now slides the page with a soft curl."
+    ]
+  },
+  {
     "id": "2026-11-28-llm-only-ocr",
     "date": "2026-11-28",
     "title": "Scanning reads with AI only",

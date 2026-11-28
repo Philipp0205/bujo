@@ -205,6 +205,8 @@ const ENTRY_EXTRA_COLUMNS: ReadonlyArray<readonly [name: string, type: string]> 
   ["collection_id", "TEXT"],
   // The physical notebook (notebooks.id) a free note belongs to. Only free notes (a body) carry one: logs are scoped by paper_pages.
   ["notebook_id", "TEXT"],
+  // "scan" when a paper scan wrote the entry's title (see src/log/origin.ts). Null is an app entry.
+  ["origin", "TEXT"],
 ];
 
 /** Columns added after the first release of the users table. whats_new_seen is the newest what's-new entry id the account has seen. */

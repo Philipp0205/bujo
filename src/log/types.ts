@@ -46,7 +46,12 @@ export type Entry = {
    * changed type, title, tags or time since. Derived from the scan provenance, which itself never reaches the API.
    */
   onPaper: boolean;
+  /** "scan" when the title came from a paper scan and is unchanged since, else "app" (see origin.ts). Absent on a queued entry that was never saved: that reads as "app". */
+  origin?: EntryOrigin;
 };
+
+/** Where an entry's text came from. */
+export type EntryOrigin = "scan" | "app";
 
 /** Where an entry lives on the sync target. Kept in the database only, never sent to the browser. */
 export type RemoteLink = { href: string; uid: string; etag: string | null };

@@ -95,6 +95,7 @@
       'data-sync': entry.sync,
       'data-queued': entry.queued || null,
       'data-on-paper': entry.onPaper ? 'true' : 'false',
+      'data-origin': entry.origin === 'scan' ? 'scan' : 'app',
       'data-important': entry.important ? 'true' : null,
       'data-indent': String(indent),
       'aria-selected': picking ? String(ticked) : null,

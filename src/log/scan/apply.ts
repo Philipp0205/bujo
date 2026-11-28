@@ -79,10 +79,12 @@ function writeOne(db: Db, store: EntryStore, userId: string, now: number, planne
     const updated = store.update(userId, resolution.target.id, { type, title, tags, time, ...importantMark(item) }, now)!;
     // The paper state is what the entry now says: a title the paper only misspelled stays as the entry has it.
     store.setScanProvenance(userId, updated.id, snapshotOf(updated, now));
+    store.markScanOrigin(userId, updated.id);
     return { id: item.id, outcome: "updated", entry: updated, unflag: item.unflag && !item.important };
   }
   const created = store.create(userId, paper.entry, now);
   store.setScanProvenance(userId, created.id, snapshotOf(paper.entry, now));
+  store.markScanOrigin(userId, created.id);
   return { id: item.id, outcome: "created", entry: created };
 }
 

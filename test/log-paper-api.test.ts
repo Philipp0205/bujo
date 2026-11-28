@@ -24,7 +24,7 @@ test("create answers onPaper false, and list, get-by-list and patch carry it; no
     const notes = await api(base, "GET", "/api/entries?kind=notes", { headers });
     assert.deepEqual(notes.json.entries, []);
     for (const json of [created.json, listed.json, patched.json]) {
-      assert.equal(JSON.stringify(json).includes("scan"), false, "no provenance on the public API");
+      assert.equal(JSON.stringify(json).replaceAll('"origin":"scan"', "").includes("scan"), false, "no provenance on the public API");
     }
   });
 });
@@ -42,7 +42,7 @@ test("POST /:id/written puts the entry on paper without an edit; an app edit aft
     assert.equal(written.json.entry.onPaper, true);
     assert.equal(written.json.entry.id, id);
     assert.deepEqual(row(), before, "marking is not an edit: updated_at and sync stay");
-    assert.equal(JSON.stringify(written.json).includes("scan"), false);
+    assert.equal(JSON.stringify(written.json).replaceAll('"origin":"scan"', "").includes("scan"), false);
 
     await sleep(5);
     const edited = await api(base, "PATCH", `/api/entries/${id}`, { body: { time: "11:00" }, headers });
@@ -137,7 +137,7 @@ test("a scan that matches an app-created entry leaves it on paper, and a later a
 
       const day = (await api(base, "GET", `/api/entries?from=${DAY}&to=${DAY}`, { headers })).json.entries;
       assert.deepEqual(day.map((e: any) => [e.title, e.onPaper]), [["Brot kaufen", true], ["Milch", true]]);
-      assert.equal(JSON.stringify(day).includes("scan"), false);
+      assert.equal(JSON.stringify(day).replaceAll('"origin":"scan"', "").includes("scan"), false);
 
       await sleep(5);
       const edited = await api(base, "PATCH", `/api/entries/${id}`, { body: { tags: ["neu"] }, headers });
