@@ -677,7 +677,7 @@
     booted = true;
     AppKit.installPrompt.init({ appName: 'bujo', iconUrl: '/icons/icon-192.png' });
     L.inline.editor.init(host);
-    L.select.mode.init({ host: host, root: root });
+    L.select.mode.init({ host: host });
     initGestures();
     L.done.toggle.init({
       root: root,
@@ -690,6 +690,10 @@
       host: { entries: reviewEntries, today: host.today, upsert: upsert, remove: leave, paint: render }
     });
     L.type.picker.init({ root: root, select: L.select.mode });
+    L.radial.hold.init({
+      selecting: L.select.mode.on,
+      hooks: { open: actions.open, select: L.select.mode.hold }
+    });
     L.pages.turn.init({ root: root, active: canTurn, onTurn: turnBy });
     L.pages.scroll.init(root);
     root.addEventListener('click', onPaperTap);

@@ -108,5 +108,5 @@
     L.type.hold.init({ root: options.root, active: function () { return !options.select.on(); }, onHold: open });
   }
 
-  L.type.picker = { init: init, close: close };
+  L.type.picker = { init: init, open: open, close: close };
 })();

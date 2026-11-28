@@ -8,7 +8,7 @@
  * the editor. A held finger would open the browser's menu on a row, so contextmenu on a row is cancelled.
  *
  * HOOK FOR OTHER FEATURES: L.gesture.hold.onHeldStill(fn). fn(id, row) runs once per press when a row is held still (about half a second,
- * no move). select/press.js (the row long press that starts select mode) is such a subscriber; a radial menu would be another.
+ * no move). radial/hold.js (the planet menu, or a tick while already selecting) is the subscriber.
  *
  * Needs days.js (hasDay) and the DOM. init options: root (the page node), skip(event) true for a press that is not this one's
  * (the marker hold of type/hold.js), canDrag() true while a drag may start, drag { start(row, event) -> boolean, move(event), end(event), cancel() }.
@@ -134,7 +134,7 @@
     if (rowOf(event)) event.preventDefault();
   }
 
-  /** Calls fn(id, row) whenever a row is held still. The hook for select mode and for a radial menu. */
+  /** Calls fn(id, row) whenever a row is held still. The hook for the planet menu (radial/hold.js). */
   function onHeldStill(fn) {
     stillFns.push(fn);
   }

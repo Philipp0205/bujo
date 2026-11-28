@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-11-28-radial-menu",
+    "date": "2026-11-28",
+    "title": "A planet menu on long press",
+    "bullets": [
+      "Hold an entry to open a ring of hand-drawn bubbles around it.",
+      "Tap a bubble, or drag onto it and let go, to tick, move, edit, change type, drop or select."
+    ]
+  },
+  {
     "id": "2026-11-28-drag-reorder",
     "date": "2026-11-28",
     "title": "Drag entries into place",

@@ -202,6 +202,7 @@ test("with rows selected the pinned bar keeps the dots of the sheet under it, wi
   await page.mouse.down();
   await page.waitForTimeout(650);
   await page.mouse.up();
+  await page.getByTestId("radial-select").click();
   const bar = page.getByTestId("select-bar");
   await expect(bar).toBeVisible();
   await scrollTo(page, sheet(page), 301);
