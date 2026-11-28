@@ -143,17 +143,19 @@ test("a quick sideways swipe on an open task opens the move chooser and does not
   expect(await stored(page)).toEqual(["Alpha", "Bravo"]);
 });
 
-test("holding a row still, without moving, starts select mode as before", async ({ page }) => {
+test("holding a row still, without moving, opens the planet menu, and its select bubble starts select mode", async ({ page }) => {
   await seed(page, ["Alpha", "Bravo"]);
   await openLog(page);
   const start = await centerOf(page, "Alpha");
   const touch = await finger(page);
   await touch.down(start.x, start.y);
-  await page.waitForTimeout(700);
+  await expect(page.getByTestId("radial-menu")).toBeVisible();
   await touch.up();
-  await expect(page.getByTestId("select-bar")).toBeVisible();
+  await expect(page.getByTestId("radial-menu")).toBeVisible();
   await expect(page.locator(".is-lifted")).toHaveCount(0);
   await expect(page.getByTestId("edit-sheet")).toBeHidden();
+  await page.getByTestId("radial-select").click();
+  await expect(page.getByTestId("select-bar")).toBeVisible();
 });
 
 test("a card with an entry nested under it moves as one", async ({ page }) => {

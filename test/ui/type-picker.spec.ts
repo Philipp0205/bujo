@@ -91,11 +91,14 @@ test("a long press on the marker opens every writer-facing type, starts no selec
   await expect(row(page, "Halten")).toHaveAttribute("data-type", "task");
 });
 
-test("a long press on the title still starts select mode and opens no picker", async ({ page }) => {
+test("a long press on the title opens the planet menu, select starts select mode and no picker opens", async ({ page }) => {
   await seed(page, "task", "Titel");
   await openLog(page);
 
   await hold(page, row(page, "Titel").locator(".paper-title"));
+  await expect(page.getByTestId("radial-menu")).toBeVisible();
+  await expect(picker(page)).toHaveCount(0);
+  await page.getByTestId("radial-select").click();
   await expect(row(page, "Titel").getByTestId("select-check")).toHaveAttribute("data-checked", "true");
   await expect(picker(page)).toHaveCount(0);
 });

@@ -1,9 +1,9 @@
 /*
- * Select mode of the rapid log: a long press on a row starts it, a tap on a row ticks or unticks it, and Copy writes the ticked
+ * Select mode of the rapid log: the "select" bubble of the planet menu (a long press on a row) starts it, a tap on a row ticks or unticks it, and Copy writes the ticked
  * entries to the clipboard as paper lines. While it is on, the page shows the select bar instead of the header.
  * The phone's Back leaves it, through the one overlay stack (BujoNav.overlays, name "select"), and copies nothing.
  * Delete asks through select/confirm.js and removes through select/remove.js. The host also needs group, replaceGroup and forget (the inline editor's host).
- * Needs select/model.js, select/press.js, select/bar.js, clipboard.js, toast.js, the inline editor (settle), gesture/hold.js and nav/overlays.js.
+ * Needs select/model.js, select/bar.js, clipboard.js, toast.js, the inline editor (settle) and nav/overlays.js.
  * host: entries() the entries on screen, draw() redraws the page.
  */
 (function () {
@@ -36,7 +36,7 @@
     return host.entries().filter(function (entry) { return entry.id === id; })[0] || null;
   }
 
-  /** A long press on a row: starts select mode (after any open edit line is saved or dropped), or ticks one more row. */
+  /** The select bubble of the menu (or a long press while selecting): starts select mode (after any open edit line is saved or dropped), or ticks one more row. */
   function hold(id) {
     var entry = entryOf(id);
     if (!entry) return;
@@ -92,14 +92,13 @@
     });
   }
 
-  /** Wires select mode to its host and starts watching long presses on the page. */
+  /** Wires select mode to its host. The long press that starts it is the planet menu's (radial/hold.js), which calls hold. */
   function init(options) {
     host = options.host;
-    L.select.press.init({ onHold: hold });
   }
 
   L.select.mode = {
-    init: init, toggle: toggle, bar: bar,
+    init: init, toggle: toggle, bar: bar, hold: hold,
     on: function () { return on; },
     ticked: function (entry) { return L.select.model.has(entry.id); }
   };

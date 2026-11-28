@@ -2,7 +2,7 @@
  * The long press on the marker (the bullet) of a log row: hold for about half a second without moving to open the type picker.
  * A short tap is left alone (the done toggle still flips a task). A move past the slop before the hold time is a swipe or a scroll, not
  * a hold. It stays off the left screen edge (the phone's Back). The click that ends a hold is eaten, so the row does not also toggle or
- * open. The row long press of select mode skips a press this owns (see owns). Needs days.js (hasDay) and the DOM.
+ * open. The row long press of the planet menu (radial/hold.js) skips a press this owns (see owns). Needs days.js (hasDay) and the DOM.
  * options: root (the page node), active() true while a hold may act, onHold(id) with the data-id of the row. Each page that shows
  * rows (the log, a collection page) calls init with its own root; a press is handled by the page whose root holds it.
  */

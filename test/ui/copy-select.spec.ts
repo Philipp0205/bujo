@@ -67,7 +67,7 @@ async function freezeClock(page: Page): Promise<void> {
   await page.clock.pauseAt(new Date(PINNED_NOW.getTime() + 60_000));
 }
 
-/** A long press with the mouse: scroll the row to the middle (clear of the tab bar), press, hold past the hold time, release. */
+/** A long press with the mouse opens the planet menu: scroll the row to the middle (clear of the tab bar), press, hold past the hold time, release, then tap its select bubble. */
 async function hold(page: Page, title: string): Promise<void> {
   await row(page, title).evaluate((node) => node.scrollIntoView({ block: "center" }));
   const box = (await row(page, title).boundingBox())!;
@@ -76,6 +76,7 @@ async function hold(page: Page, title: string): Promise<void> {
   await page.mouse.down();
   await page.clock.runFor(650);
   await page.mouse.up();
+  await page.getByTestId("radial-select").click();
 }
 
 test("the copy key copies the open entry as one paper line and keeps the sheet open", async ({ page }) => {
@@ -127,7 +128,7 @@ test("a short tap on a row still opens the edit sheet", async ({ page }) => {
   await expect(bar(page)).toHaveCount(0);
 });
 
-test("a long press on a card starts select mode with that entry selected and no edit sheet", async ({ page }) => {
+test("a long press on a card opens the menu, and its select bubble starts select mode with that entry selected and no edit sheet", async ({ page }) => {
   await seed(page, [{ date: day(-1), type: "task", title: "Gehalten" }, { date: day(-1), type: "task", title: "Daneben" }]);
   await openDay(page, -1);
   await hold(page, "Gehalten");
@@ -157,7 +158,7 @@ test("a press that moves too far is not a long press", async ({ page }) => {
   await expect(bar(page)).toHaveCount(0);
 });
 
-test("a touch long press selects too", async ({ page }) => {
+test("a touch long press opens the menu and select starts select mode", async ({ page }) => {
   await seed(page, [{ date: day(-3), type: "task", title: "Mit dem Finger" }]);
   await openDay(page, -3);
   const target = row(page, "Mit dem Finger");
@@ -169,6 +170,7 @@ test("a touch long press selects too", async ({ page }) => {
   await touch("pointerdown");
   await page.clock.runFor(650);
   await touch("pointerup");
+  await page.getByTestId("radial-select").click();
   await expect(bar(page)).toBeVisible();
   await expect(page.getByTestId("select-count")).toHaveText("1 selected");
 });
